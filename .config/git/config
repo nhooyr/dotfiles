@@ -1,0 +1,7 @@
+[user]
+	name = Anmol Sethi
+	email = anmol@aubble.com
+[github]
+	user = nhooyr
+[credential]
+	helper = osxkeychain
