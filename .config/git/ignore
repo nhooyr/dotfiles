@@ -1,3 +1,7 @@
+# Custom
+.idea
+vendor
+
 # General
 *.DS_Store
 .AppleDouble

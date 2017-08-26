@@ -5,3 +5,5 @@
 	user = nhooyr
 [credential]
 	helper = osxkeychain
+[hub]
+	protocol = https
