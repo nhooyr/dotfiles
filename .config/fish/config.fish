@@ -68,6 +68,7 @@ if status --is-interactive
   abbr -a gp git push
   abbr -a gd git diff
   abbr -a gl git log
+  abbr -a gb git branch
 
   abbr -a mps mix phx.server
   abbr -a mdg mix deps.get
