@@ -58,6 +58,7 @@ if status --is-interactive
   set -gx PATH $GOPATH/bin $PATH
 
   set -gx ERL_AFLAGS '-kernel shell_history enabled'
+  set -gx NOGC 1
 
   abbr -a gs git status
   abbr -a ga git add
