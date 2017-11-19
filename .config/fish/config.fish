@@ -41,7 +41,7 @@ if status --is-interactive
   set -U fish_color_user 66233c
   set -U fish_color_host 875f5f
   set -U fish_color_cwd af005f
-  set -U fish_color_search_match --background=ffffd7
+  set -U fish_color_search_match --background=ffff87
   set -U fish_pager_color_description 581D5B
   set -U fish_pager_color_prefix --bold black
   set -U fish_pager_color_progress brwhite --background=af005f
