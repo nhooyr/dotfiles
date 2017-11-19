@@ -38,14 +38,13 @@ if status --is-interactive
   # it's a bad idea to store it in a universal variable
   # that is not globally shared across multiple computers
   set -U fish_greeting
-  # set -U fish_color_operator red
-  # set -U fish_color_escape red
-  # set -U fish_color_search_match red
-  # set -U fish_pager_color_description red
-
   set -U fish_color_user 66233c
   set -U fish_color_host 875f5f
   set -U fish_color_cwd af005f
+  set -U fish_color_search_match --background=ffffd7
+  set -U fish_pager_color_description 581D5B
+  set -U fish_pager_color_prefix --bold green
+  set -U fish_pager_color_progress brwhite --background=af005f
 
   set -gx EDITOR 'e'
   # set -gx MANPAGER 'nvim -c "set ft=man" -'
