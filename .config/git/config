@@ -14,3 +14,5 @@
 	pending = codereview pending
 	submit = codereview submit
 	sync = codereview sync
+[merge]
+	conflictstyle = diff3
