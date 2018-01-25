@@ -56,10 +56,14 @@ if status --is-interactive
   set -gx GOPATH ~/Programming/gopath
   set -gx PATH $GOPATH/bin $PATH
 
+  # TODO CAN I REMOVE THESE TWO?
   set -gx ERL_AFLAGS '-kernel shell_history enabled'
   set -gx NOGC 1
 
-  abbr -a gs git status
+  # TODO set LS COLORS
+
+  abbr -a gst git status
+  abbr -a gsh git stash
   abbr -a ga git add
   abbr -a gc git commit
   abbr -a gcm git commit -m
