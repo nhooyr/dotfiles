@@ -53,6 +53,10 @@ if status --is-interactive
     set -gx PATH /snap/bin $PATH
   end
 
+  if test -d ~/Programming/coder/bash
+    set -gx PATH ~/Programming/coder/bash $PATH
+  end
+
   set -gx GOPATH ~/Programming/gopath
   set -gx PATH $GOPATH/bin $PATH
 
