@@ -16,3 +16,9 @@
 	sync = codereview sync
 [merge]
 	conflictstyle = diff3
+[core]
+	autocrlf = input
+[http]
+	cookiefile = /Users/nhooyr/.gitcookies
+[rebase]
+	autosquash = true
