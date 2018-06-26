@@ -1,12 +1,11 @@
 [user]
 	name = Anmol Sethi
-	email = me+git@anmol.io
+	email = me@anmol.io
 [github]
 	user = nhooyr
-[credential]
-	helper = osxkeychain
 [hub]
 	protocol = ssh
+	host = gh.coder-internal.com
 [alias]
 	change = codereview change
 	gofmt = codereview gofmt
