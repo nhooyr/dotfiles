@@ -1,9 +1,11 @@
 {
 	"atomic_save": true,
-	"color_scheme": "Packages/Theme - Gravity/One Dark Gravity.tmTheme",
+	"color_scheme": "Packages/DA UI/DA Light.tmTheme",
 	"fold_buttons": false,
 	"font_face": "SF Mono",
 	"font_size": 12,
+	"gravity_tab_height_short": true,
+	"gravity_title_bar": true,
 	"ignored_packages":
 	[
 		"Vintage"

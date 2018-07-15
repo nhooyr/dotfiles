@@ -4,4 +4,5 @@
 	{ "keys": ["alt+f"], "command": "move", "args": {"by": "subword_ends", "forward": true} },
 	{ "keys": ["ctrl+e"], "command": "move_to", "args": {"to": "eol"}},
 	{ "keys": ["ctrl+d"], "command": "right_delete" },
+	{ "keys": ["super+d"], "command": "duplicate_line" },
 ]

@@ -5,9 +5,14 @@
 	],
 	"installed_packages":
 	[
+		"DA UI",
 		"EditorConfig",
+		"fish",
 		"Local History",
+		"Package Control",
+		"Smart Backspace",
 		"Sublundo",
+		"Theme - El Capitan",
 		"Theme - Gravity",
 		"TOML"
 	]
