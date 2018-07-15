@@ -11,7 +11,6 @@
 		"Vintage"
 	],
 	"save_on_focus_lost": true,
-	"tab_size": 2,
 	"theme": "Reverse Gravity.sublime-theme",
 	"trim_trailing_white_space_on_save": true
 }
