@@ -72,7 +72,7 @@ if status --is-interactive
   abbr -a gca git commit --amend
   abbr -a gcan git commit --amend --no-edit
   abbr -a gch git checkout
-  abbr -a gpu git push
+  abbr -a gps git push
   abbr -a gpl git pull
   abbr -a gd git diff
   abbr -a gdc git diff --cached
