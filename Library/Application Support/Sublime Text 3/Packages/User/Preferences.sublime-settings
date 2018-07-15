@@ -1,0 +1,15 @@
+{
+	"atomic_save": true,
+	"color_scheme": "Packages/Theme - Gravity/One Dark Gravity.tmTheme",
+	"fold_buttons": false,
+	"font_face": "SF Mono",
+	"font_size": 12,
+	"ignored_packages":
+	[
+		"Vintage"
+	],
+	"save_on_focus_lost": true,
+	"tab_size": 2,
+	"theme": "Reverse Gravity.sublime-theme",
+	"trim_trailing_white_space_on_save": true
+}

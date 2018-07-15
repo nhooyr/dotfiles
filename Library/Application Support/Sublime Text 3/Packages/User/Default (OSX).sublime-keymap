@@ -1,0 +1,7 @@
+[
+	{ "keys": ["ctrl+i"], "command": "reindent"},
+	{ "keys": ["alt+b"], "command": "move", "args": {"by": "subwords", "forward": false} },
+	{ "keys": ["alt+f"], "command": "move", "args": {"by": "subword_ends", "forward": true} },
+	{ "keys": ["ctrl+e"], "command": "move_to", "args": {"to": "eol"}},
+	{ "keys": ["ctrl+d"], "command": "right_delete" },
+]
