@@ -15,6 +15,10 @@ function fish_right_prompt
     end
   end
 
+  set -l git_status (git status -s)
+  if test -n "$git_status"
+    echo \*
+  end
   set_color $color_branch
   git rev-parse --abbrev-ref HEAD
   set_color normal
