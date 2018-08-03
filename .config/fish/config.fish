@@ -16,7 +16,6 @@ if status --is-interactive
 		if test $status -ne 0
 			set message "errored"
 		end
-		return
 		set -l tty (osascript -e 'tell application "Terminal"
 		if frontmost of window 1 then
 		  return tty of selected tab of window 1
@@ -77,17 +76,24 @@ if status --is-interactive
 	abbr --add --global grt git reset
 	abbr --add --global grb git rebase
 	abbr --add --global gpl git pull
-	abbr --add --global gpsh git push --set-upstream origin HEAD
-	abbr --add --global gst git status
+	abbr --add --global gps git push --set-upstream origin HEAD
+	abbr --add --global gs git status
+	abbr --add --global gst git stash
+	abbr --add --global gsh git show
 	abbr --add --global gd git diff
 	abbr --add --global gl git log
 	abbr --add --global gpr git pull-request
 	abbr --add --global gm git merge
 	abbr --add --global gcl git clone
+	abbr --add --global grv git revert
+	abbr --add --global grm git remote
+	abbr --add --global gcp git cherry-pick
 
 	abbr --add --global r reload
 
 	abbr --add --global vim nvim
+
+	abbr --add --global ec eval '$EDITOR' ~/.config/fish/config.fish
 
 	defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add \
 		'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=com.sublimetext.3;}'
