@@ -1,44 +1,4 @@
 if status --is-interactive
-	# TODO https://github.com/fish-shell/fish-shell/issues/583 for prevd and nextd and then ignore cd in here.
-	function __fasd_run -e fish_preexec
-		fasd --proc (fasd --sanitize "$argv" | string split ' ') &
-	end
-
-	function preexec --on-event fish_preexec
-		set -g preexec_time (date +%s)
-	end
-
-	function postexec --on-event fish_postexec
-		if test (uname) != Darwin
-			return
-		end
-		set -l message "finished"
-		if test $status -ne 0
-			set message "errored"
-		end
-		set -l tty (osascript -e 'tell application "Terminal"
-		if frontmost of window 1 then
-		  return tty of selected tab of window 1
-		end if
-	  end tell')
-		if test "$tty" != (tty)
-			if test -f "/tmp/e-$TERM_SESSION_ID"
-				rm "/tmp/e-$TERM_SESSION_ID"
-			else
-				if test $message = "errored"
-					echo -en '\a'
-				end
-				set -l cmd (string split ' ' $argv)[1]
-				set -l duration (math (date +%s) - $preexec_time)
-				# TODO clicking on this should switch to the tab and window of completed command
-				noti "$argv" "$duration"s "$cmd $message"
-			end
-		end
-	end
-
-	# TODO I don't like the way this stuff works.
-	# it's a bad idea to store it in a universal variable
-	# that is not globally shared across multiple computers
 	set -U fish_greeting
 	set -U fish_color_user 66233c
 	set -U fish_color_host 875f5f
@@ -48,25 +8,31 @@ if status --is-interactive
 	set -U fish_pager_color_prefix --bold black
 	set -U fish_pager_color_progress brwhite --background=af005f
 
-	set -gx EDITOR 'e'
+	set -gx EDITOR 'subl -w'
 	set -gx MANPAGER 'nvim -c "set ft=man" -'
 	set -gx PATH ~/.local/bin $PATH
 	if test (hostname) = aubble
 		set -gx PATH /snap/bin $PATH
 	end
 
-	if test -d ~/Programming/coder/bash
-		set -gx PATH ~/Programming/coder/bash $PATH
-	end
-
 	set -gx GOPATH ~/Programming/gopath
 	set -gx PATH $GOPATH/bin $PATH
 
+	set -g fish_prompt_pwd_dir_length 0
+
+	# Occasionally things give me errors because the default limit is so low.
 	ulimit -n 8192
 
-	# TODO set LS COLORS
-
 	abbr --add --global b brew
+	abbr --add --global bc brew cask
+	abbr --add --global bin brew install
+	abbr --add --global bcin brew cask install
+	abbr --add --global bif brew info
+	abbr --add --global bcif brew cask info
+	abbr --add --global br brew remove
+	abbr --add --global bcr brew cask remove
+	abbr --add --global bu brew update\; and brew upgrade\; and brew cask upgrade
+	abbr --add --global bs brew search
 
 	abbr --add --global g git
 	abbr --add --global gch git checkout
@@ -81,20 +47,30 @@ if status --is-interactive
 	abbr --add --global gst git stash
 	abbr --add --global gsh git show
 	abbr --add --global gd git diff
+	abbr --add --global gdc git diff --cached
 	abbr --add --global gl git log
+	abbr --add --global gll git_log_line
 	abbr --add --global gpr git pull-request
 	abbr --add --global gm git merge
 	abbr --add --global gcl git clone
 	abbr --add --global grv git revert
-	abbr --add --global grm git remote
+	# Not grm to avoid confusion with git rm.
+	abbr --add --global gro git remote
 	abbr --add --global gcp git cherry-pick
 
-	abbr --add --global r reload
+	abbr --add --global r source ~/.config/fish/config.fish $argv
 
 	abbr --add --global vim nvim
 
+	abbr --add --global e eval '$EDITOR'
 	abbr --add --global ec eval '$EDITOR' ~/.config/fish/config.fish
 
+	abbr --add --global l ls -lh
+	abbr --add --global ll ls -lhA
+
+	abbr --add --global rgni rg --no-ignore
+
+	# Set the default plain text editor to sublime text.
 	defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add \
 		'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=com.sublimetext.3;}'
 end

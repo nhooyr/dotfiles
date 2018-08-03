@@ -1,4 +1,4 @@
-function ls --description 'List contents of directory'
+function ls
 	if isatty 1
 		if test (uname) = Darwin
 			# TODO better colors

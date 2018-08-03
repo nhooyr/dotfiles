@@ -1,1 +1,0 @@
-complete -c funced_file -f -w funced

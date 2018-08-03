@@ -1,4 +1,4 @@
-function fish_prompt --description 'Write out the prompt'
+function fish_prompt
   set -l color_user $fish_color_user
   set -l color_host $fish_color_host
   set -l color_cwd $fish_color_cwd

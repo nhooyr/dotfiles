@@ -1,0 +1,4 @@
+#!/usr/local/bin/fish
+# Need full path of fish in shebang for launchd.
+
+defaults write com.apple.screencapture location ~/Pictures/Screenshots

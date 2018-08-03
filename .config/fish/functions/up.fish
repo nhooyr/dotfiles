@@ -3,5 +3,5 @@ function up
 	if [ -z "$count" ]
 		set count 1
 	end
-	cd ..(seq "$count" | string join '..' | string replace -ar '\d' '/')
+	cd (string join .. (string repeat -n $count ' /' | string split ' '))
 end
