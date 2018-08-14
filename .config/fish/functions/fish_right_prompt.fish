@@ -1,5 +1,5 @@
 function fish_right_prompt
-  if not git rev-parse --abbrev-ref HEAD > /dev/null 2>&1
+  if not git rev-parse --abbrev-ref HEAD >/dev/null 2>&1
     return
   end
 
@@ -15,7 +15,7 @@ function fish_right_prompt
     end
   end
 
-  set -l git_status (git status -s)
+  set -l git_status (git status -s 2> /dev/null)
   if test -n "$git_status"
     echo \*
   end

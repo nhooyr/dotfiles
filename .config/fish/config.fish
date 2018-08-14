@@ -36,15 +36,20 @@ if status --is-interactive
 
 	abbr --add --global g git
 	abbr --add --global gch git checkout
+	abbr --add --global gchb git checkout -b
 	abbr --add --global ga git add
 	abbr --add --global gcm git commit
+	abbr --add --global gcma git commit --amend
 	abbr --add --global gb git branch
 	abbr --add --global grt git reset
 	abbr --add --global grb git rebase
-	abbr --add --global gpl git pull
+	abbr --add --global gpl git pull --prune
 	abbr --add --global gps git push --set-upstream origin HEAD
+	abbr --add --global gpsd git push --delete
+	abbr --add --global gpsf git push --set-upstream origin HEAD -f
 	abbr --add --global gs git status
 	abbr --add --global gst git stash
+	abbr --add --global gstp git stash pop
 	abbr --add --global gsh git show
 	abbr --add --global gd git diff
 	abbr --add --global gdc git diff --cached
@@ -54,13 +59,14 @@ if status --is-interactive
 	abbr --add --global gm git merge
 	abbr --add --global gcl git clone
 	abbr --add --global grv git revert
-	# Not grm to avoid confusion with git rm.
 	abbr --add --global gro git remote
+	abbr --add --global grm git rm
 	abbr --add --global gcp git cherry-pick
+	abbr --add --global gyn hub sync
 
 	abbr --add --global r source ~/.config/fish/config.fish $argv
 
-	abbr --add --global vim nvim
+	abbr --add --global n nvim
 
 	abbr --add --global e eval '$EDITOR'
 	abbr --add --global ec eval '$EDITOR' ~/.config/fish/config.fish
@@ -69,6 +75,21 @@ if status --is-interactive
 	abbr --add --global ll ls -lhA
 
 	abbr --add --global rgni rg --no-ignore
+
+	abbr --add --global gol goland
+	abbr --add --global d cd
+	abbr --add --global pd prevd
+	abbr --add --global nd nextd
+
+	abbr --add --global m man
+
+	set -g CDPATH . \
+		~/Programming/opensource \
+		$GOPATH/src/github.com/nhooyr \
+		$GOPATH/src/go.coder.com \
+		$GOPATH/src/github.com/codercom \
+		~/.config \
+		~/.config/fish
 
 	# Set the default plain text editor to sublime text.
 	defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add \
