@@ -1,8 +1,11 @@
 [user]
 	name = Anmol Sethi
 	email = me@anmol.io
+	signingkey = 86BD53C50433C64F
 [github]
 	user = nhooyr
+[commit]
+	gpgsign = true
 [hub]
 	protocol = ssh
 	host = gh.coder-internal.com
@@ -15,9 +18,14 @@
 	sync = codereview sync
 [merge]
 	conflictstyle = diff3
+	ff = false
 [core]
 	autocrlf = input
 [http]
 	cookiefile = /Users/nhooyr/.gitcookies
 [rebase]
 	autosquash = true
+[pull]
+	rebase = true
+[tag]
+	forceSignAnnotated = true
