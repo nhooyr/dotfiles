@@ -35,8 +35,8 @@ if status --is-interactive
 	abbr --add --global bs brew search
 
 	abbr --add --global g git
+	abbr --add --global gi git init
 	abbr --add --global gch git checkout
-	abbr --add --global gchb git checkout -b
 	abbr --add --global ga git add
 	abbr --add --global gcm git commit
 	abbr --add --global gcma git commit --amend
@@ -44,9 +44,8 @@ if status --is-interactive
 	abbr --add --global grt git reset
 	abbr --add --global grb git rebase
 	abbr --add --global gpl git pull --prune
-	abbr --add --global gps git push --set-upstream origin HEAD
+	abbr --add --global gps git push
 	abbr --add --global gpsd git push --delete
-	abbr --add --global gpsf git push --set-upstream origin HEAD -f
 	abbr --add --global gs git status
 	abbr --add --global gst git stash
 	abbr --add --global gstp git stash pop
@@ -68,8 +67,7 @@ if status --is-interactive
 
 	abbr --add --global n nvim
 
-	abbr --add --global e eval '$EDITOR'
-	abbr --add --global ec eval '$EDITOR' ~/.config/fish/config.fish
+	abbr --add --global ec e ~/.config/fish/config.fish
 
 	abbr --add --global l ls -lh
 	abbr --add --global ll ls -lhA
@@ -82,6 +80,8 @@ if status --is-interactive
 	abbr --add --global nd nextd
 
 	abbr --add --global m man
+
+	abbr --add --global gh github
 
 	set -g CDPATH . \
 		~/Programming/opensource \
