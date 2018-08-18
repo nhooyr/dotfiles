@@ -1,7 +1,7 @@
 [user]
 	name = Anmol Sethi
-	email = me@anmol.io
-	signingkey = 86BD53C50433C64F
+	email = hi@nhooyr.io
+	signingkey = 8CEF1878FF10ADEB
 [github]
 	user = nhooyr
 [commit]
@@ -29,3 +29,11 @@
 	rebase = true
 [tag]
 	forceSignAnnotated = true
+[push]
+	followTags = true
+	default = current
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
