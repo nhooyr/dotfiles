@@ -44,8 +44,7 @@ if status --is-interactive
 	abbr --add --global grt git reset
 	abbr --add --global grb git rebase
 	abbr --add --global gpl git pull --prune
-	abbr --add --global gps git push
-	abbr --add --global gpsd git push --delete
+	abbr --add --global gps git push --set-upstream
 	abbr --add --global gs git status
 	abbr --add --global gst git stash
 	abbr --add --global gstp git stash pop
@@ -94,4 +93,9 @@ if status --is-interactive
 	# Set the default plain text editor to sublime text.
 	defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add \
 		'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=com.sublimetext.3;}'
+
+	# The next line updates PATH for the Google Cloud SDK.
+	if [ -f '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc' ]
+		source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc'
+	end
 end
