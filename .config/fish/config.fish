@@ -61,6 +61,7 @@ if status --is-interactive
 	abbr --add --global grm git rm
 	abbr --add --global gcp git cherry-pick
 	abbr --add --global gyn hub sync
+	abbr --add --global gcr git codereview
 
 	abbr --add --global r source ~/.config/fish/config.fish $argv
 
