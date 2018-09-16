@@ -82,9 +82,14 @@ if status --is-interactive
 	abbr --add --global m man
 
 	abbr --add --global gh github
+	abbr --add --global pc pbcopy
+	abbr --add --global pp pbpaste
 
 	set -g CDPATH . \
 		~/Programming/opensource \
+		~/Programming/coder \
+		~/Programming/coder/go \
+		~/Programming/coder/ops \
 		$GOPATH/src/github.com/nhooyr \
 		$GOPATH/src/go.coder.com \
 		$GOPATH/src/github.com/codercom \
