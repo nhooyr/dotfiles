@@ -102,4 +102,12 @@ if status --is-interactive
 	if [ -f '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc' ]
 		source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc'
 	end
+
+	function set_github_host --on-variable PWD
+		if string match -q ~/Programming/coder\* $PWD
+			set -gx GITHUB_HOST gh.coder-internal.com
+		else
+			set -e GITHUB_HOST
+		end
+	end
 end
