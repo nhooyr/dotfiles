@@ -5,7 +5,7 @@
 [github]
 	user = nhooyr
 [commit]
-	gpgsign = true
+	#gpgsign = true
 [hub]
 	protocol = ssh
 	host = gh.coder-internal.com

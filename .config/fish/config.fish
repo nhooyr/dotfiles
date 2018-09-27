@@ -74,7 +74,7 @@ if status --is-interactive
 
 	abbr --add --global rgni rg --no-ignore
 
-	abbr --add --global gol goland
+	abbr --add --global gol goland .
 	abbr --add --global d cd
 	abbr --add --global pd prevd
 	abbr --add --global nd nextd
@@ -86,19 +86,17 @@ if status --is-interactive
 	abbr --add --global pp pbpaste
 
 	set -g CDPATH . \
+		~/Programming \
 		~/Programming/opensource \
 		~/Programming/coder \
 		~/Programming/coder/go \
 		~/Programming/coder/ops \
+		$GOPATH/src \
 		$GOPATH/src/github.com/nhooyr \
 		$GOPATH/src/go.coder.com \
 		$GOPATH/src/github.com/codercom \
 		~/.config \
 		~/.config/fish
-
-	# Set the default plain text editor to sublime text.
-	defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add \
-		'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=com.sublimetext.3;}'
 
 	# The next line updates PATH for the Google Cloud SDK.
 	if [ -f '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc' ]
