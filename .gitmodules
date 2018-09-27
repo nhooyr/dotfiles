@@ -1,0 +1,3 @@
+[submodule "Library/Application Support/Sublime Text 3/Packages/fish"]
+	path = Library/Application Support/Sublime Text 3/Packages/fish
+	url = https://github.com/Phadica/fish-shell
