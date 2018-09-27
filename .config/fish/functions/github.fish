@@ -1,12 +1,13 @@
 function github
+	set -l url
 	set -l branch (git rev-parse --abbrev-ref HEAD)
-	if test $status != 0
-		return
+	if test $status -eq 0
+		set url (hub pr list -f %U\n -h $branch)
 	end
 
-	set -l url (hub pr list -f %U\n -h $branch)
 	if test -z $url
 		set url (hub browse -u)
 	end
+
 	python -mwebbrowser $url >/dev/null
 end
