@@ -72,9 +72,6 @@ if status --is-interactive
 	abbr --add --global l ls -lh
 	abbr --add --global ll ls -lhA
 
-	abbr --add --global rgni rg --no-ignore
-
-	abbr --add --global gol goland .
 	abbr --add --global d cd
 	abbr --add --global pd prevd
 	abbr --add --global nd nextd
