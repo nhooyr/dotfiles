@@ -90,6 +90,7 @@ if status --is-interactive
 		~/Programming/coder/ops \
 		$GOPATH/src \
 		$GOPATH/src/github.com/nhooyr \
+		$GOPATH/src/github.com \
 		$GOPATH/src/go.coder.com \
 		$GOPATH/src/github.com/codercom \
 		~/.config \
