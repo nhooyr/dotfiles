@@ -82,6 +82,8 @@ if status --is-interactive
 	abbr --add --global pc pbcopy
 	abbr --add --global pp pbpaste
 
+	abbr --add --global gpprof go tool pprof
+
 	set -g CDPATH . \
 		~/Programming \
 		~/Programming/opensource \
