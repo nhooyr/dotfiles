@@ -29,8 +29,13 @@ function fish_prompt
   echo -n (prompt_hostname)
   set_color normal
   echo -n :
-  branch_name
-  echo -n :
+
+  set -l branch_name (branch_name)
+  echo -n $branch_name
+  if test -n "$branch_name"
+    echo -n :
+  end
+
   set_color $color_cwd
   prompt_pwd
   set_color normal
