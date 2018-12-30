@@ -38,8 +38,8 @@ if status --is-interactive
 	abbr --add --global gi git init
 	abbr --add --global gch git checkout
 	abbr --add --global ga git add
-	abbr --add --global gcm git commit
-	abbr --add --global gcma git commit --amend
+	abbr --add --global gcm git commit --verbose
+	abbr --add --global gcma git commit --verbose --amend
 	abbr --add --global gb git branch
 	abbr --add --global grt git reset
 	abbr --add --global grb git rebase
@@ -85,11 +85,13 @@ if status --is-interactive
 	abbr --add --global gpprof go tool pprof
 
 	set -g CDPATH . \
+		~ \
 		~/Programming \
 		~/Programming/opensource \
 		~/Programming/coder \
 		~/Programming/coder/go \
 		~/Programming/coder/ops \
+		~/Programming/coder/scripts \
 		$GOPATH/src \
 		$GOPATH/src/github.com/nhooyr \
 		$GOPATH/src/github.com \
