@@ -25,7 +25,7 @@ function up_d
 	set -l pwd $pwd[2..-1]
 	for i in (seq (count $pwd))
 		if echo $pwd[$i] | rg -q $argv
-			up $i
+			up_n $i
 			return
 		end
 	end

@@ -5,4 +5,4 @@ defaults write com.apple.screencapture location ~/Pictures/Screenshots
 
 # Set the default plain text editor to sublime text.
 defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add \
-	'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=com.sublimetext.3;}'
+	'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=com.apple.dt.Xcode;}'

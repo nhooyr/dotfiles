@@ -8,7 +8,7 @@ if status --is-interactive
 	set -U fish_pager_color_prefix --bold black
 	set -U fish_pager_color_progress brwhite --background=af005f
 
-	set -gx EDITOR 'subl -w'
+	set -gx EDITOR 'open -a Xcode'
 	set -gx MANPAGER 'nvim -c "set ft=man" -'
 	set -gx PATH ~/.local/bin $PATH
 	if test (hostname) = aubble
@@ -92,6 +92,7 @@ if status --is-interactive
 		~/Programming/coder/go \
 		~/Programming/coder/ops \
 		~/Programming/coder/scripts \
+		~/Programming/scratch \
 		$GOPATH/src \
 		$GOPATH/src/github.com/nhooyr \
 		$GOPATH/src/github.com \
