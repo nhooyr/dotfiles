@@ -11,7 +11,7 @@ set -U fish_pager_color_description 581D5B
 set -U fish_pager_color_prefix --bold black
 set -U fish_pager_color_progress brwhite --background=af005f
 
-set -gx EDITOR 'open -a Xcode'
+set -gx EDITOR 'micro'
 set -gx MANPAGER 'nvim -c "set ft=man" -'
 set -gx PATH ~/.local/bin $PATH
 if test (hostname) = aubble
