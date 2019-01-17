@@ -11,7 +11,7 @@ set -U fish_pager_color_description 581D5B
 set -U fish_pager_color_prefix --bold black
 set -U fish_pager_color_progress brwhite --background=af005f
 
-set -gx EDITOR 'micro'
+set -gx EDITOR 'nvim'
 set -gx MANPAGER 'nvim -c "set ft=man" -'
 set -gx PATH ~/.local/bin $PATH
 if test (hostname) = aubble
@@ -36,6 +36,7 @@ abbr --add --global br brew remove
 abbr --add --global bcr brew cask remove
 abbr --add --global bu brew update\; and brew upgrade\; and brew cask upgrade
 abbr --add --global bs brew search
+abbr --add --global ct cat
 
 abbr --add --global g git
 abbr --add --global gi git init
@@ -65,6 +66,9 @@ abbr --add --global grm git rm
 abbr --add --global gcp git cherry-pick
 abbr --add --global gyn hub sync
 abbr --add --global gcr git codereview
+abbr --add --global gis git issue
+
+abbr --add --global md mkdir
 
 abbr --add --global r source ~/.config/fish/config.fish $argv
 
@@ -107,12 +111,4 @@ set -g CDPATH . \
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc' ]
     source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc'
-end
-
-function set_github_host --on-variable PWD
-    if string match -q ~/Programming/coder\* $PWD
-        set -gx GITHUB_HOST gh.coder-internal.com
-    else
-        set -e GITHUB_HOST
-    end
 end
