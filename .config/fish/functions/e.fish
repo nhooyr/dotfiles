@@ -1,3 +1,4 @@
 function e
-	eval $EDITOR $argv
+    touch $argv
+	open -a Xcode $argv
 end
