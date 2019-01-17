@@ -1,3 +1,3 @@
 function shuf
-	gshuf $argv
+    gshuf $argv
 end
