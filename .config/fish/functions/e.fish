@@ -1,4 +1,4 @@
 function e
     touch $argv
-	open -a Xcode $argv
+    open -a Xcode $argv
 end
