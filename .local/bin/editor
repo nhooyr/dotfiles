@@ -1,0 +1,9 @@
+#!/usr/bin/env fish
+
+open -a Xcode $argv
+
+and fswatch $argv | while read -l line
+    if string match -q \*CREATE\* $line
+        exit 0
+    end
+end

@@ -11,8 +11,9 @@ set -U fish_pager_color_description 581D5B
 set -U fish_pager_color_prefix --bold black
 set -U fish_pager_color_progress brwhite --background=af005f
 
-set -gx EDITOR 'nvim'
-set -gx MANPAGER 'nvim -c "set ft=man" -'
+set -gx EDITOR 'editor'
+set -gx MANWIDTH 80
+set -gx MANPAGER 'ansifilter | pager'
 set -gx PATH ~/.local/bin $PATH
 if test (hostname) = aubble
     set -gx PATH /snap/bin $PATH
@@ -41,6 +42,7 @@ abbr --add --global ct cat
 abbr --add --global g git
 abbr --add --global gi git init
 abbr --add --global gch git checkout
+abbr --add --global gchp g_checkout_push
 abbr --add --global ga git add
 abbr --add --global gcm git commit --verbose
 abbr --add --global gcma git commit --verbose --amend
@@ -106,7 +108,8 @@ set -g CDPATH . \
     $GOPATH/src/go.coder.com \
     $GOPATH/src/github.com/codercom \
     ~/.config \
-    ~/.config/fish
+    ~/.config/fish \
+    ~/.local
 
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc' ]
