@@ -31,4 +31,4 @@
 	required = true
 	clean = git-lfs clean -- %f
 [includeIf "gitdir:~/Programming/coder/"]
-    path = coder-config
+	path = coder-config
