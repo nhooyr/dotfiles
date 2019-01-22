@@ -1,7 +1,7 @@
 [user]
-	name = Anmol Sethi
-	email = hi@nhooyr.io
-	signingkey = 8CEF1878FF10ADEB
+    name = Anmol Sethi
+    email = hi@nhooyr.io
+    signingkey = 8CEF1878FF10ADEB
 [github]
 	user = nhooyr
 [commit]
@@ -30,3 +30,5 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
+[includeIf "gitdir:~/Programming/coder/"]
+    path = coder-config

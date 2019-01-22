@@ -70,7 +70,7 @@ abbr --add --global gyn hub sync
 abbr --add --global gcr git codereview
 abbr --add --global gis git issue
 
-abbr --add --global md mkdir
+abbr --add --global md mkdir -p
 
 abbr --add --global r source ~/.config/fish/config.fish $argv
 
