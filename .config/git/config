@@ -11,7 +11,7 @@
 	host = gh.coder-internal.com
 [merge]
 	conflictstyle = diff3
-    ff = false
+	ff = false
 [core]
 	autocrlf = input
 [http]
