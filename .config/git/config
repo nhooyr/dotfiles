@@ -1,7 +1,7 @@
 [user]
-    name = Anmol Sethi
-    email = hi@nhooyr.io
-    signingkey = 8CEF1878FF10ADEB
+	name = Anmol Sethi
+	email = hi@nhooyr.io
+	signingkey = 8CEF1878FF10ADEB
 [github]
 	user = nhooyr
 [commit]
@@ -11,7 +11,7 @@
 	host = gh.coder-internal.com
 [merge]
 	conflictstyle = diff3
-	ff = false
+    ff = false
 [core]
 	autocrlf = input
 [http]
