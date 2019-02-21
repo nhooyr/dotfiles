@@ -1,5 +1,9 @@
 #!/usr/bin/env fish
 
+nvim $argv
+
+exit 0
+
 open -a Xcode $argv
 
 and fswatch $argv | while read -l line

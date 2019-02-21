@@ -45,11 +45,13 @@ abbr --add --global gch git checkout
 abbr --add --global gchp g_checkout_push
 abbr --add --global ga git add
 abbr --add --global gcm git commit --verbose
+abbr --add --global gcmf git commit --verbose --fixup \(first_non_fixup\)
 abbr --add --global gcma git commit --verbose --amend
 abbr --add --global gb git branch
 abbr --add --global grt git reset
 abbr --add --global grb git rebase
 abbr --add --global gpl git pull --prune
+abbr --add --global gf git fetch --prune
 abbr --add --global gps git push --set-upstream
 abbr --add --global gs git status
 abbr --add --global gst git stash
