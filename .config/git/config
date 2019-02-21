@@ -32,3 +32,5 @@
 	clean = git-lfs clean -- %f
 [includeIf "gitdir:~/Programming/coder/"]
 	path = coder-config
+[rerere]
+	enabled = true
