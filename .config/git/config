@@ -34,3 +34,5 @@
 	path = coder-config
 [rerere]
 	enabled = true
+[fetch]
+	prune = true
