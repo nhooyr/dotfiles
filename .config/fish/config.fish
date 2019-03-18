@@ -21,6 +21,7 @@ end
 
 set -gx GOPATH ~/Programming/gopath
 set -gx PATH $GOPATH/bin $PATH
+set -gx PATH /usr/local/opt/ruby/bin /usr/local/lib/ruby/gems/2.6.0/bin $PATH
 
 set -g fish_prompt_pwd_dir_length 0
 
@@ -48,10 +49,12 @@ abbr --add --global gcma git commit -v --amend
 abbr --add --global gcmf git commit -v --fixup \(first_non_fixup\)
 abbr --add --global gb git branch
 abbr --add --global grt git reset
+abbr --add --global grh git reset --hard
 abbr --add --global grb git rebase
 abbr --add --global gpl git pull
 abbr --add --global gf git fetch
 abbr --add --global gps git push
+abbr --add --global gpf git push -f
 abbr --add --global gs git status
 abbr --add --global gst git stash
 abbr --add --global gstp git stash pop
@@ -97,7 +100,7 @@ abbr --add --global gpprof go tool pprof
 set -g CDPATH . \
     ~ \
     ~/Programming \
-    ~/Programming/opensource \
+    ~/Programming/github \
     ~/Programming/coder \
     ~/Programming/coder/go \
     ~/Programming/coder/ops \
