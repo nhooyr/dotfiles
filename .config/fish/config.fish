@@ -101,16 +101,9 @@ set -g CDPATH . \
     ~ \
     ~/Programming \
     ~/Programming/github \
-    ~/Programming/coder \
-    ~/Programming/coder/go \
-    ~/Programming/coder/ops \
-    ~/Programming/coder/scripts \
+    ~/Programming/coder/go/m/lib \
+    ~/Programming/coder/go/m/srv \
     ~/Programming/scratch \
-    $GOPATH/src \
-    $GOPATH/src/github.com/nhooyr \
-    $GOPATH/src/github.com \
-    $GOPATH/src/go.coder.com \
-    $GOPATH/src/github.com/codercom \
     ~/.config \
     ~/.config/fish \
     ~/.local
