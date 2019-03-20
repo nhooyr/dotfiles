@@ -101,6 +101,7 @@ set -g CDPATH . \
     ~ \
     ~/Programming \
     ~/Programming/github \
+    ~/Programming/coder/go \
     ~/Programming/coder/go/m/lib \
     ~/Programming/coder/go/m/srv \
     ~/Programming/scratch \
@@ -109,6 +110,6 @@ set -g CDPATH . \
     ~/.local
 
 # The next line updates PATH for the Google Cloud SDK.
-if [ -f '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc' ]
-    source '/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc'
+if [ -f /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc ]
+    source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc
 end
