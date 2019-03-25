@@ -78,8 +78,6 @@ abbr --add --global md mkdir -p
 
 abbr --add --global r source ~/.config/fish/config.fish $argv
 
-abbr --add --global n nvim
-
 abbr --add --global ec e ~/.config/fish/config.fish
 
 abbr --add --global l ls -lh
@@ -101,9 +99,11 @@ set -g CDPATH . \
     ~ \
     ~/Programming \
     ~/Programming/github \
-    ~/Programming/coder/go \
-    ~/Programming/coder/go/m/lib \
-    ~/Programming/coder/go/m/srv \
+    ~/Programming/coder \
+    ~/Programming/coder/m \
+    ~/Programming/coder/m/lib \
+    ~/Programming/coder/m/srv \
+    ~/Programming/coder \
     ~/Programming/scratch \
     ~/.config \
     ~/.config/fish \

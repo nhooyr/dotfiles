@@ -1,13 +1,5 @@
-#!/usr/bin/env fish
+#!/usr/bin/env bash
 
-nvim $argv
+xi -w "$@"
 
-exit 0
-
-open -a Xcode $argv
-
-and fswatch $argv | while read -l line
-    if string match -q \*CREATE\* $line
-        exit 0
-    end
-end
+open -a terminal
