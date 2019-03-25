@@ -3,13 +3,13 @@ if not status --is-interactive
 end
 
 set -U fish_greeting
-set -U fish_color_user 66233c
-set -U fish_color_host 875f5f
-set -U fish_color_cwd af005f
-set -U fish_color_search_match --background=ffff87
+
+set -U fish_color_search_match --background=bad6fe
 set -U fish_pager_color_description 581D5B
 set -U fish_pager_color_prefix --bold black
 set -U fish_pager_color_progress brwhite --background=af005f
+set -U fish_color_autosuggestion 555
+set -U fish_color_error red
 
 set -gx EDITOR 'editor'
 set -gx MANWIDTH 80
@@ -99,6 +99,7 @@ set -g CDPATH . \
     ~ \
     ~/Programming \
     ~/Programming/github \
+    ~/Programming/forks \
     ~/Programming/coder \
     ~/Programming/coder/m \
     ~/Programming/coder/m/lib \
