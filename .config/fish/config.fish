@@ -19,6 +19,8 @@ if test (hostname) = aubble
     set -gx PATH /snap/bin $PATH
 end
 
+set -gx HOMEBREW_NO_COLOR true
+
 set -gx GOPATH ~/Programming/gopath
 set -gx PATH $GOPATH/bin $PATH
 set -gx PATH /usr/local/opt/ruby/bin /usr/local/lib/ruby/gems/2.6.0/bin $PATH
