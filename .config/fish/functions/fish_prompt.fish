@@ -1,6 +1,6 @@
 function fish_prompt
     set -l suffix '$'
-
+    
     if test $USER = root
         set_color af0000
         set suffix '#'
@@ -8,16 +8,24 @@ function fish_prompt
     
     set_color -o
 
+    echo -n (prompt_pwd)
+    
     set -l branch_name (branch_name)
-    echo -n $branch_name
     if test -n "$branch_name"
         echo -n :
+        echo -n $branch_name
+        set -l git_status (git status --porcelain | awk '{print $1}' | uniq)
+        if [ (count $git_status) -gt 0 ]
+            echo -n :
+        end
+        for s in $git_status
+            echo -n $s
+        end
     end
-
-    echo -n (prompt_pwd)
+    
+    echo
     echo -n "$suffix "
     set_color normal
-
 end
 
 function branch_name
@@ -25,9 +33,5 @@ function branch_name
         return
     end
 
-    set -l git_status (git status -s 2> /dev/null)
-    if test -n "$git_status"
-        echo -n \*
-    end
     echo -n (git rev-parse --abbrev-ref HEAD)
 end

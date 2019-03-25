@@ -5,4 +5,4 @@ set -l temp (mktemp)
 and cat > $temp &
 disown
 
-and open -a Xcode $temp
+and xi $temp
