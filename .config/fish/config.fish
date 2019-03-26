@@ -19,8 +19,6 @@ if test (hostname) = aubble
     set -gx PATH /snap/bin $PATH
 end
 
-set -gx HOMEBREW_NO_COLOR true
-
 set -gx GOPATH ~/Programming/gopath
 set -gx PATH $GOPATH/bin $PATH
 set -gx PATH /usr/local/opt/ruby/bin /usr/local/lib/ruby/gems/2.6.0/bin $PATH
@@ -96,6 +94,7 @@ abbr --add --global pc pbcopy
 abbr --add --global pp pbpaste
 
 abbr --add --global gpprof go tool pprof
+abbr --add --global c clear
 
 set -g CDPATH . \
     ~ \
@@ -103,10 +102,7 @@ set -g CDPATH . \
     ~/Programming/github \
     ~/Programming/forks \
     ~/Programming/coder \
-    ~/Programming/coder/m \
-    ~/Programming/coder/m/lib \
-    ~/Programming/coder/m/srv \
-    ~/Programming/coder \
+    ~/Programming/coder/play \
     ~/Programming/scratch \
     ~/.config \
     ~/.config/fish \
