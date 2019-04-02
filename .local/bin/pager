@@ -5,4 +5,4 @@ set -l temp (mktemp)
 and cat > $temp &
 disown
 
-and xi $temp
+and editor $temp
