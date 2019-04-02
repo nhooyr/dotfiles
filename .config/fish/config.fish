@@ -46,7 +46,7 @@ abbr --add --global gch git checkout
 abbr --add --global ga git add
 abbr --add --global gcm git commit -v
 abbr --add --global gcma git commit -v --amend
-abbr --add --global gcmf git commit -v --fixup \(first_non_fixup\)
+abbr --add --global gcmf git commit -v --fixup
 abbr --add --global gb git branch
 abbr --add --global grt git reset
 abbr --add --global grh git reset --hard
@@ -95,6 +95,7 @@ abbr --add --global pp pbpaste
 
 abbr --add --global gpprof go tool pprof
 abbr --add --global c clear
+abbr --add --global k kubectl
 
 set -g CDPATH . \
     ~ \
