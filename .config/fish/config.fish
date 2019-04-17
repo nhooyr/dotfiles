@@ -103,7 +103,9 @@ set -g CDPATH . \
     ~/Programming/github \
     ~/Programming/forks \
     ~/Programming/coder \
-    ~/Programming/coder/play \
+    ~/Programming/coder/go \
+    ~/Programming/coder/go/m/lib \
+    ~/Programming/coder/go/m/srv \
     ~/Programming/scratch \
     ~/.config \
     ~/.config/fish \
