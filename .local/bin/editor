@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-xi -w "$@"
+subl -wn "$@"
 
 open -a terminal

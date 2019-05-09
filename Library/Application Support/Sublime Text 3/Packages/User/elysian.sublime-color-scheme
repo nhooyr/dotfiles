@@ -1,0 +1,57 @@
+{
+    "globals": {
+        "background": "white",
+        "foreground": "black",
+        "caret": "black",
+        "line_highlight": "rgb(240, 245, 255)",
+        "selection": "rgb(185, 215, 251)"
+    },
+    "rules": [
+        {
+            "name": "comment",
+            "scope": "comment",
+            "foreground": "#969696",
+        },
+        {
+            "name": "name",
+            "scope": "entity.name",
+            "foreground": "#0a4291",
+        },
+        {
+            "name": "function",
+            "scope": "variable.function",
+            "foreground": "#0a4291",
+        },
+        {
+            "name": "keyword",
+            "scope": "keyword",
+            "foreground": "#9b189b",
+        },
+        {
+            "name": "go_keyword",
+            "scope": "storage.type.keyword",
+            "foreground": "#9b189b",
+        },
+        {
+            "name": "operator",
+            "scope": "keyword.operator",
+            "foreground": "black",
+            "font_style": "normal",
+        },
+        {
+            "name": "string",
+            "scope": "string",
+            "foreground": "darkgreen",
+        },
+        {
+            "name": "constant",
+            "scope": "constant",
+            "foreground": "#360487",
+        },
+        {
+            "name": "type",
+            "scope": "storage.type",
+            "foreground": "#095150"
+        }
+    ]
+}

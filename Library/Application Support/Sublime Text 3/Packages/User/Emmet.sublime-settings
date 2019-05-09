@@ -1,0 +1,4 @@
+{
+	"disabled_keymap_actions": "expand_abbreviation, decrement_number_by_10, reflect_css_value",
+	"css.autoInsertVendorPrefixes": false
+}

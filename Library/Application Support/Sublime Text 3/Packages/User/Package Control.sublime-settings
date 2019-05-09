@@ -1,0 +1,14 @@
+{
+	"bootstrapped": true,
+	"in_process_packages":
+	[
+	],
+	"installed_packages":
+	[
+		"Babel",
+		"Emmet",
+		"Origami",
+		"Package Control",
+		"Xcode Colors"
+	]
+}
