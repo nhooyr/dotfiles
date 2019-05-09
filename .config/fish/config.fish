@@ -21,6 +21,7 @@ end
 
 set -gx GOPATH ~/Programming/gopath
 set -gx PATH $GOPATH/bin $PATH
+set -gx PATH /usr/local/sbin $PATH
 set -gx PATH /usr/local/opt/ruby/bin /usr/local/lib/ruby/gems/2.6.0/bin $PATH
 
 set -g fish_prompt_pwd_dir_length 0
@@ -39,6 +40,8 @@ abbr --add --global bcr brew cask remove
 abbr --add --global bu brew update\; and brew upgrade\; and brew cask upgrade
 abbr --add --global bs brew search
 abbr --add --global ct cat
+
+abbr --add --global vim nvim
 
 abbr --add --global g git
 abbr --add --global gi git init

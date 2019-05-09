@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+file=$(rg --files | fzf)
+if [[ $? != 0 ]]; then
+	exit $?
+fi
+
+editor "$file"
