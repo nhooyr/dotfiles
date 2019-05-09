@@ -1,0 +1,15 @@
+[
+    {
+        "class": "sidebar_label",
+        "font.face": "SF Pro Text"
+    },
+    {
+        "class": "tab_label",
+        "font.face": "SF Pro Text",
+        "font.size": 12,
+    },
+    {
+        "class": "sidebar_heading",
+        "font.face": "SF Pro Text"
+    }
+]

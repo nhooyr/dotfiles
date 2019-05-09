@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+prompt_cmd() {
+    local suffix=\$
+    
+    if [[ $USER = root ]]; then
+        
+    fi
+}
+
+PS1='$(prompt_cmd)'
