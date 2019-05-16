@@ -31,4 +31,5 @@ SETUVAR fish_pager_color_description:581D5B
 SETUVAR fish_pager_color_prefix:\x2d\x2dbold\x1eblack
 SETUVAR fish_pager_color_progress:brwhite\x1e\x2d\x2dbackground\x3daf005f
 SETUVAR fish_user_abbreviations:\x1d
+SETUVAR fish_user_paths:/Users/nhooyr/\x2eyarn/bin
 SETUVAR meow:bar
