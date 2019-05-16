@@ -5,10 +5,16 @@
 	],
 	"installed_packages":
 	[
-		"Babel",
+		"Dockerfile Syntax Highlighting",
 		"Emmet",
+		"FileIcons Mono",
+		"Local History",
 		"Origami",
 		"Package Control",
-		"Xcode Colors"
+		"Terminal",
+		"TypeScript Syntax"
+	],
+	"repositories":
+	[
 	]
 }

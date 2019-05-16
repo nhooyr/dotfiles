@@ -3,6 +3,11 @@
 *.iml
 out
 
+node_modules
+.next
+
+*.sublime-project
+
 # Go
 vendor
 bin
@@ -37,3 +42,5 @@ Temporary Items
 .terraform
 vendor
 bin
+
+yarn-error.log
