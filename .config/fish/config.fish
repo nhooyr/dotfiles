@@ -12,6 +12,7 @@ set -U fish_color_autosuggestion 555
 set -U fish_color_error red
 
 set -gx EDITOR 'editor'
+set -gx PAGER 'ansifilter | pager'
 set -gx MANWIDTH 80
 set -gx MANPAGER 'ansifilter | pager'
 set -gx PATH ~/.local/bin $PATH
@@ -100,10 +101,15 @@ abbr --add --global gpprof go tool pprof
 abbr --add --global c clear
 abbr --add --global k kubectl
 
+abbr --add --global s subl
+
 set -g CDPATH . \
     ~ \
     ~/Programming \
     ~/Programming/github \
+    ~/Programming/github/nhooyr \
+    ~/Programming/github/cdr \
+    ~/Programming/github/codercom \
     ~/Programming/forks \
     ~/Programming/coder \
     ~/Programming/coder/go \
