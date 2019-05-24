@@ -78,7 +78,7 @@ mcd() {
 }
 
 gcd() {
-	cd $(git rev-parse --show-toplevel)
+	cd "$(git rev-parse --show-toplevel)"
 }
 
 add_cdpath() {
@@ -103,7 +103,6 @@ add_cdpath ~/Programming/scratch
 add_cdpath ~/.config
 add_cdpath ~/.config/bash
 add_cdpath ~/.local
-
 
 bind '"\er":"\C-a\C-r\C-y\C-r"'
 
@@ -141,14 +140,14 @@ github() {
 	fi
 
 	local url
-	url=$(hub pr list -f %U\n -h "$branch")
+	url=$(hub pr list -f "%U%n" -h fixes)
+
+	# First URL in case multiple PR's use the same branch.
+	url=${url[0]}
 
 	if [[ ! $url ]]; then
 		url=$(hub browse -u)
 	fi
-
-	# First URL in case multiple PR's use the same branch
-	url=${url[0]}
 
 	python -mwebbrowser "$url" > /dev/null
 }

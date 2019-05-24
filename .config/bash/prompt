@@ -30,7 +30,6 @@ gen_prompt() {
 
 	echo -n \\w
 
-
 	branch=$(git rev-parse --abbrev-ref HEAD 2> /dev/null)
 	if [[ $branch ]]; then
 		echo -n :
@@ -50,7 +49,7 @@ gen_prompt() {
 
 		tput sgr0
 	fi
-	
+
 	echo
 	tput bold
 	echo -n "$suffix"
