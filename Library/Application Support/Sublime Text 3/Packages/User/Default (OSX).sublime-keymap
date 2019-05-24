@@ -54,5 +54,7 @@
 		   	"key": "is_abbreviation"
 		   }
 		]
-	}
+	},
+	{ "keys": ["ctrl+a"], "command": "move_to", "args": {"to": "bol", "extend": false} },
+	{ "keys": ["ctrl+e"], "command": "move_to", "args": {"to": "eol", "extend": false} }
 ]

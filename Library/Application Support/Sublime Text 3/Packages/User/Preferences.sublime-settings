@@ -1,25 +1,26 @@
 {
 	"atomic_save": true,
+	"auto_complete": false,
 	"caret_style": "blink",
 	"color_scheme": "Packages/User/elysian.sublime-color-scheme",
 	"default_line_ending": "unix",
 	"draw_shadows": false,
 	"enable_tab_scrolling": false,
+	"ensure_newline_at_eof_on_save": true,
 	"fold_buttons": false,
 	"font_face": "SF Mono",
 	"font_size": 12,
-	"gutter": false,
+	"gutter": true,
 	"highlight_line": true,
 	"ignored_packages":
 	[
 		"Vintage"
 	],
+	"line_numbers": true,
 	"line_padding_bottom": 2,
 	"line_padding_top": 2,
 	"save_on_focus_lost": true,
 	"scroll_past_end": true,
 	"theme": "Default.sublime-theme",
-	"trim_trailing_white_space_on_save": true,
-	"word_wrap": true,
-	"auto_complete": false
+	"word_wrap": true
 }

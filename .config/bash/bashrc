@@ -2,39 +2,153 @@
 
 set -o pipefail
 
-source prompt
+tabs -4
+
+source ~/.config/bash/prompt
 
 export BASH_COMPLETION_COMPAT_DIR="/usr/local/etc/bash_completion.d"
 [[ -r "/usr/local/etc/profile.d/bash_completion.sh" ]] && . "/usr/local/etc/profile.d/bash_completion.sh"
 
 add_path() {
-    if [[ $PATH != *${1}:* ]]; then
-        PATH="$1:${PATH}"
-    fi
+	if [[ $PATH != *${1}:* ]]; then
+		PATH="${1}:${PATH}"
+	fi
 }
+
+GLOBIGNORE=".:.."
+shopt -s nullglob
 
 export EDITOR=editor
 export MANWIDTH=80
-export MANPAGER="ansifilter | pager"
+export PAGER='ansifilter | pager'
 export GOPATH=~/Programming/gopath
-add_path "${GOPATH}/bin"
 add_path /usr/local/opt/ruby/
 add_path /usr/local/lib/ruby/gems/2.6.0/bin
+add_path "${GOPATH}/bin"
 add_path ~/.local/bin
 
-# Occasionally things give me errors because the default limit is so low.
+# Occasionally random things give me errors because the default limit is so low.
 ulimit -n 8192
+
+ls() {
+	if [[ $(uname) == Darwin ]]; then
+		command ls -F "$@"
+	else
+		command ls --indicator-style=classify "$@"
+	fi
+}
+
+alias r="source ~/.bashrc"
+alias s="subl -n"
+alias gol="goland"
 
 alias l="ls -lh"
 alias ll="ls -lhA"
+alias e="editor"
+alias ec="e ~/.config/bash/bashrc"
 
 source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.bash.inc
 source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.bash.inc
 
 # Avoid duplicates
-HISTCONTROL=ignoredups:erasedups  
-# When the shell exits, append to the history file instead of overwriting it
+HISTCONTROL=ignoredups:erasedups
 shopt -s histappend
-export MANPAGER='nvim +Man!'
+shopt -s direxpand
+shopt -s cdable_vars
 
 bind '"\ee"':shell-expand-line
+
+cd() {
+	if [[ $# == 0 ]]; then
+		pushd ~ > /dev/null
+		return
+	fi
+	pushd "$@" > /dev/null
+}
+
+pd() {
+	popd "$@" > /dev/null
+}
+
+alias d=cd
+
+mcd() {
+	mkdir -p "$@"
+	cd "$@"
+}
+
+gcd() {
+	cd $(git rev-parse --show-toplevel)
+}
+
+add_cdpath() {
+	if [[ ! $CDPATH ]]; then
+		CDPATH=$1
+		return
+	fi
+
+	if [[ $CDPATH != *${1}:* ]]; then
+		CDPATH="${CDPATH}:${1}"
+	fi
+}
+
+add_cdpath ~/Programming
+add_cdpath ~/Programming/github
+add_cdpath ~/Programming/github/nhooyr
+add_cdpath ~/Programming/github/cdr
+add_cdpath ~/Programming/github/codercom
+add_cdpath ~/Programming/github/Microsoft
+add_cdpath ~/Programming/coder
+add_cdpath ~/Programming/scratch
+add_cdpath ~/.config
+add_cdpath ~/.config/bash
+add_cdpath ~/.local
+
+
+bind '"\er":"\C-a\C-r\C-y\C-r"'
+
+alias gs="git status"
+alias g="git"
+alias gi="git init"
+alias ga="git add"
+alias gcm="git commit -v"
+alias gcma="git commit -v --amend"
+alias gcmf="git commit -v --fixup"
+alias gb="git branch"
+alias grb="git rebase"
+alias gps="git push"
+alias gpf="git push --force"
+alias gd="git diff"
+alias gl="git log"
+alias gpr="git pull-request"
+alias gcl="git clone"
+alias gpl="git pull"
+alias gch="git checkout"
+
+alias md="mkdir -p"
+alias gh="github"
+alias pc="pbcopy"
+alias pp="pbpaste"
+alias u="cd .."
+
+alias bu='brew update && brew upgrade && brew cask upgrade'
+
+github() {
+	local branch
+	branch=$(git rev-parse --abbrev-ref HEAD)
+	if [[ ! $branch ]]; then
+		return
+	fi
+
+	local url
+	url=$(hub pr list -f %U\n -h "$branch")
+
+	if [[ ! $url ]]; then
+		url=$(hub browse -u)
+	fi
+
+	# First URL in case multiple PR's use the same branch
+	url=${url[0]}
+
+	python -mwebbrowser "$url" > /dev/null
+}
