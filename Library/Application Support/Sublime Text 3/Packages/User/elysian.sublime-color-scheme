@@ -25,7 +25,7 @@
         },
         {
             "name": "normal",
-            "scope": "meta.template",
+            "scope": "meta.template, variable.other.member.declaration.go",
             "foreground": "black",
             "font_style": "normal",
         },

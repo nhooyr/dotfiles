@@ -1,4 +1,3 @@
-# Defined in - @ line 1
-function npm --description 'alias npm=yarn'
-	yarn  $argv;
+function npm
+	echo "no"
 end

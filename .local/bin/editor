@@ -1,5 +1,3 @@
 #!/usr/bin/env bash
 
-subl -wn "$@"
-
-open -a terminal
+subl -nw "$@"

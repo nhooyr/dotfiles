@@ -1,8 +1,6 @@
-#!/usr/local/bin/fish
-# Need full path of fish in shebang for launchd.
+#!/usr/local/bin/bash
 
-defaults write com.apple.screencapture location ~/Pictures/Screenshots
+defaults write com.apple.screencapture location '/Users/nhooyr/Library/Mobile Documents/com~apple~CloudDocs/Pictures/Screenshots'
 
-# Set the default plain text editor to sublime text.
 defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add \
-	'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=com.apple.dt.Xcode;}'
+	'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=io.xi-editor.XiEditor.Editor;}'

@@ -1,8 +1,11 @@
-#!/usr/bin/env fish
+#!/usr/bin/env bash
 
-set -l temp (mktemp)
+set -euo pipefail
 
-and cat > $temp &
-disown
+temp=$(mktemp)
 
-and editor $temp
+cat > "$temp" < /dev/stdin &
+
+editor "$temp"
+
+rm "$temp"
