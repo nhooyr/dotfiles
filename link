@@ -2,8 +2,12 @@
 
 set -euo pipefail
 
+unlink=${1+1}
 ln() {
-	if [[ -h "$2" ]]; then
+	if [[ $unlink ]]; then
+		rm "$2"
+		return
+	elif [[ -h "$2" ]]; then
 		return
 	elif [[ -e "$2" ]]; then
 		echo "$1 exists or is already linked"
@@ -15,7 +19,6 @@ ln() {
 ln bash/bashrc ~/.bashrc 
 ln git ~/.config/git
 ln gpg-agent.conf ~/.gnupg/gpg-agent.conf
-ln bin ~/bin
 ln npmrc ~/.npmrc
 ln sublimeText3 "${HOME}/Library/Application Support/Sublime Text 3/Packages/User"
 ln launchAgents/set_defaults_variables.plist ~/Library/LaunchAgents/set_defaults_variables.plist
