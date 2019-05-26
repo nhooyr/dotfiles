@@ -33,7 +33,7 @@ export GOPATH=~/.local/share/gopath
 add_path /usr/local/opt/ruby/
 add_path /usr/local/lib/ruby/gems/2.6.0/bin
 add_path "${GOPATH}/bin"
-add_path ~/bin
+add_path ~/src/nhooyr/dotfiles/bin
 
 alias sudo='sudo '
 
@@ -112,16 +112,11 @@ add_cdpath() {
 	fi
 }
 
-add_cdpath ~/projects
-add_cdpath ~/github
-add_cdpath ~/coder
-add_cdpath ~/play
-add_cdpath ~/github/nhooyr
-add_cdpath ~/github/cdr
-add_cdpath ~/github/codercom
-add_cdpath ~/github/Microsoft
-add_cdpath ~/play
-add_cdpath ~/bin
+add_cdpath ~/src/nhooyr/dotfiles
+add_cdpath ~/src/nhooyr
+add_cdpath ~/src/cdr
+add_cdpath ~/src/codercom
+add_cdpath ~/src/play
 
 bind '"\er":"\C-a\C-r\C-y\C-r"'
 
@@ -152,6 +147,12 @@ alias up="cd .."
 alias vim="nvim"
 alias y="yarn"
 alias npm="echo use yarn"
+alias rm="echo use tra"
+
+tra() {
+	local file=$(realpath "$1")
+	osascript -e "tell application \"Finder\" to delete POSIX file \"$file\"" > /dev/null
+}
 
 alias bu='brew update && brew upgrade && brew cask upgrade'
 
