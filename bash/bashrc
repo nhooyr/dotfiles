@@ -4,7 +4,7 @@ set -o pipefail
 
 tabs -4
 
-BASHRC_DIR="$(dirname "$BASH_SOURCE")"
+BASHRC_DIR="$(dirname "$(realpath "$BASH_SOURCE")")"
 
 source "${BASHRC_DIR}/prompt"
 
@@ -33,7 +33,7 @@ export GOPATH=~/.local/share/gopath
 add_path /usr/local/opt/ruby/
 add_path /usr/local/lib/ruby/gems/2.6.0/bin
 add_path "${GOPATH}/bin"
-add_path ~/.local/bin
+add_path ~/bin
 
 alias sudo='sudo '
 
@@ -112,17 +112,16 @@ add_cdpath() {
 	fi
 }
 
-add_cdpath ~/Programming
-add_cdpath ~/Programming/github
-add_cdpath ~/Programming/github/nhooyr
-add_cdpath ~/Programming/github/cdr
-add_cdpath ~/Programming/github/codercom
-add_cdpath ~/Programming/github/Microsoft
-add_cdpath ~/Programming/coder
-add_cdpath ~/Programming/scratch
-add_cdpath ~/.config
-add_cdpath ~/.config/bash
-add_cdpath ~/.local
+add_cdpath ~/projects
+add_cdpath ~/github
+add_cdpath ~/coder
+add_cdpath ~/play
+add_cdpath ~/github/nhooyr
+add_cdpath ~/github/cdr
+add_cdpath ~/github/codercom
+add_cdpath ~/github/Microsoft
+add_cdpath ~/play
+add_cdpath ~/bin
 
 bind '"\er":"\C-a\C-r\C-y\C-r"'
 
