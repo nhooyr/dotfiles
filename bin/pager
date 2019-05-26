@@ -6,6 +6,6 @@ temp=$(mktemp)
 
 cat > "$temp" < /dev/stdin &
 
-editor "$temp"
+$EDITOR "$temp"
 
 rm "$temp"
