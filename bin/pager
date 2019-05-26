@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+temp=$(mktemp)
+
+cat > "$temp" < /dev/stdin &
+
+editor "$temp"
+
+rm "$temp"
