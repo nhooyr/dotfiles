@@ -98,7 +98,7 @@ mcd() {
 }
 
 gcd() {
-	cd "$(git rev-parse --show-cdup)"
+	cd "$(git rev-parse --show-toplevel)"
 }
 
 add_cdpath() {
@@ -175,5 +175,13 @@ github() {
 
 	python -mwebbrowser "$url" > /dev/null
 }
+
+ghd() (
+	set -euxo pipefail || exit 1
+
+	mkdir -p "$HOME/github/$1"
+	cd "$HOME/github/$1"
+	git clone "https://github.com/$1" .
+)
 
 alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
