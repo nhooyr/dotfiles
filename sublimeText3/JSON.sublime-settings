@@ -1,0 +1,8 @@
+// These settings override both User and Default settings for the JSON syntax
+{
+	"extensions": [
+		".babelrc"
+	],
+	"translate_tabs_to_spaces": true,
+	"tab_size": 2
+}

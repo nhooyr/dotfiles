@@ -1,0 +1,7 @@
+{
+	"history_retention": 90,
+	"history_on_focus_lost": true,
+	"auto_diff": true,
+	"portable": false,
+	"history_path": "/Users/nhooyr/.local/share/sublime/local_history",
+}
