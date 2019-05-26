@@ -4,7 +4,9 @@ set -o pipefail
 
 tabs -4
 
-source ~/.config/bash/prompt
+BASHRC_DIR="$(dirname "$BASH_SOURCE")"
+
+source "${BASHRC_DIR}/prompt"
 
 export BASH_COMPLETION_COMPAT_DIR="/usr/local/etc/bash_completion.d"
 [[ -r "/usr/local/etc/profile.d/bash_completion.sh" ]] && . "/usr/local/etc/profile.d/bash_completion.sh"
@@ -27,11 +29,13 @@ HISTSIZE=10000
 export EDITOR=editor
 export MANWIDTH=80
 export PAGER='ansifilter | pager'
-export GOPATH=~/Programming/gopath
+export GOPATH=~/.local/share/gopath
 add_path /usr/local/opt/ruby/
 add_path /usr/local/lib/ruby/gems/2.6.0/bin
 add_path "${GOPATH}/bin"
 add_path ~/.local/bin
+
+alias sudo='sudo '
 
 # Occasionally random things give me errors because the default limit is so low.
 ulimit -n 8192
@@ -47,7 +51,7 @@ alias gol="goland"
 alias l="ls -lh"
 alias ll="ls -lhA"
 alias e="editor"
-alias ec="e ~/.config/bash/bashrc"
+alias ec="e ${BASH_SOURCE}"
 
 source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.bash.inc
 source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.bash.inc
@@ -77,11 +81,9 @@ bind '"\ee"':shell-expand-line
 cd() {
 	if [[ $# == 0 ]]; then
 		pushd ~ > /dev/null
-		l
 		return
 	fi
 	pushd "$@" > /dev/null
-	l
 }
 
 pd() {
@@ -149,6 +151,8 @@ alias pc="pbcopy"
 alias pp="pbpaste"
 alias up="cd .."
 alias vim="nvim"
+alias y="yarn"
+alias npm="echo use yarn"
 
 alias bu='brew update && brew upgrade && brew cask upgrade'
 
@@ -171,3 +175,5 @@ github() {
 
 	python -mwebbrowser "$url" > /dev/null
 }
+
+alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
