@@ -6,6 +6,7 @@
 	"installed_packages":
 	[
 		"Dockerfile Syntax Highlighting",
+		"EditorConfig",
 		"Emmet",
 		"FileIcons Mono",
 		"Local History",
@@ -13,7 +14,9 @@
 		"Origami",
 		"Package Control",
 		"Rust Enhanced",
+		"Smart Backspace",
 		"Terminal",
+		"TOML",
 		"TypeScript Syntax"
 	],
 	"repositories":

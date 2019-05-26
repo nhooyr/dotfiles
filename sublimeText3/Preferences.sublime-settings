@@ -14,8 +14,8 @@
 	"highlight_line": true,
 	"ignored_packages":
 	[
-		"Vintage",
-		"Rust"
+		"Rust",
+		"Vintage"
 	],
 	"line_numbers": true,
 	"line_padding_bottom": 2,

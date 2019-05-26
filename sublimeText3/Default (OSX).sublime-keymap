@@ -6,6 +6,7 @@
 	{ "keys": ["super+v"], "command": "paste_and_indent" },
 	{ "keys": ["super+shift+v"], "command": "paste" },
 	{ "keys": ["alt+up"], "command": "expand_selection", "args": {"to": "scope"} },
+	{ "keys": ["super+d"], "command": "duplicate_line" },
 	{ "keys": ["super+shift+s"], "command": "reveal_in_side_bar" },
 	{ "keys": ["super+alt+left"], "command": "jump_back"},
 	{ "keys": ["super+alt+right"], "command": "jump_forward"},
