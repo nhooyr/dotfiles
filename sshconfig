@@ -1,0 +1,9 @@
+Host *
+AddKeysToAgent yes
+UseKeychain yes
+ServerAliveInterval 60
+TCPKeepAlive no
+HashKnownHosts yes
+ControlPath ~/.ssh/sockets/%C
+ControlMaster auto
+ControlPersist yes
