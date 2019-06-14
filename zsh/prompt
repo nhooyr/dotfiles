@@ -3,7 +3,7 @@
 # Need to escape all non visible characters in \[ and \] to prevent
 # bash from using them for the length calculations.
 tput() {
-	echo -n "\[$(command tput "$@")\]"
+	echo -n "%{$(command tput "$@")%}"
 }
 
 gen_prompt() {
@@ -19,7 +19,7 @@ gen_prompt() {
 		echo -n \\u
 	fi
 
-	if [[ $HOSTNAME != ien.local ]]; then
+	if [[ $HOST != ien.local ]]; then
 		if [[ $user ]]; then
 			echo -n @
 		fi
@@ -28,7 +28,7 @@ gen_prompt() {
 		echo -n :
 	fi
 
-	echo -n \\w
+	echo -n %~
 
 	branch=$(git rev-parse --abbrev-ref HEAD 2> /dev/null)
 	if [[ $branch ]]; then
@@ -58,8 +58,6 @@ gen_prompt() {
 }
 
 prompt_cmd() {
-	# history -a
-
 	# We explicitly need to set PS1 to the result of prompt_cmd for escapes to be
 	# handled correctly. See http://tldp.org/HOWTO/Bash-Prompt-HOWTO/bash-prompt-escape-sequences.html
 	PS1=$(gen_prompt)
@@ -68,4 +66,5 @@ prompt_cmd() {
 # https://www.gnu.org/software/bash/manual/html_node/Bash-Variables.html
 PROMPT_DIRTRIM=10
 
-PROMPT_COMMAND="prompt_cmd; $PROMPT_COMMAND"
+setopt PROMPT_SUBST
+precmd_functions+=(prompt_cmd)
