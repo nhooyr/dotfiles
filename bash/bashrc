@@ -2,7 +2,10 @@
 
 set -o pipefail
 
+[[ -f /etc/profile ]] && . /etc/profile
+
 tabs -4
+bind '"\ee"':shell-expand-line
 
 BASHRC_DIR="$(dirname "$(realpath "$BASH_SOURCE")")"
 
@@ -24,11 +27,14 @@ export LS_COLORS="$LS_COLORS:di=34:ln=35:so=32:pi=32:ex=31;01"
 IGNOREEOF=1
 
 GLOBIGNORE=".:.."
-HISTSIZE=10000
+HISTSIZE=100000
+HISTTIMEFORMAT='%F %T '
 
-export EDITOR='subl -wn'
+# export EDITOR='subl -wn'
+export EDITOR='nvim'
 export MANWIDTH=80
-export PAGER='ansifilter | pager'
+# export PAGER='ansifilter | subl -wn'
+export GIT_PAGER=less
 export GOPATH=~/.local/share/gopath
 add_path /usr/local/opt/ruby/
 add_path /usr/local/lib/ruby/gems/2.6.0/bin
@@ -68,6 +74,7 @@ shopt -s extglob
 shopt -s globstar
 shopt -s histreedit
 shopt -s lithist
+shopt -s cmdhist
 shopt -s nocaseglob
 shopt -s nocasematch
 
@@ -75,8 +82,6 @@ alias grep="grep --color"
 
 # https://superuser.com/questions/1067801/ctrlr-in-shell-if-i-go-past-the-command-i-want-how-do-i-get-back-to-it
 stty -ixon
-
-bind '"\ee"':shell-expand-line
 
 cd() {
 	if [[ $# == 0 ]]; then
@@ -89,8 +94,6 @@ cd() {
 pd() {
 	popd "$@" > /dev/null
 }
-
-alias d=cd
 
 mcd() {
 	mkdir -p "$@"
@@ -112,14 +115,13 @@ add_cdpath() {
 	fi
 }
 
+add_cdpath .
 add_cdpath ~/src/nhooyr/dotfiles
 add_cdpath ~/src/nhooyr
 add_cdpath ~/src/cdr
 add_cdpath ~/src/codercom
 add_cdpath ~/src/play
 add_cdpath ~/src
-
-bind '"\er":"\C-a\C-r\C-y\C-r"'
 
 alias gs="git status"
 alias g="git"
@@ -148,7 +150,12 @@ alias up="cd .."
 alias vim="nvim"
 alias y="yarn"
 alias npm="echo use yarn"
-alias rm="echo use tra"
+alias grt="git reset"
+alias git="hub"
+alias gst="git stash"
+alias gsh="git show"
+
+alias rh="history -r"
 
 tra() {
 	local file=$(realpath "$1")
@@ -177,12 +184,15 @@ github() {
 	python -mwebbrowser "$url" > /dev/null
 }
 
-ghd() (
-	set -euo pipefail
-
-	mkdir -p "$HOME/src/$1"
+ghd() {
+	mkdir -p "$HOME/src/$1" &&
+	git clone --recursive "https://github.com/$1" "$HOME/src/$1"
 	cd "$HOME/src/$1"
-	git clone "https://github.com/$1" .
-)
+
+}
 
 alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
+
+complete -r unzip 2> /dev/null
+
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
