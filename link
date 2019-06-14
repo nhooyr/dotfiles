@@ -8,9 +8,10 @@ ln() {
 		rm "$2"
 		return
 	elif [[ -h "$2" ]]; then
+		echo "already linked"
 		return
 	elif [[ -e "$2" ]]; then
-		echo "$1 exists or is already linked"
+		echo "$1 exists and is not a symlink"
 		return
 	fi
 	command ln -s "${PWD}/$1" "$2"
@@ -22,5 +23,6 @@ ln gpg-agent.conf ~/.gnupg/gpg-agent.conf
 ln npmrc ~/.npmrc
 ln sublimeText3 "${HOME}/Library/Application Support/Sublime Text 3/Packages/User"
 ln launchAgents/set_defaults_variables.plist ~/Library/LaunchAgents/set_defaults_variables.plist
+ln fish ~/.config/fish
 
 echo "looks good captain"

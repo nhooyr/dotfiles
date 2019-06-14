@@ -81,7 +81,7 @@
 	<key>Bell</key>
 	<false/>
 	<key>CommandString</key>
-	<string></string>
+	<string>login -fpql nhooyr /usr/local/bin/zsh</string>
 	<key>Font</key>
 	<data>
 	YnBsaXN0MDDUAQIDBAUGGBlYJHZlcnNpb25YJG9iamVjdHNZJGFyY2hpdmVyVCR0b3AS
@@ -135,6 +135,29 @@
 	<integer>80</integer>
 	<key>name</key>
 	<string>elysian</string>
+	<key>noWarnProcesses</key>
+	<array>
+		<dict>
+			<key>ProcessName</key>
+			<string>screen</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>tmux</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>login</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>bash</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>zsh</string>
+		</dict>
+	</array>
 	<key>rowCount</key>
 	<integer>24</integer>
 	<key>type</key>
