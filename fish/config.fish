@@ -38,7 +38,7 @@ set -gx MANPAGER 'ansifilter | subl -wn'
 set -gx GOPATH ~/.local/share/gopath
 
 function addToPath
-    if ! echo $PATH | grep -q "$argv"
+    if echo $PATH | grep -q "$argv"
         # Already in path.
         return
     end
@@ -102,6 +102,7 @@ abbr -ag grv git revert
 abbr -ag gro git remote
 abbr -ag grm git rm
 abbr -ag gcp git cherry-pick
+abbr -ag gm git merge
 abbr -ag k kubectl
 abbr -ag y yarn
 
@@ -115,7 +116,6 @@ alias l="ls -lh"
 alias ll="ls -lhA"
 alias pd=prevd
 alias nd=nextd
-alias gh=github
 alias pc=pbcopy
 alias pp=pbpaste
 alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
@@ -128,6 +128,8 @@ alias rm=tra
 alias first_non_fixup="git log --pretty='%H' -1 --invert-grep --grep 'fixup! '"
 alias noti='noti --message "You wanted a notification" --title Terminal'
 alias rg="rg -S"
+alias hm="history merge"
+alias fcm="git add * .*; git commit --amend --no-edit; git push -f"
 
 function ghd
     mkdir -p "$HOME/src/$argv[1]"
@@ -176,7 +178,7 @@ function gcd
     end
 end
 
-function github
+function gh
     set -l branch (git rev-parse --abbrev-ref HEAD)
     if [ ! "$branch" ]
         return
@@ -186,7 +188,7 @@ function github
     set -l url (hub pr list -f %U\n -h $branch)[1]
 
     if [ ! "$url" ]
-        set url (hub browse -g)
+        set url (hub browse -u)
     end
 
     python -mwebbrowser "$url" >/dev/null
@@ -197,7 +199,7 @@ function lolsay
 end
 
 bind \en 'commandline -i "; noti"'
-bind \es prependSudo
+bind \cs prependSudo
 
 fzf_key_bindings
 function fzf-cdpath
