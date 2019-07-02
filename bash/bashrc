@@ -196,3 +196,6 @@ alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
 complete -r unzip 2> /dev/null
 
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
+
+# added by travis gem
+[ -f /Users/nhooyr/.travis/travis.sh ] && source /Users/nhooyr/.travis/travis.sh
