@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cmp() {
+	[[ $(echo "$*" | bc -l) == 1 ]]
+}
+
+threshold=100
+
+ping() {
+	command ping -t 1 -c 1 "$1" | tee /dev/stderr | gsed -n 's/.*time=\(.*\) ms/\1/p'
+}
+
+noti() {
+	echo "$*"
+	command noti -m "$*"
+}
+
+while true; do
+	ping=$(ping "$1") || ( noti "ping failed" )
+	echo "ping ${ping} ms"
+	if cmp "${ping} > ${threshold}"; then
+		noti "ping ${ping} ms above threshold ${threshold} ms"
+	fi
+	echo ==============================
+	sleep 0.5
+done

@@ -210,3 +210,5 @@ function fzf-cdpath
     commandline -f repaint
 end
 bind \ec fzf-cdpath
+
+delete_asl_logs
