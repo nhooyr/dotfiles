@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-if compgen -G /private/var/log/asl/*.asl > /dev/null; then
-	# Google slow macOS terminal.app issues
-	sudo rm -f /private/var/log/asl/*.asl
-fi

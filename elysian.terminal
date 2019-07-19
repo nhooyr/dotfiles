@@ -81,7 +81,7 @@
 	<key>Bell</key>
 	<false/>
 	<key>CommandString</key>
-	<string>login -fpql nhooyr /usr/local/bin/zsh</string>
+	<string>/usr/local/bin/fish -l</string>
 	<key>Font</key>
 	<data>
 	YnBsaXN0MDDUAQIDBAUGGBlYJHZlcnNpb25YJG9iamVjdHNZJGFyY2hpdmVyVCR0b3AS
@@ -156,6 +156,18 @@
 		<dict>
 			<key>ProcessName</key>
 			<string>zsh</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>fish</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>fzf</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>-fish</string>
 		</dict>
 	</array>
 	<key>rowCount</key>
