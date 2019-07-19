@@ -1,4 +1,4 @@
-tabs -4
+tabs -2
 # https://superuser.com/questions/1067801/ctrlr-in-shell-if-i-go-past-the-command-i-want-how-do-i-get-back-to-it
 stty -ixon
 # Occasionally things give me errors because the default limit is so low.
@@ -105,6 +105,7 @@ abbr -ag gcp git cherry-pick
 abbr -ag gm git merge
 abbr -ag k kubectl
 abbr -ag y yarn
+abbr -ag f functions
 
 alias r="source ~/.config/fish/config.fish"
 alias s="subl -n"
@@ -128,7 +129,7 @@ alias rm=tra
 alias first_non_fixup="git log --pretty='%H' -1 --invert-grep --grep 'fixup! '"
 alias noti='noti --message "You wanted a notification" --title Terminal'
 alias rg="rg -S"
-alias hm="history merge"
+alias h="history merge"
 alias fcm="git add * .*; git commit --amend --no-edit; git push -f"
 
 function ghd
@@ -210,5 +211,3 @@ function fzf-cdpath
     commandline -f repaint
 end
 bind \ec fzf-cdpath
-
-delete_asl_logs
