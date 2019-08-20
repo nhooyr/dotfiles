@@ -80,6 +80,7 @@ abbr -ag m man
 abbr -ag g git
 abbr -ag gch git checkout
 abbr -ag ga git add
+abbr -ag gaa git add \* .\*
 abbr -ag gcm git commit -v
 abbr -ag gcma git commit -v --amend
 abbr -ag gcmf git commit -v --fixup

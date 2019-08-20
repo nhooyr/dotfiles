@@ -14,11 +14,11 @@ function fish_prompt
     
     set_color -o
 
-    if [ "$hostname" != ien.local ]
+    if ! echo "$hostname" | grep -q ien
         if [ -n "$user" ]
             echo -n @
         end
-        echo -n (prompt_hostname)
+        echo -n (prompt_hostname):
     else if [ -n "$user" ]
         echo -n :
     end
