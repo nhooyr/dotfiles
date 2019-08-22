@@ -3,7 +3,7 @@ set -g fish_prompt_pwd_dir_length 0
 function fish_prompt
     set -l suffix '$'
     set -l user
-    
+
     if [ "$USER" = root ]
         set_color red
         set suffix '#'
@@ -11,7 +11,7 @@ function fish_prompt
         set user 1
         echo -n "$USER"
     end
-    
+
     set_color -o
 
     if ! echo "$hostname" | grep -q ien
@@ -24,9 +24,9 @@ function fish_prompt
     end
 
     echo -n (prompt_pwd)
-    
+
     git_info
-    
+
     set_color -o
     echo
     echo -n "$suffix "

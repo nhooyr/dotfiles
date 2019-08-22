@@ -114,7 +114,11 @@ alias s="subl -n"
 alias gol="goland"
 alias e="$EDITOR"
 alias grep="grep --color"
-alias ls='gls --indicator-style=classify --color=auto'
+if [ (uname) = Darwin ]
+    alias ls="gls --indicator-style=classify --color=auto"
+else
+    alias ls="ls --indicator-style=classify --color=auto"
+end
 alias l="ls -lh"
 alias ll="ls -lhA"
 alias pd=prevd
@@ -143,7 +147,7 @@ end
 function tra
     for file in $argv
         set -l file (realpath "$file")
-        osascript -e "tell application \"Finder\" to delete POSIX file \"$file\"" > /dev/null
+        osascript -e "tell application \"Finder\" to delete POSIX file \"$file\"" >/dev/null
     end
 end
 
@@ -161,7 +165,7 @@ function cdp
     end
 end
 
-function prependSudo 
+function prependSudo
     set -l cursor (commandline -C)
     commandline -C 0
     commandline -i "sudo "
