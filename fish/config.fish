@@ -107,6 +107,7 @@ abbr -ag gm git merge
 abbr -ag k kubectl
 abbr -ag y yarn
 abbr -ag f functions
+abbr -ag cdr ssh dev.coder.com
 
 alias r="source ~/.config/fish/config.fish"
 alias s="subl -n"

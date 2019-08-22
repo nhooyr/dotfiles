@@ -17,12 +17,14 @@ ln() {
 	command ln -s "${PWD}/$1" "$2"
 }
 
-ln bash/bashrc ~/.bashrc 
 ln git ~/.config/git
-ln gpg-agent.conf ~/.gnupg/gpg-agent.conf
 ln npmrc ~/.npmrc
-ln sublimeText3 "${HOME}/Library/Application Support/Sublime Text 3/Packages/User"
-ln launchAgents/set_defaults_variables.plist ~/Library/LaunchAgents/set_defaults_variables.plist
 ln fish ~/.config/fish
+
+if [[ "$OSTYPE" == darwin* ]]; then
+  ln sublimeText3 "${HOME}/Library/Application Support/Sublime Text 3/Packages/User"
+  ln launchAgents/set_defaults_variables.plist ~/Library/LaunchAgents/set_defaults_variables.plist
+  ln gpg-agent.conf ~/.gnupg/gpg-agent.conf
+fi
 
 echo "looks good captain"
