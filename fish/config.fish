@@ -1,3 +1,7 @@
+if not status --is-interactive
+    exit 0
+end
+
 tabs -2
 # https://superuser.com/questions/1067801/ctrlr-in-shell-if-i-go-past-the-command-i-want-how-do-i-get-back-to-it
 stty -ixon
