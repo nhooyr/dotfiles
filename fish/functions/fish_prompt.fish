@@ -7,18 +7,27 @@ function fish_prompt
     if [ "$USER" = root ]
         set_color red
         set suffix '#'
-    else if [ "$USER" != nhooyr ]
+    end
+
+
+    if [ "$USER" != nhooyr ]
         set user 1
+        set_color -o
         echo -n "$USER"
     end
 
+    set_color normal
     set_color -o
 
     if ! echo "$hostname" | grep -q ien
         if [ -n "$user" ]
             echo -n @
         end
-        echo -n (prompt_hostname):
+        set_color -o green
+        echo -n (prompt_hostname)
+        set_color normal
+        set_color -o
+        echo -n :
     else if [ -n "$user" ]
         echo -n :
     end
