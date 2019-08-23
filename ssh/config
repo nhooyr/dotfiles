@@ -1,6 +1,4 @@
 Host *
-AddKeysToAgent yes
-UseKeychain yes
 ServerAliveInterval 60
 TCPKeepAlive no
 HashKnownHosts yes
