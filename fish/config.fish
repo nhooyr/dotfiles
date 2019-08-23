@@ -84,7 +84,6 @@ set -l RESET_LS_COLORS 'rs=00:di=00:ln=00:mh=00:pi=00:so=00:do=00:bd=00:cd=00:or
 set -l MY_LS_COLORS "di=34:ln=35:so=32:pi=32:ex=31;01"
 set -gx LS_COLORS "$RESET_LS_COLORS:$MY_LS_COLORS"
 
-is_darwin; and abbr -ag b brew
 abbr -ag - cd -
 abbr -ag vim nvim
 abbr -ag md mkdir -p
@@ -120,18 +119,8 @@ abbr -ag gm git merge
 abbr -ag k kubectl
 abbr -ag y yarn
 abbr -ag f functions
-if is_darwin
-    abbr -ag cdr ssh dev.coder.com
-    function startcdr
-        gcloud compute instances start dev
-    end
-    function stopcdr
-        ssh dev.coder.com sudo shutdown -h now
-    end
-end
 
 alias r="source ~/.config/fish/config.fish"
-is_darwin; and alias s="subl -n"
 alias gol="goland"
 alias e="$EDITOR"
 alias grep="grep --color"
@@ -144,20 +133,10 @@ alias l="ls -lh"
 alias ll="ls -lhA"
 alias pd=prevd
 alias nd=nextd
-if is_darwin
-    alias pc=pbcopy
-    alias pp=pbpaste
-    alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
-end
 alias npm="echo use yarn pls"
 alias xnpm="command npm"
 alias git="hub"
 alias ec="e ~/.config/fish/config.fish"
-if is_darwin
-    alias bu="brew update && brew upgrade && brew cask upgrade"
-    alias noti='noti --message "You wanted a notification" --title Terminal'
-    alias rm=tra
-end
 alias first_non_fixup="git log --pretty='%H' -1 --invert-grep --grep 'fixup! '"
 alias rg="rg -S"
 alias h="history merge"
@@ -170,11 +149,38 @@ function ghd
 end
 
 if is_darwin
+    abbr -ag b brew
+    abbr -ag cdr ssh dev.coder.com
+    
+    function startcdr
+        gcloud compute instances start dev
+    end
+
+    function stopcdr
+        ssh dev.coder.com sudo shutdown -h now
+    end
+
+    alias s="subl -n"
+    
+    alias pc=pbcopy
+    alias pp=pbpaste
+    alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
+
+    alias bu="brew update && brew upgrade && brew cask upgrade"
+    alias noti='noti --message "You wanted a notification" --title Terminal'
+    alias rm=tra
+
     function tra
         for file in $argv
             set -l file (realpath "$file")
             osascript -e "tell application \"Finder\" to delete POSIX file \"$file\"" >/dev/null
         end
+    end
+
+    function flushdns
+        sudo killall -HUP mDNSResponder
+        sudo killall mDNSResponderHelper
+        sudo dscacheutil -flushcache
     end
 end
 
@@ -197,14 +203,6 @@ function prependSudo
     commandline -C 0
     commandline -i "sudo "
     commandline -C (math "$cursor" + 5)
-end
-
-if is_darwin
-function flushdns
-    sudo killall -HUP mDNSResponder
-    sudo killall mDNSResponderHelper
-    sudo dscacheutil -flushcache
-end
 end
 
 function gcd
