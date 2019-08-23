@@ -120,7 +120,15 @@ abbr -ag gm git merge
 abbr -ag k kubectl
 abbr -ag y yarn
 abbr -ag f functions
-is_darwin; and abbr -ag cdr ssh dev.coder.com
+if is_darwin
+    abbr -ag cdr ssh dev.coder.com
+    function startcdr
+        gcloud compute instances start dev
+    end
+    function stopcdr
+        ssh dev.coder.com sudo shutdown -h now
+    end
+end
 
 alias r="source ~/.config/fish/config.fish"
 is_darwin; and alias s="subl -n"
