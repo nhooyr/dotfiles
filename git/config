@@ -36,3 +36,5 @@
 	enabled = true
 [fetch]
 	prune = true
+[url "ssh://git@github.com/"]
+	insteadOf = https://github.com/
