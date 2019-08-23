@@ -2,10 +2,4 @@
 
 set -euo pipefail
 
-if [[ $OSTYPE == darwin* ]]; then
-	subl -wn "$@"
-elif [[ $HOSTNAME == dev ]]; then
-	# Ensure SSHFS.
-	ssh sshfs dev.coder.com:/ \~/src/cdr/dev.coder.com 2>&1 > /dev/null
-	ssh ien subl -wn "~/src/cdr/dev.coder.com/${*}"
-fi
+subl -wn "$@"
