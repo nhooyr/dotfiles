@@ -2,4 +2,22 @@
 
 set -euo pipefail
 
-subl -wn "$@"
+if [[ "$OSTYPE" == darwin* ]]; then
+	subl -wn "$@"
+	exit 0
+fi
+
+ssh ien osascript -e 'tell application "Sublime Text" to activate'
+cleanup() {
+	ssh ien osascript -e 'tell application "Terminal" to activate'
+}
+trap cleanup EXIT
+
+if [[ $# -eq 0 ]]; then
+	ssh ien subl -wn
+	exit 0
+fi
+
+tempFile="$(mktemp)"
+ssh ien subl -wn < "$@" > "$tempfile"
+mv "$tempFile" "$@"

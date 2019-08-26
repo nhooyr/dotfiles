@@ -34,20 +34,12 @@ set -U fish_pager_color_progress 581D5B
 # set -g fish_pager_color_secondary
 
 alias is_darwin="[ (uname) = Darwin ]"
-if is_darwin
-    # Fish expects this to be a command so we cannot directly use 'subl -wn'
-    set -gx EDITOR "$HOME/src/nhooyr/dotfiles/bin/editor"
-else
-    set -gx EDITOR nvim
-end
-# Cannot use subl as a general pager as fish complains when completing a command name for some reason.
-set -gx PAGER less
+alias is_linux="[ (uname) = Linux ]"
+# Fish expects this to be a command so we cannot directly use 'subl -wn'
+# Plus the considerations for linux.
+set -gx EDITOR "$HOME/src/nhooyr/dotfiles/bin/editor"
+set -gx PAGER "ansifilter | $EDITOR"
 set -gx MANWIDTH 80
-if is_darwin
-    set -gx MANPAGER "ansifilter | subl -wn"
-else
-    set -gx MANPAGER "nvim +Man!"
-end
 set -gx GOPATH ~/.local/share/gopath
 
 function addToPath
@@ -119,9 +111,11 @@ abbr -ag gm git merge
 abbr -ag k kubectl
 abbr -ag y yarn
 abbr -ag f functions
+abbr -ag s sudo
+abbr -ag n noti
+abbr -ag d cd
 
 alias r="source ~/.config/fish/config.fish"
-alias gol="goland"
 alias e="$EDITOR"
 alias grep="grep --color"
 if is_darwin
@@ -148,19 +142,25 @@ function ghd
     and cd "$HOME/src/$argv[1]"
 end
 
+if is_linux
+    abbr -ag ien ssh ien
+    alias pc="ssh ien pbcopy"
+    alias pp="ssh ien pbpaste"
+end
+
 if is_darwin
+    alias gol="goland"
+
     abbr -ag b brew
     abbr -ag cdr ssh dev.coder.com
     
     function startcdr
-        gcloud compute instances start dev
+        gcloud --configuration=nhooyr-coder compute instances start dev
     end
 
     function stopcdr
-        ssh dev.coder.com sudo shutdown -h now
+        ssh dev.coder.com sudo poweroff
     end
-
-    alias s="subl -n"
     
     alias pc=pbcopy
     alias pp=pbpaste
@@ -198,13 +198,6 @@ function cdp
     end
 end
 
-function prependSudo
-    set -l cursor (commandline -C)
-    commandline -C 0
-    commandline -i "sudo "
-    commandline -C (math "$cursor" + 5)
-end
-
 function gcd
     set -l gcd (git rev-parse --show-toplevel)
     if [ "$status" -eq 0 ]
@@ -231,9 +224,6 @@ end
 function lolsay
     cowsay -f (ls  /usr/local/share/cows | cut -f 10 | gshuf | head -n 1) (fortune -o) | lolcat $argv
 end
-
-bind \en 'commandline -i "; noti"'
-bind \cs prependSudo
 
 fzf_key_bindings
 function fzf-cdpath
