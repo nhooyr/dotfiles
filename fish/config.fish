@@ -146,6 +146,17 @@ if is_linux
     abbr -ag ien ssh ien
     alias pc="ssh ien pbcopy"
     alias pp="ssh ien pbpaste"
+
+    function gol
+        ssh ien "osascript -e 'tell application \"Goland\" to activate'"
+        set -l path (realpath "$argv")
+        if not string match -q "$HOME/src/*" "$path"
+            echo "Must be within ~/src"
+            return 1
+        end
+        set path (string replace ~ /Users/nhooyr "$path")
+        ssh ien goland "$path"
+    end
 end
 
 if is_darwin
