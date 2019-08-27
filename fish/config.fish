@@ -34,20 +34,13 @@ set -U fish_pager_color_progress 581D5B
 # set -g fish_pager_color_secondary
 
 alias is_darwin="[ (uname) = Darwin ]"
-if is_darwin
-    # Fish expects this to be a command so we cannot directly use 'subl -wn'
-    set -gx EDITOR "$HOME/src/nhooyr/dotfiles/bin/editor"
-else
-    set -gx EDITOR nvim
-end
-# Cannot use subl as a general pager as fish complains when completing a command name for some reason.
-set -gx PAGER less
+alias is_linux="[ (uname) = Linux ]"
+# Fish expects this to be a command so we cannot directly use 'subl -wn'
+# Plus the considerations for linux.
+set -gx EDITOR "$HOME/src/nhooyr/dotfiles/bin/editor"
+set -gx PAGER "less"
+set -gx MANPAGER "sh -c 'ansifilter | $EDITOR > /dev/null'"
 set -gx MANWIDTH 80
-if is_darwin
-    set -gx MANPAGER "ansifilter | subl -wn"
-else
-    set -gx MANPAGER "nvim +Man!"
-end
 set -gx GOPATH ~/.local/share/gopath
 
 function addToPath
@@ -84,7 +77,6 @@ set -l RESET_LS_COLORS 'rs=00:di=00:ln=00:mh=00:pi=00:so=00:do=00:bd=00:cd=00:or
 set -l MY_LS_COLORS "di=34:ln=35:so=32:pi=32:ex=31;01"
 set -gx LS_COLORS "$RESET_LS_COLORS:$MY_LS_COLORS"
 
-is_darwin; and abbr -ag b brew
 abbr -ag - cd -
 abbr -ag vim nvim
 abbr -ag md mkdir -p
@@ -120,19 +112,11 @@ abbr -ag gm git merge
 abbr -ag k kubectl
 abbr -ag y yarn
 abbr -ag f functions
-if is_darwin
-    abbr -ag cdr ssh dev.coder.com
-    function startcdr
-        gcloud compute instances start dev
-    end
-    function stopcdr
-        ssh dev.coder.com sudo shutdown -h now
-    end
-end
+abbr -ag s sudo
+abbr -ag n noti
+abbr -ag d cd
 
 alias r="source ~/.config/fish/config.fish"
-is_darwin; and alias s="subl -n"
-alias gol="goland"
 alias e="$EDITOR"
 alias grep="grep --color"
 if is_darwin
@@ -144,20 +128,10 @@ alias l="ls -lh"
 alias ll="ls -lhA"
 alias pd=prevd
 alias nd=nextd
-if is_darwin
-    alias pc=pbcopy
-    alias pp=pbpaste
-    alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
-end
 alias npm="echo use yarn pls"
 alias xnpm="command npm"
 alias git="hub"
 alias ec="e ~/.config/fish/config.fish"
-if is_darwin
-    alias bu="brew update && brew upgrade && brew cask upgrade"
-    alias noti='noti --message "You wanted a notification" --title Terminal'
-    alias rm=tra
-end
 alias first_non_fixup="git log --pretty='%H' -1 --invert-grep --grep 'fixup! '"
 alias rg="rg -S"
 alias h="history merge"
@@ -169,12 +143,56 @@ function ghd
     and cd "$HOME/src/$argv[1]"
 end
 
+if is_linux
+    abbr -ag ien ssh ien
+    alias pc="ssh ien pbcopy"
+    alias pp="ssh ien pbpaste"
+
+    function gol
+        ssh ien "osascript -e 'tell application \"Goland\" to activate'"
+        set -l path (realpath "$argv")
+        if not string match -q "$HOME/src/*" "$path"
+            echo "Must be within ~/src"
+            return 1
+        end
+        set path (string replace ~ /Users/nhooyr "$path")
+        ssh ien goland "$path"
+    end
+end
+
 if is_darwin
+    alias gol="goland"
+
+    abbr -ag b brew
+    abbr -ag cdr ssh dev.coder.com
+    
+    function startcdr
+        gcloud --configuration=nhooyr-coder compute instances start dev
+    end
+
+    function stopcdr
+        ssh dev.coder.com sudo poweroff
+    end
+    
+    alias pc=pbcopy
+    alias pp=pbpaste
+    alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
+
+    alias bu="brew update && brew upgrade && brew cask upgrade"
+    alias noti='noti --message "You wanted a notification" --title Terminal'
+    alias rm=tra
+
     function tra
         for file in $argv
             set -l file (realpath "$file")
             osascript -e "tell application \"Finder\" to delete POSIX file \"$file\"" >/dev/null
         end
+    end
+
+    function flushdns
+        sudo killall -HUP mDNSResponder
+        sudo killall mDNSResponderHelper
+        sudo dscacheutil -flushcache
     end
 end
 
@@ -190,21 +208,6 @@ function cdp
             return
         end
     end
-end
-
-function prependSudo
-    set -l cursor (commandline -C)
-    commandline -C 0
-    commandline -i "sudo "
-    commandline -C (math "$cursor" + 5)
-end
-
-if is_darwin
-function flushdns
-    sudo killall -HUP mDNSResponder
-    sudo killall mDNSResponderHelper
-    sudo dscacheutil -flushcache
-end
 end
 
 function gcd
@@ -233,9 +236,6 @@ end
 function lolsay
     cowsay -f (ls  /usr/local/share/cows | cut -f 10 | gshuf | head -n 1) (fortune -o) | lolcat $argv
 end
-
-bind \en 'commandline -i "; noti"'
-bind \cs prependSudo
 
 fzf_key_bindings
 function fzf-cdpath

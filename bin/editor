@@ -2,4 +2,31 @@
 
 set -euo pipefail
 
-subl -wn "$@"
+if [[ "$OSTYPE" == darwin* ]]; then
+	subl -wn "$@"
+	exit 0
+fi
+
+ssh ien osascript <<EOF
+tell application "Sublime Text" to activate
+EOF
+cleanup() {
+	ssh ien osascript <<EOF
+tell application "Terminal" to activate
+EOF
+}
+trap cleanup EXIT
+
+if [[ $# -eq 0 ]]; then
+	ssh ien subl -wn
+	exit 0
+fi
+
+if [[ $1 == -- ]]; then
+	shift
+fi
+
+tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
+scp -q "$*" "ien:${tempFile}"
+ssh ien subl -wn "$tempFile"
+scp -q "ien:${tempFile}" "$*"

@@ -30,9 +30,13 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
-[includeIf "gitdir:~/Programming/coder/"]
+[includeIf "gitdir:~/src/cdr"]
 	path = coder-config
 [rerere]
 	enabled = true
 [fetch]
 	prune = true
+[url "ssh://git@github.com/"]
+	insteadOf = https://github.com/
+[branch]
+  autosetupmerge = true

@@ -1,7 +1,7 @@
 Host *
-ServerAliveInterval 60
-TCPKeepAlive no
+
 HashKnownHosts yes
 ControlPath ~/.ssh/sockets/%C
 ControlMaster auto
 ControlPersist yes
+AddKeysToAgent yes
