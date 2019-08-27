@@ -161,7 +161,8 @@ if is_linux
 end
 
 if is_darwin
-    alias gol="goland"
+    alias gol=goland
+    alias find=gfind
 
     abbr -ag b brew
     abbr -ag cdr ssh dev.coder.com
@@ -244,7 +245,7 @@ end
 
 fzf_key_bindings
 function fzf-cdpath
-    set -l result (find -L $CDPATH[2..-1] -depth 1 -prune -type d -print 2> /dev/null | fzf --height 40% --query (commandline -t))
+    set -l result (find -L $CDPATH[2..-1] -mindepth 1 -maxdepth 1 -type d | fzf --height 40% --query (commandline -t))
     if [ $result ]
         commandline -t -- "$result"
     end
