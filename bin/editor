@@ -10,15 +10,15 @@ fi
 ssh ien osascript <<EOF
 tell application "Sublime Text" to activate
 EOF
-cleanup() {
+focusTerminal() {
 	ssh ien osascript <<EOF
 tell application "Terminal" to activate
 EOF
 }
-trap cleanup EXIT
 
 if [[ $# -eq 0 ]]; then
 	ssh ien subl -wn
+	focusTerminal
 	exit 0
 fi
 
@@ -26,7 +26,13 @@ if [[ $1 == -- ]]; then
 	shift
 fi
 
-tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
-scp -q "$*" "ien:${tempFile}"
-ssh ien subl -wn "$tempFile"
-scp -q "ien:${tempFile}" "$*"
+path="$(readlink -m "$*")"
+if [[ -d $path ]]; then
+	echo "can only open regular files"
+	exit 1
+fi
+tempPath="$(ssh ien mktemp -d)"
+ssh ien sshfs -o allow_other,default_permissions "dev.coder.com:$(dirname "$path")" "$tempPath" 
+ssh ien subl -wn "${tempPath}/$(basename "$path")"
+focusTerminal
+ssh ien umount -f "$tempPath"
