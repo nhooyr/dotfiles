@@ -165,7 +165,7 @@ if is_darwin
 
     abbr -ag b brew
     abbr -ag cdr ssh dev.coder.com
-    
+
     function startcdr
         gcloud --configuration=nhooyr-coder compute instances start dev
     end
@@ -173,7 +173,7 @@ if is_darwin
     function stopcdr
         ssh dev.coder.com sudo poweroff
     end
-    
+
     alias pc=pbcopy
     alias pp=pbpaste
     alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
@@ -230,7 +230,12 @@ function gh
         set url (hub browse -u)
     end
 
-    python -mwebbrowser "$url" >/dev/null
+    if is_darwin
+        python -mwebbrowser "$url" >/dev/null
+    else
+        ssh ien "osascript -e 'tell application \"Safari\" to activate'"; and \
+        ssh ien open "$url"
+    end
 end
 
 function lolsay
