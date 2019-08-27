@@ -38,7 +38,8 @@ alias is_linux="[ (uname) = Linux ]"
 # Fish expects this to be a command so we cannot directly use 'subl -wn'
 # Plus the considerations for linux.
 set -gx EDITOR "$HOME/src/nhooyr/dotfiles/bin/editor"
-set -gx PAGER "sh -c 'ansifilter | $EDITOR > /dev/null'"
+set -gx PAGER "less"
+set -gx MANPAGER "sh -c 'ansifilter | $EDITOR > /dev/null'"
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 
