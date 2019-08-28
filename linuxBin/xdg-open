@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 
-# TODO avoid scp when possible
 if [[ -f "$*" ]]; then
+	realPath="$(realpath "$*")"
+	if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
+		ssh ien open "${realPath/$HOME//Users/nhooyr}"
+		exit 0
+	fi
+
 	tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
 	scp -q "$*" "ien:${tempFile}"
 	ssh ien open "$tempFile"
