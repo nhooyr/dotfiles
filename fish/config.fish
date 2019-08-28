@@ -55,6 +55,7 @@ addToPath /usr/local/sbin
 addToPath /usr/local/opt/ruby/bin
 addToPath /usr/local/lib/ruby/gems/2.6.0/bin
 addToPath ~/src/nhooyr/dotfiles/bin
+addToPath (yarn global bin)
 
 if [ -f /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc ]
     source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc
@@ -193,7 +194,14 @@ if [ (uname) = Darwin ]
     alias sed=gsed
 
     abbr -ag b brew
-    abbr -ag cdr ssh dev.coder.com
+    function cdr
+        if echo "$PWD" | grep -q $HOME
+            set -l dir (string replace /Users/nhooyr \~ $PWD)
+            ssh -t dev.coder.com "cd $dir 2> /dev/null; exec \$SHELL -l"
+        else
+            ssh dev.coder.com
+        end
+    end
 
     function startcdr
         gcloud --configuration=nhooyr-coder compute instances start dev

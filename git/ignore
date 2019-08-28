@@ -44,3 +44,5 @@ vendor
 bin
 
 yarn-error.log
+
+*.sublime-workspace
