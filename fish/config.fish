@@ -38,8 +38,8 @@ alias is_linux="[ (uname) = Linux ]"
 # Fish expects this to be a command so we cannot directly use 'subl -wn'
 # Plus the considerations for linux.
 set -gx EDITOR "$HOME/src/nhooyr/dotfiles/bin/editor"
-set -gx PAGER "less"
-set -gx MANPAGER "sh -c 'ansifilter | $EDITOR > /dev/null'"
+set -gx PAGER less
+set -gx MANPAGER manpager
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 
@@ -117,7 +117,7 @@ abbr -ag n noti
 abbr -ag d cd
 
 alias r="source ~/.config/fish/config.fish"
-alias e="$EDITOR"
+alias e="env SUBLIME_PERSISTENT=1 $EDITOR"
 alias grep="grep --color"
 if is_darwin
     alias ls="gls --indicator-style=classify --color=auto"
@@ -158,11 +158,14 @@ if is_linux
         set path (string replace ~ /Users/nhooyr "$path")
         ssh ien goland "$path"
     end
+
+    addToPath ~/src/nhooyr/dotfiles/linuxBin
 end
 
 if is_darwin
     alias gol=goland
     alias find=gfind
+    alias sed=gsed
 
     abbr -ag b brew
     abbr -ag cdr ssh dev.coder.com
@@ -243,6 +246,9 @@ function lolsay
     cowsay -f (ls  /usr/local/share/cows | cut -f 10 | gshuf | head -n 1) (fortune -o) | lolcat $argv
 end
 
+if is_darwin
+    source /usr/local/opt/fzf/shell/key-bindings.fish
+end
 fzf_key_bindings
 function fzf-cdpath
     set -l result (find -L $CDPATH[2..-1] -mindepth 1 -maxdepth 1 -type d | fzf --height 40% --query (commandline -t))
