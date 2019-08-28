@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# TODO avoid scp when possible
+if [[ -f "$*" ]]; then
+	tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
+	scp -q "$*" "ien:${tempFile}"
+	ssh ien open "$tempFile"
+else
+	ssh ien open "$@"
+fi

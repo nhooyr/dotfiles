@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+tempdir="$(mktemp -d)"
+tempfile="${tempdir}/manpage"
+
+ansifilter > "$tempfile"
+
+name="$(awk '{print $1; exit}' < "$tempfile" | sed 's/(\(.\))/.\1/')"
+
+# ,, lowercases.
+manpage="${tempdir}/${name,,}"
+
+mv "$tempfile" "$manpage"
+
+SUBLIME_PERSISTENT=1 "$EDITOR" "$manpage"
