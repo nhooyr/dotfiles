@@ -33,8 +33,6 @@ set -U fish_pager_color_description af005f
 set -U fish_pager_color_progress 581D5B
 # set -g fish_pager_color_secondary
 
-alias is_darwin="[ (uname) = Darwin ]"
-alias is_linux="[ (uname) = Linux ]"
 # Fish expects this to be a command so we cannot directly use 'subl -wn'
 # Plus the considerations for linux.
 set -gx EDITOR "$HOME/src/nhooyr/dotfiles/bin/editor"
@@ -119,11 +117,6 @@ abbr -ag d cd
 alias r="source ~/.config/fish/config.fish"
 alias e="env SUBLIME_PERSISTENT=1 $EDITOR"
 alias grep="grep --color"
-if is_darwin
-    alias ls="gls --indicator-style=classify --color=auto"
-else
-    alias ls="ls --indicator-style=classify --color=auto"
-end
 alias l="ls -lh"
 alias ll="ls -lhA"
 alias pd=prevd
@@ -143,26 +136,58 @@ function ghd
     and cd "$HOME/src/$argv[1]"
 end
 
-if is_linux
-    abbr -ag ien ssh ien
-    alias pc="ssh ien pbcopy"
-    alias pp="ssh ien pbpaste"
-
-    function gol
-        ssh ien "osascript -e 'tell application \"Goland\" to activate'"
-        set -l path (realpath "$argv")
-        if not string match -q "$HOME/src/*" "$path"
-            echo "Must be within ~/src"
-            return 1
-        end
-        set path (string replace ~ /Users/nhooyr "$path")
-        ssh ien goland "$path"
-    end
-
-    addToPath ~/src/nhooyr/dotfiles/linuxBin
+function mcd
+    mkdir -p $argv
+    cd $argv
 end
 
-if is_darwin
+function cdp
+    for cdpath in $CDPATH
+        if [ -e "$cdpath/$argv" ]
+            echo "$cdpath/$argv"
+            return
+        end
+    end
+end
+
+function gcd
+    set -l gcd (git rev-parse --show-toplevel)
+    if [ "$status" -eq 0 ]
+        cd "$gcd"
+    end
+end
+
+function gh
+    set -l branch (git rev-parse --abbrev-ref HEAD)
+    if [ ! "$branch" ]
+        return
+    end
+
+    # In case multiple PRs are using the same branch, open the first.
+    set -l url (hub pr list -f %U\n -h $branch)[1]
+
+    if [ ! "$url" ]
+        set url (hub browse -u)
+    end
+
+    if [ (uname) = Darwin ]
+        python -mwebbrowser "$url" >/dev/null
+    else if [ "$hostname" = dev ]
+        ssh ien "osascript -e 'tell application \"Safari\" to activate'"; and \
+        ssh ien open "$url"
+    else
+        echo "$url"
+    end
+end
+
+function lolsay
+    cowsay -f (ls  /usr/local/share/cows | cut -f 10 | gshuf | head -n 1) (fortune -o) | lolcat $argv
+end
+
+if [ (uname) = Darwin ]
+    source /usr/local/opt/fzf/shell/key-bindings.fish
+
+    alias ls="gls --indicator-style=classify --color=auto"
     alias gol=goland
     alias find=gfind
     alias sed=gsed
@@ -200,55 +225,27 @@ if is_darwin
     end
 end
 
-function mcd
-    mkdir -p $argv
-    cd $argv
-end
+if [ (uname) = Linux ]
+    alias ls="ls --indicator-style=classify --color=auto"
+    alias pc="ssh ien pbcopy"
+    alias pp="ssh ien pbpaste"
 
-function cdp
-    for cdpath in $CDPATH
-        if [ -e "$cdpath/$argv" ]
-            echo "$cdpath/$argv"
-            return
+    abbr -ag ien ssh ien
+
+    function gol
+        ssh ien "osascript -e 'tell application \"Goland\" to activate'"
+        set -l path (realpath "$argv")
+        if not string match -q "$HOME/src/*" "$path"
+            echo "Must be within ~/src"
+            return 1
         end
-    end
-end
-
-function gcd
-    set -l gcd (git rev-parse --show-toplevel)
-    if [ "$status" -eq 0 ]
-        cd "$gcd"
-    end
-end
-
-function gh
-    set -l branch (git rev-parse --abbrev-ref HEAD)
-    if [ ! "$branch" ]
-        return
+        set path (string replace ~ /Users/nhooyr "$path")
+        ssh ien goland "$path"
     end
 
-    # In case multiple PRs are using the same branch, open the first.
-    set -l url (hub pr list -f %U\n -h $branch)[1]
-
-    if [ ! "$url" ]
-        set url (hub browse -u)
-    end
-
-    if is_darwin
-        python -mwebbrowser "$url" >/dev/null
-    else
-        ssh ien "osascript -e 'tell application \"Safari\" to activate'"; and \
-        ssh ien open "$url"
-    end
+    addToPath ~/src/nhooyr/dotfiles/linuxBin
 end
 
-function lolsay
-    cowsay -f (ls  /usr/local/share/cows | cut -f 10 | gshuf | head -n 1) (fortune -o) | lolcat $argv
-end
-
-if is_darwin
-    source /usr/local/opt/fzf/shell/key-bindings.fish
-end
 fzf_key_bindings
 function fzf-cdpath
     set -l result (find -L $CDPATH[2..-1] -mindepth 1 -maxdepth 1 -type d | fzf --height 40% --query (commandline -t))
