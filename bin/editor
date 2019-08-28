@@ -33,10 +33,13 @@ if [[ $1 == -- ]]; then
 	shift
 fi
 
-realPath="$(realpath "$*")"
-if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
-	ssh ien subl "$sublFlags" "${realPath/$HOME//Users/nhooyr}"
-	exit 0
+# Only for persistent invocations is it safe to not scp back.
+if [[ ${SUBLIME_PERSISTENT-} ]]; then
+	realPath="$(realpath "$*")"
+	if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
+		ssh ien subl "$sublFlags" "${realPath/$HOME//Users/nhooyr}"
+		exit 0
+	fi
 fi
 
 tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
