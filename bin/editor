@@ -2,8 +2,13 @@
 
 set -euo pipefail
 
+sublFlags=""
+if [[ ! ${SUBLIME_PERSISTENT-} ]]; then
+	sublFlags="-wn"
+fi
+
 if [[ "$OSTYPE" == darwin* ]]; then
-	subl -wn "$@"
+	subl "$sublFlags" "$@"
 	exit 0
 fi
 
@@ -15,10 +20,12 @@ cleanup() {
 tell application "Terminal" to activate
 EOF
 }
-trap cleanup EXIT
+if [[ ! ${SUBLIME_PERSISTENT-} ]]; then
+  trap cleanup EXIT
+fi
 
 if [[ $# -eq 0 ]]; then
-	ssh ien subl -wn
+	ssh ien subl "$sublFlags"
 	exit 0
 fi
 
@@ -26,7 +33,13 @@ if [[ $1 == -- ]]; then
 	shift
 fi
 
+realPath="$(realpath "$*")"
+if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
+	ssh ien subl "$sublFlags" "${realPath/$HOME//Users/nhooyr}"
+	exit 0
+fi
+
 tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
 scp -q "$*" "ien:${tempFile}"
-ssh ien subl -wn "$tempFile"
+ssh ien subl "$sublFlags" "$tempFile"
 scp -q "ien:${tempFile}" "$*"
