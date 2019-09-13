@@ -4,6 +4,9 @@ function fish_prompt
     set -l suffix '$'
     set -l user
 
+    # https://github.com/fish-shell/fish-shell/issues/5860
+    echo -ne '\033[J'
+
     if [ "$USER" = root ]
         set_color red
         set suffix '#'

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
-if [[ -f "$*" ]]; then
-	realPath="$(realpath "$*")"
-	if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
-		ssh ien open "${realPath/$HOME//Users/nhooyr}"
-		exit 0
-	fi
+if [[ -f $* ]]; then
+  realPath="$(realpath "$*")"
+  if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
+    ssh ien open "${realPath/$HOME//Users/nhooyr}"
+    exit 0
+  fi
 
-	tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
-	scp -q "$*" "ien:${tempFile}"
-	ssh ien open "$tempFile"
+  tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
+  scp -q "$*" "ien:${tempFile}"
+  ssh ien open "$tempFile"
 else
-	ssh ien open "$@"
+  ssh ien open "$@"
 fi

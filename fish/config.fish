@@ -2,7 +2,6 @@ if not status --is-interactive
     exit 0
 end
 
-tabs -2
 # https://superuser.com/questions/1067801/ctrlr-in-shell-if-i-go-past-the-command-i-want-how-do-i-get-back-to-it
 stty -ixon
 # Occasionally things give me errors because the default limit is so low.
@@ -40,6 +39,7 @@ set -gx PAGER less
 set -gx MANPAGER manpager
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
+set -gx GOPRIVATE go.coder.com
 
 function addToPath
     if echo $PATH | grep -q "$argv"
@@ -80,11 +80,12 @@ abbr -ag - cd -
 abbr -ag vim nvim
 abbr -ag md mkdir -p
 abbr -ag m man
+abbr -ag c clear
 
 abbr -ag g git
 abbr -ag gch git checkout
 abbr -ag ga git add
-abbr -ag gaa git add \* .\*
+abbr -ag gaa gitAddAll
 abbr -ag gcm git commit -v
 abbr -ag gcma git commit -v --amend
 abbr -ag gcmf git commit -v --fixup
@@ -93,7 +94,7 @@ abbr -ag grt git reset
 abbr -ag grb git rebase
 abbr -ag gpl git pull
 abbr -ag gf git fetch
-abbr -ag gps git push
+abbr -ag gps git push -u
 abbr -ag gpf git push -f
 abbr -ag gs git status
 abbr -ag gst git stash
@@ -113,10 +114,12 @@ abbr -ag y yarn
 abbr -ag f functions
 abbr -ag s sudo
 abbr -ag n noti
+abbr -ag v nvim
 abbr -ag d cd
 
 alias r="source ~/.config/fish/config.fish"
-alias e="env SUBLIME_PERSISTENT=1 $EDITOR"
+# alias e="env SUBLIME_PERSISTENT=1 $EDITOR"
+alias e="$EDITOR"
 alias grep="grep --color"
 alias l="ls -lh"
 alias ll="ls -lhA"
@@ -126,10 +129,24 @@ alias npm="echo use yarn pls"
 alias xnpm="command npm"
 alias git="hub"
 alias ec="e ~/.config/fish/config.fish"
+# alias ed="e ~/src/nhooyr/dotfiles/home.sublime-project"
 alias first_non_fixup="git log --pretty='%H' -1 --invert-grep --grep 'fixup! '"
-alias rg="rg -S"
+# alias rg="rg -S"
 alias h="history merge"
-alias fcm="git add * .*; git commit --amend --no-edit; git push -f"
+
+set -gx BAT_THEME GitHub
+alias cat="bat"
+
+function fcm
+    gitAddAll
+    git commit --amend --no-edit
+    git push -f
+end
+
+function gitAddAll
+    set -l files * .*
+    git add -u $files
+end
 
 function ghd
     mkdir -p "$HOME/src/$argv[1]"
@@ -174,8 +191,9 @@ function gh
     if [ (uname) = Darwin ]
         python -mwebbrowser "$url" >/dev/null
     else if [ "$hostname" = dev ]
-        ssh ien "osascript -e 'tell application \"Safari\" to activate'"; and \
-        ssh ien open "$url"
+        ssh ien "osascript -e 'tell application \"Safari\" to activate'"
+        and \
+            ssh ien open "$url"
     else
         echo "$url"
     end
@@ -190,8 +208,9 @@ if [ (uname) = Darwin ]
 
     alias ls="gls --indicator-style=classify --color=auto"
     alias gol=goland
-    alias find=gfind
-    alias sed=gsed
+    # TODO why does FZF lag with these enabled wtf?
+    # alias find=gfind
+    # alias sed=gsed
 
     abbr -ag b brew
     function cdr
@@ -237,6 +256,7 @@ if [ (uname) = Linux ]
     alias ls="ls --indicator-style=classify --color=auto"
     alias pc="ssh ien pbcopy"
     alias pp="ssh ien pbpaste"
+    alias noti="ssh ien noti"
 
     abbr -ag ien ssh ien
 
@@ -254,12 +274,28 @@ if [ (uname) = Linux ]
     addToPath ~/src/nhooyr/dotfiles/linuxBin
 end
 
+# TODO add keybinding that uses ripgrep instead of find for CTRL+T and then remove fzf_key_bindings and use my own cd script
 fzf_key_bindings
 function fzf-cdpath
-    set -l result (find -L $CDPATH[2..-1] -mindepth 1 -maxdepth 1 -type d | fzf --height 40% --query (commandline -t))
-    if [ $result ]
+    set -l sedReplacement (string replace -a '/' '\/' "$HOME")
+    set -l prevCmdline (commandline -b)
+    set -l result (find -L ~/.config ~/src -maxdepth 3 | sed -e "s/$sedReplacement/\~/" | fzf --height 40% --query (commandline -t))
+    set -l realPath (string replace '~' ~ "$result")
+    if [ -n "$prevCmdline" ]
         commandline -t -- "$result"
+        commandline -f repaint
+        return
     end
-    commandline -f repaint
+    if [ -d $realPath ]
+        commandline -t -- "cd $result"
+        commandline -f execute
+    else if [ -f $realPath ]
+        commandline -t -- "e $result"
+        commandline -f execute
+    else
+        commandline -t -- "$result"
+        commandline -f repaint
+    end
 end
-bind \ec fzf-cdpath
+bind \ep fzf-cdpath
+bind \cv accept-autosuggestion execute
