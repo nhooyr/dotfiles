@@ -3,15 +3,18 @@
 set -euo pipefail
 
 tempdir="$(mktemp -d)"
-tempfile="${tempdir}/manpage"
+manpage="${tempdir}/manpage"
 
-ansifilter > "$tempfile"
+# Delete all leading blank lines at top of file (only).
+# https://stackoverflow.com/questions/7359527/removing-trailing-starting-newlines-with-sed-awk-tr-and-friends
+ansifilter | sed '/./,$!d' > "$manpage"
 
-name="$(awk '{print $1; exit}' < "$tempfile" | sed 's/(\(.\))/.\1/')"
-
-# ,, lowercases.
-manpage="${tempdir}/${name,,}"
-
-mv "$tempfile" "$manpage"
+name="$(awk '{print $1; exit}' < "$manpage" | sed 's/(\(.\))/.\1/')"
+if [[ $name ]]; then
+  # ,, lowercases.
+  manpage2="${tempdir}/${name,,}"
+  mv "$manpage" "$manpage2"
+  manpage="$manpage2"
+fi
 
 SUBLIME_PERSISTENT=1 "$EDITOR" "$manpage"

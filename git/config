@@ -39,4 +39,4 @@
 [url "ssh://git@github.com/"]
 	insteadOf = https://github.com/
 [branch]
-  autosetupmerge = true
+  autosetupmerge = always

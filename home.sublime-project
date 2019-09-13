@@ -3,7 +3,7 @@
 	[
 		{
 			"path": "/Users/nhooyr/.config",
-			"folder_exclude_patterns": ["yarn", "Code"],
+			"folder_exclude_patterns": ["yarn", "Code", "fish", "git"],
 		},
 		{
 			"path": "/Users/nhooyr/.ssh"

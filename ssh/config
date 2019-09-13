@@ -1,5 +1,4 @@
 Host *
-
 HashKnownHosts yes
 ControlPath ~/.ssh/sockets/%C
 ControlMaster auto
