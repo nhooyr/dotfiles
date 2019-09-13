@@ -4,19 +4,19 @@ set -euo pipefail
 
 sublFlags=""
 if [[ ! ${SUBLIME_PERSISTENT-} ]]; then
-	sublFlags="-wn"
+  sublFlags="-wn"
 fi
 
-if [[ "$OSTYPE" == darwin* ]]; then
-	subl "$sublFlags" "$@"
-	exit 0
+if [[ $OSTYPE == darwin* ]]; then
+  subl "$sublFlags" "$@"
+  exit 0
 fi
 
-ssh ien osascript <<EOF
+ssh ien osascript << EOF
 tell application "Sublime Text" to activate
 EOF
 cleanup() {
-	ssh ien osascript <<EOF
+  ssh ien osascript << EOF
 tell application "Terminal" to activate
 EOF
 }
@@ -25,21 +25,21 @@ if [[ ! ${SUBLIME_PERSISTENT-} ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-	ssh ien subl "$sublFlags"
-	exit 0
+  ssh ien subl "$sublFlags"
+  exit 0
 fi
 
 if [[ $1 == -- ]]; then
-	shift
+  shift
 fi
 
 # Only for persistent invocations is it safe to not scp back.
 if [[ ${SUBLIME_PERSISTENT-} ]]; then
-	realPath="$(realpath "$*")"
-	if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
-		ssh ien subl "$sublFlags" "${realPath/$HOME//Users/nhooyr}"
-		exit 0
-	fi
+  realPath="$(realpath "$*")"
+  if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
+    ssh ien subl "$sublFlags" "${realPath/$HOME//Users/nhooyr}"
+    exit 0
+  fi
 fi
 
 tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
