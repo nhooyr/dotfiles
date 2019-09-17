@@ -1,0 +1,16 @@
+sync:
+  defaults:
+    ignore:
+      paths:
+        - node_modules
+    mode: two-way-resolved
+    permissions:
+      defaultFileMode: 0644
+      defaultDirectoryMode: 0755
+    symlink:
+      mode: posix-raw
+
+forward:
+  defaults:
+    socket:
+      overwriteMode: overwrite
