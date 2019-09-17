@@ -1,12 +1,16 @@
 function up
-    if test -e $argv
-        # Idea here is numbers go up n directories, not sure if I want this though, seems confusing
-        # or math $argv >/dev/null 2>&1
-        # up_n $argv
+    if [ -z "$argv" ]
         cd ..
         return
     end
-    up_d $argv
+
+    # Number.
+    if string match -qra '\d+' "$argv"
+        up_n "$argv"
+        return
+    end
+
+    up_d "$argv"
 end
 
 function up_n
