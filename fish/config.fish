@@ -266,6 +266,10 @@ if [ (uname) = Darwin ]
         sudo killall mDNSResponderHelper
         sudo dscacheutil -flushcache
     end
+
+    function fp
+        mutagen forward create tcp:127.0.0.1:$argv[1] dev2.coder.com:tcp:127.0.0.1:$argv[1]
+    end
 end
 
 if [ (uname) = Linux ]
@@ -275,6 +279,7 @@ if [ (uname) = Linux ]
     alias noti="ssh ien noti"
 
     abbr -ag ien ssh ien
+    abbr -ag b yay
 
     function gol
         ssh ien "osascript -e 'tell application \"Goland\" to activate'"
@@ -288,6 +293,14 @@ if [ (uname) = Linux ]
     end
 
     addToPath ~/src/nhooyr/dotfiles/linuxBin
+
+    addToPath /home/nhooyr/src/emscripten-core/emsdk
+    addToPath /home/nhooyr/src/emscripten-core/emsdk/fastcomp/emscripten
+    addToPath /home/nhooyr/src/emscripten-core/emsdk/node/12.9.1_64bit/bin
+
+    set -gx EMSDK /home/nhooyr/src/emscripten-core/emsdk
+    set -gx EM_CONFIG /home/nhooyr/.emscripten
+    set -gx EMSDK_NODE /home/nhooyr/src/emscripten-core/emsdk/node/12.9.1_64bit/bin/node
 end
 
 fzf_key_bindings
