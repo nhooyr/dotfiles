@@ -116,10 +116,10 @@ abbr -ag s sudo
 abbr -ag n noti
 abbr -ag v nvim
 abbr -ag d cd
+abbr -ag mt mutagen
 
 alias r="source ~/.config/fish/config.fish"
-# alias e="env SUBLIME_PERSISTENT=1 $EDITOR"
-alias e="$EDITOR"
+alias e="env SUBLIME_PERSISTENT=1 $EDITOR"
 alias grep="grep --color"
 alias l="ls -lh"
 alias ll="ls -lhA"
@@ -149,9 +149,27 @@ function gitAddAll
 end
 
 function ghd
-    mkdir -p "$HOME/src/$argv[1]"
-    and git clone --recursive "https://github.com/$argv[1]" "$HOME/src/$argv[1]"
-    and cd "$HOME/src/$argv[1]"
+    set -l path $argv[1]
+    set -l path (string replace -r ".*://" "" "$path")
+    set -l path (string replace "github.com/" "" "$path")
+    set -l path (string split / "$path")
+    set -l path (string join / $path[1..2])
+    if [ -z $path ]
+        echo "invalid URL or path"
+        return
+    end
+
+    set -l dst "$HOME/src/$path"
+    if [ -d $dst ]
+        cd "$dst"
+        return
+    end
+    mkdir -p "$dst"
+    and if git clone --recursive "https://github.com/$path" "$dst"
+        cd "$dst"
+    else
+        command rm -rf "$dst"
+    end
 end
 
 function mcd
@@ -208,9 +226,7 @@ if [ (uname) = Darwin ]
 
     alias ls="gls --indicator-style=classify --color=auto"
     alias gol=goland
-    # TODO why does FZF lag with these enabled wtf?
-    # alias find=gfind
-    # alias sed=gsed
+    alias sed=gsed
 
     abbr -ag b brew
     function cdr
@@ -274,12 +290,10 @@ if [ (uname) = Linux ]
     addToPath ~/src/nhooyr/dotfiles/linuxBin
 end
 
-# TODO add keybinding that uses ripgrep instead of find for CTRL+T and then remove fzf_key_bindings and use my own cd script
 fzf_key_bindings
-function fzf-cdpath
-    set -l sedReplacement (string replace -a '/' '\/' "$HOME")
+function fzf-paths
     set -l prevCmdline (commandline -b)
-    set -l result (find -L ~/.config ~/src -maxdepth 3 | sed -e "s/$sedReplacement/\~/" | fzf --height 40% --query (commandline -t))
+    set -l result (paths | fzf --height 40% --query (commandline -t))
     set -l realPath (string replace '~' ~ "$result")
     if [ -n "$prevCmdline" ]
         commandline -t -- "$result"
@@ -289,13 +303,13 @@ function fzf-cdpath
     if [ -d $realPath ]
         commandline -t -- "cd $result"
         commandline -f execute
-    else if [ -f $realPath ]
+    else if [ -e $realPath ]
         commandline -t -- "e $result"
         commandline -f execute
     else
-        commandline -t -- "$result"
+        echo "$result does not exist"
         commandline -f repaint
     end
 end
-bind \ep fzf-cdpath
+bind \ee fzf-paths
 bind \cv accept-autosuggestion execute

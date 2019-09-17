@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+homePattern="${HOME//\//\\\/}"
+fd
+fd . ~/src ~/.config | sed -e "s/${homePattern}/\~/"
