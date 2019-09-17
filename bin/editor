@@ -42,6 +42,9 @@ if [[ ${SUBLIME_PERSISTENT-} ]]; then
   fi
 fi
 
+sublFlags="-wn"
+trap cleanup EXIT
+
 tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
 scp -q "$*" "ien:${tempFile}"
 ssh ien subl "$sublFlags" "$tempFile"
