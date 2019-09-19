@@ -1,6 +1,6 @@
 Host *
 HashKnownHosts yes
-ControlPath ~/.ssh/sockets/%C
+ControlPath ~/.ssh/sockets/%C-%n
 ControlMaster auto
 ControlPersist yes
 AddKeysToAgent yes
