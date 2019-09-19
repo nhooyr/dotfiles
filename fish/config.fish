@@ -85,6 +85,7 @@ abbr -ag c clear
 abbr -ag g git
 abbr -ag gch git checkout
 abbr -ag ga git add
+abbr -ag gaa git add -A
 abbr -ag gcm git commit -v
 abbr -ag gcma git commit -v --amend
 abbr -ag gcmf git commit -v --fixup
