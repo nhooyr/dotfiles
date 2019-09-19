@@ -3,5 +3,5 @@
 set -euo pipefail
 
 homePattern="${HOME//\//\\\/}"
-fd
+fd -H
 fd . ~/src ~/.config | sed -e "s/${homePattern}/\~/"

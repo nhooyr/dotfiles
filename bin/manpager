@@ -17,4 +17,4 @@ if [[ $name ]]; then
   manpage="$manpage2"
 fi
 
-SUBLIME_PERSISTENT=1 "$EDITOR" "$manpage"
+EDITOR_PERSIST=FORCE "$EDITOR" "$manpage"

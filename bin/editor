@@ -3,7 +3,7 @@
 set -euo pipefail
 
 sublFlags=""
-if [[ ! ${SUBLIME_PERSISTENT-} ]]; then
+if [[ ! ${EDITOR_PERSIST-} ]]; then
   sublFlags="-wn"
 fi
 
@@ -20,7 +20,7 @@ cleanup() {
 tell application "Terminal" to activate
 EOF
 }
-if [[ ! ${SUBLIME_PERSISTENT-} ]]; then
+if [[ ! ${EDITOR_PERSIST-} ]]; then
   trap cleanup EXIT
 fi
 
@@ -34,7 +34,7 @@ if [[ $1 == -- ]]; then
 fi
 
 # Only for persistent invocations is it safe to not scp back.
-if [[ ${SUBLIME_PERSISTENT-} ]]; then
+if [[ ${EDITOR_PERSIST-} ]]; then
   realPath="$(realpath "$*")"
   if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
     ssh ien subl "$sublFlags" "${realPath/$HOME//Users/nhooyr}"
@@ -42,10 +42,15 @@ if [[ ${SUBLIME_PERSISTENT-} ]]; then
   fi
 fi
 
-sublFlags="-wn"
-trap cleanup EXIT
+if [[ ${EDITOR_PERSIST-} != "FORCE" ]]; then
+  sublFlags="-wn"
+  trap cleanup EXIT
+fi
 
 tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
 scp -q "$*" "ien:${tempFile}"
 ssh ien subl "$sublFlags" "$tempFile"
-scp -q "ien:${tempFile}" "$*"
+
+if [[ ${EDITOR_PERSIST-} != "FORCE" ]]; then
+  scp -q "ien:${tempFile}" "$*"
+fi

@@ -85,7 +85,6 @@ abbr -ag c clear
 abbr -ag g git
 abbr -ag gch git checkout
 abbr -ag ga git add
-abbr -ag gaa gitAddAll
 abbr -ag gcm git commit -v
 abbr -ag gcma git commit -v --amend
 abbr -ag gcmf git commit -v --fixup
@@ -98,6 +97,7 @@ abbr -ag gps git push -u
 abbr -ag gpf git push -f
 abbr -ag gs git status
 abbr -ag gst git stash
+abbr -ag gy git sync
 abbr -ag gsh git show
 abbr -ag gd git diff
 abbr -ag gdc git diff --cached
@@ -119,7 +119,7 @@ abbr -ag d cd
 abbr -ag mt mutagen
 
 alias r="source ~/.config/fish/config.fish"
-alias e="env SUBLIME_PERSISTENT=1 $EDITOR"
+alias e="env EDITOR_PERSIST=1 $EDITOR"
 alias grep="grep --color"
 alias l="ls -lh"
 alias ll="ls -lhA"
@@ -138,14 +138,9 @@ set -gx BAT_THEME GitHub
 alias cat="bat"
 
 function fcm
-    gitAddAll
+    git add -A
     git commit --amend --no-edit
     git push -f
-end
-
-function gitAddAll
-    set -l files * .*
-    git add -u $files
 end
 
 function ghd
@@ -268,7 +263,7 @@ if [ (uname) = Darwin ]
     end
 
     function fp
-        mutagen forward create tcp:127.0.0.1:$argv[1] dev2.coder.com:tcp:127.0.0.1:$argv[1]
+        mutagen forward create tcp:127.0.0.1:$argv[1] dev2.coder.com:tcp:0.0.0.0:$argv[1]
     end
 end
 
