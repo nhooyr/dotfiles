@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+git push "$(git remote | head -n 1)" -d "$(git branch --show-current)"
