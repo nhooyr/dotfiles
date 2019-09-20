@@ -4,3 +4,4 @@ ControlPath ~/.ssh/sockets/%C-%n
 ControlMaster auto
 ControlPersist yes
 AddKeysToAgent yes
+Compression yes
