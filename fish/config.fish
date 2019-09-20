@@ -90,11 +90,12 @@ abbr -ag gcm git commit -v
 abbr -ag gcma git commit -v --amend
 abbr -ag gcmf git commit -v --fixup
 abbr -ag gb git branch
+abbr -ag gbd git brd
 abbr -ag grt git reset
 abbr -ag grb git rebase
 abbr -ag gpl git pull
 abbr -ag gf git fetch
-abbr -ag gps git push -u
+abbr -ag gps git psh
 abbr -ag gpf git push -f
 abbr -ag gs git status
 abbr -ag gst git stash
@@ -103,7 +104,7 @@ abbr -ag gsh git show
 abbr -ag gd git diff
 abbr -ag gdc git diff --cached
 abbr -ag gl git log
-abbr -ag gpr git pull-request
+abbr -ag gpr git pull-request -p
 abbr -ag gcl git clone
 abbr -ag grv git revert
 abbr -ag gro git remote
@@ -264,8 +265,14 @@ if [ (uname) = Darwin ]
     end
 
     function fp
-        mutagen forward create tcp:127.0.0.1:$argv[1] dev2.coder.com:tcp:0.0.0.0:$argv[1]
+        mutagen forward create -n=p"$argv" tcp:127.0.0.1:"$argv" dev2.coder.com:tcp:0.0.0.0:"$argv"
     end
+
+    function fs
+        mutagen sync create -n=(basename "$argv") "$argv" dev2.coder.com:"$argv"
+    end
+
+    addToPath /Users/nhooyr/src/chromium/depot_tools
 end
 
 if [ (uname) = Linux ]
@@ -276,6 +283,7 @@ if [ (uname) = Linux ]
 
     abbr -ag ien ssh ien
     abbr -ag b yay
+    alias bu="yay -Syu"
 
     function gol
         ssh ien "osascript -e 'tell application \"Goland\" to activate'"

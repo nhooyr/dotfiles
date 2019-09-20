@@ -24,7 +24,6 @@
 	forceSignAnnotated = true
 [push]
 	followTags = true
-	default = current
 [filter "lfs"]
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
@@ -40,3 +39,6 @@
 	insteadOf = https://github.com/
 [branch]
   autosetupmerge = always
+[alias]
+  psh = !gitPush
+  brd = !gitBranchDelete
