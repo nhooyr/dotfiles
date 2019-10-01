@@ -3,7 +3,7 @@ if not status --is-interactive
 end
 
 # https://superuser.com/questions/1067801/ctrlr-in-shell-if-i-go-past-the-command-i-want-how-do-i-get-back-to-it
-stty -ixon
+stty -ixon 2> /dev/null
 # Occasionally things give me errors because the default limit is so low.
 ulimit -n 16384
 
@@ -56,6 +56,10 @@ addToPath /usr/local/opt/ruby/bin
 addToPath /usr/local/lib/ruby/gems/2.6.0/bin
 addToPath ~/src/nhooyr/dotfiles/bin
 addToPath (yarn global bin)
+
+if [ -f  ~/src/emscripten-core/emsdk/emsdk_env.fish ]
+	source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
+end
 
 if [ -f /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc ]
     source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc
@@ -131,9 +135,9 @@ alias npm="echo use yarn pls"
 alias xnpm="command npm"
 alias git="hub"
 alias ec="e ~/.config/fish/config.fish"
-# alias ed="e ~/src/nhooyr/dotfiles/home.sublime-project"
 alias first_non_fixup="git log --pretty='%H' -1 --invert-grep --grep 'fixup! '"
-# alias rg="rg -S"
+alias rg="rg -S"
+alias rgi="rg --no-ignore"
 alias h="history merge"
 
 set -gx BAT_THEME GitHub
@@ -272,7 +276,7 @@ if [ (uname) = Darwin ]
         mutagen sync create -n=(basename "$argv") "$argv" dev2.coder.com:"$argv"
     end
 
-    addToPath /Users/nhooyr/src/chromium/depot_tools
+    addToPath ~/.cargo/bin
 end
 
 if [ (uname) = Linux ]
@@ -297,14 +301,6 @@ if [ (uname) = Linux ]
     end
 
     addToPath ~/src/nhooyr/dotfiles/linuxBin
-
-    addToPath /home/nhooyr/src/emscripten-core/emsdk
-    addToPath /home/nhooyr/src/emscripten-core/emsdk/fastcomp/emscripten
-    addToPath /home/nhooyr/src/emscripten-core/emsdk/node/12.9.1_64bit/bin
-
-    set -gx EMSDK /home/nhooyr/src/emscripten-core/emsdk
-    set -gx EM_CONFIG /home/nhooyr/.emscripten
-    set -gx EMSDK_NODE /home/nhooyr/src/emscripten-core/emsdk/node/12.9.1_64bit/bin/node
 end
 
 fzf_key_bindings
@@ -330,3 +326,7 @@ function fzf-paths
 end
 bind \ee fzf-paths
 bind \cv accept-autosuggestion execute
+
+function search
+    rgi --color=always "$argv" | fzf --height 40% --ansi --query "$argv"
+end

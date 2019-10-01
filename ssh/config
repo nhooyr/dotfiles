@@ -1,7 +1,9 @@
 Host *
 HashKnownHosts yes
-ControlPath ~/.ssh/sockets/%C-%n
-ControlMaster auto
-ControlPersist yes
+#ControlPath ~/.ssh/sockets/%C-%n
+#ControlMaster auto
+#ControlPersist yes
 AddKeysToAgent yes
-Compression yes
+#Compression yes
+ServerAliveInterval 60
+TCPKeepAlive no
