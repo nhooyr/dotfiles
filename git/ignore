@@ -46,3 +46,5 @@ bin
 yarn-error.log
 
 *.sublime-workspace
+
+cmake-build-debug

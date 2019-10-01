@@ -5,6 +5,7 @@
 	],
 	"installed_packages":
 	[
+		"Autotools",
 		"Dockerfile Syntax Highlighting",
 		"EditorConfig",
 		"Emmet",
