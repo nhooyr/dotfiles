@@ -2,4 +2,9 @@
 
 set -euo pipefail
 
+if [[ $# -gt 0 ]]; then
+	git branch -d "$@"
+	exit 0
+fi
+
 git push "$(git remote | head -n 1)" -d "$(git branch --show-current)"
