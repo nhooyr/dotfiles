@@ -40,6 +40,8 @@ set -gx MANPAGER manpager
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 set -gx GOPRIVATE go.coder.com
+# Hate the delay otherwise.
+set -gx TS_NODE_TRANSPILE_ONLY true
 
 function addToPath
     if echo $PATH | grep -q "$argv"
