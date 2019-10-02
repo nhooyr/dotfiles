@@ -1,8 +1,10 @@
 sync:
   defaults:
     ignore:
+      vcs: true
       paths:
         - node_modules
+        - .DS_Store
     mode: two-way-resolved
     permissions:
       defaultFileMode: 0644
