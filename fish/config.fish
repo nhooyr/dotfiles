@@ -303,6 +303,10 @@ if [ (uname) = Linux ]
     end
 
     addToPath ~/src/nhooyr/dotfiles/linuxBin
+    addToPath /snap/bin
+
+    set -gx EDITOR nvim
+    set -x GPG_TTY (tty)
 end
 
 fzf_key_bindings
