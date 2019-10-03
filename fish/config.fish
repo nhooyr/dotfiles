@@ -255,7 +255,6 @@ if [ (uname) = Darwin ]
 
     alias bu="brew update && brew upgrade && brew cask upgrade"
     alias noti='noti --message "You wanted a notification" --title Terminal'
-    alias rm=tra
 
     function tra
         for file in $argv
