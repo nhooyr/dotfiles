@@ -48,3 +48,6 @@ yarn-error.log
 *.sublime-workspace
 
 cmake-build-debug
+
+.mutagen.yml
+.mutagen.yml.lock

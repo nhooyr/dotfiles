@@ -1,11 +1,4 @@
-forward:
-  gpgAgent:
-    source: dev2.coder.com:unix:/run/user/1000/gnupg/S.gpg-agent
-    destination: unix:/Users/nhooyr/.gnupg/S.gpg-agent.extra
-  ssh:
-    source: dev2.coder.com:tcp:127.0.0.1:2424
-    destination: tcp:127.0.0.1:22
 sync:
   nhooyr:
     alpha: ~/src/nhooyr
-    beta: dev2.coder.com:~/src/nhooyr
+    beta: xayah-unshared:~/src/nhooyr

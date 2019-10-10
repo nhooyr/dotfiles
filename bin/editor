@@ -2,10 +2,7 @@
 
 set -euo pipefail
 
-sublFlags=""
-if [[ ! ${EDITOR_PERSIST-} ]]; then
-  sublFlags="-wn"
-fi
+sublFlags="-wn"
 
 if [[ $OSTYPE == darwin* ]]; then
   subl "$sublFlags" "$@"
@@ -20,37 +17,33 @@ cleanup() {
 tell application "Terminal" to activate
 EOF
 }
-if [[ ! ${EDITOR_PERSIST-} ]]; then
-  trap cleanup EXIT
-fi
+
+trap cleanup EXIT
 
 if [[ $# -eq 0 ]]; then
   ssh ien subl "$sublFlags"
   exit 0
 fi
 
+# Some commands expect this to be ignored.
 if [[ $1 == -- ]]; then
   shift
 fi
 
 # Only for persistent invocations is it safe to not scp back.
-if [[ ${EDITOR_PERSIST-} ]]; then
-  realPath="$(realpath "$*")"
-  if [[ $realPath == ~/src/nhooyr* || $realPath == ~/src/cdr/environments* ]]; then
-    ssh ien subl "$sublFlags" "${realPath/$HOME//Users/nhooyr}"
-    exit 0
-  fi
+if ! [[ -e "$*" ]]; then
+  touch "$*"
 fi
-
-if [[ ${EDITOR_PERSIST-} != "FORCE" ]]; then
-  sublFlags="-wn"
-  trap cleanup EXIT
+realPath="$(realpath "$*")"
+if [[ $realPath == ~/src/nhooyr* ]]; then
+  ssh ien subl "$sublFlags" "${realPath/$HOME//Users/nhooyr}"
+  exit 0
 fi
 
 tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
 scp -q "$*" "ien:${tempFile}"
 ssh ien subl "$sublFlags" "$tempFile"
 
-if [[ ${EDITOR_PERSIST-} != "FORCE" ]]; then
+if ! [[ ${EDITOR_READONLY-} ]]; then
   scp -q "ien:${tempFile}" "$*"
 fi

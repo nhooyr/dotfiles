@@ -42,6 +42,7 @@ set -gx GOPATH ~/.local/share/gopath
 set -gx GOPRIVATE go.coder.com
 # Hate the delay otherwise.
 set -gx TS_NODE_TRANSPILE_ONLY true
+set -gx MAKEFLAGS "--jobs=8 --output-sync=target"
 
 function addToPath
     if echo $PATH | grep -q "$argv"
@@ -58,10 +59,6 @@ addToPath /usr/local/opt/ruby/bin
 addToPath /usr/local/lib/ruby/gems/2.6.0/bin
 addToPath ~/src/nhooyr/dotfiles/bin
 addToPath (yarn global bin)
-
-if [ -f  ~/src/emscripten-core/emsdk/emsdk_env.fish ]
-	source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
-end
 
 if [ -f /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc ]
     source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc
@@ -127,7 +124,7 @@ abbr -ag d cd
 abbr -ag mt mutagen
 
 alias r="source ~/.config/fish/config.fish"
-alias e="env EDITOR_PERSIST=1 $EDITOR"
+alias e="$EDITOR"
 alias grep="grep --color"
 alias l="ls -lh"
 alias ll="ls -lhA"
@@ -141,6 +138,7 @@ alias first_non_fixup="git log --pretty='%H' -1 --invert-grep --grep 'fixup! '"
 alias rg="rg -S"
 alias rgi="rg --no-ignore"
 alias h="history merge"
+alias time="time -p"
 
 set -gx BAT_THEME GitHub
 alias cat="bat"
@@ -211,7 +209,7 @@ function gh
 
     if [ (uname) = Darwin ]
         python -mwebbrowser "$url" >/dev/null
-    else if [ "$hostname" = dev ]
+    else if [ "$hostname" = xayah ]
         ssh ien "osascript -e 'tell application \"Safari\" to activate'"
         and \
             ssh ien open "$url"
@@ -232,23 +230,15 @@ if [ (uname) = Darwin ]
     alias sed=gsed
 
     abbr -ag b brew
-    function cdr
+    abbr -ag o open
+    function x
         if echo "$PWD" | grep -q $HOME
             set -l dir (string replace /Users/nhooyr \~ $PWD)
-            ssh -t dev.coder.com "cd $dir 2> /dev/null; exec \$SHELL -l"
+            ssh -t xayah "cd $dir 2> /dev/null; exec \$SHELL -l"
         else
-            ssh dev.coder.com
+            ssh xayah
         end
     end
-
-    function startcdr
-        gcloud --configuration=nhooyr-coder compute instances start dev
-    end
-
-    function stopcdr
-        ssh dev.coder.com sudo poweroff
-    end
-
     alias pc=pbcopy
     alias pp=pbpaste
     alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
@@ -270,42 +260,58 @@ if [ (uname) = Darwin ]
     end
 
     function fp
-        mutagen forward create -n=p"$argv" tcp:127.0.0.1:"$argv" dev2.coder.com:tcp:0.0.0.0:"$argv"
+        ssh -NL "$argv:localhost:$argv" xayah-unshared
     end
 
     function fs
-        mutagen sync create -n=(basename "$argv") "$argv" dev2.coder.com:"$argv"
+        mutagen sync create -n=(basename "$argv") "$argv" xayah-unshared:"$argv"
     end
 
     addToPath ~/.cargo/bin
+    addToPath /usr/local/opt/make/libexec/gnubin
+    addToPath /usr/local/opt/gnu-sed/libexec/gnubin
 end
 
 if [ (uname) = Linux ]
+    if [ -f  ~/src/emscripten-core/emsdk/emsdk_env.fish ]
+        source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
+    end
+
     alias ls="ls --indicator-style=classify --color=auto"
     alias pc="ssh ien pbcopy"
     alias pp="ssh ien pbpaste"
     alias noti="ssh ien noti"
+    alias i="sudo apt install"
 
     abbr -ag ien ssh ien
-    abbr -ag b yay
-    alias bu="yay -Syu"
+    abbr -ag b apt
+    alias bu="sudo apt update; and sudo apt full-upgrade"
 
     function gol
-        ssh ien "osascript -e 'tell application \"Goland\" to activate'"
         set -l path (realpath "$argv")
         if not string match -q "$HOME/src/*" "$path"
             echo "Must be within ~/src"
             return 1
         end
+        ssh ien "osascript -e 'tell application \"Goland\" to activate'"
         set path (string replace ~ /Users/nhooyr "$path")
         ssh ien goland "$path"
     end
 
+    function clion
+        set -l path (realpath "$argv")
+        if not string match -q "$HOME/src/*" "$path"
+            echo "Must be within ~/src"
+            return 1
+        end
+        ssh ien "osascript -e 'tell application \"CLion\" to activate'"
+        set path (string replace ~ /Users/nhooyr "$path")
+        ssh ien clion "$path"
+    end
+
     addToPath ~/src/nhooyr/dotfiles/linuxBin
     addToPath /snap/bin
-
-    set -gx EDITOR nvim
-    set -x GPG_TTY (tty)
+    addToPath /usr/local/go/bin
 end
 
 fzf_key_bindings
