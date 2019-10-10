@@ -63,6 +63,10 @@ function git_info
     set_color blue
     echo -n "$branch"
 
+    # The rest is too slow.
+    set_color normal
+    return
+
     git status --porcelain | read -z git_status
     if [ -n "$git_status" ]
         set_color cyan
