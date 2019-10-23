@@ -10,6 +10,11 @@ if (activeUsers != "") {
 }
 
 const lastLogin = getLastLogin()
+if (isNaN(lastLogin)) {
+	console.log("last login is not a valid date")
+	process.exit(1)
+}
+
 const threshold = new Date()
 threshold.setHours(threshold.getHours() - 1)
 
@@ -31,7 +36,11 @@ function who() {
 
 function getLastLogin() {
 	const out = cp.execSync("last -n1 --time-format=iso").toString()
-	const l1 = out.split("\n")[0]
-	const ts = l1.split(/\s+/)[3]
-	return new Date(ts)
+	let l1 = out.split("\n")[0]
+	l1 = l1.split(/\s+/)
+	const user = l1[0]
+	if (user == "reboot") {
+		return new Date(l1[4])
+	}
+	return new Date(l1[3])
 }
