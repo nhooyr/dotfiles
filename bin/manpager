@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+if ! [[ -t 1 ]]; then
+	less
+	exit 0
+fi
+
 tempdir="$(mktemp -d)"
 manpage="${tempdir}/manpage"
 

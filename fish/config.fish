@@ -1,9 +1,7 @@
-if not status --is-interactive
-    exit 0
+if status --is-interactive
+    # https://superuser.com/questions/1067801/ctrlr-in-shell-if-i-go-past-the-command-i-want-how-do-i-get-back-to-it
+    stty -ixon 2>/dev/null
 end
-
-# https://superuser.com/questions/1067801/ctrlr-in-shell-if-i-go-past-the-command-i-want-how-do-i-get-back-to-it
-stty -ixon 2> /dev/null
 # Occasionally things give me errors because the default limit is so low.
 ulimit -n 16384
 
@@ -231,14 +229,6 @@ if [ (uname) = Darwin ]
 
     abbr -ag b brew
     abbr -ag o open
-    function x
-        if echo "$PWD" | grep -q $HOME
-            set -l dir (string replace /Users/nhooyr \~ $PWD)
-            ssh -t xayah "cd $dir 2> /dev/null; exec \$SHELL -l"
-        else
-            ssh xayah
-        end
-    end
     alias pc=pbcopy
     alias pp=pbpaste
     alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
@@ -264,16 +254,22 @@ if [ (uname) = Darwin ]
     end
 
     function fs
-        mutagen sync create -n=(basename "$argv") "$argv" xayah-unshared:"$argv"
+        set -l localPath (realpath "$argv")
+        set remotePath (string replace ~ /home/nhooyr "$localPath")
+        mutagen sync create -n=(basename "$localPath") "$localPath" xayah-unshared:"$remotePath"
     end
 
     addToPath ~/.cargo/bin
     addToPath /usr/local/opt/make/libexec/gnubin
     addToPath /usr/local/opt/gnu-sed/libexec/gnubin
+    addToPath /usr/local/opt/llvm/bin
+    # Need this for clang to find system headers.
+    set -gx C_INCLUDE_PATH (xcode-select -p)"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include"
+    addToPath ~/src/nhooyr/dotfiles/darwinBin
 end
 
 if [ (uname) = Linux ]
-    if [ -f  ~/src/emscripten-core/emsdk/emsdk_env.fish ]
+    if [ -f ~/src/emscripten-core/emsdk/emsdk_env.fish ]
         source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
     end
 
