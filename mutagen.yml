@@ -1,6 +1,7 @@
 sync:
   defaults:
     ignore:
+      vcs: true
       paths:
         - node_modules
         - .DS_Store

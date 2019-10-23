@@ -6,3 +6,4 @@ ControlPersist yes
 AddKeysToAgent yes
 ServerAliveInterval 5
 TCPKeepAlive no
+LogLevel=QUIET

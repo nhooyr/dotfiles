@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ "$PWD" != "$HOME"* ]]; then
+	if [[ "$#" -gt 0 ]]; then
+		echo "not in $HOME"
+		exit 1
+	fi
+	ssh xayah
+	exit 0
+fi
+
+dir="${PWD/\/Users\/nhooyr/\~}"
+argv=""
+if [[ "$#" -gt 0 ]]; then
+	argv="'-c $*'"
+fi
+ssh -t xayah "cd $dir 2> /dev/null; exec \$SHELL -l ${argv-}"
