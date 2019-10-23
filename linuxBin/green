@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+
+const cp = require("child_process")
+
+const activeUsers = who()
+if (activeUsers != "") {
+	console.log("users logged in")
+	console.log(`who:\n${activeUsers.trim()}`)
+	return
+}
+
+const lastLogin = getLastLogin()
+const threshold = new Date()
+threshold.setHours(threshold.getHours() - 1)
+
+console.log("last login", lastLogin)
+console.log("threshold", threshold)
+
+if (lastLogin < threshold) {
+	console.log("last login before threshold")
+	console.log("powering off")
+	cp.execSync("poweroff")
+	process.exit(1)
+}
+
+console.log("last login after threshold")
+
+function who() {
+	return cp.execSync("who").toString()
+}
+
+function getLastLogin() {
+	const out = cp.execSync("last -n1 --time-format=iso").toString()
+	const l1 = out.split("\n")[0]
+	const ts = l1.split(/\s+/)[3]
+	return new Date(ts)
+}

@@ -262,9 +262,9 @@ if [ (uname) = Darwin ]
     addToPath ~/.cargo/bin
     addToPath /usr/local/opt/make/libexec/gnubin
     addToPath /usr/local/opt/gnu-sed/libexec/gnubin
-    addToPath /usr/local/opt/llvm/bin
+    # addToPath /usr/local/opt/llvm/bin
     # Need this for clang to find system headers.
-    set -gx C_INCLUDE_PATH (xcode-select -p)"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include"
+    # set -gx C_INCLUDE_PATH (xcode-select -p)"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include"
     addToPath ~/src/nhooyr/dotfiles/darwinBin
 end
 
