@@ -249,6 +249,10 @@ if [ (uname) = Darwin ]
         sudo dscacheutil -flushcache
     end
 
+    function xs
+        rsync -avzP $argv[1] xayah:$argv[2]
+    end
+
     function fp
         ssh -NL "$argv:localhost:$argv" xayah-unshared
     end
