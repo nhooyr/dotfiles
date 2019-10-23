@@ -1,0 +1,9 @@
+[Unit]
+Description=Ensure system is only up if being used
+
+[Timer]
+OnBootSec=1h
+OnCalendar=minutely
+
+[Install]
+WantedBy=timers.target
