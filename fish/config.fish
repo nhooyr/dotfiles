@@ -121,6 +121,7 @@ abbr -ag v nvim
 abbr -ag d cd
 abbr -ag mt mutagen
 
+alias sudo="sudo -s"
 alias r="source ~/.config/fish/config.fish"
 alias e="$EDITOR"
 alias grep="grep --color"
