@@ -1,6 +1,10 @@
 set -g fish_prompt_pwd_dir_length 0
 
 function fish_prompt
+    if [ "$status" -ne 0 ]
+        echo ⭕
+    end
+
     set -l suffix '$'
     set -l user
 
