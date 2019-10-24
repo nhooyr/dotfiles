@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const cp = require("child_process")
+const fs = require("fs")
 
 const activeUsers = who()
 if (activeUsers != "") {
@@ -9,38 +10,37 @@ if (activeUsers != "") {
 	return
 }
 
-const lastLogin = getLastLogin()
-if (isNaN(lastLogin)) {
-	console.log("last login is not a valid date")
+const lastActivity = getLastActivity()
+if (isNaN(lastActivity)) {
+	console.log("last activity is not a valid date")
 	process.exit(1)
 }
 
 const threshold = new Date()
 threshold.setHours(threshold.getHours() - 1)
 
-console.log("last login", lastLogin)
+console.log("last activity", lastActivity)
 console.log("threshold", threshold)
 
-if (lastLogin < threshold) {
-	console.log("last login before threshold")
+if (lastActivity < threshold) {
+	console.log("last activity before threshold")
 	console.log("powering off")
-	cp.execSync("poweroff")
-	process.exit(1)
+	cp.exec("poweroff")
+	return
 }
 
-console.log("last login after threshold")
+console.log("last activity after threshold")
 
 function who() {
 	return cp.execSync("who").toString()
 }
 
-function getLastLogin() {
-	const out = cp.execSync("last -n1 --time-format=iso").toString()
-	let l1 = out.split("\n")[0]
-	l1 = l1.split(/\s+/)
-	const user = l1[0]
-	if (user == "reboot") {
-		return new Date(l1[4])
+function getLastActivity() {
+	// https://linux.die.net/man/5/wtmp
+	try {
+		return fs.statSync("/var/log/wtmp").mtime
+	} catch {
+		// Ensures shutdown.
+		return new Date(0)
 	}
-	return new Date(l1[3])
 }
