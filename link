@@ -18,6 +18,7 @@ ln() {
 }
 
 ln git ~/.config/git
+ln nvim ~/.config/nvim
 ln npmrc ~/.npmrc
 ln fish ~/.config/fish
 ln mutagen.yml ~/.mutagen.yml
