@@ -20,7 +20,8 @@
 		"Rust Enhanced",
 		"Terminal",
 		"TOML",
-		"TypeScript Syntax"
+		"TypeScript Syntax",
+		"VimL"
 	],
 	"repositories":
 	[

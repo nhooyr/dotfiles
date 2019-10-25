@@ -123,7 +123,7 @@ abbr -ag mt mutagen
 
 alias sudo="sudo -s"
 alias r="source ~/.config/fish/config.fish"
-alias e="$EDITOR"
+alias e="\$EDITOR"
 alias grep="grep --color"
 alias l="ls -lh"
 alias ll="ls -lhA"
@@ -255,7 +255,7 @@ if [ (uname) = Darwin ]
     end
 
     function fp
-        ssh -NL "$argv:localhost:$argv" xayah-unshared
+        ssh -NL "$argv:localhost:$argv" xayah-unshared &
     end
 
     function fs
@@ -277,6 +277,9 @@ if [ (uname) = Linux ]
     if [ -f ~/src/emscripten-core/emsdk/emsdk_env.fish ]
         source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
     end
+
+    set -gx EDITOR "nvim"
+    set -gx MANPAGER "nvim +Man!"
 
     alias ls="ls --indicator-style=classify --color=auto"
     alias pc="ssh ien pbcopy"
