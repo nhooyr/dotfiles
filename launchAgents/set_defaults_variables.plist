@@ -6,7 +6,7 @@
     <string>set defaults variables</string>
     <key>ProgramArguments</key>
     <array>
-      <string>/Users/nhooyr/src/nhooyr/dotfiles/bin/set_defaults_variables</string>
+      <string>/Users/nhooyr/src/nhooyr/dotfiles/ienBin/set_defaults_variables</string>
     </array>
     <key>RunAtLoad</key>
     <true/>

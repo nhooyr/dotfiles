@@ -2,4 +2,4 @@
 
 set -euo pipefail
 
-ansifilter | subl -wn
+subl -wn "$@"
