@@ -22,4 +22,4 @@ if [[ $name ]]; then
   manpage="$manpage2"
 fi
 
-EDITOR_READONLY=1 "$EDITOR" "$manpage"
+"$EDITOR" "$manpage"

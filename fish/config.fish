@@ -1,7 +1,3 @@
-if status --is-interactive
-    # https://superuser.com/questions/1067801/ctrlr-in-shell-if-i-go-past-the-command-i-want-how-do-i-get-back-to-it
-    stty -ixon 2>/dev/null
-end
 # Occasionally things give me errors because the default limit is so low.
 ulimit -n 16384
 
@@ -30,16 +26,10 @@ set -U fish_pager_color_description af005f
 set -U fish_pager_color_progress 581D5B
 # set -g fish_pager_color_secondary
 
-# Fish expects this to be a command so we cannot directly use 'subl -wn'
-# Plus the considerations for linux.
-set -gx EDITOR "$HOME/src/nhooyr/dotfiles/bin/editor"
 set -gx PAGER less
-set -gx MANPAGER manpager
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 set -gx GOPRIVATE go.coder.com
-# Hate the delay otherwise.
-set -gx TS_NODE_TRANSPILE_ONLY true
 set -gx MAKEFLAGS "--jobs=8 --output-sync=target"
 
 function addToPath
@@ -50,11 +40,7 @@ function addToPath
     set -gx PATH "$argv" $PATH
 end
 
-addToPath ~/.local/bin
 addToPath "$GOPATH/bin"
-addToPath /usr/local/sbin
-addToPath /usr/local/opt/ruby/bin
-addToPath /usr/local/lib/ruby/gems/2.6.0/bin
 addToPath ~/src/nhooyr/dotfiles/bin
 addToPath (yarn global bin)
 
@@ -66,8 +52,6 @@ set -g CDPATH . \
     ~/src/nhooyr/dotfiles \
     ~/src/nhooyr \
     ~/src/cdr \
-    ~/src/codercom \
-    ~/src/play \
     ~/src \
     ~/.config
 
@@ -78,7 +62,7 @@ set -l MY_LS_COLORS "di=34:ln=35:so=32:pi=32:ex=31;01"
 set -gx LS_COLORS "$RESET_LS_COLORS:$MY_LS_COLORS"
 
 abbr -ag - cd -
-abbr -ag vim nvim
+abbr -ag v nvim
 abbr -ag md mkdir -p
 abbr -ag m man
 abbr -ag c clear
@@ -120,22 +104,21 @@ abbr -ag n noti
 abbr -ag v nvim
 abbr -ag d cd
 abbr -ag mt mutagen
+abbr -ag o open
 
+# Always use -s to ensure shell aliases/functions work.
 alias sudo="sudo -s"
 alias r="source ~/.config/fish/config.fish"
 alias e="\$EDITOR"
 alias grep="grep --color"
 alias l="ls -lh"
 alias ll="ls -lhA"
-alias pd=prevd
-alias nd=nextd
-alias npm="echo use yarn pls"
-alias xnpm="command npm"
+alias pd="prevd"
+alias nd="nextd"
 alias git="hub"
 alias ec="e ~/.config/fish/config.fish"
-alias first_non_fixup="git log --pretty='%H' -1 --invert-grep --grep 'fixup! '"
 alias rg="rg -S"
-alias rgi="rg --no-ignore"
+alias rgi="rg -S --no-ignore --hidden"
 alias h="history merge"
 alias time="time -p"
 
@@ -177,15 +160,6 @@ function mcd
     cd $argv
 end
 
-function cdp
-    for cdpath in $CDPATH
-        if [ -e "$cdpath/$argv" ]
-            echo "$cdpath/$argv"
-            return
-        end
-    end
-end
-
 function gcd
     set -l gcd (git rev-parse --show-toplevel)
     if [ "$status" -eq 0 ]
@@ -206,34 +180,21 @@ function gh
         set url (hub browse -u)
     end
 
-    if [ (uname) = Darwin ]
-        python -mwebbrowser "$url" >/dev/null
-    else if [ "$hostname" = xayah ]
-        ssh ien "osascript -e 'tell application \"Safari\" to activate'"
-        and \
-            ssh ien open "$url"
-    else
-        echo "$url"
-    end
+    open "$url"
 end
 
-function lolsay
-    cowsay -f (ls  /usr/local/share/cows | cut -f 10 | gshuf | head -n 1) (fortune -o) | lolcat $argv
-end
+if [ "$hostname" = ien ]
+    abbr -ag b brew
 
-if [ (uname) = Darwin ]
+    set -gx EDITOR "editor"
+    set -gx MANPAGER "manpager"
     source /usr/local/opt/fzf/shell/key-bindings.fish
 
     alias ls="gls --indicator-style=classify --color=auto"
     alias gol=goland
-    alias sed=gsed
-
-    abbr -ag b brew
-    abbr -ag o open
     alias pc=pbcopy
     alias pp=pbpaste
     alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
-
     alias bu="brew update && brew upgrade && brew cask upgrade"
     alias noti='noti --message "You wanted a notification" --title Terminal'
 
@@ -244,13 +205,7 @@ if [ (uname) = Darwin ]
         end
     end
 
-    function flushdns
-        sudo killall -HUP mDNSResponder
-        sudo killall mDNSResponderHelper
-        sudo dscacheutil -flushcache
-    end
-
-    function xs
+    function rs
         rsync -avzP $argv[1] xayah:$argv[2]
     end
 
@@ -267,16 +222,16 @@ if [ (uname) = Darwin ]
     addToPath ~/.cargo/bin
     addToPath /usr/local/opt/make/libexec/gnubin
     addToPath /usr/local/opt/gnu-sed/libexec/gnubin
-    # addToPath /usr/local/opt/llvm/bin
-    # Need this for clang to find system headers.
-    # set -gx C_INCLUDE_PATH (xcode-select -p)"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include"
-    addToPath ~/src/nhooyr/dotfiles/darwinBin
+    addToPath ~/src/nhooyr/dotfiles/ienBin
 end
 
-if [ (uname) = Linux ]
+if [ (prompt_hostname) = xayah ]
     if [ -f ~/src/emscripten-core/emsdk/emsdk_env.fish ]
         source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
     end
+
+    abbr -ag i ssh ien
+    abbr -ag b apt
 
     set -gx EDITOR "nvim"
     set -gx MANPAGER "nvim +Man!"
@@ -286,10 +241,7 @@ if [ (uname) = Linux ]
     alias pp="ssh ien pbpaste"
     alias noti="ssh ien noti"
     alias i="sudo apt install"
-
-    abbr -ag ien ssh ien
-    abbr -ag b apt
-    alias bu="sudo apt update; and sudo apt full-upgrade"
+    alias bu="sudo apt update; and sudo apt full-upgrade; and sudo snap refresh"
 
     function gol
         set -l path (realpath "$argv")
@@ -313,9 +265,8 @@ if [ (uname) = Linux ]
         ssh ien clion "$path"
     end
 
-    addToPath ~/src/nhooyr/dotfiles/linuxBin
+    addToPath ~/src/nhooyr/dotfiles/xayahBin
     addToPath /snap/bin
-    addToPath /usr/local/go/bin
 end
 
 fzf_key_bindings
