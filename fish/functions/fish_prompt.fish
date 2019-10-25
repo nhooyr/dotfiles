@@ -31,7 +31,7 @@ function fish_prompt
             echo -n @
         end
         set_color -o green
-        echo -n "$hostname"
+        echo -n (prompt_hostname)
         set_color normal
         set_color -o
         echo -n :
