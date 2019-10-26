@@ -41,8 +41,8 @@ nnoremap <silent> <C-l> <C-W>l
 nnoremap <silent> <C-j> <C-W>j
 nnoremap <silent> <C-h> <C-W>h
 
-" https://www.reddit.com/r/vim/comments/2zkmmu/where_can_i_find_the_default_statusline_setting/
 set noruler
+set laststatus=0
 set cursorline
 set splitright
 set splitbelow
