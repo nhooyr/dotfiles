@@ -1,6 +1,3 @@
 #!/usr/local/bin/bash
 
 defaults write com.apple.screencapture location '/Users/nhooyr/Library/Mobile Documents/com~apple~CloudDocs/Pictures/Screenshots'
-
-defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add \
-	'{LSHandlerContentType=public.plain-text;LSHandlerRoleAll=com.sublimetext.3;}'
