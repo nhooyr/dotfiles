@@ -41,6 +41,8 @@ nnoremap <silent> <C-l> <C-W>l
 nnoremap <silent> <C-j> <C-W>j
 nnoremap <silent> <C-h> <C-W>h
 
+nnoremap <silent> <Leader>r :set columns=80<CR>
+
 set noruler
 set laststatus=0
 set cursorline

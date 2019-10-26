@@ -27,6 +27,8 @@ set -U fish_pager_color_progress 581D5B
 # set -g fish_pager_color_secondary
 
 set -gx PAGER less
+set -gx EDITOR "nvim"
+set -gx MANPAGER "nvim +Man!"
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 set -gx GOPRIVATE go.coder.com
@@ -186,8 +188,6 @@ end
 if [ "$hostname" = ien ]
     abbr -ag b brew
 
-    set -gx EDITOR "editor"
-    set -gx MANPAGER "manpager"
     source /usr/local/opt/fzf/shell/key-bindings.fish
 
     alias ls="gls --indicator-style=classify --color=auto"
@@ -232,9 +232,6 @@ if [ (prompt_hostname) = xayah ]
 
     abbr -ag i ssh ien
     abbr -ag b apt
-
-    set -gx EDITOR "nvim"
-    set -gx MANPAGER "nvim +Man!"
 
     alias ls="ls --indicator-style=classify --color=auto"
     alias pc="ssh ien pbcopy"
