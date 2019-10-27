@@ -11,37 +11,40 @@ call plug#end()
 command! PU PlugUpgrade | PlugUpdate
 
 noremap ; :
-noremap : ;
+nnoremap <silent> <silent> q :quit<CR>
 nnoremap <silent> <C-S> :source $MYVIMRC<CR>
-nnoremap <silent> <leader>ec :edit $MYVIMRC<CR>
-nnoremap k gk
-nnoremap j gj
-nnoremap Y y$
-nnoremap <silent> q :quit<CR>
-xnoremap Y "*y
+nnoremap <silent> <silent> <leader>ec :edit $MYVIMRC<CR>
+nnoremap <silent> k gk
+nnoremap <silent> j gj
+nnoremap <silent> Y y$
+xnoremap <silent> Y "*y
 
-cnoremap <C-N> <Down>
-cnoremap <C-P> <Up>
-cnoremap <C-F> <Right>
-cnoremap <C-B> <Left>
-cnoremap <C-A> <Home>
-cnoremap <C-D> <Del>
+cnoremap <silent> <C-N> <Down>
+cnoremap <silent> <C-P> <Up>
+cnoremap <silent> <C-F> <Right>
+cnoremap <silent> <C-B> <Left>
+cnoremap <silent> <C-A> <Home>
+cnoremap <silent> <C-D> <Del>
 
-cnoremap <M-f> <S-Right>
-cnoremap <M-b> <S-Left>
+cnoremap <silent> <M-f> <S-Right>
+cnoremap <silent> <M-b> <S-Left>
 
-cnoremap <M-d> <S-Right><C-w>
-cnoremap <M-BS> <C-w>
+cnoremap <silent> <M-d> <S-Right><C-w>
+cnoremap <silent> <M-BS> <C-w>
 
-nnoremap <C-E> 2<C-E>
-nnoremap <C-Y> 2<C-Y>
+nnoremap <silent> <C-E> 2<C-E>
+nnoremap <silent> <C-Y> 2<C-Y>
 nnoremap <silent> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 
-nnoremap <C-k> <C-W>k
-nnoremap <C-l> <C-W>l
-nnoremap <C-j> <C-W>j
-nnoremap <C-h> <C-W>h
+nnoremap <silent> <C-k> <C-W>k
+nnoremap <silent> <C-l> <C-W>l
+nnoremap <silent> <C-j> <C-W>j
+nnoremap <silent> <C-h> <C-W>h
 
+nnoremap <silent> <Leader>r :set columns=85<CR>
+
+set noruler
+set laststatus=0
 set cursorline
 set splitright
 set splitbelow
@@ -77,10 +80,8 @@ augroup vertical
 	autocmd WinNew * wincmd L
 augroup END
 
-function! SynStack()
-  if !exists("*synstack")
-		echo "hi"
-    return
-  endif
-  echo map(synstack(line('.'), col('.')), 'synIDattr(v:val, "name")')
-endfunc
+" https://stackoverflow.com/questions/37804435/how-to-enable-line-numbers-for-the-vim-help-permanently
+augroup help
+	autocmd!
+	autocmd FileType * setlocal number
+augroup END

@@ -24,8 +24,6 @@ ln mutagen.yml ~/.mutagen.yml
 ln fdignore ~/.fdignore
 
 if [[ $OSTYPE == darwin* ]]; then
-  ln sublimeText3 "${HOME}/Library/Application Support/Sublime Text 3/Packages/User"
-  ln launchAgents/set_defaults_variables.plist ~/Library/LaunchAgents/set_defaults_variables.plist
   ln gpg-agent.conf ~/.gnupg/gpg-agent.conf
 fi
 

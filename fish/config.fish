@@ -27,6 +27,8 @@ set -U fish_pager_color_progress 581D5B
 # set -g fish_pager_color_secondary
 
 set -gx PAGER less
+set -gx EDITOR "nvim"
+set -gx MANPAGER "nvim +Man!"
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 set -gx GOPRIVATE go.coder.com
@@ -185,13 +187,12 @@ end
 
 if [ "$hostname" = ien ]
     abbr -ag b brew
+    abbr -ag gol goland
+    abbr -ag cl clion
 
-    set -gx EDITOR "editor"
-    set -gx MANPAGER "manpager"
     source /usr/local/opt/fzf/shell/key-bindings.fish
 
     alias ls="gls --indicator-style=classify --color=auto"
-    alias gol=goland
     alias pc=pbcopy
     alias pp=pbpaste
     alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
@@ -233,9 +234,6 @@ if [ (prompt_hostname) = xayah ]
     abbr -ag i ssh ien
     abbr -ag b apt
 
-    set -gx EDITOR "nvim"
-    set -gx MANPAGER "nvim +Man!"
-
     alias ls="ls --indicator-style=classify --color=auto"
     alias pc="ssh ien pbcopy"
     alias pp="ssh ien pbpaste"
@@ -254,7 +252,7 @@ if [ (prompt_hostname) = xayah ]
         ssh ien goland "$path"
     end
 
-    function clion
+    function cl
         set -l path (realpath "$argv")
         if not string match -q "$HOME/src/*" "$path"
             echo "Must be within ~/src"
