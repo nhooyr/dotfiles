@@ -43,9 +43,11 @@ nnoremap <silent> <C-h> <C-W>h
 
 nnoremap <silent> <Leader>r :set columns=85<CR>
 
+set noshowmode
 set noruler
 set laststatus=0
 set cursorline
+set noshowcmd
 set splitright
 set splitbelow
 set wildignorecase
@@ -66,6 +68,7 @@ if has("vim_starting")
   set softtabstop=2
   set shiftwidth=2
 endif
+set shortmess+=aI
 
 let g:mundo_verbose_graph = 0
 let g:mundo_close_on_revert = 1
