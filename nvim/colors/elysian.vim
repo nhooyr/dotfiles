@@ -34,7 +34,7 @@ hi Error        ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
 
 " Git colors.
-hi diffAdded          ctermfg=1    ctermbg=NONE cterm=NONE
-hi diffRemoved        ctermfg=2    ctermbg=NONE cterm=NONE
+hi diffAdded          ctermfg=2    ctermbg=NONE cterm=NONE
+hi diffRemoved        ctermfg=1    ctermbg=NONE cterm=NONE
 hi gitKeyword         ctermfg=NONE ctermbg=NONE cterm=bold
 hi gitIdentityKeyword ctermfg=NONE ctermbg=NONE cterm=bold
