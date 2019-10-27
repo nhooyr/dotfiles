@@ -41,7 +41,7 @@ nnoremap <silent> <C-l> <C-W>l
 nnoremap <silent> <C-j> <C-W>j
 nnoremap <silent> <C-h> <C-W>h
 
-nnoremap <silent> <Leader>r :set columns=80<CR>
+nnoremap <silent> <Leader>r :set columns=85<CR>
 
 set noruler
 set laststatus=0
