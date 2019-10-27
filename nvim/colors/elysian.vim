@@ -20,7 +20,7 @@ hi StatusLineNC ctermfg=black ctermbg=NONE cterm=NONE
 hi Visual       ctermfg=NONE  ctermbg=225  cterm=NONE
 
 " Language colors.
-hi Normal       ctermfg=232  ctermbg=NONE cterm=NONE
+hi Normal       ctermfg=NONE  ctermbg=NONE cterm=NONE
 hi Comment      ctermfg=244  ctermbg=NONE cterm=NONE
 hi Constant     ctermfg=168  ctermbg=NONE cterm=NONE
 hi String       ctermfg=2    ctermbg=NONE cterm=NONE
