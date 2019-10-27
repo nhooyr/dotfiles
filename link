@@ -24,7 +24,6 @@ ln mutagen.yml ~/.mutagen.yml
 ln fdignore ~/.fdignore
 
 if [[ $OSTYPE == darwin* ]]; then
-  ln launchAgents/set_defaults_variables.plist ~/Library/LaunchAgents/set_defaults_variables.plist
   ln gpg-agent.conf ~/.gnupg/gpg-agent.conf
 fi
 
