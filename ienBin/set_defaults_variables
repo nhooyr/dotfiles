@@ -1,3 +1,0 @@
-#!/usr/local/bin/bash
-
-defaults write com.apple.screencapture location '/Users/nhooyr/Library/Mobile Documents/com~apple~CloudDocs/Pictures/Screenshots'

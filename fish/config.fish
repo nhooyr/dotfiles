@@ -187,11 +187,12 @@ end
 
 if [ "$hostname" = ien ]
     abbr -ag b brew
+    abbr -ag gol goland
+    abbr -ag cl clion
 
     source /usr/local/opt/fzf/shell/key-bindings.fish
 
     alias ls="gls --indicator-style=classify --color=auto"
-    alias gol=goland
     alias pc=pbcopy
     alias pp=pbpaste
     alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
@@ -251,7 +252,7 @@ if [ (prompt_hostname) = xayah ]
         ssh ien goland "$path"
     end
 
-    function clion
+    function cl
         set -l path (realpath "$argv")
         if not string match -q "$HOME/src/*" "$path"
             echo "Must be within ~/src"
