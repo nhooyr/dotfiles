@@ -3,21 +3,21 @@
 set -euo pipefail
 
 if ! ls -l ~/.ssh/sockets | grep -q -- -xayah; then
-	status="$(gcloud --configuration=nhooyr-coder compute instances describe --zone=us-central1-a xayah --format=json | jq -r .status)"
-	if [[ "$status" != "RUNNING" ]]; then
-		echo "xayah: $status"
-		gcloud --configuration=nhooyr-coder compute instances start --zone=us-central1-a xayah
-	fi
+  status="$(gcloud --configuration=nhooyr-coder compute instances describe --zone=us-central1-a xayah --format=json | jq -r .status)"
+  if [[ $status != "RUNNING" ]]; then
+    echo "xayah: $status"
+    gcloud --configuration=nhooyr-coder compute instances start --zone=us-central1-a xayah
+  fi
 fi
 
-if [[ "$PWD" != "$HOME"* ]]; then
-	ssh -t xayah "$@"
-	exit 0
+if [[ $PWD != "$HOME"* ]]; then
+  ssh -t xayah "$@"
+  exit 0
 fi
 
 dir="${PWD/\/Users\/nhooyr/\~}"
 argv=""
-if [[ "$#" -gt 0 ]]; then
-	argv="'-c $*'"
+if [[ $# -gt 0 ]]; then
+  argv="'-c $*'"
 fi
 ssh -t xayah "cd $dir 2> /dev/null; exec \$SHELL -l ${argv-}"

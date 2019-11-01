@@ -6,8 +6,8 @@ args=("$@")
 
 # If there is no tracking branch and the arguments are empty, then
 # push to the default remote with automatic tracking.
-if ! git rev-parse '@{u}' >/dev/null 2>&1 && [[ $# -eq 0 ]]; then
-	args=("-u" "$(git remote | head -n 1)" "HEAD")
+if ! git rev-parse '@{u}' > /dev/null 2>&1 && [[ $# -eq 0 ]]; then
+  args=("-u" "$(git remote | head -n 1)" "HEAD")
 fi
 
 git push "${args[@]}"
