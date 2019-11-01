@@ -223,7 +223,7 @@ if [ "$hostname" = ien ]
     addToPath ~/.cargo/bin
     addToPath /usr/local/opt/make/libexec/gnubin
     addToPath /usr/local/opt/gnu-sed/libexec/gnubin
-    addToPath ~/src/nhooyr/dotfiles/ienBin
+    addToPath ~/src/nhooyr/dotfiles/bin/ien
 end
 
 if [ (prompt_hostname) = xayah ]
@@ -262,7 +262,7 @@ if [ (prompt_hostname) = xayah ]
         ssh ien clion "$path"
     end
 
-    addToPath ~/src/nhooyr/dotfiles/xayahBin
+    addToPath ~/src/nhooyr/dotfiles/bin/xayah
     addToPath /snap/bin
 end
 
