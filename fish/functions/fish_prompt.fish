@@ -5,13 +5,6 @@ function fish_prompt
         echo ⭕
     end
 
-    # If the command took longer than 5s, print the duration.
-    if [ "$CMD_DURATION" -gt 5000 ]
-        set_color green
-        echo (math --scale=3 "$CMD_DURATION/1000")s
-        set_color normal
-    end
-
     set -l suffix '$'
     set -l user
 

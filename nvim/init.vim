@@ -11,9 +11,10 @@ call plug#end()
 command! PU PlugUpgrade | PlugUpdate
 
 noremap ; :
-nnoremap <silent> <silent> q :quit<CR>
+nnoremap <silent> q :quit<CR>
+nnoremap <silent> Q q
 nnoremap <silent> <C-S> :source $MYVIMRC<CR>
-nnoremap <silent> <silent> <leader>ec :edit $MYVIMRC<CR>
+nnoremap <silent> <leader>ec :edit $MYVIMRC<CR>
 nnoremap <silent> k gk
 nnoremap <silent> j gj
 nnoremap <silent> Y y$
@@ -88,3 +89,6 @@ augroup help
 	autocmd!
 	autocmd FileType * setlocal number
 augroup END
+
+" https://github.com/neovim/neovim/issues/10748
+let g:man_hardwrap=1
