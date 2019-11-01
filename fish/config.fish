@@ -102,7 +102,6 @@ abbr -ag k kubectl
 abbr -ag y yarn
 abbr -ag f functions
 abbr -ag s sudo
-abbr -ag n noti
 abbr -ag v nvim
 abbr -ag d cd
 abbr -ag mt mutagen
@@ -123,6 +122,8 @@ alias rg="rg -S"
 alias rgi="rg -S --no-ignore --hidden"
 alias h="history merge"
 alias time="time -p"
+alias t="time"
+alias n="noti time -p"
 
 set -gx BAT_THEME GitHub
 alias cat="bat"
@@ -197,7 +198,6 @@ if [ "$hostname" = ien ]
     alias pp=pbpaste
     alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
     alias bu="brew update && brew upgrade && brew cask upgrade"
-    alias noti='noti --message "You wanted a notification" --title Terminal'
 
     function tra
         for file in $argv
@@ -231,7 +231,6 @@ if [ (prompt_hostname) = xayah ]
         source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
     end
 
-    abbr -ag i ssh ien
     abbr -ag b apt
 
     alias ls="ls --indicator-style=classify --color=auto"
