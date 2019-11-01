@@ -20,7 +20,7 @@ ifdef CI
 endif
 
 prettier:
-	prettier --write --print-width=120 --no-semi --trailing-comma=all --loglevel=warn $$(git ls-files "*.yml" "*.md")
+	prettier --write --print-width=120 --no-semi --trailing-comma=all --loglevel=warn $$(git ls-files "*.yml" "*.md" "*.js")
 
 fish_indent:
 	git ls-files "*.fish" | xargs -I{} fish_indent -w {}
@@ -28,9 +28,10 @@ fish_indent:
 shfmt:
 	shfmt -i 2 -w -s -sr .
 
-ifeq ($(shell hostname), ien)
+HOSTNAME := $(shell hostname -s)
+ifeq ($(HOSTNAME), ien)
 ensure: ien
-else ifeq ($(shell hostname), xayah)
+else ifeq ($(HOSTNAME), xayah)
 ensure: xayah
 endif
 ensure:
@@ -50,10 +51,12 @@ xayah:
 link:
 	if [[ -L $$TO ]]; then
 	  echo "overwriting $$TO"
+	  rm "$$TO"
 	elif [[ -e $$TO ]]; then
 	  echo "$$TO exists and is not a symlink"
 	  exit 1
+	else
+		echo "linking $$TO"
 	fi
-	rm "$$TO"
 	ln -s "$$PWD/$$SRC" "$$TO"
 

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+dst="ien"
+if [[ $HOSTNAME == "ien" ]]; then
+  dst="xayah"
+  if ! ls -l ~/.ssh/sockets | grep -q -- -xayah; then
+    status="$(gcloud --configuration=nhooyr-coder compute instances describe --zone=us-central1-a xayah --format=json | jq -r .status)"
+    if [[ $status != "RUNNING" ]]; then
+      echo "xayah: $status"
+      gcloud --configuration=nhooyr-coder compute instances start --zone=us-central1-a xayah
+    fi
+  fi
+fi
+
+if [[ $# -gt 0 ]]; then
+  argv="-c '$*'"
+fi
+ssh -t "$dst" "cd $(xpath "$PWD") 2> /dev/null; exec \$SHELL -l ${argv-}"

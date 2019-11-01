@@ -8,30 +8,65 @@ Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 call plug#end()
 
-command! PU PlugUpgrade | PlugUpdate
+command! Pu PlugUpgrade | PlugUpdate
+command! Pc PlugClean
+
+command! S :source $MYVIMRC
 
 noremap ; :
 nnoremap <silent> q :quit<CR>
 nnoremap <silent> Q q
-nnoremap <silent> <C-S> :source $MYVIMRC<CR>
-nnoremap <silent> <leader>ec :edit $MYVIMRC<CR>
+nnoremap <silent> <leader>ec :vs $MYVIMRC<CR>
 nnoremap <silent> k gk
 nnoremap <silent> j gj
+nnoremap <silent> p ]p
+nnoremap <silent> P ]P
 nnoremap <silent> Y y$
 xnoremap <silent> Y "*y
 
-cnoremap <silent> <C-N> <Down>
-cnoremap <silent> <C-P> <Up>
-cnoremap <silent> <C-F> <Right>
-cnoremap <silent> <C-B> <Left>
-cnoremap <silent> <C-A> <Home>
-cnoremap <silent> <C-D> <Del>
+nnoremap <silent> 0 ^
+nnoremap <silent> ^ 0
 
-cnoremap <silent> <M-f> <S-Right>
-cnoremap <silent> <M-b> <S-Left>
+" Always use black hole register for deletes.
+" Below we set clipboard to unnamed to always use clipboard
+" for yanks.
+nnoremap <silent> <BS> "_d
+nnoremap <silent> <BS><BS> "_dd
+vnoremap <silent> <BS> "_d
 
-cnoremap <silent> <M-d> <S-Right><C-w>
-cnoremap <silent> <M-BS> <C-w>
+" Emacs style insert and commadn line keybindings
+" https://github.com/maxbrunsfeld/vim-emacs-bindings/blob/master/plugin/emacs-bindings.vim
+cnoremap <C-N> <Down>
+cnoremap <C-P> <Up>
+cnoremap <C-F> <Right>
+cnoremap <C-B> <Left>
+cnoremap <C-A> <Home>
+cnoremap <C-D> <Del>
+cnoremap <C-H> <BS>
+cnoremap <C-k> <C-c>:
+cnoremap <M-f> <S-Right>
+cnoremap <M-b> <S-Left>
+" This one does not work well because C-w uses iskeyword but S-Right does not
+"cnoremap <M-d> <S-Right><C-w>
+cnoremap <M-BS> <C-w>
+inoremap <C-N> <Down>
+inoremap <C-P> <Up>
+inoremap <C-F> <Right>
+inoremap <C-B> <Left>
+inoremap <C-A> <Home>
+inoremap <C-E> <End>
+inoremap <C-D> <Del>
+inoremap <C-H> <BS>
+inoremap <C-k> <Esc>"_ddO
+inoremap <M-f> <C-o>W
+inoremap <M-b> <C-o>B
+inoremap <M-d> <C-o>dW
+inoremap <M-BS> <C-o>dB
+
+nnoremap <C-s> :w<CR>
+inoremap <C-s> <Esc>:w<CR>
+nnoremap <C-x> :x<CR>
+inoremap <C-x> <Esc>:x<CR>
 
 nnoremap <silent> <C-E> 2<C-E>
 nnoremap <silent> <C-Y> 2<C-Y>
@@ -44,6 +79,7 @@ nnoremap <silent> <C-h> <C-W>h
 
 nnoremap <silent> <Leader>r :set columns=85<CR>
 
+set clipboard=unnamed
 set noshowmode
 set noruler
 set laststatus=0
@@ -92,3 +128,16 @@ augroup END
 
 " https://github.com/neovim/neovim/issues/10748
 let g:man_hardwrap=1
+
+let g:clipboard = {
+			\   'name': 'pbcopy',
+			\   'copy': {
+			\      '+': 'pbcopy',
+			\      '*': 'pbcopy',
+			\    },
+			\   'paste': {
+			\      '+': 'pbpaste',
+			\      '*': 'pbpaste',
+			\   },
+			\   'cache_enabled': 1,
+			\ }
