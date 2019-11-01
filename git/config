@@ -40,7 +40,7 @@
 [branch]
   autosetupmerge = always
 [alias]
-  psh = !gitPush
+  psh = !gitpush
   brd = !gitBranchDelete
 [submodule]
 	recurse = true
