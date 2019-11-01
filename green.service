@@ -1,3 +1,0 @@
-[Service]
-Type=oneshot
-ExecStart=/home/nhooyr/src/nhooyr/dotfiles/xayahBin/green
