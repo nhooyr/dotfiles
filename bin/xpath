@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+path="$(realpath "$1")"
+if ! echo "$path" | grep -q "$HOME"; then
+  path=""
+fi
+
+echo "~${path#~}"

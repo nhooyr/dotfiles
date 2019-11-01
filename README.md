@@ -1,7 +1,5 @@
 # dotfiles
 
-My dotfiles.
-
 ## Quickstart
 
 ```fish
