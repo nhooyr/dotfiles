@@ -1,3 +1,5 @@
+set HOSTNAME (hostname -s)
+
 # Occasionally things give me errors because the default limit is so low.
 ulimit -n 16384
 
@@ -63,51 +65,53 @@ set -l RESET_LS_COLORS 'rs=00:di=00:ln=00:mh=00:pi=00:so=00:do=00:bd=00:cd=00:or
 set -l MY_LS_COLORS "di=34:ln=35:so=32:pi=32:ex=31;01"
 set -gx LS_COLORS "$RESET_LS_COLORS:$MY_LS_COLORS"
 
+# Only an abbrevation because - is not a valid function name.
 abbr -ag - cd -
-abbr -ag v nvim
-abbr -ag md mkdir -p
-abbr -ag m man
-abbr -ag c clear
 
-abbr -ag g git
-abbr -ag gch git checkout
-abbr -ag ga git add
-abbr -ag gaa git add -A
-abbr -ag gcm git commit -v
-abbr -ag gcma git commit -v --amend
-abbr -ag gcmf git commit -v --fixup
-abbr -ag gb git branch
-abbr -ag gbd git brd
-abbr -ag grt git reset
-abbr -ag grb git rebase
-abbr -ag gpl git pull
-abbr -ag gf git fetch
-abbr -ag gps git psh
-abbr -ag gpf git push -f
-abbr -ag gs git status
-abbr -ag gst git stash
-abbr -ag gy git sync
-abbr -ag gsh git show
-abbr -ag gd git diff
-abbr -ag gdc git diff --cached
-abbr -ag gl git log
-abbr -ag gpr git pull-request -p
-abbr -ag gcl git clone
-abbr -ag grv git revert
-abbr -ag gro git remote
-abbr -ag grm git rm
-abbr -ag gcp git cherry-pick
-abbr -ag gm git merge
-abbr -ag k kubectl
-abbr -ag y yarn
-abbr -ag f functions
-abbr -ag s sudo
-abbr -ag v nvim
-abbr -ag d cd
-abbr -ag mt mutagen
-abbr -ag o open
+alias ch="chmod"
+alias chx="chmod +x"
+alias md="mkdir -p"
+alias m="man"
+alias c="clear"
+
+alias g="git"
+alias gch="git checkout"
+alias ga="git add"
+alias gaa="git add -A"
+alias gcm="git commit -v"
+alias gcma="git commit -v --amend"
+alias gcmf="git commit -v --fixup"
+alias gb="git branch"
+alias gbd="git brd"
+alias grt="git reset"
+alias grb="git rebase"
+alias gpl="git pull"
+alias gf="git fetch"
+alias gps="git psh"
+alias gpf="git push -f"
+alias gs="git status"
+alias gst="git stash"
+alias gy="git sync"
+alias gsh="git show"
+alias gd="git diff"
+alias gdc="git diff --cached"
+alias gl="git log"
+alias gpr="git pull-request -p"
+alias gcl="git clone"
+alias grv="git revert"
+alias gro="git remote"
+alias grm="git rm"
+alias gcp="git cherry-pick"
+alias gm="git merge"
+alias k="kubectl"
+alias y="yarn"
+alias f="functions"
+alias d="cd"
+alias mt="mutagen"
+alias o="open"
 
 # Always use -s to ensure shell aliases/functions work.
+alias s="sudo"
 alias sudo="sudo -s"
 alias r="source ~/.config/fish/config.fish"
 alias e="\$EDITOR"
@@ -124,6 +128,11 @@ alias h="history merge"
 alias time="time -p"
 alias t="time"
 alias n="noti time -p"
+alias rs="rsync -avzP"
+alias pc="pbcopy"
+alias pp="pbpaste"
+alias gol="goland"
+alias cl="clion"
 
 set -gx BAT_THEME GitHub
 alias cat="bat"
@@ -186,18 +195,15 @@ function gh
     open "$url"
 end
 
-if [ "$hostname" = ien ]
-    abbr -ag b brew
-    abbr -ag gol goland
-    abbr -ag cl clion
-
+if [ "$HOSTNAME" = ien ]
     source /usr/local/opt/fzf/shell/key-bindings.fish
 
     alias ls="gls --indicator-style=classify --color=auto"
-    alias pc=pbcopy
-    alias pp=pbpaste
     alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
     alias bu="brew update && brew upgrade && brew cask upgrade"
+    alias b="brew"
+    alias i="brew install"
+    alias fp="fp.js"
 
     function tra
         for file in $argv
@@ -206,15 +212,7 @@ if [ "$hostname" = ien ]
         end
     end
 
-    function rs
-        rsync -avzP $argv[1] xayah:$argv[2]
-    end
-
-    function fp
-        ssh -NL "$argv:localhost:$argv" xayah-unshared &
-    end
-
-    function fs
+    function ms
         set -l localPath (realpath "$argv")
         set remotePath (string replace ~ /home/nhooyr "$localPath")
         mutagen sync create -n=(basename "$localPath") "$localPath" xayah-unshared:"$remotePath"
@@ -223,46 +221,21 @@ if [ "$hostname" = ien ]
     addToPath ~/.cargo/bin
     addToPath /usr/local/opt/make/libexec/gnubin
     addToPath /usr/local/opt/gnu-sed/libexec/gnubin
-    addToPath ~/src/nhooyr/dotfiles/bin/ien
+    addToPath ~/src/nhooyr/dotfiles/ien/bin
 end
 
-if [ (prompt_hostname) = xayah ]
+if [ "$HOSTNAME" = xayah ]
     if [ -f ~/src/emscripten-core/emsdk/emsdk_env.fish ]
         source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
     end
 
-    abbr -ag b apt
-
+    alias b="apt"
     alias ls="ls --indicator-style=classify --color=auto"
-    alias pc="ssh ien pbcopy"
-    alias pp="ssh ien pbpaste"
-    alias noti="ssh ien noti"
     alias i="sudo apt install"
     alias bu="sudo apt update; and sudo apt full-upgrade; and sudo snap refresh"
+    alias ports="ss -ltpn"
 
-    function gol
-        set -l path (realpath "$argv")
-        if not string match -q "$HOME/src/*" "$path"
-            echo "Must be within ~/src"
-            return 1
-        end
-        ssh ien "osascript -e 'tell application \"Goland\" to activate'"
-        set path (string replace ~ /Users/nhooyr "$path")
-        ssh ien goland "$path"
-    end
-
-    function cl
-        set -l path (realpath "$argv")
-        if not string match -q "$HOME/src/*" "$path"
-            echo "Must be within ~/src"
-            return 1
-        end
-        ssh ien "osascript -e 'tell application \"CLion\" to activate'"
-        set path (string replace ~ /Users/nhooyr "$path")
-        ssh ien clion "$path"
-    end
-
-    addToPath ~/src/nhooyr/dotfiles/bin/xayah
+    addToPath ~/src/nhooyr/dotfiles/xayah/bin
     addToPath /snap/bin
 end
 
@@ -293,3 +266,5 @@ bind \cv accept-autosuggestion execute
 function search
     rgi --color=always "$argv" | fzf --height 40% --ansi --query "$argv"
 end
+
+bind \er 'echo -ne "\e[8;48;85t"'

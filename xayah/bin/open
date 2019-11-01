@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+if ! [[ -e $* ]]; then
+  x open "$@"
+  exit 0
+fi
+
+realpath="$(realpath "$*")"
+if echo "$realpath" | grep -q "$HOME"; then
+  x open "$(xpath "$realpath")"
+  exit 0
+fi
+
+tempFile="$(ssh ien mktemp -d)/$(basename "$*")"
+scp -q "$*" "ien:${tempFile}"
+x open "$tempFile"
