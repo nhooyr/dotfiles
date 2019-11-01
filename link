@@ -27,7 +27,7 @@ if [[ $OSTYPE == darwin* ]]; then
   ln gpg-agent.conf ~/.gnupg/gpg-agent.conf
 fi
 
-if [[ "$OSTYPE" == linux-gnu ]]; then
+if [[ $OSTYPE == linux-gnu ]]; then
   sudo cp -f green.timer /etc/systemd/system/green.timer
   sudo cp -f green.service /etc/systemd/system/green.service
 fi
