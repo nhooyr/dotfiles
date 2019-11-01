@@ -14,7 +14,7 @@ hi MatchParen   ctermfg=NONE  ctermbg=225  cterm=NONE
 hi ModeMsg      ctermfg=NONE  ctermbg=NONE cterm=NONE
 hi NonText      ctermfg=white ctermbg=NONE cterm=NONE
 hi IncSearch    ctermfg=NONE  ctermbg=218  cterm=bold
-hi Search       ctermfg=NONE  ctermbg=194  cterm=NONE
+hi Search       ctermfg=NONE  ctermbg=153  cterm=NONE
 hi StatusLine   ctermfg=black ctermbg=NONE cterm=NONE
 hi StatusLineNC ctermfg=black ctermbg=NONE cterm=NONE
 hi Visual       ctermfg=NONE  ctermbg=225  cterm=NONE
