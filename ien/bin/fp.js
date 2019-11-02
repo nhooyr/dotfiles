@@ -2,63 +2,116 @@
 
 const cp = require("child_process")
 
-ignoredPorts = {
-  8080: 22,
+;(async () => {
+  try {
+    await main()
+  } catch (e) {
+    console.error(e)
+    process.exit(1)
+  }
+})()
+
+async function main() {
+  const [activePorts, activeForwarders] = await Promise.all([getActivePorts(), getActiveForwarders()])
+
+  // Kill unused forwardings.
+  activeForwarders.forEach(af => {
+    if (activePorts.includes(af.port)) {
+      // Active forwarding exists.
+      console.log(`forwarding for ${af.port} already active`)
+      activePorts.delete(af.port)
+      return
+    }
+
+    // We try our best to kill the forwarding but any errors should be irrelevant.
+    // We'll catch them below anyway when we fail to listen.
+    console.log(`killing forwarding for ${af.port}`)
+    cp.exec(`kill ${af.pid}`)
+  })
+
+  await Promise.all(
+    activePorts.map(async port => {
+      console.log(`spawning forwarding for ${port}`)
+
+      await ensurePortAvailable(port)
+
+      const process = cp.spawn("ssh", ["-NT", `-L ${port}:localhost:${port}`, "xayah-unshared"], {
+        detached: true,
+        stdio: "ignore",
+      })
+      process.unref()
+    }),
+  )
 }
 
-const lines = cp
-  .execSync("x ss -ltn --no-header")
-  .toString()
-  .trim()
-  .split("\n")
-let ports = lines.map(l => {
-  // Split on whitespace, third field, then string after last colon.
-  return l
-    .split(/\s+/)[3]
-    .split(":")
-    .pop()
-})
-ports = new Set(ports)
-// We do not want to forward the ssh ports.
-ports.delete("22")
-ports.delete("2424")
+async function getActiveForwarders() {
+  return new Promise((res, rej) => {
+    cp.exec("pgrep -l -f 'ssh -NT -L' | grep xayah-unshared", (err, stdout, stderr) => {
+      if (err && err.code !== 1) {
+        rej(err)
+        return
+      }
 
-// Remove unused forwardings.
-portForwarders().forEach(f => {
-  if (ports.has(f.port)) {
-    // Active forwarding exists.
-    console.log(`forwarding for ${f.port} already active`)
-    ports.delete(f.port)
-    return
-  }
-  console.log(`killing forwarding for ${f.port}`)
-  cp.exec(`kill ${f.pid}`)
-})
+      stdout = stdout.trim()
 
-ports.forEach(port => {
-  console.log(`spawning forwarding for ${port}`)
-  const process = cp.spawn("ssh", ["-NT", `-L ${port}:localhost:${port}`, "xayah-unshared"], {
-    detached: true,
-    stdio: "ignore",
+      if (stdout === "") {
+        res([])
+        return
+      }
+
+      const lines = stdout.split("\n")
+
+      const forwarders = lines.map(l => {
+        const fields = l.split(" ")
+        const port = fields[4].split(":").pop()
+        return {
+          pid: fields[0],
+          port: port,
+        }
+      })
+      res(forwarders)
+    })
   })
-  process.unref()
-})
+}
 
-function portForwarders() {
-  let lines = []
-  try {
-    lines = cp
-      .execSync("pgrep -l -f 'ssh -NT -L' | grep xayah-unshared")
-      .toString()
-      .trim()
-      .split("\n")
-  } catch {}
-  return lines.map(l => {
-    const fields = l.split(" ")
-    const port = fields[4].split(":").pop()
-    return {
-      pid: fields[0],
-      port: port,
-    }
+async function getActivePorts() {
+  return new Promise((res, rej) => {
+    cp.exec("x ss -ltn --no-header", (err, stdout, stderr) => {
+      if (err) {
+        rej(err)
+        return
+      }
+
+      const lines = stdout.trim().split("\n")
+
+      let ports = lines.map(l => {
+        // Split on whitespace, fourth field, then string after last colon.
+        return l
+          .split(/\s+/)[3]
+          .split(":")
+          .pop()
+      })
+
+      // Removes duplicate ports.
+      ports = new Set(ports)
+
+      // We do not want to forward the ssh ports.
+      ports.delete("22")
+      ports.delete("2424")
+
+      res([...ports])
+    })
+  })
+}
+
+async function ensurePortAvailable(port) {
+  return new Promise((res, rej) => {
+    cp.exec(`netstat -vanp tcp | grep ${port}`, (err, stdout, stderr) => {
+      if (!err || err.code !== 1) {
+        rej(`port ${port} is in use by: ${stdout.trim().split(/\s+/)[8]}`)
+        return
+      }
+      res()
+    })
   })
 }
