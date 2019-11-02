@@ -2,8 +2,6 @@
 
 [![CI Status](https://github.com/nhooyr/dotfiles/workflows/ci/badge.svg)](https://github.com/nhooyr/dotfiles/actions)
 
-## Quickstart
-
 ```fish
 make ensure
 ```
