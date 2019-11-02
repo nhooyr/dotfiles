@@ -1,2 +1,2 @@
+# A lot of people have bin in their global gitignore.
 !bin
-.mutagen.yml.lock

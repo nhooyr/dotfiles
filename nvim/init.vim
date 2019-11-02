@@ -6,6 +6,7 @@ endif
 call plug#begin(stdpath('data') . '/plugged')
 Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
+Plug 'tpope/vim-fugitive'
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
