@@ -87,7 +87,7 @@ alias grt="git reset"
 alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
-alias gps="git psh"
+alias gp="git psh"
 alias gpf="git push -f"
 alias gs="git status"
 alias gst="git stash"
@@ -204,6 +204,7 @@ if [ "$HOSTNAME" = ien ]
     alias b="brew"
     alias i="brew install"
     alias fp="fp.js"
+    alias ports="netstat -vanp tcp"
 
     function tra
         for file in $argv

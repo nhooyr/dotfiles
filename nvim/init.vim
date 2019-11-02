@@ -58,10 +58,10 @@ inoremap <C-E> <End>
 inoremap <C-D> <Del>
 inoremap <C-H> <BS>
 inoremap <C-k> <Esc>"_ddO
-inoremap <M-f> <C-o>W
-inoremap <M-b> <C-o>B
-inoremap <M-d> <C-o>dW
-inoremap <M-BS> <C-o>dB
+inoremap <M-f> <C-o>w
+inoremap <M-b> <C-o>b
+inoremap <M-d> <C-o>dw
+inoremap <M-BS> <C-o>db
 
 nnoremap <C-s> :w<CR>
 inoremap <C-s> <Esc>:w<CR>
