@@ -132,8 +132,14 @@ alias cl="clion"
 set -gx BAT_THEME GitHub
 alias cat="bat"
 
+function gcmp
+		gaa
+		gcm
+		gp
+end
+
 function fcm
-    git add -A
+    gaa
     git commit --amend --no-edit
     git push -f
 end
