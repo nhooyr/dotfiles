@@ -1,6 +1,14 @@
+if &shell =~# 'fish$'
+    set shell=sh
+endif
+
 let s:vim_plug = '~/.local/share/nvim/site/autoload/plug.vim'
 if empty(glob(s:vim_plug, 1))
   execute 'silent !curl -fLo' s:vim_plug '--create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+	augroup vim-plug
+		autocmd!
+		autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
+	augroup END
 endif
 
 call plug#begin(stdpath('data') . '/plugged')
