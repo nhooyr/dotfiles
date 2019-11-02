@@ -12,7 +12,7 @@ fmt: prettier fish_indent shfmt
 ifdef CI
 	if [[ $$(git ls-files --other --modified --exclude-standard) != "" ]]; then
 	  echo "Files need generation or are formatted incorrectly:"
-	  git -c color.ui=always status | grep --color=no '\e\[31m'
+	  git -c color.ui=always status | grep --color=no '\[31m'
 	  echo "Please run the following locally:"
 	  echo "  make fmt"
 	  exit 1
@@ -30,9 +30,9 @@ shfmt:
 
 HOSTNAME := $(shell hostname -s)
 ifeq ($(HOSTNAME), ien)
-ensure: ien
+ensure: ensure-ien
 else ifeq ($(HOSTNAME), xayah)
-ensure: xayah
+ensure: ensure-xayah
 endif
 ensure:
 	$(MAKE) link SRC=git TO=~/.config/git
@@ -41,10 +41,10 @@ ensure:
 	$(MAKE) link SRC=mutagen/mutagen.yml TO=~/.mutagen.yml
 	$(MAKE) link SRC=fd/fdignore TO=~/.fdignore
 
-ien:
+ensure-ien:
 	$(MAKE) link SRC=ien/gpg-agent.conf TO=~/.gnupg/gpg-agent.conf
 
-xayah:
+ensure-xayah:
 	sudo cp xayah/green.timer /etc/systemd/system/green.timer
 	sudo cp xayah/green.service /etc/systemd/system/green.service
 
@@ -60,3 +60,7 @@ link:
 	fi
 	ln -s "$$PWD/$$SRC" "$$TO"
 
+
+ci-image:
+	docker build -f .github/workflows/Dockerfile -t nhooyr/dotfiles-ci .
+	docker push nhooyr/dotfiles-ci
