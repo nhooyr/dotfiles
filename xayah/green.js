@@ -33,7 +33,11 @@ console.log("last activity after threshold")
 
 function who() {
   // Only returns users logged in remotely by grepping for an IP address.
-  return cp.execSync(String.raw`who | grep -E '\([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\)'`).toString()
+  try {
+    return cp.execSync(String.raw`who | grep -E '\([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\)'`).toString()
+  } catch {
+    return ""
+  }
 }
 
 function getLastActivity() {
