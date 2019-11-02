@@ -46,7 +46,8 @@ async function main() {
 
 async function getActiveForwarders() {
   return new Promise((res, rej) => {
-    cp.exec("pgrep -l -f 'ssh -NT -L' | grep xayah-unshared", (err, stdout, stderr) => {
+    cp.exec("pgrep -l -f 'ssh -NT -L .* xayah-unshared'", (err, stdout, stderr) => {
+      // An exit code of 1 from pgrep means it did not find anything which is fine.
       if (err && err.code !== 1) {
         rej(err)
         return
@@ -106,10 +107,16 @@ async function getActivePorts() {
 
 async function ensurePortAvailable(port) {
   return new Promise((res, rej) => {
-    cp.exec(`netstat -vanp tcp | grep ${port}`, (err, stdout, stderr) => {
-      if (!err || err.code !== 1) {
-        rej(`port ${port} is in use by: ${stdout.trim().split(/\s+/)[8]}`)
+    cp.exec(`netstat -vanp tcp`, (err, stdout, stderr) => {
+      if (err) {
+        rej(err)
         return
+      }
+      const lines = stdout.trim().split("\n")
+      for (l of lines) {
+        if (l.match(port)) {
+          rej(`port ${port} is in use by: ${l.split(/\s+/)[8]}`)
+        }
       }
       res()
     })
