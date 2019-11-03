@@ -33,7 +33,11 @@ async function main() {
     activePorts.map(async port => {
       console.log(`spawning forwarding for ${port}`)
 
-      await ensurePortAvailable(port)
+      try {
+        await ensurePortAvailable(port)
+      } catch {
+        return
+      }
 
       const process = cp.spawn("ssh", ["-NT", `-L ${port}:localhost:${port}`, "xayah-unshared"], {
         detached: true,
