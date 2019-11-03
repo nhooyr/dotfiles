@@ -133,9 +133,9 @@ set -gx BAT_THEME GitHub
 alias cat="bat"
 
 function gcmp
-		gaa
-		gcm
-		gp
+    gaa
+    gcm
+    gp
 end
 
 function fcm
@@ -270,3 +270,7 @@ function search
 end
 
 bind \er 'echo -ne "\e[8;48;85t"'
+
+function catq
+    jq -R
+end
