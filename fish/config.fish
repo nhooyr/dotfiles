@@ -122,7 +122,7 @@ alias rgi="rg -S --no-ignore --hidden"
 alias h="history merge"
 alias time="time -p"
 alias t="time"
-alias n="noti time -p"
+alias n="time -p noti"
 alias rs="rsync -avzP"
 alias pc="pbcopy"
 alias pp="pbpaste"
@@ -196,51 +196,6 @@ function gh
     open "$url"
 end
 
-if [ "$HOSTNAME" = ien ]
-    source /usr/local/opt/fzf/shell/key-bindings.fish
-
-    alias ls="gls --indicator-style=classify --color=auto"
-    alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
-    alias bu="brew update && brew upgrade && brew cask upgrade"
-    alias b="brew"
-    alias i="brew install"
-    alias fp="fp.js"
-    alias ports="netstat -vanp tcp"
-
-    function tra
-        for file in $argv
-            set -l file (realpath "$file")
-            osascript -e "tell application \"Finder\" to delete POSIX file \"$file\"" >/dev/null
-        end
-    end
-
-    function ms
-        set -l localPath (realpath "$argv")
-        set remotePath (string replace ~ /home/nhooyr "$localPath")
-        mutagen sync create -n=(basename "$localPath") "$localPath" xayah-unshared:"$remotePath"
-    end
-
-    addToPath ~/.cargo/bin
-    addToPath /usr/local/opt/make/libexec/gnubin
-    addToPath /usr/local/opt/gnu-sed/libexec/gnubin
-    addToPath ~/src/nhooyr/dotfiles/ien/bin
-end
-
-if [ "$HOSTNAME" = xayah ]
-    if [ -f ~/src/emscripten-core/emsdk/emsdk_env.fish ]
-        source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
-    end
-
-    alias b="apt"
-    alias ls="ls --indicator-style=classify --color=auto"
-    alias i="sudo apt install"
-    alias bu="sudo apt update; and sudo apt full-upgrade; and sudo snap refresh"
-    alias ports="ss -ltpn"
-
-    addToPath ~/src/nhooyr/dotfiles/xayah/bin
-    addToPath /snap/bin
-end
-
 fzf_key_bindings
 function fzf-paths
     set -l prevCmdline (commandline -b)
@@ -273,4 +228,12 @@ bind \er 'echo -ne "\e[8;48;85t"'
 
 function catq
     jq -R
+end
+
+if [ "$HOSTNAME" = ien ]
+    source ~/src/nhooyr/dotfiles/ien/config.fish
+end
+
+if [ "$HOSTNAME" = xayah ]
+    source ~/src/nhooyr/dotfiles/xayah/config.fish
 end

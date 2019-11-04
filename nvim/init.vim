@@ -43,6 +43,9 @@ nnoremap <silent> <BS> "_d
 nnoremap <silent> <BS><BS> "_dd
 vnoremap <silent> <BS> "_d
 
+vnoremap <silent> > >gv
+vnoremap <silent> < <gv
+
 " Emacs style insert and commadn line keybindings
 " https://github.com/maxbrunsfeld/vim-emacs-bindings/blob/master/plugin/emacs-bindings.vim
 cnoremap <C-N> <Down>
