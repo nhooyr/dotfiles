@@ -12,14 +12,14 @@ const cp = require("child_process")
 })()
 
 async function main() {
-  const [activePorts, activeForwarders] = await Promise.all([getActivePorts(), getActiveForwarders()])
+  let [activePorts, activeForwarders] = await Promise.all([getActivePorts(), getActiveForwarders()])
 
   // Kill unused forwardings.
   activeForwarders.forEach(af => {
     if (activePorts.includes(af.port)) {
       // Active forwarding exists.
       console.log(`forwarding for ${af.port} already active`)
-      activePorts.delete(af.port)
+      activePorts = activePorts.filter(p => p != af.port)
       return
     }
 
