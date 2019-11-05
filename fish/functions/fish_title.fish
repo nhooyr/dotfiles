@@ -1,11 +1,7 @@
 function fish_title
+    echo -n (status current-command)" "
     if [ "$hostname" != "ien" ]
-        echo -n @(prompt_hostname) " "
+        echo -n (prompt_hostname)":"
     end
-    set -l cmd (status current-command)
-    if [ "$argv" != "" ]
-        set cmd "$argv"
-    end
-    echo -n "$cmd"
-    echo " " :(prompt_pwd)
+    echo (basename "$PWD")
 end
