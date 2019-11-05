@@ -14,7 +14,7 @@ ensure: ensure-ien
 else ifeq ($(HOSTNAME), xayah)
 ensure: ensure-xayah
 endif
-ensure:
+ensure: ensure-root
 	$(MAKE) link SRC=git TO=~/.config/git
 	$(MAKE) link SRC=nvim TO=~/.config/nvim
 	$(MAKE) link SRC=fish TO=~/.config/fish
@@ -28,6 +28,11 @@ ensure-xayah:
 	sudo cp xayah/green.timer /etc/systemd/system/green.timer
 	sudo cp xayah/green.service /etc/systemd/system/green.service
 
+ensure-root:
+	sudo $(MAKE) link SRC=~/.config TO=~root/.config
+	sudo $(MAKE) link SRC=~/.local TO=~root/.local
+	sudo $(MAKE) link SRC=~/src TO=~root/src
+
 link:
 	if [[ -L $$TO ]]; then
 	  echo "overwriting $$TO"
@@ -38,7 +43,7 @@ link:
 	else
 		echo "linking $$TO"
 	fi
-	ln -s "$$PWD/$$SRC" "$$TO"
+	ln -s "$$(realpath "$$SRC")" "$$TO"
 
 fmt: prettier fish_indent shfmt
 ifdef CI

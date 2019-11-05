@@ -26,6 +26,7 @@ noremap ; :
 nnoremap <silent> q :quit<CR>
 nnoremap <silent> Q q
 nnoremap <silent> <leader>ec :vs $MYVIMRC<CR>
+nnoremap <silent> <leader>f :file<CR>
 nnoremap <silent> k gk
 nnoremap <silent> j gj
 nnoremap <silent> p ]p
@@ -42,6 +43,12 @@ nnoremap <silent> ^ 0
 nnoremap <silent> <BS> "_d
 nnoremap <silent> <BS><BS> "_dd
 vnoremap <silent> <BS> "_d
+nnoremap <silent> x "_x
+vnoremap <silent> x "_x
+nnoremap <silent> c "_c
+vnoremap <silent> c "_c
+nnoremap <silent> C "_C
+vnoremap <silent> C "_C
 
 vnoremap <silent> > >gv
 vnoremap <silent> < <gv
@@ -73,7 +80,7 @@ inoremap <C-k> <Esc>"_ddO
 inoremap <M-f> <C-o>w
 inoremap <M-b> <C-o>b
 inoremap <M-d> <C-o>dw
-inoremap <M-BS> <C-o>db
+inoremap <M-BS> <C-w>
 
 nnoremap <C-s> :w<CR>
 inoremap <C-s> <Esc>:w<CR>
@@ -94,7 +101,7 @@ nnoremap <silent> <Leader>r :set columns=85<CR>
 set clipboard=unnamed
 set noshowmode
 set noruler
-set laststatus=0
+"set laststatus=0
 set cursorline
 set noshowcmd
 set splitright

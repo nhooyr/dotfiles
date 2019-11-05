@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+localPath="${1-$PWD}"
+remotePath="$(xpath "$@")"
+rsync -avzP "$localPath/" "xayah-unshared:$remotePath"

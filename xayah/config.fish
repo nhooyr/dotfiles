@@ -1,5 +1,5 @@
 if [ -f ~/src/emscripten-core/emsdk/emsdk_env.fish ]
-		source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
+    source ~/src/emscripten-core/emsdk/emsdk_env.fish >/dev/null
 end
 
 alias b="apt"
@@ -10,3 +10,5 @@ alias ports="ss -ltpn"
 
 addToPath ~/src/nhooyr/dotfiles/xayah/bin
 addToPath /snap/bin
+
+fzf_key_bindings
