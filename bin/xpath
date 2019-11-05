@@ -2,9 +2,14 @@
 
 set -euo pipefail
 
-path="$(realpath "$1")"
+path="$PWD"
+if [[ $# -gt 0 ]]; then
+  path="$(realpath "$1")"
+fi
+
 if ! echo "$path" | grep -q "$HOME"; then
-  path=""
+  echo "$path"
+  exit 0
 fi
 
 echo "~${path#~}"
