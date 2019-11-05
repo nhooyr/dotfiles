@@ -1,5 +1,3 @@
-set HOSTNAME (hostname -s)
-
 # Occasionally things give me errors because the default limit is so low.
 ulimit -n 16384
 
@@ -196,7 +194,6 @@ function gh
     open "$url"
 end
 
-fzf_key_bindings
 function fzf-paths
     set -l prevCmdline (commandline -b)
     set -l result (paths | fzf --height 40% --query (commandline -t))
@@ -217,7 +214,7 @@ function fzf-paths
         commandline -f repaint
     end
 end
-bind \ee fzf-paths
+bind \ev fzf-paths
 bind \cv accept-autosuggestion execute
 
 function search
@@ -230,10 +227,7 @@ function catq
     jq -R
 end
 
-if [ "$HOSTNAME" = ien ]
-    source ~/src/nhooyr/dotfiles/ien/config.fish
-end
-
-if [ "$HOSTNAME" = xayah ]
-    source ~/src/nhooyr/dotfiles/xayah/config.fish
+set HOSTNAME (hostname -s)
+if [ -f "$HOME/src/nhooyr/dotfiles/$HOSTNAME/config.fish" ]
+    source "$HOME/src/nhooyr/dotfiles/$HOSTNAME/config.fish"
 end
