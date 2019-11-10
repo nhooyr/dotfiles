@@ -5,7 +5,7 @@ function up
     end
 
     # Number.
-    if string match -qra '\d+' "$argv"
+    if string match -qra '^\d+' "$argv"
         up_n "$argv"
         return
     end

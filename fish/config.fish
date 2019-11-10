@@ -77,6 +77,7 @@ alias gcmf="git commit -v --fixup"
 alias gb="git branch"
 alias gbd="git brd"
 alias grt="git reset"
+alias grh="git reset --hard"
 alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
@@ -132,14 +133,14 @@ alias cat="bat"
 
 function gcmp
     gaa
-    gcm
-    gp
+    and gcm
+    and gp
 end
 
 function fcm
     gaa
-    git commit --amend --no-edit
-    git push -f
+    and git commit --amend --no-edit
+    and git push -f
 end
 
 function ghd
