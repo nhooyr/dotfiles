@@ -54,3 +54,7 @@ cmake-build-debug
 *.builddir
 ninja
 xcode
+
+.netlify
+coverage
+out
