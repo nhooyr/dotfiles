@@ -25,7 +25,7 @@ command! S :source $MYVIMRC
 noremap ; :
 nnoremap <silent> q :quit<CR>
 nnoremap <silent> Q q
-nnoremap <silent> <leader>ec :vs $MYVIMRC<CR>
+nnoremap <silent> <leader>ec :e $MYVIMRC<CR>
 nnoremap <silent> <leader>f :file<CR>
 nnoremap <silent> k gk
 nnoremap <silent> j gj
@@ -133,16 +133,13 @@ nnoremap <silent> <Leader>u :MundoToggle<CR>
 " https://stackoverflow.com/questions/9850360/what-is-netrwhist
 let g:netrw_dirhistmax = 0
 
-" https://github.com/neovim/neovim/issues/8350#issuecomment-443707200
-augroup vertical
-  autocmd!
-	autocmd WinNew * wincmd L
-augroup END
-
-" https://stackoverflow.com/questions/37804435/how-to-enable-line-numbers-for-the-vim-help-permanently
-augroup help
+augroup nhooyr
 	autocmd!
+	" https://stackoverflow.com/questions/37804435/how-to-enable-line-numbers-for-the-vim-help-permanently
 	autocmd FileType * setlocal number
+	" https://github.com/neovim/neovim/issues/8350#issuecomment-443707200
+	autocmd WinNew * wincmd L
+	autocmd FileType gitcommit startinsert
 augroup END
 
 " https://github.com/neovim/neovim/issues/10748
