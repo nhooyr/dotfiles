@@ -44,3 +44,5 @@
   brd = !gitBranchDelete
 [submodule]
 	recurse = true
+[advice]
+	detachedHead = false

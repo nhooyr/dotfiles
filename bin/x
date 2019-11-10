@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+HOSTNAME="$(hostname -s)"
 dst="ien"
 if [[ $HOSTNAME == "ien" ]]; then
   dst="xayah"
