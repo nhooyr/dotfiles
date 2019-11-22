@@ -16,6 +16,7 @@ Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-fugitive'
 Plug 'machakann/vim-highlightedyank'
+Plug 'sheerun/vim-polyglot'
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
