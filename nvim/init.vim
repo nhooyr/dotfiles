@@ -15,6 +15,7 @@ call plug#begin(stdpath('data') . '/plugged')
 Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-fugitive'
+Plug 'machakann/vim-highlightedyank'
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
@@ -140,6 +141,10 @@ augroup nhooyr
 	" https://github.com/neovim/neovim/issues/8350#issuecomment-443707200
 	autocmd WinNew * wincmd L
 	autocmd FileType gitcommit startinsert
+	" q should always quit.
+	" In particular this was added for man.vim which uses lclose instead of quit
+	" and so we cannot quit if there is only a man window left.
+	autocmd FileType * nnoremap <buffer> <silent> q :quit<CR>
 augroup END
 
 " https://github.com/neovim/neovim/issues/10748
@@ -157,3 +162,5 @@ let g:clipboard = {
 			\   },
 			\   'cache_enabled': 1,
 			\ }
+
+let g:highlightedyank_highlight_duration = 150
