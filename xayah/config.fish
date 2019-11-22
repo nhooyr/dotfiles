@@ -10,5 +10,6 @@ alias ports="ss -ltpn"
 
 addToPath ~/src/nhooyr/dotfiles/xayah/bin
 addToPath /snap/bin
+addToPath /sbin
 
 fzf_key_bindings

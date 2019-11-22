@@ -22,10 +22,6 @@ function ms
     mutagen sync create -n=(basename "$localPath") "$localPath" xayah-unshared:"$remotePath"
 end
 
-# https://stackoverflow.com/a/58445755/4283659
-# x2go's CLI needs this.
-set -gx DYLD_LIBRARY_PATH /usr/local/opt/openssl/lib
-
 addToPath ~/.cargo/bin
 addToPath /usr/local/opt/make/libexec/gnubin
 addToPath /usr/local/opt/gnu-sed/libexec/gnubin
@@ -34,5 +30,3 @@ addToPath ~/src/nhooyr/dotfiles/ien/bin
 # https://github.com/fish-shell/fish-shell/issues/6270#issuecomment-548515306
 function __fish_describe_command
 end
-
-# set -gx NOTI_NSUSER_SOUNDNAME Glass

@@ -32,7 +32,6 @@ set -gx MANPAGER "nvim +Man!"
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 set -gx GOPRIVATE go.coder.com
-set -gx MAKEFLAGS "--jobs=8 --output-sync=target"
 
 function addToPath
     if echo $PATH | grep -q "$argv"
@@ -52,7 +51,7 @@ end
 
 set -g CDPATH . ~/src/nhooyr/dotfiles ~/src/nhooyr ~/src/cdr ~/src ~/.config
 
-set -gx FZF_DEFAULT_OPTS "--color light,bg+:153,fg+:-1,pointer:-1,prompt:-1,hl:125,hl+:125,info:-1,spinner:-1 --tabstop=4"
+set -gx FZF_DEFAULT_OPTS "--color light,bg+:153,fg+:-1,pointer:-1,prompt:-1,hl:125,hl+:125,info:-1,spinner:-1 --tabstop=4 --layout=reverse --info=hidden --no-bold"
 
 set -l RESET_LS_COLORS 'rs=00:di=00:ln=00:mh=00:pi=00:so=00:do=00:bd=00:cd=00:or=00:mi=00:su=00:sg=00:ca=00:tw=00:ow=00:st=00:ex=00:*.tar=00:*.tgz=00:*.arc=00:*.arj=00:*.taz=00:*.lha=00:*.lz4=00:*.lzh=00:*.lzma=00:*.tlz=00:*.txz=00:*.tzo=00:*.t7z=00:*.zip=00:*.z=00:*.dz=00:*.gz=00:*.lrz=00:*.lz=00:*.lzo=00:*.xz=00:*.zst=00:*.tzst=00:*.bz2=00:*.bz=00:*.tbz=00:*.tbz2=00:*.tz=00:*.deb=00:*.rpm=00:*.jar=00:*.war=00:*.ear=00:*.sar=00:*.rar=00:*.alz=00:*.ace=00:*.zoo=00:*.cpio=00:*.7z=00:*.rz=00:*.cab=00:*.wim=00:*.swm=00:*.dwm=00:*.esd=00:*.jpg=00:*.jpeg=00:*.mjpg=00:*.mjpeg=00:*.gif=00:*.bmp=00:*.pbm=00:*.pgm=00:*.ppm=00:*.tga=00:*.xbm=00:*.xpm=00:*.tif=00:*.tiff=00:*.png=00:*.svg=00:*.svgz=00:*.mng=00:*.pcx=00:*.mov=00:*.mpg=00:*.mpeg=00:*.m2v=00:*.mkv=00:*.webm=00:*.ogm=00:*.mp4=00:*.m4v=00:*.mp4v=00:*.vob=00:*.qt=00:*.nuv=00:*.wmv=00:*.asf=00:*.rm=00:*.rmvb=00:*.flc=00:*.avi=00:*.fli=00:*.flv=00:*.gl=00:*.dl=00:*.xcf=00:*.xwd=00:*.yuv=00:*.cgm=00:*.emf=00:*.ogv=00:*.ogx=00:*.aac=00:*.au=00:*.flac=00:*.m4a=00:*.mid=00:*.midi=00:*.mka=00:*.mp3=00:*.mpc=00:*.ogg=00:*.ra=00:*.wav=00:*.oga=00:*.opus=00:*.spx=00:*.xspf=00:'
 set -l MY_LS_COLORS "di=34:ln=35:so=32:pi=32:ex=31;01"
@@ -64,8 +63,9 @@ abbr -ag - cd -
 alias ch="chmod"
 alias chx="chmod +x"
 alias md="mkdir -p"
-alias m="man"
+alias m="make --jobs=8 --output-sync=target"
 alias c="clear"
+alias rb="reboot"
 
 alias g="git"
 alias gch="git checkout"
@@ -98,7 +98,7 @@ alias grm="git rm"
 alias gcp="git cherry-pick"
 alias gm="git merge"
 alias k="kubectl"
-alias y="yarn"
+alias y="yarn -s"
 alias ya="yarn add"
 alias yad="yarn add --dev"
 alias f="functions"
@@ -121,17 +121,13 @@ alias ec="e ~/.config/fish/config.fish"
 alias rg="rg -S"
 alias rgi="rg -S --no-ignore --hidden"
 alias h="history merge"
-alias time="time -p"
-alias t="time"
+alias t="time -p"
 alias n="time -p noti"
 alias rs="rsync -avzP"
 alias pc="pbcopy"
 alias pp="pbpaste"
 alias gol="goland"
 alias cl="clion"
-
-set -gx BAT_THEME GitHub
-alias cat="bat"
 
 function gcmp
     gaa
@@ -198,24 +194,23 @@ function gh
 end
 
 function fzf-paths
-    set -l prevCmdline (commandline -b)
-    set -l result (paths | fzf --height 40% --query (commandline -t))
-    set -l realPath (string replace '~' ~ "$result")
-    if [ -n "$prevCmdline" ]
-        commandline -t -- "$result"
-        commandline -f repaint
-        return
+    paths | fzf --height 40% --query (commandline -t) | read -l result
+    if [ $status -eq 0 ]
+        set -l cli (commandline -b)
+        set -l realPath (string replace '~' ~ "$result")
+        if [ -n "$cli" ]
+            commandline -t -- "$result"
+        else if [ -d $realPath ]
+            commandline -- "cd $result"
+            commandline -f execute
+        else if [ -e $realPath ]
+            commandline -- "e $result"
+            commandline -f execute
+        else
+            echo "$result does not exist"
+        end
     end
-    if [ -d $realPath ]
-        commandline -t -- "cd $result"
-        commandline -f execute
-    else if [ -e $realPath ]
-        commandline -t -- "e $result"
-        commandline -f execute
-    else
-        echo "$result does not exist"
-        commandline -f repaint
-    end
+    commandline -f repaint
 end
 bind \ev fzf-paths
 bind \cv accept-autosuggestion execute
