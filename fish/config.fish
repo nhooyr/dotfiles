@@ -32,6 +32,7 @@ set -gx MANPAGER "nvim +Man!"
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 set -gx GOPRIVATE go.coder.com
+set -gx MAKEFLAGS "--jobs=8 --output-sync=target"
 
 function addToPath
     if echo $PATH | grep -q "$argv"
@@ -63,7 +64,7 @@ abbr -ag - cd -
 alias ch="chmod"
 alias chx="chmod +x"
 alias md="mkdir -p"
-alias m="make --jobs=8 --output-sync=target"
+alias m="make"
 alias c="clear"
 alias rb="reboot"
 
@@ -104,10 +105,12 @@ alias yad="yarn -s add --dev"
 alias yd="yarn -s dev"
 alias yp="yarn -s prod"
 alias yc="yarn -s ci"
+alias yf="yarn -s fix"
 alias f="functions"
 alias d="cd"
 alias mt="mutagen"
 alias o="open"
+alias nt="netlify"
 
 # Always use -s to ensure shell aliases/functions work.
 alias s="sudo"
