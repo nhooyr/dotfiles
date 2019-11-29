@@ -2,4 +2,4 @@
 
 localPath="${1-$PWD}"
 remotePath="$(xpath "$@")"
-rsync -avz --partial "$localPath/" "xayah-unshared:$remotePath/"
+rsync -avz --partial "xayah-unshared:$remotePath/" "$localPath/"

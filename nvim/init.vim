@@ -51,6 +51,10 @@ nnoremap <silent> c "_c
 vnoremap <silent> c "_c
 nnoremap <silent> C "_C
 vnoremap <silent> C "_C
+nnoremap <silent> s "_s
+vnoremap <silent> s "_s
+nnoremap <silent> S "_S
+vnoremap <silent> S "_S
 
 vnoremap <silent> > >gv
 vnoremap <silent> < <gv
