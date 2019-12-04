@@ -7,5 +7,4 @@ AddKeysToAgent yes
 ServerAliveInterval 5
 TCPKeepAlive no
 LogLevel QUIET
-Compression yes
 ExitOnForwardFailure yes
