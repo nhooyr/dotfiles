@@ -68,6 +68,8 @@ alias m="make"
 alias c="clear"
 alias rb="reboot"
 
+alias ot="go test"
+
 alias g="git"
 alias gch="git checkout"
 alias ga="git add"
