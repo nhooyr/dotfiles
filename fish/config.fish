@@ -235,7 +235,7 @@ end
 
 set HOSTNAME (hostname -s)
 if [ (uname) = Darwin ]
-	source "$HOME/src/nhooyr/dotfiles/ien/config.fish"
+    source "$HOME/src/nhooyr/dotfiles/ien/config.fish"
 else if [ (uname) = Linux ]
-	source "$HOME/src/nhooyr/dotfiles/xayah/config.fish"
+    source "$HOME/src/nhooyr/dotfiles/xayah/config.fish"
 end
