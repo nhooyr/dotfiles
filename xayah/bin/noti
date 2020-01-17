@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
 
-"$SHELL" -c "$@"
-x noti
+set -e
+
+if [[ $# -eq 0 ]]; then
+  x noti
+  exit 0
+fi
+
+if "$SHELL" -c "$*"; then
+  x noti true
+else
+  x noti false
+fi
