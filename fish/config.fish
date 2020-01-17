@@ -234,6 +234,8 @@ function catq
 end
 
 set HOSTNAME (hostname -s)
-if [ -f "$HOME/src/nhooyr/dotfiles/$HOSTNAME/config.fish" ]
-    source "$HOME/src/nhooyr/dotfiles/$HOSTNAME/config.fish"
+if [ (uname) = Darwin ]
+	source "$HOME/src/nhooyr/dotfiles/ien/config.fish"
+else if [ (uname) = Linux ]
+	source "$HOME/src/nhooyr/dotfiles/xayah/config.fish"
 end
