@@ -8,6 +8,7 @@ alias b="brew"
 alias i="brew install"
 alias fp="fp.js"
 alias ports="netstat -vanp tcp"
+alias lfs="ssh lfs"
 
 function tra
     for file in $argv

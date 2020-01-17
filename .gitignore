@@ -1,2 +1,3 @@
 # A lot of people have bin in their global gitignore.
 !bin
+npmrc
