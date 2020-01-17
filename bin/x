@@ -5,7 +5,7 @@ set -euo pipefail
 HOSTNAME="$(hostname -s)"
 dst="ien"
 if [[ $HOSTNAME == "ien" ]]; then
-  dst="xayah"
+  dst="x"
   if ! ls -l ~/.ssh/sockets | grep -q -- -xayah; then
     status="$(gcloud --configuration=nhooyr-coder compute instances describe --zone=us-central1-a xayah --format=json | jq -r .status)"
     if [[ $status != "RUNNING" ]]; then
