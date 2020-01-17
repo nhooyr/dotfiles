@@ -47,5 +47,5 @@ cd ~/src/nhooyr/dotfiles
 make ensure
 
 if ! grep -q "StreamLocalBindUnlink yes" /etc/ssh/sshd_config; then
-	echo "StreamLocalBindUnlink yes" | sudo tee -a /etc/ssh/sshd_config
+  echo "StreamLocalBindUnlink yes" | sudo tee -a /etc/ssh/sshd_config
 fi
