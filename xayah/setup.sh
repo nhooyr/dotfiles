@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update
 sudo apt-get -y build-essential cmake snapd git software-properties-common
@@ -17,4 +18,6 @@ sudo apt-get update
 sudo apt-get install fish
 
 sudo chsh nhooyr -s /usr/bin/fish
+cd ~/src/nhooyr/dotfiles
+make ensure
 sudo reboot
