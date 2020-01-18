@@ -43,6 +43,7 @@ link:
 	else
 		echo "linking $$TO"
 	fi
+	mkdir -p "$$(dirname "$$TO")"
 	ln -s "$$(realpath "$$SRC")" "$$TO"
 
 fmt: prettier fish_indent shfmt
