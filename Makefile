@@ -9,17 +9,18 @@ SHELL = bash
 .SHELLFLAGS = -ceuo pipefail
 
 HOSTNAME := $(shell hostname -s)
-ifeq ($(HOSTNAME), ien)
-ensure: ensure-ien
-else ifeq ($(HOSTNAME), xayah)
-ensure: ensure-xayah
-endif
 ensure: ensure-root
 	$(MAKE) link SRC=git TO=~/.config/git
 	$(MAKE) link SRC=nvim TO=~/.config/nvim
 	$(MAKE) link SRC=fish TO=~/.config/fish
 	$(MAKE) link SRC=mutagen/mutagen.yml TO=~/.mutagen.yml
 	$(MAKE) link SRC=fd/fdignore TO=~/.fdignore
+	$(MAKE) link SRC=gnupg TO=~/.gnupg
+ifeq ($(HOSTNAME), ien)
+	$(MAKE) ensure-ien
+else ifeq ($(HOSTNAME), xayah)
+	$(MAKE) ensure-xayah
+endif
 
 ensure-ien:
 	$(MAKE) link SRC=ien/gpg-agent.conf TO=~/.gnupg/gpg-agent.conf
