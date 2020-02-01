@@ -18,4 +18,4 @@ fi
 if [[ $# -gt 0 ]]; then
   argv="-c '$*'"
 fi
-ssh -t "$dst" "cd $(xpath) 2> /dev/null; exec \$SHELL -l ${argv-}"
+ssh -t "$dst" "cd $(xpath) 2> /dev/null; \$SHELL -l ${argv-}"
