@@ -17,7 +17,7 @@ if (isNaN(lastActivity)) {
 }
 
 const threshold = new Date()
-threshold.setHours(threshold.getHours() - 1)
+threshold.setHours(threshold.getHours() - 2)
 
 console.log("last activity", lastActivity)
 console.log("threshold", threshold)

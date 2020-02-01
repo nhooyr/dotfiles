@@ -8,6 +8,7 @@ all: ensure fmt
 SHELL = bash
 .SHELLFLAGS = -ceuo pipefail
 
+# TODO Need to fix this.
 HOSTNAME := $(shell hostname -s)
 ensure: ensure-root
 	$(MAKE) link SRC=git TO=~/.config/git
