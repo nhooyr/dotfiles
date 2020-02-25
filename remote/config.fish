@@ -8,8 +8,9 @@ alias i="sudo apt install"
 alias bu="sudo apt update; and sudo apt full-upgrade; and sudo snap refresh"
 alias ports="ss -ltpn"
 
-addToPath ~/src/nhooyr/dotfiles/xayah/bin
+addToPath ~/src/nhooyr/dotfiles/remote/bin
 addToPath /snap/bin
 addToPath /sbin
+addToPath /home/nhooyr/.yarn/bin
 
 fzf_key_bindings

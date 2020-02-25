@@ -1,73 +1,46 @@
-all: ensure fmt
+all: ensure fmt lint
 
 .SILENT:
 
-.PHONY: *
-
-.ONESHELL:
-SHELL = bash
-.SHELLFLAGS = -ceuo pipefail
-
-# TODO Need to fix this.
-HOSTNAME := $(shell hostname -s)
 ensure: ensure-root
-	$(MAKE) link SRC=git TO=~/.config/git
-	$(MAKE) link SRC=nvim TO=~/.config/nvim
-	$(MAKE) link SRC=fish TO=~/.config/fish
-	$(MAKE) link SRC=mutagen/mutagen.yml TO=~/.mutagen.yml
-	$(MAKE) link SRC=fd/fdignore TO=~/.fdignore
-	$(MAKE) link SRC=gnupg TO=~/.gnupg
-ifeq ($(HOSTNAME), ien)
-	$(MAKE) ensure-ien
-else ifeq ($(HOSTNAME), xayah)
-	$(MAKE) ensure-xayah
+ifeq ($(shell uname), Darwin)
+ensure: ensure-macos
 endif
+ifdef REMOTE
+ensure: ensure-remote
+endif
+	./link.sh git ~/.config/git
+	./link.sh nvim ~/.config/nvim
+	./link.sh fish ~/.config/fish
+	./link.sh mutagen/mutagen.yml ~/.mutagen.yml
+	./link.sh fd/fdignore ~/.fdignore
+	./link.sh gnupg ~/.gnupg
 
-ensure-ien:
-	$(MAKE) link SRC=ien/gpg-agent.conf TO=~/.gnupg/gpg-agent.conf
+ensure-macos:
+	./link.sh macos/gpg-agent.conf ~/.gnupg/gpg-agent.conf
 
-ensure-xayah:
-	sudo cp xayah/green.timer /etc/systemd/system/green.timer
-	sudo cp xayah/green.service /etc/systemd/system/green.service
+ensure-remote:
+	sudo cp remote/green.sh /usr/local/bin/green.sh
+	sudo cp remote/green.timer /etc/systemd/system/green.timer
+	sudo cp remote/green.service /etc/systemd/system/green.service
 
 ensure-root:
-	sudo $(MAKE) link SRC=~/.config TO=~root/.config
-	sudo $(MAKE) link SRC=~/.local TO=~root/.local
-	sudo $(MAKE) link SRC=~/src TO=~root/src
+	sudo ./link.sh ~/.config ~root/.config
+	sudo ./link.sh ~/.local ~root/.local
+	sudo ./link.sh ~/src ~root/src
 
-link:
-	if [[ -L $$TO ]]; then
-	  echo "overwriting $$TO"
-	  rm "$$TO"
-	elif [[ -e $$TO ]]; then
-	  echo "$$TO exists and is not a symlink"
-	  exit 1
-	else
-		echo "linking $$TO"
-	fi
-	mkdir -p "$$(dirname "$$TO")"
-	ln -s "$$(realpath "$$SRC")" "$$TO"
-
-fmt: prettier fish_indent shfmt
+fmt: fish_indent shfmt
 ifdef CI
-	if [[ $$(git ls-files --other --modified --exclude-standard) != "" ]]; then
-	  echo "Files need generation or are formatted incorrectly:"
-	  git -c color.ui=always status | grep --color=no '\[31m'
-	  echo "Please run the following locally:"
-	  echo "  make fmt"
-	  exit 1
-	fi
+	./ci/ensure_fmt.sh
 endif
 
-prettier:
-	prettier --write --print-width=120 --no-semi --trailing-comma=all --loglevel=warn $$(git ls-files "*.yml" "*.md" "*.js")
+lint: shellcheck
 
 fish_indent:
-	git ls-files "*.fish" | xargs -I{} fish_indent -w {}
+	fish_indent -w $$(git ls-files "*.sh")
 
 shfmt:
-	shfmt -i 2 -w -s -sr .
+	shfmt -i 2 -w -s -sr $$(git ls-files "*.sh")
 
-ci-image:
-	docker build -f .github/workflows/Dockerfile -t nhooyr/dotfiles-ci .
-	docker push nhooyr/dotfiles-ci
+shellcheck:
+	shellcheck $$(git ls-files "*.sh")
