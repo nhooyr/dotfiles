@@ -21,9 +21,7 @@ ensure_fmt() {
 }
 
 main() {
-  local fishFiles
-  mapfile -t fishFiles < <(git ls-files "*.fish")
-  fish_indent -w "${fishFiles[@]}"
+  git ls-files "*.fish" | xargs -P16 -n1 fish_indent -w
 
   local shellFiles
   mapfile -t shellFiles < <(git ls-files "*.sh")

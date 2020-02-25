@@ -2,45 +2,18 @@
 	name = Anmol Sethi
 	email = hi@nhooyr.io
 	signingkey = 8CEF1878FF10ADEB
-[github]
-	user = nhooyr
 [commit]
 	gpgsign = true
-[hub]
-	protocol = ssh
-	host = gh.coder-internal.com
 [merge]
 	conflictstyle = diff3
 	ff = false
-[core]
-	autocrlf = input
-[http]
-	cookiefile = /Users/nhooyr/.gitcookies
 [rebase]
 	autosquash = true
+[push]
+	default = current
 [pull]
 	rebase = true
-[tag]
-	forceSignAnnotated = true
-[push]
-	followTags = true
-[filter "lfs"]
-	smudge = git-lfs smudge -- %f
-	process = git-lfs filter-process
-	required = true
-	clean = git-lfs clean -- %f
-[rerere]
-	enabled = true
 [fetch]
 	prune = true
 [url "ssh://git@github.com/"]
 	insteadOf = https://github.com/
-[branch]
-  autosetupmerge = always
-[alias]
-  psh = !gitpush
-  brd = !gitBranchDelete
-[submodule]
-	recurse = true
-[advice]
-	detachedHead = false
