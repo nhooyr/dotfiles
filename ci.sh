@@ -21,12 +21,17 @@ ensure_fmt() {
 }
 
 main() {
-	fish_indent -w $$(git ls-files "*.sh")
-	shfmt -i 2 -w -s -sr $$(git ls-files "*.sh")
-	shellcheck $$(git ls-files "*.sh")
+  local fishFiles
+  mapfile -t fishFiles < <(git ls-files "*.fish")
+  fish_indent -w "${fishFiles[@]}"
 
-	if [[ ${CI-} ]]; then
-	  ensure_fmt
+  local shellFiles
+  mapfile -t shellFiles < <(git ls-files "*.sh")
+  shfmt -i 2 -w -s -sr "${shellFiles[@]}"
+  shellcheck $"${shellFiles[@]}"
+
+  if [[ ${CI-} ]]; then
+    ensure_fmt
   fi
 }
 
