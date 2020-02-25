@@ -16,7 +16,6 @@ Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-fugitive'
 Plug 'machakann/vim-highlightedyank'
-Plug 'sheerun/vim-polyglot'
 Plug 'justinmk/vim-dirvish'
 call plug#end()
 
