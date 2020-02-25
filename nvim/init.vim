@@ -17,6 +17,7 @@ Plug 'tpope/vim-surround'
 Plug 'tpope/vim-fugitive'
 Plug 'machakann/vim-highlightedyank'
 Plug 'sheerun/vim-polyglot'
+Plug 'justinmk/vim-dirvish'
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
@@ -25,7 +26,7 @@ command! Pc PlugClean
 command! S :source $MYVIMRC
 
 noremap ; :
-nnoremap <silent> q :quit<CR>
+nnoremap <silent> q :quit!<CR>
 nnoremap <silent> Q q
 nnoremap <silent> <leader>ec :e $MYVIMRC<CR>
 nnoremap <silent> <leader>f :file<CR>
@@ -149,7 +150,7 @@ augroup nhooyr
 	" q should always quit.
 	" In particular this was added for man.vim which uses lclose instead of quit
 	" and so we cannot quit if there is only a man window left.
-	autocmd FileType * nnoremap <buffer> <silent> q :quit<CR>
+	autocmd FileType * nnoremap <buffer> <silent> q :quit!<CR>
 augroup END
 
 " https://github.com/neovim/neovim/issues/10748

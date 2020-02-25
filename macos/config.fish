@@ -6,7 +6,7 @@ alias icloud="cd ~/Library/Mobile\ Documents/com~apple~CloudDocs"
 alias bu="brew update && brew upgrade && brew cask upgrade"
 alias b="brew"
 alias i="brew install"
-alias fp="fp.js"
+alias fp="fp.sh"
 alias ports="netstat -vanp tcp"
 alias lfs="ssh lfs"
 
@@ -26,7 +26,7 @@ end
 addToPath ~/.cargo/bin
 addToPath /usr/local/opt/make/libexec/gnubin
 addToPath /usr/local/opt/gnu-sed/libexec/gnubin
-addToPath ~/src/nhooyr/dotfiles/ien/bin
+addToPath ~/src/nhooyr/dotfiles/macos/bin
 
 # https://github.com/fish-shell/fish-shell/issues/6270#issuecomment-548515306
 function __fish_describe_command

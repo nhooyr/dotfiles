@@ -44,7 +44,7 @@ end
 
 addToPath "$GOPATH/bin"
 addToPath ~/src/nhooyr/dotfiles/bin
-addToPath (yarn global bin)
+addToPath /usr/local/bin
 
 if [ -f /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc ]
     source /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc
@@ -100,6 +100,7 @@ alias gro="git remote"
 alias grm="git rm"
 alias gcp="git cherry-pick"
 alias gm="git merge"
+alias gt="git tag"
 alias k="kubectl"
 alias y="yarn -s"
 alias ya="yarn -s add"
@@ -130,7 +131,7 @@ alias rg="rg -S"
 alias rgi="rg -S --no-ignore --hidden"
 alias h="history merge"
 alias t="time"
-alias n="noti time -p"
+alias n="noti /usr/bin/time -p"
 alias rs="rsync -avzP"
 alias pc="pbcopy"
 alias pp="pbpaste"
@@ -233,9 +234,8 @@ function catq
     jq -R
 end
 
-set HOSTNAME (hostname -s)
 if [ (uname) = Darwin ]
-    source "$HOME/src/nhooyr/dotfiles/ien/config.fish"
+    source "$HOME/src/nhooyr/dotfiles/macos/config.fish"
 else if [ (uname) = Linux ]
-    source "$HOME/src/nhooyr/dotfiles/xayah/config.fish"
+    source "$HOME/src/nhooyr/dotfiles/remote/config.fish"
 end
