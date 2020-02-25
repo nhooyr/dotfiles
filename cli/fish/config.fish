@@ -43,7 +43,7 @@ function addToPath
 end
 
 addToPath "$GOPATH/bin"
-addToPath ~/src/nhooyr/dotfiles/bin
+addToPath ~/src/nhooyr/dotfiles/cli/bin
 addToPath /usr/local/bin
 
 if [ -f /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.fish.inc ]
@@ -235,7 +235,7 @@ function catq
 end
 
 if [ (uname) = Darwin ]
-    source "$HOME/src/nhooyr/dotfiles/macos/config.fish"
+    source "$HOME/src/nhooyr/dotfiles/macos/fish/config.fish"
 else if [ (uname) = Linux ]
-    source "$HOME/src/nhooyr/dotfiles/remote/config.fish"
+    source "$HOME/src/nhooyr/dotfiles/linux/fish/config.fish"
 end

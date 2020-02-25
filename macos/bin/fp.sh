@@ -19,7 +19,7 @@ main() {
   done
 
   for port in "${ports[@]}"; do
-    if [[ ${activeForwarders[$port]:-} ]]; then
+    if [[ ${activeForwarders[$port]-} ]]; then
       unset activeForwarders["$port"]
       continue
     fi
