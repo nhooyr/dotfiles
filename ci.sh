@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-main() {
+ensure_fmt() {
   local files
   mapfile -t files < <(git ls-files --other --modified --exclude-standard)
   if [[ ${files[*]} == "" ]]; then
@@ -18,6 +18,16 @@ main() {
   echo "Please run the following locally:"
   echo "  make fmt"
   exit 1
+}
+
+main() {
+	fish_indent -w $$(git ls-files "*.sh")
+	shfmt -i 2 -w -s -sr $$(git ls-files "*.sh")
+	shellcheck $$(git ls-files "*.sh")
+
+	if [[ ${CI-} ]]; then
+	  ensure_fmt
+  fi
 }
 
 main "$@"

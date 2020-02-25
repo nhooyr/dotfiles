@@ -5,7 +5,7 @@ set -euo pipefail
 main() {
   local activeUsers
   activeUsers="$(who | grep -E '([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})')" || true
-  if [[ ${activeUsers:-} ]]; then
+  if [[ ${activeUsers-} ]]; then
     echo "remote users logged in:"
     echo "$activeUsers"
     exit 0
