@@ -28,6 +28,8 @@ ensure_linux() {
 }
 
 main() {
+  ./ci.sh
+
   ensure
   ensure_root
 
