@@ -1,0 +1,14 @@
+lang: minimal
+
+env:
+  global:
+    - SHFMT_URL=https://github.com/mvdan/sh/releases/download/v3.0.1/shfmt_v3.0.1_linux_amd64
+
+before_script:
+  - sudo apt-get install -y fish shellcheck
+  - sudo curl -L "$SHFMT_URL" > /usr/local/bin/shfmt && sudo chmod +x /usr/local/bin/shfmt
+script: make -j16
+
+addons:
+  apt:
+    update: true
