@@ -1,4 +1,5 @@
 lang: minimal
+dist: bionic
 
 env:
   global:
@@ -7,7 +8,7 @@ env:
 before_script:
   - sudo apt-get install -y fish shellcheck
   - sudo curl -L "$SHFMT_URL" > /usr/local/bin/shfmt && sudo chmod +x /usr/local/bin/shfmt
-script: make -j16
+script: ./ci.sh
 
 addons:
   apt:
