@@ -32,7 +32,6 @@ set -gx MANPAGER "nvim +Man!"
 set -gx MANWIDTH 80
 set -gx GOPATH ~/.local/share/gopath
 set -gx GOPRIVATE go.coder.com
-set -gx MAKEFLAGS "--jobs=8 --output-sync=target"
 
 function addToPath
     if echo $PATH | grep -q "$argv"
@@ -78,13 +77,13 @@ alias gcm="git commit -v"
 alias gcma="git commit -v --amend"
 alias gcmf="git commit -v --fixup"
 alias gb="git branch"
-alias gbd="git brd"
+alias gbd="git branch -d"
 alias grt="git reset"
 alias grh="git reset --hard"
 alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
-alias gp="git psh"
+alias gp="gitpush"
 alias gpf="git push -f"
 alias gs="git status"
 alias gst="git stash"
@@ -137,6 +136,7 @@ alias pc="pbcopy"
 alias pp="pbpaste"
 alias gol="goland"
 alias cl="clion"
+alias catq="jq -R"
 
 function gcmp
     gaa
@@ -229,10 +229,6 @@ function search
 end
 
 bind \er 'echo -ne "\e[8;48;85t"'
-
-function catq
-    jq -R
-end
 
 if [ (uname) = Darwin ]
     source "$HOME/src/nhooyr/dotfiles/macos/fish/config.fish"
