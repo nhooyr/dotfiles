@@ -109,7 +109,6 @@ alias yp="yarn -s prod"
 alias yc="yarn -s ci"
 alias yf="yarn -s fix"
 alias f="functions"
-alias d="cd"
 alias mt="mutagen"
 alias o="open"
 alias nt="netlify"
@@ -203,7 +202,7 @@ function gh
 end
 
 function fzf-paths
-    paths | fzf --height 40% --query (commandline -t) | read -l result
+    paths (commandline -t) | awk '!seen[$0]++' | fzf --height 40% --query (commandline -t) | read -l result
     if [ $status -eq 0 ]
         set -l cli (commandline -b)
         set -l realPath (string replace '~' ~ "$result")

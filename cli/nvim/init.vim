@@ -17,6 +17,8 @@ Plug 'tpope/vim-surround'
 Plug 'tpope/vim-fugitive'
 Plug 'machakann/vim-highlightedyank'
 Plug 'justinmk/vim-dirvish'
+Plug '/usr/local/opt/fzf'
+Plug 'junegunn/fzf.vim'
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
@@ -169,3 +171,6 @@ let g:clipboard = {
 			\ }
 
 let g:highlightedyank_highlight_duration = 150
+
+autocmd! FileType fzf set laststatus=0 noshowmode noruler
+  \| autocmd BufLeave <buffer> set laststatus=2 showmode ruler
