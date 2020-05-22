@@ -44,7 +44,6 @@ function fish_prompt
     git_info
 
     set_color -o
-    echo
     echo -n "$suffix "
     set_color normal
 end

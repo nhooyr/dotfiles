@@ -24,7 +24,7 @@ main() {
   git ls-files "*.fish" | xargs -P16 -n1 fish_indent -w
 
   local shellFiles
-  mapfile -t shellFiles < <(git ls-files "*.sh")
+  mapfile -t shellFiles < <(shfmt -f .)
   shfmt -i 2 -w -s -sr "${shellFiles[@]}"
   shellcheck $"${shellFiles[@]}"
 

@@ -12,8 +12,13 @@
 [push]
 	default = current
 [pull]
+    default = current
 	rebase = true
 [fetch]
 	prune = true
 [url "ssh://git@github.com/"]
 	insteadOf = https://github.com/
+[branch]
+	autosetupmerge = true
+[diff]
+	algorithm = patience

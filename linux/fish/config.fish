@@ -14,3 +14,5 @@ addToPath /sbin
 addToPath /home/nhooyr/.yarn/bin
 
 fzf_key_bindings
+
+set -gx remote "ien"

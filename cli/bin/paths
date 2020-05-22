@@ -2,6 +2,25 @@
 
 set -euo pipefail
 
-homePattern="${HOME//\//\\\/}"
-fd -H
-fd . ~/src ~/.config | sed -e "s/${homePattern}/\~/"
+iconic_path() {
+  sed -e "s/${homePattern}/\~/"
+}
+
+main() {
+  local homePattern
+  homePattern="${HOME//\//\\\/}"
+
+  local path
+  eval path="${1-}"
+  if [[ -e $path ]]; then
+    fd -tf -td -HI . "$path" | iconic_path
+    exit 0
+  fi
+
+  fd -tf -td . ~/.ssh | iconic_path
+  fd -tf -td -d2 . ~/src | iconic_path
+  fd -tf -td -d4 .
+  fd -tf -td -HI -d4 .
+}
+
+main "$@"

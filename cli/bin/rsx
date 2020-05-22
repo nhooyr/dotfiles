@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 localPath="${1-$PWD}"
 remotePath="$(xpath "$@")"
-rsync -e 'ssh -oControlPath=none' -avz --partial "$localPath/" "xayah:$remotePath/"
+rsync -e 'ssh -oControlPath=none' -avz --partial "$localPath/" "$remote-unshared:$remotePath/"
