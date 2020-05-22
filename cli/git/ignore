@@ -11,4 +11,4 @@ cmake-build-debug
 .mutagen.yml.lock
 .netlify
 coverage
-build
+.ignore

@@ -2,4 +2,4 @@
 
 localPath="${1-$PWD}"
 remotePath="$(xpath "$@")"
-rsync -avz --partial "xayah-unshared:$remotePath/" "$localPath/"
+rsync -e 'ssh -oControlPath=none' -avz --partial "$remote:$remotePath/" "$localPath/"

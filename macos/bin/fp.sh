@@ -12,7 +12,7 @@ main() {
   unset ports["2424"]
 
   declare -A activeForwarders
-  mapfile -t lines < <(pgrep -l -f 'ssh -NT -L .* xayah-unshared' | awk '{split($5, a, ":"); printf("%s %s\n", a[1], $1)}')
+  mapfile -t lines < <(pgrep -l -f 'ssh -N -L .* xayah-unshared' | awk '{split($5, a, ":"); printf("%s %s\n", a[1], $1)}')
   for line in "${lines[@]}"; do
     read -r -a fields <<< "$line"
     activeForwarders[${fields[0]}]="${fields[1]}"
@@ -20,6 +20,7 @@ main() {
 
   for port in "${ports[@]}"; do
     if [[ ${activeForwarders[$port]-} ]]; then
+      echo "forwarding already active for $port"
       unset activeForwarders["$port"]
       continue
     fi
@@ -33,7 +34,7 @@ main() {
       continue
     fi
 
-    ssh -NT -L "$port:localhost:$port" xayah-unshared &
+    ssh -N -L "$port:localhost:$port" xayah-unshared &
     disown
   done
 

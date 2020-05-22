@@ -27,7 +27,10 @@ addToPath ~/.cargo/bin
 addToPath /usr/local/opt/make/libexec/gnubin
 addToPath /usr/local/opt/gnu-sed/libexec/gnubin
 addToPath ~/src/nhooyr/dotfiles/macos/bin
+addToPath /usr/local/sbin
 
 # https://github.com/fish-shell/fish-shell/issues/6270#issuecomment-548515306
 function __fish_describe_command
 end
+
+set -gx remote "xayah"
