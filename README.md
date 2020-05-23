@@ -9,7 +9,6 @@
 - [4. Install apps](#4-install-apps)
 - [5. Prune dock](#5-prune-dock)
 - [6. Setup Apps](#6-setup-apps)
-- [8. Setup Alfred](#8-setup-alfred)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -78,6 +77,7 @@
 1. Setup 1Password.
    - Adjust all vaults to remove archived and occasional.
    - Change Show keybinding to `Opt + \` as `Opt + Cmd + \` causes random beeping.
+   - Disable all 1Password notifications.
 1. Clone into `~/src/nhooyr/dotfiles`.
 1. Clone secrets into `~/src/nhooyr/dotfiles/secrets`
 1. Run [`./bootstrap.sh`](./bootstrap.sh)
@@ -109,5 +109,10 @@
    1. Only clipboard manager to `Cmd + Shift + v` otherwise prefer Spotlight.
 1. Terminal.app
 1. BetterTouchTool
-
-# 8. Setup Alfred
+   1. Import the preset.
+   1. Disable the menu bar icon.
+   1. Window snapping
+      1. Disable border width, animation and rounded corners.
+      1. Set padding space to 40px.
+      1. Disable window size resoration if dragged.
+   1. Set rotation degree requirement to 10.
