@@ -106,7 +106,8 @@
    1. Configure DDG as appropriate.
 1. wipr
 1. Alfred
-   1. Only clipboard manager to `⌘ + v` otherwise prefer Spotlight.
+   1. Only clipboard manager to `Cmd + Shift + v` otherwise prefer Spotlight.
 1. Terminal.app
+1. BetterTouchTool
 
 # 8. Setup Alfred
