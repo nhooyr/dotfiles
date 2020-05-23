@@ -217,9 +217,9 @@
 	AAAAAAAAAAOV
 	</data>
 	<key>Bell</key>
-	<false/>
+	<true/>
 	<key>CommandString</key>
-	<string>/usr/local/bin/fish -l</string>
+	<string></string>
 	<key>Font</key>
 	<data>
 	YnBsaXN0MDDUAQIDBAUGBwpYJHZlcnNpb25ZJGFyY2hpdmVyVCR0b3BYJG9iamVjdHMS
@@ -242,25 +242,25 @@
 	<key>SetLanguageEnvironmentVariables</key>
 	<true/>
 	<key>ShowActiveProcessArgumentsInTabTitle</key>
-	<false/>
+	<true/>
 	<key>ShowActiveProcessArgumentsInTitle</key>
-	<false/>
+	<true/>
 	<key>ShowActiveProcessInTabTitle</key>
-	<false/>
+	<true/>
 	<key>ShowActiveProcessInTitle</key>
-	<false/>
+	<true/>
 	<key>ShowActivityIndicatorInTab</key>
-	<false/>
+	<true/>
 	<key>ShowComponentsWhenTabHasCustomTitle</key>
 	<false/>
 	<key>ShowDimensionsInTitle</key>
 	<false/>
 	<key>ShowRepresentedURLInTabTitle</key>
-	<false/>
+	<true/>
 	<key>ShowRepresentedURLInTitle</key>
-	<false/>
+	<true/>
 	<key>ShowRepresentedURLPathInTabTitle</key>
-	<false/>
+	<true/>
 	<key>ShowRepresentedURLPathInTitle</key>
 	<false/>
 	<key>ShowShellCommandInTitle</key>
@@ -288,38 +288,6 @@
 		<dict>
 			<key>ProcessName</key>
 			<string>tmux</string>
-		</dict>
-		<dict>
-			<key>ProcessName</key>
-			<string>login</string>
-		</dict>
-		<dict>
-			<key>ProcessName</key>
-			<string>bash</string>
-		</dict>
-		<dict>
-			<key>ProcessName</key>
-			<string>zsh</string>
-		</dict>
-		<dict>
-			<key>ProcessName</key>
-			<string>fish</string>
-		</dict>
-		<dict>
-			<key>ProcessName</key>
-			<string>fzf</string>
-		</dict>
-		<dict>
-			<key>ProcessName</key>
-			<string>-fish</string>
-		</dict>
-		<dict>
-			<key>ProcessName</key>
-			<string>-ssh</string>
-		</dict>
-		<dict>
-			<key>ProcessName</key>
-			<string>ssh</string>
 		</dict>
 	</array>
 	<key>rowCount</key>
