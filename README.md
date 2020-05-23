@@ -3,13 +3,12 @@
 
 # dotfiles
 
-- [1. Walk through fresh macOS install](#1-walk-through-fresh-macos-install)
+- [1. Fresh macOS install](#1-fresh-macos-install)
 - [2. Adjust system preferences](#2-adjust-system-preferences)
 - [3. Notification Center](#3-notification-center)
 - [4. Install apps](#4-install-apps)
 - [5. Prune dock](#5-prune-dock)
-- [6. Setup Safari](#6-setup-safari)
-- [7. Setup Terminal](#7-setup-terminal)
+- [6. Setup Apps](#6-setup-apps)
 - [8. Setup Alfred](#8-setup-alfred)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
