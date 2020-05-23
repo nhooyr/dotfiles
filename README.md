@@ -1,13 +1,7 @@
 # dotfiles
 
-[![CI Status](https://github.com/nhooyr/dotfiles/workflows/ci/badge.svg)](https://github.com/nhooyr/dotfiles/actions)
-
-```fish
-make ensure
-```
-
-Will perform automated setup for git, nvim, fish, mutagen, fd, gpg and green.
-
-Running just `make` will also format everything which requires prettier, fish_indent and shfmt.
-
-btt, goland, and terminal.app settings must be imported manually.
+1. Walk through fresh macOS install.
+   - Enable everything.
+2. Change capslock to escape.
+3. Clone into `~/src/nhooyr/dotfiles`.
+4. Run [`./bootstrap.sh`](./bootstrap.sh)
