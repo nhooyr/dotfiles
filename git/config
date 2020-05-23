@@ -1,0 +1,20 @@
+[user]
+	name = Anmol Sethi
+	email = hi@nhooyr.io
+	signingkey = 8CEF1878FF10ADEB
+[commit]
+	gpgsign = true
+[rebase]
+	autosquash = true
+[push]
+	default = current
+[pull]
+  default = current
+	rebase = true
+[fetch]
+	prune = true
+[merge]
+  conflictstyle = diff3
+  ff = false
+[diff]
+	algorithm = patience
