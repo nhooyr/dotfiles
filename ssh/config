@@ -1,0 +1,8 @@
+Host *
+HashKnownHosts yes
+ControlPath ~/.ssh/sockets/%C-%n
+ControlMaster auto
+ControlPersist yes
+ServerAliveInterval 5
+TCPKeepAlive no
+ExitOnForwardFailure yes
