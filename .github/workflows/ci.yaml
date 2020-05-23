@@ -1,0 +1,17 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - run: GO111MODULE=on go get mvdan.cc/sh/v3/cmd/shfmt
+      - run: PATH=$PATH:~/go/bin ./ci/fmt.sh
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - run: ./ci/lint.sh
