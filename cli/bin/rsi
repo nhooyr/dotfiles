@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-
-localPath="${1-$PWD}"
-remotePath="$(xpath "$@")"
-rsync -e 'ssh -oControlPath=none' -avz --partial "$remote:$remotePath/" "$localPath/"
