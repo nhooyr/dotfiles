@@ -76,6 +76,8 @@
 
 1. Install all apps purchased on the Mac App Store.
 1. Setup 1Password.
+   - Adjust all vaults to remove archived and occasional.
+   - Change Show keybinding to `Opt + \` as `Opt + Cmd + \` causes random beeping.
 1. Clone into `~/src/nhooyr/dotfiles`.
 1. Clone secrets into `~/src/nhooyr/dotfiles/secrets`
 1. Run [`./bootstrap.sh`](./bootstrap.sh)
@@ -97,7 +99,7 @@
    1. Safari opens with `All windows from last session`.
    1. Homepage and search should be https://duckduckgo.com.
    1. Show website icons in tabs.
-   1. Remove 1Password extension icon.
+   1. Remove all toolbar icons except for Show/Hide Tab Overview.
    1. Disable autofill of usernames and passwords.
    1. Show full website address.
    1. Show Develop menu.
