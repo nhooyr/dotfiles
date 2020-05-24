@@ -15,14 +15,23 @@ auth sufficient pam_tid.so
 $(cat /etc/pam.d/sudo)
 EOF
 
-  brew install emacs gnupg
+  brew install \
+    emacs \
+    gnupg \
+    go \
+    node \
+    yarn \
+    shellcheck \
+    shfmt
 
   brew cask install \
     alfred \
     spotify \
     bettertouchtool \
     docker \
-    parallels
+    parallels \
+    google-chrome \
+    firefox
 }
 
 main "$@"

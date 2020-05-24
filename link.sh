@@ -3,7 +3,7 @@ set -eu
 
 ensure() {
   ./ci/link.sh emacs ~/.config/emacs
-  echo "(load "~/.config/emacs/init.el")" > ~/.emacs 
+  echo '(load "~/.config/emacs/init.el")' > ~/.emacs
 
   ./ci/link.sh git ~/.config/git
   ./ci/link.sh secrets/gnupg ~/.gnupg

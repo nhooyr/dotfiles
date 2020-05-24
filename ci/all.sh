@@ -1,12 +1,11 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 main() {
   cd "$(dirname "$0")/.."
 
   ./ci/fmt.sh
   ./ci/lint.sh
-  ./ci/test.sh "$@"
 }
 
 main "$@"
