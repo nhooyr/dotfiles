@@ -4,7 +4,7 @@ set -eu
 main() {
   cd "$(dirname "$0")/.."
 
-  doctoc --title '# dotfiles' README.md
+  npx doctoc --title '# dotfiles' README.md
   npx prettier \
     --write \
     --print-width=120 \
