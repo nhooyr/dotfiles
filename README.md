@@ -28,7 +28,7 @@
 1.  Notifications
     1. Enable Do Not Disturb when display is sleeping and locked.
     1. Sort order Recents by App.
-1. Internet Accounts
+1.  Internet Accounts
     1. Disable iCloud mail.
 1.  Make sure addresses are correct in Walet.
 1.  Add middle and ring finger to Touch ID.
