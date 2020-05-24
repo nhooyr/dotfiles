@@ -23,7 +23,6 @@
 1.  Dock
     1. Minimize using scale effect.
     1. Enable auto-hide.
-    1. Disable show recent applications in Dock.
 1.  Mission Control -> Group windows by application.
 1.  Notifications
     1. Enable Do Not Disturb when display is sleeping and locked.
@@ -91,18 +90,23 @@
 1. Finder
 1. Safari
 1. Mail
-1. Things
+1. Calendar
+1. Reminders
+1. Notes
 1. Spotify
 1. Terminal
 
 # 6. Setup Apps
 
+1. Finder
+   1. Enable keep folders on top and remove items from trash in advanced.
+   1. Set view to list and make it the default.
 1. Safari
    1. Safari opens with `All windows from last session`.
    1. Homepage and search should be https://duckduckgo.com.
       - Remember to load duckduckgo settings.
    1. Show website icons in tabs.
-   1. Remove all toolbar icons except for Show/Hide Tab Overview.
+   1. Remove Back/Forward, 1Password and Tab Preview from toolbar
    1. Disable autofill of usernames and passwords.
    1. Show full website address.
    1. Show Develop menu.
