@@ -19,7 +19,7 @@
 # 2. Adjust system preferences
 
 1.  General -> Set menu bar to autohide.
-1.  Desktop & Screen Saver -> Switch to Desert Moonlight.
+1.  Desktop & Screen Saver -> Switch to Mojave Night.
 1.  Dock
     1. Minimize using scale effect.
     1. Enable auto-hide.
@@ -60,7 +60,6 @@
 1.  Trackpad
     1. Make click light.
     1. Set tracking speed to 6.
-    1. Swipe between pages to use 3 fingers.
     1. Mission control and App Expose to use 4 fingers.
 1.  Displays
     1. Scaled to More Space.
@@ -101,6 +100,7 @@
 1. Safari
    1. Safari opens with `All windows from last session`.
    1. Homepage and search should be https://duckduckgo.com.
+      - Remember to load duckduckgo settings.
    1. Show website icons in tabs.
    1. Remove all toolbar icons except for Show/Hide Tab Overview.
    1. Disable autofill of usernames and passwords.
@@ -121,6 +121,7 @@
       1. Set padding space to 40px.
       1. Disable window size resoration if dragged.
    1. Set rotation degree requirement to 10.
+   1. Disable scroll between pages with three fingers.
 1. Setup Fastmail and Google in Internet Accounts.
    1. Change Fastmail description to `nhooyr`.
    1. Enable only Mail for Fastmail.
@@ -128,3 +129,5 @@
 1. Slack
    1. codercom.slack.com
    1. gophers.slack.com
+1. Setup Parallels.
+   1. Disable menu bar icon.
