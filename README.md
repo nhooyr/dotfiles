@@ -28,11 +28,15 @@
 1.  Notifications
     1. Enable Do Not Disturb when display is sleeping and locked.
     1. Sort order Recents by App.
+1. Internet Accounts
+    1. Disable iCloud mail.
 1.  Make sure addresses are correct in Walet.
 1.  Add middle and ring finger to Touch ID.
 1.  Security & Privacy
     1. Enable Apple Watch unlock.
     1. Enable Firewall.
+    1. Add Terminal.app to Developer Tools in Privacy.
+    1. Add Terminal.app to Full Disk Access.
 1.  Bluetooth -> Show Bluetooth in menu bar.
 1.  Sound
     1. 75% the alert volume.
@@ -52,6 +56,7 @@
        1. Brightness slider
        1. Screen lock
        1. Do Not Disturb
+    1. Disable spotlight shortcut.
 1.  Trackpad
     1. Make click light.
     1. Set tracking speed to 6.
@@ -88,8 +93,6 @@
 1. Safari
 1. Mail
 1. Things
-1. Calendar
-1. Messages
 1. Spotify
 1. Terminal
 
@@ -106,13 +109,22 @@
    1. Configure DDG as appropriate.
 1. wipr
 1. Alfred
-   1. Only clipboard manager to `Cmd + Shift + v` otherwise prefer Spotlight.
+   1. Import settings.
 1. Terminal.app
+   1. Import settings.
 1. BetterTouchTool
    1. Import the preset.
    1. Disable the menu bar icon.
+   1. Enable launch on startup.
    1. Window snapping
       1. Disable border width, animation and rounded corners.
       1. Set padding space to 40px.
       1. Disable window size resoration if dragged.
    1. Set rotation degree requirement to 10.
+1. Setup Fastmail and Google in Internet Accounts.
+   1. Change Fastmail description to `nhooyr`.
+   1. Enable only Mail for Fastmail.
+   1. Enable only Mail and Calendars for Google.
+1. Slack
+   1. codercom.slack.com
+   1. gophers.slack.com
