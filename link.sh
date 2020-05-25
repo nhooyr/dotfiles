@@ -2,6 +2,7 @@
 set -eu
 
 ensure() {
+  ./ci/link.sh nvim ~/.config/nvim
   ./ci/link.sh emacs ~/.config/emacs
   echo '(load "~/.config/emacs/init.el")' > ~/.emacs
 
