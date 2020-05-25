@@ -4,7 +4,7 @@ set -eu
 ensure() {
   ./ci/link.sh nvim ~/.config/nvim
   ./ci/link.sh zsh/zshrc ~/.zshrc
-  mkdir -p ~/.local/share/zsh
+  ./ci/link.sh fish ~/.config/fish
   ./ci/link.sh emacs ~/.emacs.d
 
   ./ci/link.sh git ~/.config/git
