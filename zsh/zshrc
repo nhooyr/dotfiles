@@ -1,1 +1,85 @@
+# Lines configured by zsh-newuser-install
+HISTFILE=~/.local/share/zsh/history
+HISTSIZE=100000
+SAVEHIST=100000
+setopt appendhistory autocd extendedglob
+# End of lines configured by zsh-newuser-install
+
+# Has to be set before compinit.
+fpath=(/usr/local/share/zsh-completions $fpath)
+
+# The following lines were added by compinstall
+zstyle ':completion:*' list-colors ''
+zstyle ':completion:*' matcher-list '' '+m:{[:lower:]}={[:upper:]}' '+r:|[._-]=** r:|=**' '+l:|=* r:|=*'
+zstyle ':completion:*' menu select
+zstyle :compinstall filename '/Users/nhooyr/.zshrc'
+
+autoload -Uz compinit
+compinit
+# End of lines added by compinstall
+
+# Binds Shift + Tab reverse completion.
+# https://stackoverflow.com/a/842370/4283659
+bindkey '^[[Z' reverse-menu-complete
+
+# Otherwise delete by word deletes over slashes.
+# https://stackoverflow.com/questions/444951/zsh-stop-backward-kill-word-on-directory-delimiter
+autoload -U select-word-style
+select-word-style bash
+
+# Bash's time format is much better.
+# ZSH's default is a single line.
+# https://superuser.com/a/71890
+TIMEFMT="
+real    %*E
+user    %*U
+sys     %*S"
+
+tabs -2
+
+# Disables control flow so that Ctrl + S works
+# for forward history search.
+# https://superuser.com/a/1067896
+stty -ixon
+
+# Homebrew takes forever to update.
 export HOMEBREW_NO_AUTO_UPDATE=1
+
+export GOPATH=~/.local/share/gopath
+
+# Disables the beep on ambigous completion.
+unsetopt LIST_BEEP
+
+setopt HIST_REDUCE_BLANKS
+setopt EXTENDED_HISTORY
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_SAVE_NO_DUPS
+setopt INC_APPEND_HISTORY
+source /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+bindkey "^v" autosuggest-execute
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_USE_ASYNC=1
+
+setopt AUTO_PUSHD
+setopt PUSHD_SILENT
+
+# Fish style history search.
+# https://unix.stackexchange.com/a/97844/109885
+autoload -U history-search-end
+zle -N history-beginning-search-backward-end history-search-end
+zle -N history-beginning-search-forward-end history-search-end
+bindkey "^p" history-beginning-search-backward-end
+bindkey "^n" history-beginning-search-forward-end
+
+alias ls="ls -GF"
+alias l="ls -lh"
+alias ll="ls -lha"
+
+source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# Always reloads command list before completing.
+# https://bbs.archlinux.org/viewtopic.php?id=175388
+zstyle ':completion:*' rehash true
+
+export MANPAGER="nvim +Man!"
+export MANWIDTH=80
