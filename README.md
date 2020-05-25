@@ -101,6 +101,12 @@
 1. Finder
    1. Enable keep folders on top and remove items from trash in advanced.
    1. Set view to list and make it the default.
+   1. Enable path bar.
+   1. Sidebar should be:
+      1. Recents
+      1. AirDrop
+      1. ~
+      1. ~/src/nhooyr
 1. Safari
    1. Safari opens with `All windows from last session`.
    1. Homepage and search should be https://duckduckgo.com.

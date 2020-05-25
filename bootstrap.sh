@@ -22,7 +22,8 @@ EOF
     node \
     yarn \
     shellcheck \
-    shfmt
+    shfmt \
+    neovim
 
   brew cask install \
     alfred \
@@ -31,7 +32,9 @@ EOF
     docker \
     parallels \
     google-chrome \
-    firefox
+    firefox \
+    slack \
+    discord
 }
 
 main "$@"
