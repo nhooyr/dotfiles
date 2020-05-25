@@ -3,9 +3,6 @@
 (global-display-line-numbers-mode)
 (xterm-mouse-mode)
 
-;; Prevents audible beeps.
-(setq visible-bell 1)
-
 ;; Just a weird emacs/macOS required setting.
 (setq dired-use-ls-dired nil)
 
