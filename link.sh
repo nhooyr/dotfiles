@@ -3,8 +3,8 @@ set -eu
 
 ensure() {
   ./ci/link.sh nvim ~/.config/nvim
-  ./ci/link.sh emacs ~/.config/emacs
-  echo '(load "~/.config/emacs/init.el")' > ~/.emacs
+  ./ci/link.sh zsh/zshrc ~/.zshrc
+  ./ci/link.sh emacs ~/.emacs.d
 
   ./ci/link.sh git ~/.config/git
   ./ci/link.sh secrets/gnupg ~/.gnupg
