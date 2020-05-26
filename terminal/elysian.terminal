@@ -217,9 +217,9 @@
 	AAAAAAAAAAOV
 	</data>
 	<key>Bell</key>
-	<true/>
+	<false/>
 	<key>CommandString</key>
-	<string></string>
+	<string>login -pfq nhooyr</string>
 	<key>Font</key>
 	<data>
 	YnBsaXN0MDDUAQIDBAUGBwpYJHZlcnNpb25ZJGFyY2hpdmVyVCR0b3BYJG9iamVjdHMS
@@ -289,9 +289,19 @@
 			<key>ProcessName</key>
 			<string>tmux</string>
 		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>login</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>-zsh</string>
+		</dict>
 	</array>
 	<key>rowCount</key>
 	<integer>24</integer>
+	<key>shellExitAction</key>
+	<integer>2</integer>
 	<key>type</key>
 	<string>Window Settings</string>
 	<key>useOptionAsMetaKey</key>
