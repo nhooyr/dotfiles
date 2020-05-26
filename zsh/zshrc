@@ -1,117 +1,13 @@
-mkdir -p ~/.local/share/zsh
-
-# Lines configured by zsh-newuser-install
-HISTFILE=~/.local/share/zsh/history
-HISTSIZE=100000
-SAVEHIST=100000
-setopt appendhistory autocd extendedglob
-# End of lines configured by zsh-newuser-install
-
-# Has to be set before compinit.
-fpath=(/usr/local/share/zsh-completions $fpath)
-
-# For zsh compinit my colors must be before the reset colors. Afterwards, the opposite for ls.
-RESET_LS_COLORS='rs=00:di=00:ln=00:mh=00:pi=00:so=00:do=00:bd=00:cd=00:or=00:mi=00:su=00:sg=00:ca=00:tw=00:ow=00:st=00:ex=00:*.tar=00:*.tgz=00:*.arc=00:*.arj=00:*.taz=00:*.lha=00:*.lz4=00:*.lzh=00:*.lzma=00:*.tlz=00:*.txz=00:*.tzo=00:*.t7z=00:*.zip=00:*.z=00:*.dz=00:*.gz=00:*.lrz=00:*.lz=00:*.lzo=00:*.xz=00:*.zst=00:*.tzst=00:*.bz2=00:*.bz=00:*.tbz=00:*.tbz2=00:*.tz=00:*.deb=00:*.rpm=00:*.jar=00:*.war=00:*.ear=00:*.sar=00:*.rar=00:*.alz=00:*.ace=00:*.zoo=00:*.cpio=00:*.7z=00:*.rz=00:*.cab=00:*.wim=00:*.swm=00:*.dwm=00:*.esd=00:*.jpg=00:*.jpeg=00:*.mjpg=00:*.mjpeg=00:*.gif=00:*.bmp=00:*.pbm=00:*.pgm=00:*.ppm=00:*.tga=00:*.xbm=00:*.xpm=00:*.tif=00:*.tiff=00:*.png=00:*.svg=00:*.svgz=00:*.mng=00:*.pcx=00:*.mov=00:*.mpg=00:*.mpeg=00:*.m2v=00:*.mkv=00:*.webm=00:*.ogm=00:*.mp4=00:*.m4v=00:*.mp4v=00:*.vob=00:*.qt=00:*.nuv=00:*.wmv=00:*.asf=00:*.rm=00:*.rmvb=00:*.flc=00:*.avi=00:*.fli=00:*.flv=00:*.gl=00:*.dl=00:*.xcf=00:*.xwd=00:*.yuv=00:*.cgm=00:*.emf=00:*.ogv=00:*.ogx=00:*.aac=00:*.au=00:*.flac=00:*.m4a=00:*.mid=00:*.midi=00:*.mka=00:*.mp3=00:*.mpc=00:*.ogg=00:*.ra=00:*.wav=00:*.oga=00:*.opus=00:*.spx=00:*.xspf=00:'
-MY_LS_COLORS="di=34:ln=35:so=32:pi=32:ex=31;01"
-export LS_COLORS="$RESET_LS_COLORS:$MY_LS_COLORS"
-
-# Color 153 from https://jonasjacek.github.io/colors/.
-# https://stackoverflow.com/a/62008734/4283659
-zstyle ":completion:*:default" list-colors ${(s.:.)LS_COLORS} "ma=48;5;153;1"
-
-# The following lines were added by compinstall
-zstyle ":completion:*" list-dirs-first
-zstyle ":completion:*" group-name ""
-zstyle ":completion:*" matcher-list "" "+m:{[:lower:]}={[:upper:]}" "+r:|[._-]=** r:|=**" "+l:|=* r:|=*"
-zstyle ":completion:*" menu select
-zstyle ":completion:*" list-prompt %B%p%b
-zstyle ":completion:*" select-prompt %B%p%b
-zstyle :compinstall filename "/Users/nhooyr/.zshrc"
-
-autoload -Uz compinit
-# See https://github.com/zsh-users/zsh-completions/issues/433#issuecomment-346395881 for -i.
-# Allows sharing compinit with root.
-compinit -i
-# End of lines added by compinstall
-
-# Binds Shift + Tab reverse completion.
-# https://stackoverflow.com/a/842370/4283659
-bindkey "^[[Z" reverse-menu-complete
-
-# Otherwise delete by word deletes over slashes.
-# https://stackoverflow.com/questions/444951/zsh-stop-backward-kill-word-on-directory-delimiter
-autoload -U select-word-style
-select-word-style bash
-
 source_if_exists() {
 	if [[ -f $1 ]]; then
 	  source "$@"	
 	fi
 }
 
-# Bash"s time format is much better.
-# ZSH"s default is a single line.
-# https://superuser.com/a/71890
-TIMEFMT="
-real    %*E
-user    %*U
-sys     %*S"
-
-tabs -2
-
-# Disables control flow so that Ctrl + S works
-# for forward history search.
-# https://superuser.com/a/1067896
-stty -ixon
-
-# Homebrew takes forever to update.
-export HOMEBREW_NO_AUTO_UPDATE=1
-
-export GOPATH=~/.local/share/gopath
-
-# Disables the beep on ambigous completion.
-unsetopt LIST_BEEP
-
-setopt HIST_REDUCE_BLANKS
-setopt EXTENDED_HISTORY
-setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_SAVE_NO_DUPS
-setopt INC_APPEND_HISTORY
-
-# Fish style history search.
-# https://unix.stackexchange.com/a/97844
-bindkey "^p" history-beginning-search-backward
-bindkey "^n" history-beginning-search-forward
-
-ZSH_AUTOSUGGEST_USE_ASYNC=1
-source_if_exists /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-bindkey "^v" autosuggest-execute
-
-setopt AUTO_PUSHD
-setopt PUSHD_SILENT
-
-ls() {
-	if command -v gls > /dev/null; then
-	  gls --indicator-style=classify --color=auto --group-directories-first "$@"
-	else
-		command ls -GF "$@"
-	fi
-}
-alias l="ls -lh"
-alias ll="ls -lha"
-alias up="cd .."
-
-source_if_exists /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-
-# Always reloads command list before completing.
-# https://bbs.archlinux.org/viewtopic.php?id=175388
-# http://www.zsh.org/mla/users/2006/msg00181.html
-zstyle ":completion:*" rehash true
-
-export MANPAGER="nvim +Man!"
-export MANWIDTH=80
-
+source ~/src/nhooyr/dotfiles/zsh/alias.zsh
+source ~/src/nhooyr/dotfiles/zsh/completion.zsh
+source ~/src/nhooyr/dotfiles/zsh/env.zsh
+source ~/src/nhooyr/dotfiles/zsh/history.zsh
+source ~/src/nhooyr/dotfiles/zsh/misc.zsh
 source ~/src/nhooyr/dotfiles/zsh/prompt.zsh
-
-alias e="nvim"
-alias r="source ~/.zshrc"
+source ~/src/nhooyr/dotfiles/zsh/syntax.zsh
