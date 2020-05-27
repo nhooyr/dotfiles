@@ -1,13 +1,22 @@
 source_if_exists() {
-	if [[ -f $1 ]]; then
-	  source "$@"	
-	fi
+  if [[ -f $1 ]]; then
+    source "$@"  
+  fi
 }
 
-source ~/src/nhooyr/dotfiles/zsh/alias.zsh
-source ~/src/nhooyr/dotfiles/zsh/completion.zsh
-source ~/src/nhooyr/dotfiles/zsh/env.zsh
-source ~/src/nhooyr/dotfiles/zsh/history.zsh
-source ~/src/nhooyr/dotfiles/zsh/misc.zsh
-source ~/src/nhooyr/dotfiles/zsh/prompt.zsh
-source ~/src/nhooyr/dotfiles/zsh/syntax.zsh
+DOTFILES="$HOME/src/nhooyr/dotfiles"
+
+source "$DOTFILES/zsh/aliases.zsh"
+source "$DOTFILES/zsh/completion.zsh"
+source "$DOTFILES/zsh/env.zsh"
+source "$DOTFILES/zsh/history.zsh"
+source "$DOTFILES/zsh/misc.zsh"
+source "$DOTFILES/zsh/prompt.zsh"
+source "$DOTFILES/zsh/syntax.zsh"
+
+if [[ $OSTYPE == darwin* ]]; then
+  source "$DOTFILES/zsh/macos.zsh"
+fi
+
+# Machine specific file for non persistent config.
+source_if_exists ~/.machine.zsh
