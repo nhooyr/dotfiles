@@ -1,3 +1,4 @@
+(setq inhibit-startup-message t)
 (menu-bar-mode -1)
 
 (global-display-line-numbers-mode)

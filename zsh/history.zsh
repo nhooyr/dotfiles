@@ -6,8 +6,6 @@ stty -ixon
 # Disables the beep on ambigous completion.
 unsetopt LIST_BEEP
 
-mkdir -p ~/.local/share/zsh
-HISTFILE=~/.local/share/zsh/history
 HISTSIZE=100000
 SAVEHIST=100000
 
