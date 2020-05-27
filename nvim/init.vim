@@ -128,6 +128,7 @@ if has("vim_starting")
   set tabstop=2
   set softtabstop=2
   set shiftwidth=2
+  set expandtab
 endif
 set shortmess+=aI
 
