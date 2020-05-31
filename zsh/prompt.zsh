@@ -28,7 +28,7 @@ prompt() {
 
   echo -n "%~"
 
-  local branch_name="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  local branch_name="$(git rev-parse --abbrev-ref HEAD 2> /dev/null)"
   if [[ "$branch_name" ]]; then
     echo -n "%F{blue}:$branch_name%f"
   fi
@@ -47,4 +47,4 @@ branch_name() {
 }
 
 setopt PROMPT_SUBST
-PROMPT="\$(prompt)"
+PROMPT='$(prompt)'

@@ -14,7 +14,7 @@ setopt EXTENDED_HISTORY
 setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_SAVE_NO_DUPS
 setopt INC_APPEND_HISTORY
-setopt APPEND_HISTORY 
+setopt APPEND_HISTORY
 
 # Fish style history search.
 # https://unix.stackexchange.com/a/97844

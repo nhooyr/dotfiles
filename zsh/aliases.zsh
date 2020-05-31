@@ -6,6 +6,7 @@ alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
 alias s="sudo "
 alias sudo="sudo "
+alias m="man"
 
 ls() {
   if command -v gls > /dev/null; then
