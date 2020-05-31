@@ -17,9 +17,16 @@ quick_paths() {
   echo ~/src
   fd -H -d2 . ~/src
   fd -H . ~/src/nhooyr/dotfiles
+  fd -H -d2 . ~/Downloads
 }
 
 append_history() {
+  LBUFFER="$*"
+  zle accept-line
+  return
+
+  # Not used as history doesn't seem to be saved properly.
+  # Seeing random newlines and up key doesn't work right after.
   eval "$@"
   print -s -- "$*"
 }
