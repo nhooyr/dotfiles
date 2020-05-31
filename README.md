@@ -117,6 +117,7 @@
    1. Show full website address.
    1. Show Develop menu.
    1. Configure DDG as appropriate.
+   1. Save reading list offline automatically.
 1. wipr
 1. Alfred
    1. Import settings.

@@ -2,7 +2,6 @@ alias e="\$EDITOR"
 alias r="source ~/.zshrc"
 alias l="ls -lh"
 alias ll="ls -lha"
-alias up="cd .."
 alias nd="pushd"
 alias pd="popd"
 alias grep="grep --color"
@@ -77,8 +76,7 @@ alias git="hub"
 alias rg="rg -S"
 alias rgi="rg -S --no-ignore --hidden"
 alias h="fc -R"
-alias t="time"
-alias n="noti /usr/bin/time -p"
+alias n="time noti "
 alias rs="rsync -avzP"
 alias pc="pbcopy"
 alias pp="pbpaste"
@@ -87,81 +85,82 @@ alias catq="jq -R"
 alias gcmp="gaa && gcm && gp"
 alias fcm="gaa && gcm --amend --no-edit && gpf"
 
+noti() {
+  "$@"
+  osascript -e beep
+}
 
-#function ghd
-#    set -l path $argv[1]
-#    set -l path (string replace -r ".*://" "" "$path")
-#    set -l path (string replace "github.com/" "" "$path")
-#    set -l path (string split / "$path")
-#    set -l path (string join / $path[1..2])
-#    if [ -z $path ]
-#        echo "invalid URL or path"
-#        return
-#    end
-#
-#    set -l dst "$HOME/src/$path"
-#    if [ -d $dst ]
-#        cd "$dst"
-#        return
-#    end
-#    mkdir -p "$dst"
-#    and if git clone --recursive "https://github.com/$path" "$dst"
-#        cd "$dst"
-#    else
-#        command rm -rf "$dst"
-#    end
-#end
-#
-#function gh
-#    set -l branch (git rev-parse --abbrev-ref HEAD)
-#    if [ ! "$branch" ]
-#        return
-#    end
-#
-#    # In case multiple PRs are using the same branch, open the first.
-#    set -l url (hub pr list -f %U\n -h $branch)[1]
-#
-#    if [ ! "$url" ]
-#        set url (hub browse -u)
-#    end
-#
-#    open "$url"
-#end
+ghd() {
+  local repo_path="$1"
+  repo_path="${repo_path/*:\/\//}"
+  repo_path="${repo_path/github.com\//}"
+  repo_path="$(grep -o "^[^/]\+/[^/]\+" <<< "$repo_path")"
 
+  if [[ ! "$repo_path" ]]; then
+    echo "invalid url or repo_path"
+    return
+  fi
 
-#function up
-#    if [ -z "$argv" ]
-#        cd ..
-#        return
-#    end
-#
-#    # Number.
-#    if string match -qra '^\d+' "$argv"
-#        up_n "$argv"
-#        return
-#    end
-#
-#    up_d "$argv"
-#end
-#
-#function up_n
-#    set -l count "$argv"
-#    if [ -z "$count" ]
-#        set count 1
-#    end
-#    cd (string join .. (string repeat -n $count ' /' | string split ' '))
-#end
-#
-#function up_d
-#    set -l pwd (string split --no-empty '/' $PWD)
-#    # Reverse directories.
-#    set -l pwd $pwd[-1..1]
-#    # Skip current directory.
-#    set -l pwd $pwd[2..-1]
-#    for i in (seq (count $pwd))
-#        if echo $pwd[$i] | rg -q $argv
-#            up_n $i
-#            return
-#        end
-#    end
-#end
+  local dst="$HOME/src/$repo_path"
+  if [[ -d "$dst" ]]; then
+    cd "$dst"
+    return
+  fi
+
+  mkdir -p "$dst" \
+  && if git clone --recursive "https://github.com/$repo_path" "$dst"; then
+    cd "$dst"
+  else
+    rm -Rf "$dst"
+  fi
+}
+
+gh() {
+  local branch="$(git rev-parse --abbrev-ref HEAD)"
+  if [[ ! "$branch" ]]; then
+    return
+  fi
+
+  local url="$(hub pr list -f $'%U\n' -h "$branch" | head -n 1)"
+  if [[ ! "$url" ]]; then
+    url="$(hub browse -u)"
+  fi
+
+  open "$url"
+}
+
+up() {
+  if [[ "$#" -eq 0 ]]; then
+    cd ..
+    return
+  fi
+
+  # number
+  if grep -q "^\d\+$" <<< "$*"; then
+    cd "$(printf '../%.0s' {1..$1})"
+    return
+  fi
+
+  up_d "$@"
+}
+
+up_d() {
+  local dir="$PWD"
+  local pattern="$1"
+
+  while true; do;
+    local head="$(basename "$dir")"
+
+    if grep -q "$pattern" <<< "$head"; then
+      cd "$dir"
+      return
+    fi
+
+    if [[ "$dir" == "/" ]]; then
+      echo "no match in \$PWD"
+      return
+    fi
+
+    dir="$(dirname "$dir")"
+  done
+}
