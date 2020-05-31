@@ -20,3 +20,4 @@ fi
 
 # Machine specific file for non persistent config.
 source_if_exists ~/.machine.zsh
+source_if_exists "$DOTFILES/secrets/env.zsh"

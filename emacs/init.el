@@ -1,4 +1,5 @@
 (setq inhibit-startup-message t)
+(setq inhibit-startup-echo-area-message t)
 (menu-bar-mode -1)
 
 (global-display-line-numbers-mode)
@@ -23,3 +24,7 @@
   :global t)
 
 (nhooyr-minor-mode 1)
+
+(ido-mode 1)
+(setq ido-enable-flex-matching t)
+(setq ido-everywhere t)
