@@ -20,7 +20,7 @@ quick_paths() {
 }
 
 append_history() {
-  "$@"
+  eval "$@"
   print -s -- "$*"
 }
 
@@ -34,7 +34,7 @@ fzf_quick_paths() {
       if [[ -d "$selected" ]]; then
         append_history cd "$selected"
       elif [[ -e "$selected" ]]; then
-        append_history $EDITOR "$selected"
+        append_history e "$selected"
       fi
     else
       LBUFFER="${LBUFFER%$word}${selected}"
