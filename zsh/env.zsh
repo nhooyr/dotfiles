@@ -14,6 +14,7 @@ prepend_path() {
   fi
 }
 
+prepend_path /usr/local/opt/make/libexec/gnubin
 prepend_path "$GOPATH/bin"
 
 prepend_cdpath() {

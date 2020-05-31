@@ -131,6 +131,7 @@ if has("vim_starting")
   set expandtab
 endif
 set shortmess+=aI
+set mouse=a
 
 let g:mundo_verbose_graph = 0
 let g:mundo_close_on_revert = 1
