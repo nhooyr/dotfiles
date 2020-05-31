@@ -18,6 +18,8 @@ ensure() {
 
   # Required for SSH multiplexing.
   mkdir -p ~/.ssh/sockets
+
+  ./ci/link.sh fd ~/.config/fd
 }
 
 ensure_root() {
