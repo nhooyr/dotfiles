@@ -2,8 +2,6 @@ alias e="\$EDITOR"
 alias r="source ~/.zshrc"
 alias l="ls -lh"
 alias ll="ls -lha"
-alias nd="nextd"
-alias pd="prevd"
 alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
 alias s="sudo "
