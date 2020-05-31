@@ -43,19 +43,21 @@ fzf_quick_paths() {
   zle reset-prompt
 }
 zle -N fzf-quick-paths fzf_quick_paths
+bindkey "\ev" fzf-quick-paths
 
 fzf_history() {
   local selected
-  selected="$(fc -lnr | fzf --no-sort --height=40% --query="$BUFFER")"
+  IFS=$'\n' selected=($(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=40% --query="$BUFFER"))
   if [[ "$selected" ]]; then
     LBUFFER="$selected"
-    zle accept-line
+    if [[ ${#selected[@]} -eq 2 ]]; then
+      LBUFFER="${selected[2]}"
+      zle accept-line
+    fi
   fi
   zle reset-prompt
 }
 zle -N fzf-history fzf_history
-
 bindkey "^R" fzf-history
-bindkey "\ev" fzf-quick-paths
 
 source_if_exists "/usr/local/opt/fzf/shell/completion.zsh"
