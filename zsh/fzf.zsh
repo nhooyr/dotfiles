@@ -47,7 +47,7 @@ bindkey "\ev" fzf-quick-paths
 
 fzf_history() {
   local selected
-  IFS=$'\n' selected=($(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=40% --query="$BUFFER"))
+  IFS=$'\n' selected=($(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=40% --query="$LBUFFER"))
   if [[ "$selected" ]]; then
     LBUFFER="$selected"
     if [[ ${#selected[@]} -eq 2 ]]; then
