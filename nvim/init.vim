@@ -1,7 +1,3 @@
-if &shell =~# 'fish$'
-    set shell=sh
-endif
-
 let s:vim_plug = '~/.local/share/nvim/site/autoload/plug.vim'
 if empty(glob(s:vim_plug, 1))
   execute 'silent !curl -fLo' s:vim_plug '--create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
@@ -25,15 +21,12 @@ command! S :source $MYVIMRC
 
 noremap ; :
 nnoremap <silent> q :quit!<CR>
-nnoremap <silent> Q q
 nnoremap <silent> <leader>ec :e $MYVIMRC<CR>
-nnoremap <silent> <leader>f :file<CR>
 nnoremap <silent> k gk
 nnoremap <silent> j gj
 nnoremap <silent> p ]p
 nnoremap <silent> P ]P
 nnoremap <silent> Y y$
-xnoremap <silent> Y "*y
 
 nnoremap <silent> 0 ^
 nnoremap <silent> ^ 0
@@ -53,12 +46,12 @@ vnoremap <silent> C "_C
 nnoremap <silent> s "_s
 vnoremap <silent> s "_s
 nnoremap <silent> S "_S
-vnoremap <silent> S "_S
+noremap <silent> S "_S
 
 vnoremap <silent> > >gv
 vnoremap <silent> < <gv
 
-" Emacs style insert and commadn line keybindings
+" Emacs style insert and command line keybindings
 " https://github.com/maxbrunsfeld/vim-emacs-bindings/blob/master/plugin/emacs-bindings.vim
 cnoremap <C-N> <Down>
 cnoremap <C-P> <Up>
@@ -101,12 +94,9 @@ nnoremap <silent> <C-l> <C-W>l
 nnoremap <silent> <C-j> <C-W>j
 nnoremap <silent> <C-h> <C-W>h
 
-nnoremap <silent> <Leader>r :set columns=85<CR>
-
 set clipboard=unnamed
 set noshowmode
-set noruler
-"set laststatus=0
+set laststatus=1
 set cursorline
 set noshowcmd
 set splitright
@@ -115,14 +105,14 @@ set wildignorecase
 set ignorecase
 set smartcase
 set undofile
-set undolevels=1000
-set number
+set undolevels=10000
 set inccommand=nosplit
 set gdefault
 colorscheme elysian
 augroup elysian
   autocmd!
   autocmd BufWritePost elysian.vim colorscheme elysian
+  autocmd BufWritePost $MYVIMRC source $MYVIMRC
 augroup END
 if has("vim_starting")
   set tabstop=2
@@ -130,10 +120,10 @@ if has("vim_starting")
   set shiftwidth=2
   set expandtab
 endif
-set shortmess+=aI
+set shortmess+=aIA
 set mouse=a
+set rulerformat=%=%l  
 
-let g:mundo_verbose_graph = 0
 let g:mundo_close_on_revert = 1
 nnoremap <silent> <Leader>u :MundoToggle<CR>
 
@@ -142,31 +132,11 @@ let g:netrw_dirhistmax = 0
 
 augroup nhooyr
 	autocmd!
-	" https://stackoverflow.com/questions/37804435/how-to-enable-line-numbers-for-the-vim-help-permanently
-	autocmd FileType * setlocal number
-	" https://github.com/neovim/neovim/issues/8350#issuecomment-443707200
-	autocmd WinNew * wincmd L
 	autocmd FileType gitcommit startinsert
 	" q should always quit.
-	" In particular this was added for man.vim which uses lclose instead of quit
+	" In particular this was added for man.vim which uses close instead of quit
 	" and so we cannot quit if there is only a man window left.
 	autocmd FileType * nnoremap <buffer> <silent> q :quit!<CR>
 augroup END
-
-" https://github.com/neovim/neovim/issues/10748
-let g:man_hardwrap=1
-
-let g:clipboard = {
-			\   'name': 'pbcopy',
-			\   'copy': {
-			\      '+': 'pbcopy',
-			\      '*': 'pbcopy',
-			\    },
-			\   'paste': {
-			\      '+': 'pbpaste',
-			\      '*': 'pbpaste',
-			\   },
-			\   'cache_enabled': 1,
-			\ }
 
 let g:highlightedyank_highlight_duration = 150
