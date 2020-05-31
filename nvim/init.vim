@@ -11,7 +11,8 @@ call plug#begin(stdpath('data') . '/plugged')
 Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 Plug 'machakann/vim-highlightedyank'
-Plug 'justinmk/vim-dirvish'
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+Plug 'josa42/coc-go', {'do': 'yarn install --frozen-lockfile'}
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
@@ -123,6 +124,7 @@ endif
 set shortmess+=aIA
 set mouse=a
 set rulerformat=%=%l  
+set updatetime=100
 
 let g:mundo_close_on_revert = 1
 nnoremap <silent> <Leader>u :MundoToggle<CR>
