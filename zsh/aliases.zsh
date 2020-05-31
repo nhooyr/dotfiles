@@ -2,8 +2,8 @@ alias e="\$EDITOR"
 alias r="source ~/.zshrc"
 alias l="ls -lh"
 alias ll="ls -lha"
-alias nd="pushd"
-alias pd="popd"
+alias nd="nextd"
+alias pd="prevd"
 alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
 alias s="sudo "
@@ -17,10 +17,40 @@ ls() {
   fi
 }
 
-# Required to make any change into $CDPATH silent.
+declare -a prev_dirs
 cd() {
+  prev_dirs=()
+  # Required to make any change into $CDPATH silent.
   builtin cd "$@" > /dev/null
 }
+
+nextd() {
+  if [[ "${#prev_dirs[@]}" -eq 0 ]]; then
+    return
+  fi
+  builtin cd "${prev_dirs[-1]}"
+  prev_dirs[-1]=()
+}
+
+prevd() {
+  prev_dirs+=("$PWD")
+  popd "$@"
+}
+
+zle_nextd() {
+  nextd
+  zle reset-prompt
+}
+zle -N zle-nextd zle_nextd
+
+zle_prevd() {
+  prevd 2> /dev/null
+  zle reset-prompt
+}
+zle -N zle-prevd zle_prevd
+
+bindkey "\ep" zle-prevd
+bindkey "\en" zle-nextd
 
 gcd() {
   cd "$(git rev-parse --show-toplevel)"
