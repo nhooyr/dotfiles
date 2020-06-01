@@ -18,5 +18,5 @@ setopt APPEND_HISTORY
 
 # Fish style history search.
 # https://unix.stackexchange.com/a/97844
-bindkey "^p" history-beginning-search-backward
-bindkey "^n" history-beginning-search-forward
+bindkey "\ep" history-beginning-search-backward
+bindkey "\en" history-beginning-search-forward

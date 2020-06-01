@@ -79,7 +79,7 @@ cnoremap <C-k> <C-c>:
 cnoremap <M-f> <S-Right>
 cnoremap <M-b> <S-Left>
 " This one does not work well because C-w uses iskeyword but S-Right does not
-"cnoremap <M-d> <S-Right><C-w>
+cnoremap <M-d> <S-Right><C-w>
 cnoremap <M-BS> <C-w>
 inoremap <C-N> <Down>
 inoremap <C-P> <Up>
@@ -125,14 +125,14 @@ set undofile
 set undolevels=10000
 set inccommand=nosplit
 set gdefault
-let $COLOR = stdpath('config') . "/colors/elysian.vim"
+let $COLOR = stdpath('config') . '/colors/elysian.vim'
 colorscheme elysian
 augroup elysian
   autocmd!
   autocmd BufWritePost elysian.vim colorscheme elysian
   autocmd BufWritePost $MYVIMRC source $MYVIMRC
 augroup END
-if has("vim_starting")
+if has('vim_starting')
   set tabstop=2
   set softtabstop=2
   set shiftwidth=2
