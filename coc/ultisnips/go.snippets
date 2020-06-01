@@ -1,0 +1,21 @@
+snippet ctxa "context argument" w
+ctx context.Context
+endsnippet
+
+snippet ctxcancel "context.WithCancel" b
+ctx, cancel := context.WithCancel(ctx)
+endsnippet
+
+snippet ctxtimeout "context.WithTimeout" b
+ctx, cancel := context.WithTimeout(ctx, ${1:timeout})
+endsnippet
+
+snippet ctxvalue "context.WithValue" b
+ctx := context.WithValue(ctx, ${1:key}, ${2:value})
+endsnippet
+
+snippet httpfn "http handler function" w
+http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	$0
+})
+endsnippet
