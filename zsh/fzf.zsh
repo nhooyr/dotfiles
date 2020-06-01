@@ -1,6 +1,6 @@
 export FZF_DEFAULT_OPTS="--color light,bg+:153,fg+:-1,pointer:-1,prompt:-1,hl:125,hl+:125,info:-1,spinner:-1 --tabstop=4 --layout=reverse --info=hidden --no-bold"
 
-human_path() {
+insert_tilde() {
   sed "s#^$HOME#~#g"
 }
 
@@ -17,31 +17,37 @@ quick_paths() {
   echo ~/src
   fd -H -d2 . ~/src
   fd -H . ~/src/nhooyr/dotfiles
+  echo ~/Downloads
   fd -H -d2 . ~/Downloads
 }
 
 append_history() {
-  LBUFFER="$*"
+  LBUFFER="$(echo "$*" | sed "s#$HOME#~#g")"
   zle accept-line
-  return
-
-  # Not used as history doesn't seem to be saved properly.
-  # Seeing random newlines and up key doesn't work right after.
-  eval "$@"
-  print -s -- "$*"
 }
 
 fzf_quick_paths() {
   local word="${LBUFFER##* }"
 
   local selected
-  selected="$(quick_paths | relative_path | human_path | awk '!seen[$0]++' | fzf --no-sort --height=40% --query="$word" | expand_tilde)"
+  selected=($(quick_paths | relative_path | insert_tilde | awk '!seen[$0]++' | fzf --expect=ctrl-v --no-sort --height=40% --query="$word" | expand_tilde ))
   if [[ "$selected" ]]; then
+    if [[ ${#selected[@]} -eq 2 ]]; then
+      selected="${selected[2]}"
+      local execute=1
+    fi
     if [[ ! "$BUFFER" ]]; then
       if [[ -d "$selected" ]]; then
         append_history cd "$selected"
       elif [[ -e "$selected" ]]; then
-        append_history e "$selected"
+        if [[ "$execute" ]]; then
+          if [[ "$selected" != /* ]]; then
+            selected="./$selected"
+          fi
+          append_history "$selected"
+        else
+          append_history e "$selected"
+        fi
       fi
     else
       LBUFFER="${LBUFFER%$word}${selected}"
