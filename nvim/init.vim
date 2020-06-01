@@ -142,6 +142,7 @@ set shortmess+=aIAc
 set mouse=a
 set rulerformat=%=%l
 set updatetime=100
+set laststatus=1
 
 let g:mundo_close_on_revert = 1
 nnoremap <silent> <Leader>u :MundoToggle<CR>

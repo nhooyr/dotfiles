@@ -37,17 +37,17 @@ prevd() {
     prev_dirs+=("$OLDPWD")
 }
 
-zle_nextd() {
+zle-nextd() {
   nextd
   zle reset-prompt
 }
-zle -N zle-nextd zle_nextd
+zle -N zle-nextd
 
-zle_prevd() {
+zle-prevd() {
   prevd 2> /dev/null
   zle reset-prompt
 }
-zle -N zle-prevd zle_prevd
+zle -N zle-prevd
 
 bindkey "\ep" zle-prevd
 bindkey "\en" zle-nextd

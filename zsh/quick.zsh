@@ -20,22 +20,24 @@ quick_paths() {
   echo ~/src
   fd -H -d1 . ~/src
   fd -H -d2 . ~/src
+  fd -H -d1 . ~/src/nhooyr/dotfiles
+  fd -H -d2 . ~/src/nhooyr/dotfiles
+  fd -H -d3 . ~/src/nhooyr/dotfiles
+  fd -H -d4 . ~/src/nhooyr/dotfiles
   fd -H . ~/src/nhooyr/dotfiles
   echo ~/Downloads
   fd -H -d1 . ~/Downloads
   fd -H -d2 . ~/Downloads
 }
 
-append_history() {
+execi() {
   local cmd="$(sed "s#$HOME#~#g" <<< "$*")"
 
-  print -s -- "$cmd"
-  fc -W
-  fc -R
-  eval "$cmd"
+  LBUFFER="$cmd"
+  zle accept-line
 }
 
-fzf_quick_paths() {
+fzf-quick-paths() {
   local word="${LBUFFER##* }"
 
   local selected
@@ -45,18 +47,18 @@ fzf_quick_paths() {
     local key="${selected[1]}"
     local quick_path="${selected[2]}"
 
+    if [[ "$quick_path" != /* ]]; then
+      quick_path="$PWD/$quick_path"
+    fi
+
     if [[ ! "$BUFFER" ]]; then
       if [[ -d "$quick_path" ]]; then
-        append_history cd "$quick_path"
+        execi cd "$quick_path"
       elif [[ -e "$quick_path" ]]; then
         if [[ "$key" == "ctrl-v" ]]; then
-          if [[ "$quick_path" != /* ]]; then
-            quick_path="./$quick_path"
-          fi
-          LBUFFER="$quick_path"
-          zle accept-line
+          execi "$quick_path"
         else
-          append_history e "$quick_path"
+          execi e "$quick_path"
         fi
       fi
     else
@@ -65,10 +67,10 @@ fzf_quick_paths() {
   fi
   zle reset-prompt
 }
-zle -N fzf-quick-paths fzf_quick_paths
+zle -N fzf-quick-paths
 bindkey "\ev" fzf-quick-paths
 
-fzf_history() {
+fzf-history() {
   local selected
   selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=40% --query="$LBUFFER")}")
   if [[ "$selected" ]]; then
@@ -82,7 +84,17 @@ fzf_history() {
   fi
   zle reset-prompt
 }
-zle -N fzf-history fzf_history
+zle -N fzf-history
 bindkey "^R" fzf-history
 
-source_if_exists "/usr/local/opt/fzf/shell/completion.zsh"
+git-status() {
+  execi gs
+}
+zle -N git-status
+git-diff() {
+  execi gd
+}
+zle -N git-diff
+
+bindkey '\es' git-status
+bindkey '\ed' git-diff
