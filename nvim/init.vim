@@ -167,4 +167,7 @@ nnoremap <silent> - :Ex<CR>
 " https://stackoverflow.com/a/9464929/4283659
 nnoremap <silent> <Leader>s :echo map(synstack(line('.'), col('.')), 'synIDattr(v:val, "name")')<CR>
 
+" Revert to last write.
+nnoremap <silent> <Leader>rv :earlier 1f<CR>
+
 call nhooyr_coc#init()
