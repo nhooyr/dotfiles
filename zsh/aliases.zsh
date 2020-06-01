@@ -7,6 +7,7 @@ alias grep="grep --color"
 alias s="sudo "
 alias sudo="sudo "
 alias m="man"
+alias uti="mdls -name kMDItemContentTypeTree"
 
 ls() {
   if command -v gls > /dev/null; then

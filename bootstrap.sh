@@ -23,7 +23,8 @@ EOF
     yarn \
     shellcheck \
     shfmt \
-    neovim
+    neovim \
+    duti
 
   brew cask install \
     alfred \

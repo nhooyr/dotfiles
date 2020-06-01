@@ -21,7 +21,7 @@ command! Pc PlugClean
 command! S :source $MYVIMRC
 
 noremap ; :
-nnoremap <silent> q :quit!<CR>
+nnoremap <silent> <nowait> q :quit<CR>
 nnoremap <silent> <leader>ec :e $MYVIMRC<CR>
 nnoremap <silent> k gk
 nnoremap <silent> j gj
@@ -81,6 +81,8 @@ inoremap <M-b> <C-o>b
 inoremap <M-d> <C-o>dw
 inoremap <M-BS> <C-w>
 
+nnoremap <C-q> :quit<CR>
+inoremap <C-q> <Esc>:quit<CR>
 nnoremap <C-s> :w<CR>
 inoremap <C-s> <Esc>:w<CR>
 nnoremap <C-x> :x<CR>
@@ -138,7 +140,15 @@ augroup nhooyr
 	" q should always quit.
 	" In particular this was added for man.vim which uses close instead of quit
 	" and so we cannot quit if there is only a man window left.
-	autocmd FileType * nnoremap <buffer> <silent> q :quit!<CR>
+	autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
 augroup END
 
 let g:highlightedyank_highlight_duration = 150
+
+let g:netrw_banner = 0
+" Hides ./ and ../
+let g:netrw_list_hide = '^\.\.\=/$'
+nnoremap <silent> - :Ex<CR>
+
+" https://stackoverflow.com/a/9464929/4283659
+nnoremap <silent> <Leader>s :echo map(synstack(line('.'), col('.')), 'synIDattr(v:val, "name")')<CR>
