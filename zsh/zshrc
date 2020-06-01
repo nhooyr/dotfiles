@@ -6,8 +6,8 @@ source_if_exists() {
 
 DOTFILES="$HOME/src/nhooyr/dotfiles"
 
-source "$DOTFILES/zsh/aliases.zsh"
 source "$DOTFILES/zsh/completion.zsh"
+source "$DOTFILES/zsh/aliases.zsh"
 source "$DOTFILES/zsh/env.zsh"
 source "$DOTFILES/zsh/history.zsh"
 source "$DOTFILES/zsh/misc.zsh"
