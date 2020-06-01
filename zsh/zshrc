@@ -10,10 +10,10 @@ source "$DOTFILES/zsh/completion.zsh"
 source "$DOTFILES/zsh/aliases.zsh"
 source "$DOTFILES/zsh/env.zsh"
 source "$DOTFILES/zsh/history.zsh"
-source "$DOTFILES/zsh/misc.zsh"
 source "$DOTFILES/zsh/prompt.zsh"
 source "$DOTFILES/zsh/syntax.zsh"
 source "$DOTFILES/zsh/fzf.zsh"
+source "$DOTFILES/zsh/misc.zsh"
 
 if [[ $OSTYPE == darwin* ]]; then
   source "$DOTFILES/zsh/macos.zsh"
