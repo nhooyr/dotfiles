@@ -20,6 +20,7 @@ ensure() {
   mkdir -p ~/.ssh/sockets
 
   ./ci/link.sh fd ~/.config/fd
+  ./ci/link.sh coc ~/.config/coc
 }
 
 ensure_root() {
