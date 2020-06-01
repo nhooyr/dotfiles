@@ -8,6 +8,10 @@ if empty(glob(s:vim_plug, 1))
 endif
 
 call plug#begin(stdpath('data') . '/plugged')
+Plug 'peitalin/vim-jsx-typescript'
+" Default syntax does not work well.
+Plug 'leafgarland/typescript-vim'
+
 Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 Plug 'machakann/vim-highlightedyank'
@@ -29,6 +33,7 @@ Plug 'iamcco/coc-svg', {'do': 'yarn install --frozen-lockfile'}
 
 Plug 'tpope/vim-endwise'
 Plug 'jiangmiao/auto-pairs'
+Plug 'alvan/vim-closetag'
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
@@ -156,7 +161,7 @@ augroup nhooyr
   " In particular this was added for man.vim which uses close instead of quit
   " and so we cannot quit if there is only a man window left.
   autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
-  autocmd FileType * iunmap <C-x><CR>
+  autocmd FileType * silent! iunmap <C-x><CR>
 augroup END
 
 let g:highlightedyank_highlight_duration = 150
@@ -175,3 +180,7 @@ nnoremap <silent> <Leader>s :echo map(synstack(line('.'), col('.')), 'synIDattr(
 nnoremap <silent> <Leader>rv :earlier 1f<CR>
 
 call nhooyr_coc#init()
+
+let g:AutoPairsShortcutBackInsert = ''
+
+let g:closetag_filenames = '*.html,*.xhtml,*.phtml,*.tsx,*.jsx'
