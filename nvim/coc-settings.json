@@ -1,3 +1,4 @@
 {
   "coc.preferences.formatOnType": true,
+  "diagnostic.enable": false,
 }

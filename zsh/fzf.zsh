@@ -13,11 +13,16 @@ relative_path() {
 }
 
 quick_paths() {
+  fd -aH -d1 .
+  fd -aH -d2 .
+  fd -aH -d3 .
   fd -aH -d4 .
   echo ~/src
+  fd -H -d1 . ~/src
   fd -H -d2 . ~/src
   fd -H . ~/src/nhooyr/dotfiles
   echo ~/Downloads
+  fd -H -d1 . ~/Downloads
   fd -H -d2 . ~/Downloads
 }
 

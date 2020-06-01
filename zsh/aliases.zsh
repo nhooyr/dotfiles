@@ -60,6 +60,7 @@ mcd() {
   mkdir -p "$@"
   cd "$@"
 }
+compdef _directories mcd
 
 alias chx="chmod +x"
 alias md="mkdir -p"
