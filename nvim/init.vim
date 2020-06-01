@@ -150,12 +150,12 @@ let g:mundo_close_on_revert = 1
 nnoremap <silent> <Leader>u :MundoToggle<CR>
 
 augroup nhooyr
-	autocmd!
-	autocmd FileType gitcommit startinsert
-	" q should always quit.
-	" In particular this was added for man.vim which uses close instead of quit
-	" and so we cannot quit if there is only a man window left.
-	autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+  autocmd!
+  autocmd FileType gitcommit startinsert
+  " q should always quit.
+  " In particular this was added for man.vim which uses close instead of quit
+  " and so we cannot quit if there is only a man window left.
+  autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
   autocmd FileType * iunmap <C-x><CR>
 augroup END
 
