@@ -11,7 +11,6 @@ call plug#begin(stdpath('data') . '/plugged')
 Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 Plug 'machakann/vim-highlightedyank'
-Plug 'neovim/nvim-lsp'
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
