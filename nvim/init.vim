@@ -11,8 +11,7 @@ call plug#begin(stdpath('data') . '/plugged')
 Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 Plug 'machakann/vim-highlightedyank'
-Plug 'neoclide/coc.nvim', {'branch': 'release'}
-Plug 'josa42/coc-go', {'do': 'yarn install --frozen-lockfile'}
+Plug 'neovim/nvim-lsp'
 call plug#end()
 
 command! Pu PlugUpgrade | PlugUpdate
@@ -99,7 +98,7 @@ nnoremap <silent> <C-h> <C-W>h
 
 set clipboard=unnamed
 set noshowmode
-set laststatus=1
+set signcolumn=no
 set cursorline
 set noshowcmd
 set splitright
@@ -111,6 +110,7 @@ set undofile
 set undolevels=10000
 set inccommand=nosplit
 set gdefault
+let $COLOR = stdpath('config') . "/colors/elysian.vim"
 colorscheme elysian
 augroup elysian
   autocmd!
@@ -123,16 +123,13 @@ if has("vim_starting")
   set shiftwidth=2
   set expandtab
 endif
-set shortmess+=aIA
+set shortmess+=aIAc
 set mouse=a
-set rulerformat=%=%l  
+set rulerformat=%=%l
 set updatetime=100
 
 let g:mundo_close_on_revert = 1
 nnoremap <silent> <Leader>u :MundoToggle<CR>
-
-" https://stackoverflow.com/questions/9850360/what-is-netrwhist
-let g:netrw_dirhistmax = 0
 
 augroup nhooyr
 	autocmd!
@@ -145,6 +142,8 @@ augroup END
 
 let g:highlightedyank_highlight_duration = 150
 
+" https://stackoverflow.com/questions/9850360/what-is-netrwhist
+let g:netrw_dirhistmax = 0
 let g:netrw_banner = 0
 " Hides ./ and ../
 let g:netrw_list_hide = '^\.\.\=/$'

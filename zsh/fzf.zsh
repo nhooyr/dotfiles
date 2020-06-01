@@ -22,35 +22,39 @@ quick_paths() {
 }
 
 append_history() {
-  LBUFFER="$(echo "$*" | sed "s#$HOME#~#g")"
-  zle accept-line
+  local cmd="$(sed "s#$HOME#~#g" <<< "$*")"
+
+  print -s -- "$cmd"
+  fc -W
+  fc -R
+  eval "$cmd"
 }
 
 fzf_quick_paths() {
   local word="${LBUFFER##* }"
 
   local selected
-  selected=($(quick_paths | relative_path | insert_tilde | awk '!seen[$0]++' | fzf --expect=ctrl-v --no-sort --height=40% --query="$word" | expand_tilde ))
+  selected=("${(@f)$(quick_paths | relative_path | insert_tilde | awk '!seen[$0]++' | \
+    fzf --expect=ctrl-v --no-sort --height=40% --query="$word" | expand_tilde )}")
   if [[ "$selected" ]]; then
-    if [[ ${#selected[@]} -eq 2 ]]; then
-      selected="${selected[2]}"
-      local execute=1
-    fi
+    local key="${selected[1]}"
+    local quick_path="${selected[2]}"
+
     if [[ ! "$BUFFER" ]]; then
-      if [[ -d "$selected" ]]; then
-        append_history cd "$selected"
-      elif [[ -e "$selected" ]]; then
-        if [[ "$execute" ]]; then
-          if [[ "$selected" != /* ]]; then
-            selected="./$selected"
+      if [[ -d "$quick_path" ]]; then
+        append_history cd "$quick_path"
+      elif [[ -e "$quick_path" ]]; then
+        if [[ "$key" == "ctrl-v" ]]; then
+          if [[ "$quick_path" != /* ]]; then
+            quick_path="./$quick_path"
           fi
-          append_history "$selected"
+          append_history "$quick_path"
         else
-          append_history e "$selected"
+          append_history e "$quick_path"
         fi
       fi
     else
-      LBUFFER="${LBUFFER%$word}${selected}"
+      LBUFFER="${LBUFFER%$word}${quick_path}"
     fi
   fi
   zle reset-prompt
@@ -60,11 +64,13 @@ bindkey "\ev" fzf-quick-paths
 
 fzf_history() {
   local selected
-  IFS=$'\n' selected=($(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=40% --query="$LBUFFER"))
+  selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=40% --query="$LBUFFER")}")
   if [[ "$selected" ]]; then
-    LBUFFER="$selected"
-    if [[ ${#selected[@]} -eq 2 ]]; then
-      LBUFFER="${selected[2]}"
+    local key="${selected[1]}"
+    local cmd="${selected[2]}"
+
+    LBUFFER="$cmd"
+    if [[ "$key" == "ctrl-v" ]]; then
       zle accept-line
     fi
   fi

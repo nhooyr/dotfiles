@@ -21,6 +21,8 @@ hi Visual       ctermfg=NONE  ctermbg=225  cterm=NONE
 hi TabLine      ctermfg=NONE  ctermbg=NONE cterm=NONE
 hi TabLineFill  ctermfg=NONE  ctermbg=NONE cterm=NONE
 hi TabLineSel   ctermfg=NONE  ctermbg=218  cterm=bold
+hi SignColumn   ctermfg=NONE  ctermbg=NONE cterm=NONE
+hi Folded       ctermfg=244   ctermbg=255 cterm=NONE
 
 " Language colors.
 hi Normal       ctermfg=NONE  ctermbg=NONE cterm=NONE
@@ -34,6 +36,7 @@ hi Type         ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Special      ctermfg=6    ctermbg=NONE cterm=NONE
 hi Underlined   ctermfg=6    ctermbg=NONE cterm=NONE
 hi Error        ctermfg=NONE ctermbg=NONE cterm=NONE
+hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
 
 " Git colors.
 hi DiffAdd            ctermfg=2    ctermbg=NONE cterm=NONE
@@ -43,3 +46,5 @@ hi link diffAdded DiffAdd
 hi link diffRemoved DiffDelete
 hi gitKeyword         ctermfg=NONE ctermbg=NONE cterm=bold
 hi gitIdentityKeyword ctermfg=NONE ctermbg=NONE cterm=bold
+
+hi link CocErrorHighlight ErrorMsg
