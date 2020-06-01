@@ -53,7 +53,8 @@ fzf_quick_paths() {
           if [[ "$quick_path" != /* ]]; then
             quick_path="./$quick_path"
           fi
-          append_history "$quick_path"
+          LBUFFER="$quick_path"
+          zle accept-line
         else
           append_history e "$quick_path"
         fi
