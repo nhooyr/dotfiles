@@ -12,11 +12,11 @@ function! nhooyr_coc#init() abort
   endfunction
 
   " Use <c-space> to trigger completion.
-  inoremap <silent><expr> <c-space> coc#refresh()
+  inoremap <silent> <expr> <c-space> coc#refresh()
 
   " Use <cr> to confirm completion, `<C-g>u` means break undo chain at current
   " position. Coc only does snippet and additional edit on confirm.
-  inoremap <expr> <cr> complete_info()["selected"] != "-1" ? "\<C-y>" : "\<C-g>u\<CR>\<c-r>=coc#on_enter()\<CR>"
+  inoremap <silent> <expr> <cr> complete_info()["selected"] != "-1" ? "\<C-y>" : "\<C-g>u\<CR>\<c-r>=coc#on_enter()\<CR>"
 
   nmap <silent> gy <Plug>(coc-type-definition)
   nmap <silent> gi <Plug>(coc-implementation)
