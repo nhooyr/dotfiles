@@ -12,7 +12,7 @@ source "$DOTFILES/zsh/env.zsh"
 source "$DOTFILES/zsh/history.zsh"
 source "$DOTFILES/zsh/prompt.zsh"
 source "$DOTFILES/zsh/syntax.zsh"
-source "$DOTFILES/zsh/fzf.zsh"
+source "$DOTFILES/zsh/quick.zsh"
 source "$DOTFILES/zsh/misc.zsh"
 
 if [[ $OSTYPE == darwin* ]]; then
