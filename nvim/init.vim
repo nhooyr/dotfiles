@@ -97,11 +97,11 @@ inoremap <M-b> <C-o>b
 inoremap <M-d> <C-o>dw
 inoremap <M-BS> <C-w>
 
-nnoremap <C-q> :quit<CR>
+nnoremap <silent> <C-q> :quit<CR>
 inoremap <C-q> <Esc>:quit<CR>
-nnoremap <C-s> :w<CR>
+nnoremap <silent> <C-s> :w<CR>
 inoremap <C-s> <Esc>:w<CR>
-nnoremap <C-x> :x<CR>
+nnoremap <silent> <C-x> :x<CR>
 inoremap <C-x> <Esc>:x<CR>
 
 nnoremap <silent> <C-E> 2<C-E>
@@ -156,6 +156,7 @@ augroup nhooyr
 	" In particular this was added for man.vim which uses close instead of quit
 	" and so we cannot quit if there is only a man window left.
 	autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+  autocmd FileType * iunmap <C-x><CR>
 augroup END
 
 let g:highlightedyank_highlight_duration = 150
