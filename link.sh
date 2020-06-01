@@ -23,17 +23,11 @@ ensure() {
   ./ci/link.sh coc ~/.config/coc
 }
 
-ensure_root() {
-  sudo ./ci/link.sh ~/.config ~root/.config
-  sudo ./ci/link.sh ~/.local ~root/.local
-}
-
 main() {
   cd "$(dirname "$0")"
   git submodule update --init
 
   ensure
-  ensure_root
 }
 
 main "$@"
