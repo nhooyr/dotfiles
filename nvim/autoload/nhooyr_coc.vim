@@ -1,7 +1,9 @@
 " https://github.com/neoclide/coc.nvim#example-vim-configuration
 function! nhooyr_coc#init() abort
+  " This was changed from C-n due to some bizarre behaviour
+  " with completing the closing tag in an html file.
   inoremap <silent><expr> <TAB>
-        \ pumvisible() ? "\<C-n>" :
+        \ pumvisible() ? "\<Down>" :
         \ <SID>check_back_space() ? "\<TAB>" :
         \ coc#refresh()
   inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
