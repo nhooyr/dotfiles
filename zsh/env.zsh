@@ -2,6 +2,7 @@ DOTFILES="$HOME/src/nhooyr/dotfiles"
 
 # Homebrew takes forever to update.
 export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_COLOR=1
 export GOPATH=~/.local/share/gopath
 
 export EDITOR="nvim"
