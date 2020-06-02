@@ -163,6 +163,7 @@ augroup nhooyr
   " In particular this was added for man.vim which uses close instead of quit
   " and so we cannot quit if there is only a man window left.
   autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+  " endwise has an obnoxious keybinding that interferes with my C-x.
   autocmd FileType * silent! iunmap <C-x><CR>
 augroup END
 
@@ -185,26 +186,7 @@ call nhooyr_coc#init()
 
 let g:closetag_filenames = '*.html,*.xhtml,*.phtml,*.tsx,*.jsx'
 
-" Adapted from https://www.reddit.com/r/vim/comments/7gqowu/hungrysmart_backspace_support/
-function! s:backspace() abort
-  if getline(line('.')) =~ '\S'
-    " Fallback to default behaviour.
-    call feedkeys(AutoPairsDelete(), 'n')
-    return
-  endif
-
-  " Remove all text on the current line as it's just whitespace.
-  if col('.') > 1
-    call feedkeys("\<BS>", 'n')
-  endif
-  call feedkeys("\<BS>", 'n')
-
-  if getline(line('.')-1) !~ '\S'
-    " Reindent current line if empty.
-    call feedkeys("\<C-o>cc", 'n')
-  endif
-endfunction
-
 let g:AutoPairsShortcutBackInsert = ''
-let g:AutoPairsMapBS = ''
-inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
+
+nnoremap <silent> <C-z> zz
+inoremap <silent> <C-z> <ESC>zz
