@@ -15,6 +15,7 @@ Plug 'leafgarland/typescript-vim'
 Plug 'simnalamburt/vim-mundo'
 Plug 'tpope/vim-surround'
 Plug 'machakann/vim-highlightedyank'
+Plug 'tpope/vim-unimpaired'
 
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'josa42/coc-go', {'do': 'yarn install --frozen-lockfile'}
@@ -102,8 +103,8 @@ inoremap <M-b> <C-o>b
 inoremap <M-d> <C-o>dw
 inoremap <M-BS> <C-w>
 
-nnoremap <silent> <C-q> :quit<CR>
-inoremap <C-q> <Esc>:quit<CR>
+nnoremap <silent> <C-q> :quit!<CR>
+inoremap <C-q> <Esc>:quit!<CR>
 nnoremap <silent> <C-s> :w<CR>
 inoremap <C-s> <Esc>:w<CR>
 nnoremap <silent> <C-x> :x<CR>
