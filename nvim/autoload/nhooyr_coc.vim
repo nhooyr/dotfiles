@@ -1,5 +1,5 @@
 function! nhooyr_coc#init() abort
-  inoremap <silent> <expr> <TAB> coc#refresh()
+  inoremap <silent> <expr> <C-Space> coc#refresh()
   imap <silent> <C-j> <Plug>(coc-snippets-expand-jump)
   nmap <silent> gy <Plug>(coc-type-definition)
   nmap <silent> gi <Plug>(coc-implementation)
