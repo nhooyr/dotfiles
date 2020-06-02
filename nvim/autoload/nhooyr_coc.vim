@@ -38,7 +38,6 @@ function! nhooyr_coc#init() abort
     autocmd!
     autocmd FileType typescript,json,go,vim setl formatexpr=CocAction('formatSelected')
     autocmd FileType typescript,json,go,vim nmap <silent> <buffer> <C-]> <Plug>(coc-definition)
-    autocmd CursorHold * silent call CocActionAsync('highlight')
   augroup end
 
   xmap if <Plug>(coc-funcobj-i)

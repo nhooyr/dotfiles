@@ -199,9 +199,9 @@ function! s:backspace() abort
   endif
   call feedkeys("\<BS>", 'n')
 
-  if getline(line('.')) !~ '\S'
+  if getline(line('.')-1) !~ '\S'
     " Reindent current line if empty.
-    call feedkeys("\<C-F>", 'n')
+    call feedkeys("\<C-o>cc", 'n')
   endif
 endfunction
 

@@ -18,3 +18,5 @@
  	ff = false
 [diff]
 	algorithm = patience
+[color "diff"]
+	meta = "no-bold"
