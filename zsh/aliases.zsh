@@ -7,6 +7,8 @@ alias s="sudo "
 alias sudo="sudo "
 alias m="man"
 alias uti="mdls -name kMDItemContentTypeTree"
+alias pd="prevd"
+alias nd="nextd"
 
 e() {
   export QUICK_PATH="$(mktemp -d)/quick_path"
@@ -41,7 +43,8 @@ cd() {
 
 nextd() {
   if [[ "${#prev_dirs[@]}" -eq 0 ]]; then
-    return
+    echo "forward directory stack empty"
+    return 1
   fi
   builtin cd "${prev_dirs[-1]}"
   prev_dirs[-1]=()
@@ -52,23 +55,12 @@ prevd() {
     prev_dirs+=("$OLDPWD")
 }
 
-zle-nextd() {
-  nextd
-  zle reset-prompt
-}
-zle -N zle-nextd
-
-zle-prevd() {
-  prevd 2> /dev/null
-  zle reset-prompt
-}
-zle -N zle-prevd
-
-bindkey "\ep" zle-prevd
-bindkey "\en" zle-nextd
-
 gcd() {
   cd "$(git rev-parse --show-toplevel)"
+}
+
+scd() {
+  cd "$(git rev-parse --show-superproject-working-tree)"
 }
 
 mcd() {

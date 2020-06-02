@@ -32,7 +32,7 @@ prompt() {
   if [[ "$branch_name" ]]; then
     echo -n "%F{blue}:$branch_name%f"
   fi
-  if [[ "$(git describe --always --dirty 2> /dev/null)" == *-dirty ]]; then
+  if [[ "$(git status --short 2> /dev/null)" ]]; then
     echo -n "*"
   fi
 
