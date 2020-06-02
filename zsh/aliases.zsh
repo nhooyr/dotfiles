@@ -114,7 +114,8 @@ alias pc="pbcopy"
 alias pp="pbpaste"
 alias catq="jq -R"
 
-alias gcmp="gaa && gcm && gp"
+alias gcamp="gaa && gcm && gp"
+alias gcmp="gcm && gp"
 alias fcm="gaa && gcm --amend --no-edit && gpf"
 
 noti() {
