@@ -32,6 +32,9 @@ prompt() {
   if [[ "$branch_name" ]]; then
     echo -n "%F{blue}:$branch_name%f"
   fi
+  if [[ "$(git describe --always --dirty 2> /dev/null)" == *-dirty ]]; then
+    echo -n "*"
+  fi
 
   echo
   if [[ $USER == root ]]; then
