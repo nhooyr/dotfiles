@@ -32,7 +32,7 @@ Plug 'neoclide/coc-rls', {'do': 'yarn install --frozen-lockfile'}
 Plug 'iamcco/coc-svg', {'do': 'yarn install --frozen-lockfile'}
 
 Plug 'tpope/vim-endwise'
-"Plug 'jiangmiao/auto-pairs'
+Plug 'jiangmiao/auto-pairs'
 Plug 'alvan/vim-closetag'
 call plug#end()
 
@@ -46,8 +46,8 @@ nnoremap <silent> <nowait> q :quit<CR>
 nnoremap <silent> <leader>ec :e $MYVIMRC<CR>
 nnoremap <silent> k gk
 nnoremap <silent> j gj
-nnoremap <silent> p ]p
-nnoremap <silent> P ]P
+nnoremap <silent> p p==
+nnoremap <silent> P P==
 nnoremap <silent> Y y$
 
 nnoremap <silent> 0 ^
@@ -182,13 +182,28 @@ nnoremap <silent> <Leader>rv :earlier 1f<CR>
 
 call nhooyr_coc#init()
 
-let g:AutoPairsShortcutBackInsert = ''
-
 let g:closetag_filenames = '*.html,*.xhtml,*.phtml,*.tsx,*.jsx'
 
-" https://www.reddit.com/r/vim/comments/7gqowu/hungrysmart_backspace_support/
-inoremap <silent><expr><bs> 
-  \ (&indentexpr isnot '' ? &indentkeys : &cinkeys) =~? '!\^F' &&
-  \ &backspace =~? '.*eol\&.*start\&.*indent\&' &&
-  \ !search('\S','nbW',line('.')) ? (col('.') != 1 ? "\<C-U>" : "") .
-  \ "\<bs>" . (getline(line('.')-1) =~ '\S' ? "" : "\<C-F>") : "\<bs>"
+" Adapted from https://www.reddit.com/r/vim/comments/7gqowu/hungrysmart_backspace_support/
+function! s:backspace() abort
+  if getline(line('.')) =~ '\S'
+    " Fallback to default behaviour.
+    call feedkeys(AutoPairsDelete(), 'n')
+    return
+  endif
+
+  " Remove all text on the current line as it's just whitespace.
+  if col('.') > 1
+    call feedkeys("\<BS>", 'n')
+  endif
+  call feedkeys("\<BS>", 'n')
+
+  if getline(line('.')) !~ '\S'
+    " Reindent current line if empty.
+    call feedkeys("\<C-F>", 'n')
+  endif
+endfunction
+
+let g:AutoPairsShortcutBackInsert = ''
+let g:AutoPairsMapBS = ''
+inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
