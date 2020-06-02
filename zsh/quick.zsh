@@ -42,7 +42,7 @@ fzf-quick-paths() {
 
   local selected
   selected=("${(@f)$(quick_paths | relative_path | insert_tilde | awk '!seen[$0]++' | \
-    fzf --expect=ctrl-v --no-sort --height=40% --query="$word" | expand_tilde )}")
+    fzf --expect=ctrl-v,ctrl-x --no-sort --height=40% --query="$word" | expand_tilde )}")
   if [[ "$selected" ]]; then
     local key="${selected[1]}"
     local quick_path="${selected[2]}"
@@ -55,7 +55,7 @@ fzf-quick-paths() {
       if [[ -d "$quick_path" ]]; then
         execi cd "$quick_path"
       elif [[ -e "$quick_path" ]]; then
-        if [[ "$key" == "ctrl-v" ]]; then
+        if [[ "$key" == "ctrl-x" ]]; then
           execi "$quick_path"
         else
           execi e "$quick_path"
