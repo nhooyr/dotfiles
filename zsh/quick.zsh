@@ -91,10 +91,17 @@ git-status() {
   execi gs
 }
 zle -N git-status
+
 git-diff() {
   execi gd
 }
 zle -N git-diff
 
+zle-ll() {
+  execi ll
+}
+zle -N zle-ll
+
 bindkey '\es' git-status
-bindkey '\ed' git-diff
+bindkey '\eg' git-diff
+bindkey '\el' zle-ll

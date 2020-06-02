@@ -20,7 +20,7 @@ Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'josa42/coc-go', {'do': 'yarn install --frozen-lockfile'}
 Plug 'neoclide/coc-tsserver', {'do': 'yarn install --frozen-lockfile'}
 Plug 'iamcco/coc-vimlsp', {'do': 'yarn install --frozen-lockfile'}
-Plug 'neoclide/coc-snippets', {'do': 'yarn install --frozen-lockfile'}
+"Plug 'neoclide/coc-snippets', {'do': 'yarn install --frozen-lockfile'}
 Plug 'weirongxu/coc-calc', {'do': 'yarn install --frozen-lockfile'}
 Plug 'clangd/coc-clangd', {'do': 'yarn install --frozen-lockfile'}
 Plug 'voldikss/coc-cmake', {'do': 'yarn install --frozen-lockfile'}
@@ -32,7 +32,7 @@ Plug 'neoclide/coc-rls', {'do': 'yarn install --frozen-lockfile'}
 Plug 'iamcco/coc-svg', {'do': 'yarn install --frozen-lockfile'}
 
 Plug 'tpope/vim-endwise'
-Plug 'jiangmiao/auto-pairs'
+"Plug 'jiangmiao/auto-pairs'
 Plug 'alvan/vim-closetag'
 call plug#end()
 
@@ -150,6 +150,7 @@ set mouse=a
 set rulerformat=%=%l
 set updatetime=100
 set laststatus=1
+set autochdir
 
 let g:mundo_close_on_revert = 1
 nnoremap <silent> <Leader>u :MundoToggle<CR>
@@ -184,3 +185,10 @@ call nhooyr_coc#init()
 let g:AutoPairsShortcutBackInsert = ''
 
 let g:closetag_filenames = '*.html,*.xhtml,*.phtml,*.tsx,*.jsx'
+
+" https://www.reddit.com/r/vim/comments/7gqowu/hungrysmart_backspace_support/
+inoremap <silent><expr><bs> 
+  \ (&indentexpr isnot '' ? &indentkeys : &cinkeys) =~? '!\^F' &&
+  \ &backspace =~? '.*eol\&.*start\&.*indent\&' &&
+  \ !search('\S','nbW',line('.')) ? (col('.') != 1 ? "\<C-U>" : "") .
+  \ "\<bs>" . (getline(line('.')-1) =~ '\S' ? "" : "\<C-F>") : "\<bs>"
