@@ -1,4 +1,3 @@
-alias e="\$EDITOR"
 alias r="source ~/.zshrc"
 alias l="ls -lh"
 alias ll="ls -lha"
@@ -8,6 +7,22 @@ alias s="sudo "
 alias sudo="sudo "
 alias m="man"
 alias uti="mdls -name kMDItemContentTypeTree"
+
+e() {
+  export QUICK_PATH="$(mktemp -d)/quick_path"
+  $EDITOR "$@"
+  if [[ ! -e "$QUICK_PATH" ]]; then
+    unset QUICK_PATH
+  fi
+}
+
+zle-line-init() {
+  if [[ -e "$QUICK_PATH" ]]; then
+    unset QUICK_PATH
+    fzf-quick-paths
+  fi
+}
+zle -N zle-line-init
 
 ls() {
   if command -v gls > /dev/null; then
