@@ -48,6 +48,3 @@ hi link diffAdded DiffAdd
 hi link diffRemoved DiffDelete
 hi gitKeyword         ctermfg=NONE ctermbg=NONE cterm=bold
 hi gitIdentityKeyword ctermfg=NONE ctermbg=NONE cterm=bold
-
-hi link CocErrorHighlight ErrorMsg
-hi CocHighlightText ctermfg=black ctermbg=218 cterm=NONE

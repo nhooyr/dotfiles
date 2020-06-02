@@ -2,5 +2,5 @@
   "diagnostic.enable": false,
   "suggest.maxCompleteItemCount": 10,
   "suggest.minTriggerInputLength": 3,
-  "coc.preferences.useQuickfixForLocations": true
+  "coc.preferences.useQuickfixForLocations": true,
 }
