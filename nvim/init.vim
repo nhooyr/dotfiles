@@ -22,14 +22,17 @@ function! s:plugins() abort
   Plug 'jiangmiao/auto-pairs'
 
   Plug 'neovim/nvim-lsp'
-  Plug 'SirVer/ultisnips'
-  Plug 'fatih/vim-go', { 'rtp': 'gosnippets' }
+  Plug 'Shougo/deoplete.nvim'
+  Plug 'Shougo/deoplete-lsp'
+  Plug 'Shougo/neosnippet.vim'
+  Plug 'Shougo/neosnippet-snippets'
+  Plug 'Shougo/neco-syntax'
+  Plug 'haorenW1025/diagnostic-nvim'
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
   command! PC PlugClean
 endfunction
-
 call s:plugins()
 
 function! s:settings() abort
@@ -67,7 +70,7 @@ function! s:settings() abort
   set laststatus=1
   set autochdir
 
-  " Have seen bizarre behaviour with this.
+  " Neovim's TUI cursor bugs out often enough.
   set guicursor=
 endfunction
 call s:settings()
@@ -135,13 +138,14 @@ function! s:binds() abort
 
   nnoremap <silent> <C-q> :quitall!<CR>
   inoremap <silent> <C-q> <Esc>:quitall!<CR>
+  cnoremap <silent> <C-q> <C-c>:quitall!<CR>
   nnoremap <silent> <C-s> :w<CR>
   inoremap <silent> <C-s> <Esc>:w<CR>
   nnoremap <silent> <C-x> :x<CR>
   inoremap <silent> <C-x> <Esc>:x<CR>
 
-  nnoremap <silent> <C-E> 2<C-E>
-  nnoremap <silent> <C-Y> 2<C-Y>
+  nnoremap <silent> <C-e> 2<C-e>
+  nnoremap <silent> <C-y> 2<C-y>
   nnoremap <silent> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 
   nnoremap <silent> <C-k> <C-W>k
@@ -150,7 +154,7 @@ function! s:binds() abort
   nnoremap <silent> <C-h> <C-W>h
 
   noremap <silent> <C-z> zz
-  noremap! <silent> <C-z> <ESC>zz
+  noremap! <silent> <C-z> <ESC>zzcc
 
   " https://stackoverflow.com/a/9464929/4283659
   nnoremap <silent> <Leader>s :echo map(synstack(line('.'), col('.')), 'synIDattr(v:val, "name")')<CR>
@@ -182,10 +186,13 @@ function! s:plugin_settings() abort
 
   let g:surround_no_insert_mappings = 1
 
-  let g:UltiSnipsExpandTrigger='<C-j>'
-  let g:UltiSnipsJumpForwardTrigger='<C-j>'
-  let g:UltiSnipsJumpBackwardTrigger='<C-k>'
-  let g:UltiSnipsEditSplit='horizontal'
+  let g:deoplete#enable_at_startup = 1
+  let g:neosnippet#enable_completed_snippet = 1
+  let g:neosnippet#enable_complete_done = 1
+
+  map! <silent> <C-j> <Plug>(neosnippet_jump_or_expand)
+  set conceallevel=3
+  set concealcursor=niv
 endfunction
 call s:plugin_settings()
 
@@ -217,25 +224,23 @@ call s:quick()
 function! s:lsp() abort
   lua << EOF
   local lsp = require 'nvim_lsp'
-  lsp.gopls.setup{}
-  lsp.tsserver.setup{}
-  lsp.vimls.setup{}
+  local diagnostic = require 'diagnostic'
 
-  -- Disable diagnostcs globally.
-  vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
+  lsp.gopls.setup{ on_attach = diagnostic.on_attach }
+  lsp.tsserver.setup{ on_attach = diagnostic.on_attach }
+  lsp.vimls.setup{ on_attach = diagnostic.on_attach }
 EOF
 
-  inoremap <silent> <M-f> <C-x><C-f>
-  inoremap <silent> <Tab> <C-x><C-o>
+  inoremap <silent> <M-x> <C-x>
   set completeopt=menuone,longest,noselect
   set pumheight=10
 
   function! s:b_lsp() abort
     nnoremap <silent> <buffer> gd    <cmd>lua vim.lsp.buf.declaration()<CR>
-    nnoremap <silent> <buffer> <c-]> <cmd>lua vim.lsp.buf.definition()<CR>
+    nnoremap <silent> <buffer> <C-]> <cmd>lua vim.lsp.buf.definition()<CR>
     nnoremap <silent> <buffer> K     <cmd>lua vim.lsp.buf.hover()<CR>
     nnoremap <silent> <buffer> gD    <cmd>lua vim.lsp.buf.implementation()<CR>
-    nnoremap <silent> <buffer> <c-k> <cmd>lua vim.lsp.buf.signature_help()<CR>
+    nnoremap <silent> <buffer> <C-k> <cmd>lua vim.lsp.buf.signature_help()<CR>
     nnoremap <silent> <buffer> 1gD   <cmd>lua vim.lsp.buf.type_definition()<CR>
     nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.references()<CR>
     nnoremap <silent> <buffer> g0    <cmd>lua vim.lsp.buf.document_symbol()<CR>
@@ -243,9 +248,10 @@ EOF
     setlocal omnifunc=v:lua.vim.lsp.omnifunc
   endfunction
 
-  augroup nhooyr_lsp
+  augroup lsp
     autocmd!
     autocmd FileType go,vim,typescript* call s:b_lsp()
+    autocmd CursorHold * lua vim.lsp.util.show_line_diagnostics()
   augroup END
 endfunction
 call s:lsp()
