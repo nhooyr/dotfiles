@@ -241,6 +241,11 @@ EOF
   set pumheight=10
 
   let g:completion_enable_snippet = 'Neosnippet'
+  let g:completion_chain_complete_list = [
+        \{'complete_items': ['lsp', 'snippet', 'path']},
+        \{'mode': '<c-p>'},
+        \{'mode': 'file'}
+        \]
   imap <C-k> <cmd>lua require'source'.nextCompletion()<CR>
   inoremap <silent> <expr> <C-space> completion#trigger_completion()
 
