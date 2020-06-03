@@ -19,7 +19,6 @@ function! s:plugins() abort
 
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
-  Plug 'jiangmiao/auto-pairs'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
@@ -181,10 +180,6 @@ function! s:plugin_settings() abort
 
   let g:highlightedyank_highlight_duration = 150
 
-  let g:AutoPairsShortcutBackInsert = ''
-  let g:AutoPairsShortcutJump = ''
-  let g:AutoPairsShortcutToggle = ''
-
   let g:surround_no_insert_mappings = 1
 
   map! <silent> <C-j> <Plug>(neosnippet_jump_or_expand)
@@ -237,14 +232,16 @@ function! s:lsp() abort
 EOF
 
   inoremap <silent> <M-x> <C-x>
-  set completeopt=menuone,longest,noselect
+  set completeopt=menuone,noselect
   set pumheight=10
 
+  let g:completion_auto_change_source = 1
   let g:completion_enable_snippet = 'Neosnippet'
+  let g:completion_confirm_key = "\<C-y>"
   let g:completion_chain_complete_list = [
         \{'complete_items': ['lsp', 'snippet', 'path']},
         \{'mode': '<c-p>'},
-        \{'mode': 'file'}
+        \{'mode': '<c-n>'}
         \]
   imap <C-k> <cmd>lua require'source'.nextCompletion()<CR>
   inoremap <silent> <expr> <C-space> completion#trigger_completion()
