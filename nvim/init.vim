@@ -20,7 +20,6 @@ function! s:plugins() abort
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
   Plug 'jiangmiao/auto-pairs'
-  Plug 'alvan/vim-closetag'
 
   Plug 'neovim/nvim-lsp'
   Plug 'SirVer/ultisnips'
@@ -177,8 +176,6 @@ function! s:plugin_settings() abort
 
   let g:highlightedyank_highlight_duration = 150
 
-  let g:closetag_filenames = '*.html,*.xhtml,*.phtml,*.tsx,*.jsx'
-
   let g:AutoPairsShortcutBackInsert = ''
   let g:AutoPairsShortcutJump = ''
   let g:AutoPairsShortcutToggle = ''
@@ -188,7 +185,7 @@ function! s:plugin_settings() abort
   let g:UltiSnipsExpandTrigger='<C-j>'
   let g:UltiSnipsJumpForwardTrigger='<C-j>'
   let g:UltiSnipsJumpBackwardTrigger='<C-k>'
-  let g:UltiSnipsEditSplit='vertical'
+  let g:UltiSnipsEditSplit='horizontal'
 endfunction
 call s:plugin_settings()
 
@@ -224,7 +221,7 @@ function! s:lsp() abort
   lsp.tsserver.setup{}
   lsp.vimls.setup{}
 
-  -- Disable diagnostcs globally
+  -- Disable diagnostcs globally.
   vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
 EOF
 
