@@ -27,9 +27,6 @@ function! s:plugins() abort
   Plug 'haorenW1025/completion-nvim'
   Plug 'hrsh7th/vim-vsnip'
   Plug 'hrsh7th/vim-vsnip-integ'
-  "Plug 'Shougo/deoplete.nvim'
-  "Plug 'Shougo/deoplete-lsp'
-  "Plug 'Shougo/neco-syntax'
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -188,10 +185,6 @@ function! s:plugin_settings() abort
 
   let g:surround_no_insert_mappings = 1
 
-  let g:deoplete#enable_at_startup = 1
-  "let g:neosnippet#enable_completed_snippet = 1
-  "let g:neosnippet#enable_complete_done = 1
-
   map! <silent> <C-j> <Plug>(neosnippet_jump_or_expand)
   set conceallevel=3
   set concealcursor=niv
@@ -241,6 +234,7 @@ EOF
   set pumheight=10
 
   let g:completion_enable_snippet = 'Neosnippet'
+  imap <C-k> <cmd>lua require'source'.nextCompletion()<CR>
 
   function! s:b_lsp() abort
     nnoremap <silent> <buffer> gd    <cmd>lua vim.lsp.buf.declaration()<CR>
