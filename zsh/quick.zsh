@@ -60,11 +60,11 @@ fzf-quick-paths() {
     fzf --expect=ctrl-v,ctrl-x,ctrl-i --no-sort --height=40% --query="$word" | expand_tilde )}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
-  local qquick_path="${(q)quick_path}"
   if [[ "$quick_path" ]]; then
     if [[ "$quick_path" != /* ]]; then
       quick_path="$PWD/$quick_path"
     fi
+    local qquick_path="${(q)quick_path}"
     if [[ "$key" == "ctrl-i" ]]; then
       local insert_only=1
     fi
