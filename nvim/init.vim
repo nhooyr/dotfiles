@@ -25,6 +25,7 @@ function! s:plugins() abort
   Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lsp'
   Plug 'haorenW1025/completion-nvim'
+  Plug 'haorenW1025/diagnostic-nvim'
   Plug 'hrsh7th/vim-vsnip'
   Plug 'hrsh7th/vim-vsnip-integ'
   call plug#end()
@@ -219,20 +220,21 @@ call s:quick()
 function! s:lsp() abort
   lua << EOF
   local lsp = require 'nvim_lsp'
-  local completion = require 'completion'
+  local on_attach = function(client)
+    require'diagnostic'.on_attach()
+    require'completion'.on_attach()
+  end
 
-  lsp.gopls.setup{ on_attach = completion.on_attach }
-  lsp.tsserver.setup{ on_attach = completion.on_attach }
-  lsp.vimls.setup{ on_attach = completion.on_attach }
-
-  -- Disable diagnostics globally.
-  vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
+  lsp.gopls.setup{ on_attach = on_attach }
+  lsp.tsserver.setup{ on_attach = on_attach }
+  lsp.vimls.setup{ on_attach = on_attach }
 EOF
 
   inoremap <silent> <M-x> <C-x>
   set completeopt=menuone,longest,noselect
   set pumheight=10
 
+  let g:diagnostic_insert_delay = 1
   let g:completion_enable_snippet = 'Neosnippet'
   imap <C-k> <cmd>lua require'source'.nextCompletion()<CR>
 
@@ -252,7 +254,7 @@ EOF
   augroup lsp
     autocmd!
     autocmd FileType go,vim,typescript* call s:b_lsp()
-    " autocmd CursorHold * lua vim.lsp.util.show_line_diagnostics()
+    autocmd CursorHold * lua vim.lsp.util.show_line_diagnostics()
     autocmd BufEnter * lua require'completion'.on_attach()
   augroup END
 endfunction
