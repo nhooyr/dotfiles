@@ -58,11 +58,10 @@ fzf-quick-paths() {
   local selected
   selected=("${(@f)$(quick_paths | relative_path | insert_tilde | awk '!seen[$0]++' | \
     fzf --expect=ctrl-v,ctrl-x,ctrl-i --no-sort --height=40% --query="$word" | expand_tilde )}")
-  if [[ "$selected" ]]; then
-    local key="${selected[1]}"
-    local quick_path="${selected[2]}"
-    local qquick_path="${(q)quick_path}"
-
+  local key="${selected[1]}"
+  local quick_path="${selected[2]}"
+  local qquick_path="${(q)quick_path}"
+  if [[ "$quick_path" ]]; then
     if [[ "$quick_path" != /* ]]; then
       quick_path="$PWD/$quick_path"
     fi
@@ -91,10 +90,9 @@ bindkey "\ev" fzf-quick-paths
 fzf-history() {
   local selected
   selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=40% --query="$LBUFFER")}")
-  if [[ "$selected" ]]; then
-    local key="${selected[1]}"
-    local cmd="${selected[2]}"
-
+  local key="${selected[1]}"
+  local cmd="${selected[2]}"
+  if [[ "$cmd" ]]; then
     LBUFFER="$cmd"
     if [[ "$key" == "ctrl-v" ]]; then
       zle accept-line
