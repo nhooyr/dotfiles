@@ -26,7 +26,7 @@ zle-line-init() {
 }
 zle -N zle-line-init
 
-export EXA_COLORS="da=reset:uu=33:gu=33:ur=33:uw=33:ux:32:sn=32"
+export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux:32:sn=32"
 ls() {
   if command -v exa > /dev/null; then
     set -- "${@/-lh/-l}"
