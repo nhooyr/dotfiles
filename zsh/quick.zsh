@@ -13,10 +13,8 @@ relative_path() {
 }
 
 quick_paths() {
-  fd -aH -d1 .
-  fd -aH -d2 .
-  fd -aH -d3 .
   fd -aH -d4 .
+  submodule_paths
   echo ~/src
   fd -H -d1 . ~/src
   fd -H -d2 . ~/src
@@ -30,11 +28,28 @@ quick_paths() {
   fd -H -d2 . ~/Downloads
 }
 
+# Unfortunately fd doesn't support submodules.
+submodule_paths() {
+  if ! gcd 2>/dev/null; then
+    return
+  fi
+  local modules=(${(@f)$(git config --file .gitmodules --get-regexp 'path' | awk '{ print $2 }')})
+  if [[ "${modules[@]}" ]]; then
+    for mod in "${modules[@]}"; do
+      echo "$PWD/$mod"
+      fd -aH -d4 . "$mod"
+    done
+  fi
+  popd
+}
+
 execi() {
   local cmd="$(sed "s#$HOME#~#g" <<< "$*")"
 
   LBUFFER="$cmd"
-  zle accept-line
+  if [[ ! "$insert_only" ]]; then
+    zle accept-line
+  fi
 }
 
 fzf-quick-paths() {
@@ -42,27 +57,30 @@ fzf-quick-paths() {
 
   local selected
   selected=("${(@f)$(quick_paths | relative_path | insert_tilde | awk '!seen[$0]++' | \
-    fzf --expect=ctrl-v,ctrl-x --no-sort --height=40% --query="$word" | expand_tilde )}")
+    fzf --expect=ctrl-v,ctrl-x,ctrl-i --no-sort --height=40% --query="$word" | expand_tilde )}")
   if [[ "$selected" ]]; then
     local key="${selected[1]}"
     local quick_path="${selected[2]}"
+    local qquick_path="${(q)quick_path}"
 
     if [[ "$quick_path" != /* ]]; then
       quick_path="$PWD/$quick_path"
     fi
-
+    if [[ "$key" == "ctrl-i" ]]; then
+      local insert_only=1
+    fi
     if [[ ! "$BUFFER" ]]; then
       if [[ -d "$quick_path" ]]; then
-        execi cd "$quick_path"
+        execi cd "$qquick_path"
       elif [[ -e "$quick_path" ]]; then
         if [[ "$key" == "ctrl-x" ]]; then
-          execi "$quick_path"
+          execi "$qquick_path"
         else
-          execi e "$quick_path"
+          execi e "$qquick_path"
         fi
       fi
     else
-      LBUFFER="${LBUFFER%$word}${quick_path}"
+      LBUFFER="${LBUFFER%$word}$(insert_tilde <<< "$quick_path")"
     fi
   fi
   zle reset-prompt
