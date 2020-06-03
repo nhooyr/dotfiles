@@ -237,17 +237,18 @@ EOF
   let g:diagnostic_insert_delay = 1
   let g:completion_enable_snippet = 'Neosnippet'
   imap <C-k> <cmd>lua require'source'.nextCompletion()<CR>
+  inoremap <silent> <expr> <C-space> completion#trigger_completion()
 
   function! s:b_lsp() abort
     nnoremap <silent> <buffer> gd    <cmd>lua vim.lsp.buf.declaration()<CR>
     nnoremap <silent> <buffer> <C-]> <cmd>lua vim.lsp.buf.definition()<CR>
     nnoremap <silent> <buffer> K     <cmd>lua vim.lsp.buf.hover()<CR>
-    nnoremap <silent> <buffer> gD    <cmd>lua vim.lsp.buf.implementation()<CR>
+    nnoremap <silent> <buffer> gi    <cmd>lua vim.lsp.buf.implementation()<CR>
     nnoremap <silent> <buffer> <C-k> <cmd>lua vim.lsp.buf.signature_help()<CR>
-    nnoremap <silent> <buffer> 1gD   <cmd>lua vim.lsp.buf.type_definition()<CR>
+    nnoremap <silent> <buffer> gt   <cmd>lua vim.lsp.buf.type_definition()<CR>
     nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.references()<CR>
-    nnoremap <silent> <buffer> g0    <cmd>lua vim.lsp.buf.document_symbol()<CR>
-    nnoremap <silent> <buffer> gW    <cmd>lua vim.lsp.buf.workspace_symbol()<CR>
+    nnoremap <silent> <buffer> gs    <cmd>lua vim.lsp.buf.document_symbol()<CR>
+    nnoremap <silent> <buffer> gw    <cmd>lua vim.lsp.buf.workspace_symbol()<CR>
     nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.rename()<CR>
     setlocal omnifunc=v:lua.vim.lsp.omnifunc
   endfunction
