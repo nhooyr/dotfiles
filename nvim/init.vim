@@ -21,13 +21,15 @@ function! s:plugins() abort
   Plug 'tpope/vim-endwise'
   Plug 'jiangmiao/auto-pairs'
 
-  Plug 'neovim/nvim-lsp'
-  Plug 'Shougo/deoplete.nvim'
-  Plug 'Shougo/deoplete-lsp'
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
-  Plug 'Shougo/neco-syntax'
-  Plug 'haorenW1025/diagnostic-nvim'
+  Plug 'neovim/nvim-lsp'
+  Plug 'haorenW1025/completion-nvim'
+  Plug 'hrsh7th/vim-vsnip'
+  Plug 'hrsh7th/vim-vsnip-integ'
+  "Plug 'Shougo/deoplete.nvim'
+  "Plug 'Shougo/deoplete-lsp'
+  "Plug 'Shougo/neco-syntax'
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -187,8 +189,8 @@ function! s:plugin_settings() abort
   let g:surround_no_insert_mappings = 1
 
   let g:deoplete#enable_at_startup = 1
-  let g:neosnippet#enable_completed_snippet = 1
-  let g:neosnippet#enable_complete_done = 1
+  "let g:neosnippet#enable_completed_snippet = 1
+  "let g:neosnippet#enable_complete_done = 1
 
   map! <silent> <C-j> <Plug>(neosnippet_jump_or_expand)
   set conceallevel=3
@@ -224,16 +226,21 @@ call s:quick()
 function! s:lsp() abort
   lua << EOF
   local lsp = require 'nvim_lsp'
-  local diagnostic = require 'diagnostic'
+  local completion = require 'completion'
 
-  lsp.gopls.setup{ on_attach = diagnostic.on_attach }
-  lsp.tsserver.setup{ on_attach = diagnostic.on_attach }
-  lsp.vimls.setup{ on_attach = diagnostic.on_attach }
+  lsp.gopls.setup{ on_attach = completion.on_attach }
+  lsp.tsserver.setup{ on_attach = completion.on_attach }
+  lsp.vimls.setup{ on_attach = completion.on_attach }
+
+  -- Disable diagnostics globally.
+  vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
 EOF
 
   inoremap <silent> <M-x> <C-x>
   set completeopt=menuone,longest,noselect
   set pumheight=10
+
+  let g:completion_enable_snippet = 'Neosnippet'
 
   function! s:b_lsp() abort
     nnoremap <silent> <buffer> gd    <cmd>lua vim.lsp.buf.declaration()<CR>
@@ -251,7 +258,8 @@ EOF
   augroup lsp
     autocmd!
     autocmd FileType go,vim,typescript* call s:b_lsp()
-    autocmd CursorHold * lua vim.lsp.util.show_line_diagnostics()
+    " autocmd CursorHold * lua vim.lsp.util.show_line_diagnostics()
+    autocmd BufEnter * lua require'completion'.on_attach()
   augroup END
 endfunction
 call s:lsp()
