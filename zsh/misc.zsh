@@ -17,6 +17,7 @@ setopt AUTO_PUSHD
 setopt PUSHD_SILENT
 setopt EXTENDED_GLOB
 setopt INTERACTIVE_COMMENTS
+setopt NOBEEP
 
 autoload -U edit-command-line
 zle -N edit-command-line

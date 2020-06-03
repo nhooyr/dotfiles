@@ -72,6 +72,8 @@ function! s:settings() abort
 
   " Have seen bizarre behaviour with this.
   set guicursor=
+
+  set complete-=t
 endfunction
 call s:settings()
 
@@ -93,6 +95,7 @@ function! s:binds() abort
   nnoremap <silent> ^ 0
 
   " Always use black hole register for deletes.
+  "
   " Below we set clipboard to unnamed to always use clipboard
   " for yanks.
   nnoremap <silent> <BS> "_d
@@ -114,35 +117,28 @@ function! s:binds() abort
 
   " Emacs style insert and command line keybindings
   " https://github.com/maxbrunsfeld/vim-emacs-bindings/blob/master/plugin/emacs-bindings.vim
-  "cnoremap <C-N> <Down>
-  cnoremap <C-P> <Up>
-  cnoremap <C-F> <Right>
-  cnoremap <C-B> <Left>
-  cnoremap <C-A> <Home>
-  cnoremap <C-D> <Del>
-  cnoremap <C-H> <BS>
+  " noremap! <C-f> <Right>
+  noremap! <C-b> <Left>
+  noremap! <C-e> <End>
+  cnoremap <C-a> <Home>
+  inoremap <C-a> <C-o>^
+  noremap! <C-d> <Del>
   cnoremap <C-k> <C-c>:
+  inoremap <C-k> <Esc>"_ddO
+
   cnoremap <M-f> <S-Right>
   cnoremap <M-b> <S-Left>
   " This one does not work well because C-w uses iskeyword but S-Right does not
   cnoremap <M-d> <S-Right><C-w>
   cnoremap <M-BS> <C-w>
-  "inoremap <C-N> <Down>
-  inoremap <C-P> <Up>
-  inoremap <C-F> <Right>
-  inoremap <C-B> <Left>
-  inoremap <C-A> <Home>
-  inoremap <C-E> <End>
-  inoremap <C-D> <Del>
-  inoremap <C-H> <BS>
-  inoremap <C-k> <Esc>"_ddO
+
   inoremap <M-f> <C-o>w
   inoremap <M-b> <C-o>b
   inoremap <M-d> <C-o>dw
   inoremap <M-BS> <C-w>
 
-  nnoremap <silent> <C-q> :quit!<CR>
-  inoremap <C-q> <Esc>:quit!<CR>
+  nnoremap <silent> <C-q> :quitall!<CR>
+  inoremap <C-q> <Esc>:quitall!<CR>
   nnoremap <silent> <C-s> :w<CR>
   inoremap <C-s> <Esc>:w<CR>
   nnoremap <silent> <C-x> :x<CR>
