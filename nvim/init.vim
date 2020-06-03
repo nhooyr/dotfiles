@@ -14,19 +14,17 @@ function! s:plugins() abort
   Plug 'leafgarland/typescript-vim'
 
   Plug 'simnalamburt/vim-mundo'
-  Plug 'tpope/vim-surround'
   Plug 'machakann/vim-highlightedyank'
   Plug 'tpope/vim-unimpaired'
 
-  Plug 'prabirshrestha/asyncomplete.vim'
-  Plug 'prabirshrestha/async.vim'
-  Plug 'prabirshrestha/vim-lsp'
-  Plug 'prabirshrestha/asyncomplete-lsp.vim'
-  Plug 'mattn/vim-lsp-settings'
-
+  Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
   Plug 'jiangmiao/auto-pairs'
   Plug 'alvan/vim-closetag'
+
+  Plug 'neovim/nvim-lsp'
+  Plug 'SirVer/ultisnips'
+  Plug 'fatih/vim-go', { 'rtp': 'gosnippets' }
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -72,8 +70,6 @@ function! s:settings() abort
 
   " Have seen bizarre behaviour with this.
   set guicursor=
-
-  set complete-=t
 endfunction
 call s:settings()
 
@@ -117,9 +113,10 @@ function! s:binds() abort
 
   " Emacs style insert and command line keybindings
   " https://github.com/maxbrunsfeld/vim-emacs-bindings/blob/master/plugin/emacs-bindings.vim
-  " noremap! <C-f> <Right>
+  noremap! <C-f> <Right>
   noremap! <C-b> <Left>
   noremap! <C-e> <End>
+  inoremap <nowait> <C-g> <C-e>
   cnoremap <C-a> <Home>
   inoremap <C-a> <C-o>^
   noremap! <C-d> <Del>
@@ -138,11 +135,11 @@ function! s:binds() abort
   inoremap <M-BS> <C-w>
 
   nnoremap <silent> <C-q> :quitall!<CR>
-  inoremap <C-q> <Esc>:quitall!<CR>
+  inoremap <silent> <C-q> <Esc>:quitall!<CR>
   nnoremap <silent> <C-s> :w<CR>
-  inoremap <C-s> <Esc>:w<CR>
+  inoremap <silent> <C-s> <Esc>:w<CR>
   nnoremap <silent> <C-x> :x<CR>
-  inoremap <C-x> <Esc>:x<CR>
+  inoremap <silent> <C-x> <Esc>:x<CR>
 
   nnoremap <silent> <C-E> 2<C-E>
   nnoremap <silent> <C-Y> 2<C-Y>
@@ -183,6 +180,15 @@ function! s:plugin_settings() abort
   let g:closetag_filenames = '*.html,*.xhtml,*.phtml,*.tsx,*.jsx'
 
   let g:AutoPairsShortcutBackInsert = ''
+  let g:AutoPairsShortcutJump = ''
+  let g:AutoPairsShortcutToggle = ''
+
+  let g:surround_no_insert_mappings = 1
+
+  let g:UltiSnipsExpandTrigger='<C-j>'
+  let g:UltiSnipsJumpForwardTrigger='<C-j>'
+  let g:UltiSnipsJumpBackwardTrigger='<C-k>'
+  let g:UltiSnipsEditSplit='vertical'
 endfunction
 call s:plugin_settings()
 
@@ -206,13 +212,43 @@ function! s:quick() abort
   endfunction
 
   nnoremap <silent> <M-v> :call <SID>exit_quick()<CR>
+
   inoremap <silent> <M-v> <ESC>:call <SID>exit_quick()<CR>
 endfunction
 call s:quick()
 
 function! s:lsp() abort
-  let g:asyncomplete_auto_popup = 0
-  let g:lsp_diagnostics_enabled = 0
-  imap <c-space> <Plug>(asyncomplete_force_refresh)
+  lua << EOF
+  local lsp = require 'nvim_lsp'
+  lsp.gopls.setup{}
+  lsp.tsserver.setup{}
+  lsp.vimls.setup{}
+
+  -- Disable diagnostcs globally
+  vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
+EOF
+
+  inoremap <silent> <M-f> <C-x><C-f>
+  inoremap <silent> <Tab> <C-x><C-o>
+  set completeopt=menuone,longest,noselect
+  set pumheight=10
+
+  function! s:b_lsp() abort
+    nnoremap <silent> <buffer> gd    <cmd>lua vim.lsp.buf.declaration()<CR>
+    nnoremap <silent> <buffer> <c-]> <cmd>lua vim.lsp.buf.definition()<CR>
+    nnoremap <silent> <buffer> K     <cmd>lua vim.lsp.buf.hover()<CR>
+    nnoremap <silent> <buffer> gD    <cmd>lua vim.lsp.buf.implementation()<CR>
+    nnoremap <silent> <buffer> <c-k> <cmd>lua vim.lsp.buf.signature_help()<CR>
+    nnoremap <silent> <buffer> 1gD   <cmd>lua vim.lsp.buf.type_definition()<CR>
+    nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.references()<CR>
+    nnoremap <silent> <buffer> g0    <cmd>lua vim.lsp.buf.document_symbol()<CR>
+    nnoremap <silent> <buffer> gW    <cmd>lua vim.lsp.buf.workspace_symbol()<CR>
+    setlocal omnifunc=v:lua.vim.lsp.omnifunc
+  endfunction
+
+  augroup nhooyr_lsp
+    autocmd!
+    autocmd FileType go,vim,typescript* call s:b_lsp()
+  augroup END
 endfunction
 call s:lsp()
