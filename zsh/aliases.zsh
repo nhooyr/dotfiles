@@ -57,10 +57,18 @@ prevd() {
 
 gcd() {
   cd "$(git rev-parse --show-toplevel)"
+  if [[ "$#" -gt 0 ]]; then
+    eval "$@"
+    prevd
+  fi
 }
 
 scd() {
   cd "$(git rev-parse --show-superproject-working-tree)"
+  if [[ "$#" -gt 0 ]]; then
+    eval "$@"
+    prevd
+  fi
 }
 
 mcd() {
@@ -126,8 +134,11 @@ alias gcmp="gcm && gp"
 alias fcm="gaa && gcm --amend --no-edit && gpf"
 
 noti() {
-  "$@"
-  osascript -e beep
+  if "$@"; then
+    afplay /System/Library/Sounds/Glass.aiff &!
+  else
+    osascript -e beep &!
+  fi
 }
 
 ghd() {
