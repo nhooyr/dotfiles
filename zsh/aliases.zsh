@@ -154,6 +154,14 @@ alias gcmp="gcm && gp"
 alias fcm="gaa && gcm --amend --no-edit && gpf"
 
 noti() {
+  local last_status="$?"
+  if [[ "$#" -eq 0 ]]; then
+    if [[ "$last_status" -eq 0 ]]; then
+      set -- true
+    else
+      set -- false
+    fi
+  fi
   if "$@"; then
     afplay /System/Library/Sounds/Glass.aiff &!
   else
