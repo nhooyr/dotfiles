@@ -26,8 +26,13 @@ zle-line-init() {
 }
 zle -N zle-line-init
 
+export EXA_COLORS="da=reset:uu=33:gu=33:ur=33:uw=33:ux:32:sn=32"
 ls() {
-  if command -v gls > /dev/null; then
+  if command -v exa > /dev/null; then
+    set -- "${@/-lh/-l}"
+    set -- "${@/-la/-laa}"
+    exa -F --group-directories-first "$@"
+  elif command -v gls > /dev/null; then
     gls --indicator-style=classify --color=auto --group-directories-first "$@"
   else
     command ls -GF "$@"
@@ -38,7 +43,12 @@ declare -a prev_dirs
 cd() {
   prev_dirs=()
   # Required to make any change into $CDPATH silent.
-  builtin cd "$@" > /dev/null
+  builtin cd $1 > /dev/null
+
+  if [[ "$#" -gt 1 ]]; then
+    eval "${@:2}"
+    prevd
+  fi
 }
 
 nextd() {
@@ -48,11 +58,20 @@ nextd() {
   fi
   builtin cd "${prev_dirs[-1]}"
   prev_dirs[-1]=()
+  if [[ "$#" -gt 0 ]]; then
+    eval "$@"
+    prevd
+  fi
 }
 
 prevd() {
-  popd "$@" && 
+  if popd; then
     prev_dirs+=("$OLDPWD")
+    if [[ "$#" -gt 0 ]]; then
+      eval "$@"
+      nextd
+    fi
+  fi
 }
 
 gcd() {
