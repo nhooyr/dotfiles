@@ -141,8 +141,8 @@ function! s:binds() abort
   cnoremap <silent> <C-q> <C-c>:quitall!<CR>
   nnoremap <silent> <C-s> :w<CR>
   inoremap <silent> <C-s> <Esc>:w<CR>
-  nnoremap <silent> <C-x> :x<CR>
-  inoremap <silent> <C-x> <Esc>:x<CR>
+  nnoremap <silent> <C-x> :xa<CR>
+  inoremap <silent> <C-x> <Esc>:xa<CR>
 
   nnoremap <silent> <C-e> 2<C-e>
   nnoremap <silent> <C-y> 2<C-y>
@@ -221,8 +221,8 @@ function! s:lsp() abort
   lua << EOF
   local lsp = require 'nvim_lsp'
   local on_attach = function(client)
-    require'diagnostic'.on_attach()
-    require'completion'.on_attach()
+    require'diagnostic'.on_attach(client)
+    require'completion'.on_attach(client)
   end
 
   lsp.gopls.setup{ on_attach = on_attach }
@@ -248,6 +248,7 @@ EOF
     nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.references()<CR>
     nnoremap <silent> <buffer> g0    <cmd>lua vim.lsp.buf.document_symbol()<CR>
     nnoremap <silent> <buffer> gW    <cmd>lua vim.lsp.buf.workspace_symbol()<CR>
+    nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.rename()<CR>
     setlocal omnifunc=v:lua.vim.lsp.omnifunc
   endfunction
 
