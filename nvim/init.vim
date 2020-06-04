@@ -229,19 +229,23 @@ function! s:lsp() abort
   lsp.gopls.setup{ on_attach = on_attach }
   lsp.tsserver.setup{ on_attach = on_attach }
   lsp.vimls.setup{ on_attach = on_attach }
+  lsp.clangd.setup{ on_attach = on_attach }
 EOF
 
   inoremap <silent> <M-x> <C-x>
   set completeopt=menuone,noselect
   set pumheight=10
 
+  let g:completion_trigger_keyword_length = 3
+  let g:completion_matching_strategy_list = ['exact', 'substring', 'fuzzy']
+  let g:completion_matching_ignore_case = 1
   let g:completion_auto_change_source = 1
   let g:completion_enable_snippet = 'Neosnippet'
-  let g:completion_confirm_key = "\<C-y>"
+  let g:completion_confirm_key = ""
   let g:completion_chain_complete_list = [
-        \{'complete_items': ['lsp', 'snippet', 'path']},
+        \{'complete_items': ['lsp', 'snippet']},
         \{'mode': '<c-p>'},
-        \{'mode': '<c-n>'}
+        \{'mode': 'path'}
         \]
   imap <C-k> <cmd>lua require'source'.nextCompletion()<CR>
   inoremap <silent> <expr> <C-space> completion#trigger_completion()
@@ -251,19 +255,19 @@ EOF
     nnoremap <silent> <buffer> <C-]> <cmd>lua vim.lsp.buf.definition()<CR>
     nnoremap <silent> <buffer> K     <cmd>lua vim.lsp.buf.hover()<CR>
     nnoremap <silent> <buffer> gi    <cmd>lua vim.lsp.buf.implementation()<CR>
-    nnoremap <silent> <buffer> <C-k> <cmd>lua vim.lsp.buf.signature_help()<CR>
-    nnoremap <silent> <buffer> gt   <cmd>lua vim.lsp.buf.type_definition()<CR>
+    nnoremap <silent> <buffer> gh    <cmd>lua vim.lsp.buf.signature_help()<CR>
+    nnoremap <silent> <buffer> gt    <cmd>lua vim.lsp.buf.type_definition()<CR>
     nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.references()<CR>
     nnoremap <silent> <buffer> gs    <cmd>lua vim.lsp.buf.document_symbol()<CR>
     nnoremap <silent> <buffer> gw    <cmd>lua vim.lsp.buf.workspace_symbol()<CR>
-    nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.rename()<CR>
+    nnoremap <silent> <buffer> ge    <cmd>lua vim.lsp.buf.rename()<CR>
 
     setlocal omnifunc=v:lua.vim.lsp.omnifunc
   endfunction
 
   augroup lsp
     autocmd!
-    autocmd FileType go,vim,typescript* call s:b_lsp()
+    autocmd FileType go,vim,typescript*,c,cpp call s:b_lsp()
     autocmd BufEnter * lua require'completion'.on_attach()
   augroup END
 endfunction

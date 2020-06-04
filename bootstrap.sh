@@ -15,8 +15,8 @@ auth sufficient pam_tid.so
 $(cat /etc/pam.d/sudo)
 EOF
 
+  brew install neovim --HEAD
   brew install \
-    emacs \
     gnupg \
     go \
     node \
