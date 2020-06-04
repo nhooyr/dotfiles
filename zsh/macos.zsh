@@ -5,3 +5,7 @@ alias u="brew remove"
 alias ports="netstat -vanp tcp"
 
 prepend_path /usr/local/sbin
+prepend_path /usr/local/opt/llvm/bin
+
+source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc"
+source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"

@@ -9,3 +9,5 @@ vendor
 
 *.swp
 .idea
+
+yarn-error.log

@@ -14,6 +14,8 @@ source "$DOTFILES/zsh/prompt.zsh"
 source "$DOTFILES/zsh/quick.zsh"
 source "$DOTFILES/zsh/misc.zsh"
 source "$DOTFILES/zsh/syntax.zsh"
+source "$DOTFILES/zsh/bookmarks.zsh"
+source "$DOTFILES/zsh/remote.zsh"
 
 if [[ $OSTYPE == darwin* ]]; then
   source "$DOTFILES/zsh/macos.zsh"

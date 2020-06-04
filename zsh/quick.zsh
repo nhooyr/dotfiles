@@ -13,6 +13,8 @@ relative_path() {
 }
 
 quick_paths() {
+  fd -aH -d4 .
+  submodule_paths
   echo ~/src
   fd -H -d1 . ~/src
   fd -H -d2 . ~/src
@@ -24,8 +26,6 @@ quick_paths() {
   echo ~/Downloads
   fd -H -d1 . ~/Downloads
   fd -H -d2 . ~/Downloads
-  fd -aH -d4 .
-  submodule_paths
 }
 
 # Unfortunately fd doesn't support submodules.
@@ -61,9 +61,6 @@ fzf-quick-paths() {
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
   if [[ "$quick_path" ]]; then
-    if [[ "$quick_path" != /* ]]; then
-      quick_path="$PWD/$quick_path"
-    fi
     local qquick_path="${(q)quick_path}"
     if [[ "$key" == "ctrl-i" ]]; then
       local insert_only=1

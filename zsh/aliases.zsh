@@ -13,7 +13,7 @@ alias nd="nextd"
 
 e() {
   export QUICK_PATH="$(mktemp -d)/quick_path"
-  $EDITOR "$@"
+  command $EDITOR "$@"
   if [[ ! -e "$QUICK_PATH" ]]; then
     unset QUICK_PATH
   fi
@@ -84,6 +84,11 @@ gcd() {
 }
 
 scd() {
+  local super="$(git rev-parse --show-superproject-working-tree)"
+  if [[ ! "$super" ]]; then
+    gcd "$@"
+    return
+  fi
   cd "$(git rev-parse --show-superproject-working-tree)"
   if [[ "$#" -gt 0 ]]; then
     eval "$@"
