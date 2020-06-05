@@ -1,5 +1,6 @@
-source_if_exists /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-typeset -A ZSH_HIGHLIGHT_STYLES
+if [[ "${#ZSH_HIGHLIGHT_STYLES[@]}" -eq 0 ]]; then
+  source ~zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+fi
 ZSH_HIGHLIGHT_STYLES=()
 ZSH_HIGHLIGHT_STYLES[reserved-word]="fg=magenta"
 ZSH_HIGHLIGHT_STYLES[precommand]="fg=red"
