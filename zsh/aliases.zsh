@@ -7,9 +7,9 @@ alias s="sudo "
 alias sudo="sudo "
 alias m="man"
 alias d="docker"
-alias uti="mdls -name kMDItemContentTypeTree"
 alias pd="prevd"
 alias nd="nextd"
+alias sshq="ssh -O exit"
 
 e() {
   export QUICK_PATH="$(mktemp -d)/quick_path"
@@ -29,11 +29,11 @@ zle -N zle-line-init
 
 export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux:32:sn=32"
 ls() {
-  if command -v exa > /dev/null; then
+  if command_exists exa; then
     set -- "${@/-lh/-l}"
     set -- "${@/-la/-laa}"
     exa -F --group-directories-first "$@"
-  elif command -v gls > /dev/null; then
+  elif command_exists gls; then
     gls --indicator-style=classify --color=auto --group-directories-first "$@"
   else
     command ls -GF "$@"
@@ -142,37 +142,44 @@ alias yd="yarn -s dev"
 alias yp="yarn -s prod"
 alias yc="yarn -s ci"
 alias yf="yarn -s fix"
-alias o="open"
-
-alias git="hub"
-alias rg="rg -S"
-alias rgi="rg -S --no-ignore --hidden"
-alias h="fc -R"
-alias n="time noti "
-alias rs="rsync -avzP"
-alias pc="pbcopy"
-alias pp="pbpaste"
-alias catq="jq -R"
-
 alias gacmp="gaa && gcm && gp"
 alias gcmp="gcm && gp"
 alias fcm="gaa && gcm --amend --no-edit && gpf"
 
-noti() {
-  local last_status="$?"
-  if [[ "$#" -eq 0 ]]; then
-    if [[ "$last_status" -eq 0 ]]; then
-      set -- true
-    else
-      set -- false
-    fi
-  fi
-  if "$@"; then
-    afplay /System/Library/Sounds/Glass.aiff &!
+git() {
+  if command_exists hub; then
+    hub "$@"
   else
-    osascript -e beep &!
+    git "$@"
   fi
 }
+
+alias rg="rg -S"
+alias rgi="rg -S --no-ignore --hidden"
+alias h="fc -R"
+alias n="time noti "
+rs() {
+  if [[ "$RSYNC_UNSHARED" ]]; then
+    set -- -e "ssh -oControlPath=none" "$@"
+  fi
+  if [[ "$RSYNC_VERBOSE" ]]; then
+    set -- -v "$@"
+  fi
+  if [[ "$RSYNC_COMPRESS" ]]; then
+    set -- -z "$@"
+  fi
+  if [[ "$(rsync --version)" != *"Copyright (C) 1996-2006 by Andrew Tridgell"* ]]; then
+    set -- --info=progress2 "$@"
+  else
+    # Older rsync included with macOS.
+    set -- --progress "$@"
+  fi
+  rsync -ah --partial "$@"
+}
+
+alias pc="pbcopy"
+alias pp="pbpaste"
+alias catq="jq -R"
 
 ghd() {
   local repo_path="$1"
@@ -205,12 +212,19 @@ gh() {
     return
   fi
 
+  if [[ "$(git remote)" = *nhooyr* ]] ; then
+    branch="nhooyr:$branch"
+  fi
   local url="$(hub pr list -f $'%U\n' -h "$branch" | head -n 1)"
   if [[ ! "$url" ]]; then
     url="$(hub browse -u)"
   fi
 
-  open "$url"
+  echo "$url"
+
+  if command_exists o; then
+    o "$url"
+  fi
 }
 
 up() {
@@ -221,7 +235,7 @@ up() {
 
   # number
   if grep -q "^\d\+$" <<< "$*"; then
-    cd "$(printf '../%.0s' {1..$1})"
+    cd "$(printf "../%.0s" {1..$1})"
     return
   fi
 

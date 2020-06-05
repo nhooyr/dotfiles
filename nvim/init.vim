@@ -79,6 +79,7 @@ function! s:binds() abort
   command! S :source $MYVIMRC
 
   noremap ; :
+  noremap , ;
   nnoremap <silent> <nowait> q :quit<CR>
   nnoremap <silent> <leader>ec :e $MYVIMRC<CR>
   nnoremap <silent> k gk
@@ -242,6 +243,10 @@ EOF
   let g:completion_auto_change_source = 1
   let g:completion_enable_snippet = 'Neosnippet'
   let g:completion_confirm_key = ""
+  let g:endwise_no_mappings = 1
+  imap <expr> <CR> pumvisible() ? complete_info()["selected"] != "-1" ?
+        \ "\<Plug>(completion_confirm_completion)" : "\<C-e>\<CR>\<Plug>DiscretionaryEnd" :  "\<CR>\<Plug>DiscretionaryEnd"
+
   let g:completion_chain_complete_list = [
         \{'complete_items': ['lsp', 'snippet']},
         \{'mode': '<c-p>'},

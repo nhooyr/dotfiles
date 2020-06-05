@@ -1,5 +1,6 @@
+Include ~/src/nhooyr/dotfiles/secrets/ssh/hosts_config
+
 Host *
-HashKnownHosts yes
 ControlPath ~/.ssh/sockets/%C-%n
 ControlMaster auto
 ControlPersist yes

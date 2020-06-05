@@ -1,74 +1,81 @@
-export FZF_DEFAULT_OPTS="--color light,bg+:153,fg+:-1,pointer:-1,prompt:-1,hl:125,hl+:125,info:-1,spinner:-1 --tabstop=4 --layout=reverse --info=hidden --no-bold --exact"
-
-insert_tilde() {
-  sed "s#^$HOME#~#g"
-}
-
-expand_tilde() {
-  sed "s#^~#$HOME#g"
-}
+fzf_default_opts=(
+  "--color light"
+  "--color bg+:153,fg+:-1,pointer:-1,prompt:-1"
+  "--color hl:125,hl+:125,info:-1,spinner:-1"
+  "--tabstop=4"
+  "--layout=reverse"
+  "--info=hidden"
+  "--no-bold"
+)
+export FZF_DEFAULT_OPTS="${fzf_default_opts[*]}"
 
 relative_path() {
   sed "s#$PWD/##g"
 }
 
 quick_paths() {
-  fd -aH -d4 .
-  submodule_paths
-  echo ~/src
-  fd -H -d1 . ~/src
-  fd -H -d2 . ~/src
+  echo ~/src/nhooyr/dotfiles
   fd -H -d1 . ~/src/nhooyr/dotfiles
   fd -H -d2 . ~/src/nhooyr/dotfiles
   fd -H -d3 . ~/src/nhooyr/dotfiles
   fd -H -d4 . ~/src/nhooyr/dotfiles
   fd -H . ~/src/nhooyr/dotfiles
+
+  echo ~/src
+  fd -H -d1 . ~/src
+  fd -H -d2 . ~/src
+
   echo ~/Downloads
   fd -H -d1 . ~/Downloads
   fd -H -d2 . ~/Downloads
+
+  fd -aH -d4 .
 }
 
-# Unfortunately fd doesn't support submodules.
-submodule_paths() {
-  if ! gcd 2>/dev/null; then
-    return
-  fi
-  local modules=(${(@f)$(git config --file .gitmodules --get-regexp 'path' | awk '{ print $2 }')})
-  if [[ "${modules[@]}" ]]; then
-    for mod in "${modules[@]}"; do
-      echo "$PWD/$mod"
-      fd -aH -d4 . "$mod"
-    done
-  fi
-  popd
+replace_bookmarks() {
+  local sed_expr=""
+  for b in "${(Oa)bookmarks[@]}"; do
+    local name="~$(basename "$b")"
+    local full_path="$(eval "echo $b")"
+
+    sed_expr+="; s#$full_path\$#$name#g"
+    sed_expr+="; s#$full_path/#$name/#g"
+  done
+  sed_expr+="; s#^$HOME#~#g"
+
+  sed "$sed_expr"
 }
 
 execi() {
-  local cmd="$(sed "s#$HOME#~#g" <<< "$*")"
-
-  LBUFFER="$cmd"
+  LBUFFER="$*"
   if [[ ! "$insert_only" ]]; then
     zle accept-line
   fi
+}
+
+filter_duplicates() {
+  awk '!seen[$0]++'
 }
 
 fzf-quick-paths() {
   local word="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(quick_paths | relative_path | insert_tilde | awk '!seen[$0]++' | \
-    fzf --expect=ctrl-v,ctrl-x,ctrl-i --no-sort --height=40% --query="$word" | expand_tilde )}")
+  selected=("${(@f)$(quick_paths | filter_duplicates | replace_bookmarks | \
+    fzf --expect=ctrl-v,ctrl-x,ctrl-i --height=40% --query="$word")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
+
   if [[ "$quick_path" ]]; then
-    local qquick_path="${(q)quick_path}"
+    local equick_path="$(eval "echo $quick_path")"
+    local qquick_path="$(tr ' ' '\ ' <<< "$quick_path")"
     if [[ "$key" == "ctrl-i" ]]; then
       local insert_only=1
     fi
     if [[ ! "$BUFFER" ]]; then
-      if [[ -d "$quick_path" ]]; then
+      if [[ -d "$equick_path" ]]; then
         execi cd "$qquick_path"
-      elif [[ -e "$quick_path" ]]; then
+      elif [[ -e "$equick_path" ]]; then
         if [[ "$key" == "ctrl-x" ]]; then
           execi "$qquick_path"
         else
@@ -76,7 +83,7 @@ fzf-quick-paths() {
         fi
       fi
     else
-      LBUFFER="${LBUFFER%$word}$(insert_tilde <<< "$quick_path")"
+      LBUFFER="${LBUFFER%$word}$quick_path"
     fi
   fi
   zle reset-prompt
@@ -98,4 +105,6 @@ fzf-history() {
   zle reset-prompt
 }
 zle -N fzf-history
-bindkey "^R" fzf-history
+if command_exists fzf; then
+  bindkey "^R" fzf-history
+fi
