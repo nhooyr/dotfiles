@@ -1,3 +1,9 @@
 [submodule "secrets"]
 	path = secrets
 	url = https://github.com/nhooyr/secrets
+[submodule "zsh/autosuggestions"]
+	path = zsh/zsh-autosuggestions
+	url = https://github.com/zsh-users/zsh-autosuggestions
+[submodule "zsh/zsh-syntax-highlighting"]
+	path = zsh/zsh-syntax-highlighting
+	url = https://github.com/zsh-users/zsh-syntax-highlighting

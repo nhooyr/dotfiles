@@ -18,7 +18,8 @@ setopt PUSHD_SILENT
 setopt EXTENDED_GLOB
 setopt INTERACTIVE_COMMENTS
 setopt NOBEEP
+setopt CDABLE_VARS
 
 autoload -U edit-command-line
 zle -N edit-command-line
-bindkey '\ee' edit-command-line
+bindkey "\ee" edit-command-line

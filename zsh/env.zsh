@@ -1,37 +1,17 @@
-DOTFILES="$HOME/src/nhooyr/dotfiles"
+export GOPATH=~gopath
+prepend_PATH ~gopath/bin
 
-# Homebrew takes forever to update.
-export HOMEBREW_NO_AUTO_UPDATE=1
-export HOMEBREW_NO_COLOR=1
-export GOPATH=~/.local/share/gopath
-
-export EDITOR="nvim"
-export MANPAGER="nvim +Man!"
+if command_exists nvim; then
+  export EDITOR=nvim
+  export MANPAGER="nvim +Man!"
+elif command_exists vim; then
+  export EDITOR=vim
+elif command_exists vi; then
+  export EDITOR=vi
+elif command_exists nano; then
+  export EDITOR=nano
+fi
 export MANWIDTH=80
 
-prepend_path() {
-  if [[ $PATH != *$1:* ]]; then
-    PATH="$1:$PATH"
-  fi
-}
-
-prepend_path /usr/local/opt/make/libexec/gnubin
-prepend_path "$GOPATH/bin"
-
-prepend_cdpath() {
-  if [[ ! $CDPATH ]]; then
-    CDPATH="$1"
-    return
-  fi
-
-  if [[ $CDPATH != *$1:* ]]; then
-    CDPATH="$1:$CDPATH"
-  fi
-}
-
-prepend_cdpath ~/src
-prepend_cdpath ~/.config
-prepend_cdpath ~/src/cdr
-prepend_cdpath ~/src/nhooyr
-prepend_cdpath ~/src/nhooyr/dotfiles
-prepend_cdpath .
+prepend_PATH /usr/local/bin
+prepend_PATH ~/.local/bin

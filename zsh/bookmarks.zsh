@@ -1,10 +1,29 @@
-hash -d "gopath=$GOPATH"
-hash -d "dotfiles=$DOTFILES"
-hash -d "nvim=$DOTFILES/nvim"
-hash -d "zsh=$DOTFILES/zsh"
-hash -d "nhooyr=$HOME/src/nhooyr"
-hash -d "websocket=$HOME/src/nhooyr/websocket"
-hash -d "blog=$HOME/src/nhooyr/blog"
-hash -d "x11wasm=$HOME/src/cdr/x11wasm"
-hash -d "code-server=$HOME/src/cdr/codeserver"
-hash -d "cdr=$HOME/src/cdr"
+DOTFILES="$HOME/src/nhooyr/dotfiles"
+
+bookmarks=(
+  "~/.local/share/gopath"
+  "~/src"
+  "~src/nhooyr"
+  "~src/cdr"
+
+  "~nhooyr/dotfiles"
+  "~dotfiles/nvim"
+  "~dotfiles/zsh"
+  "~dotfiles/secrets"
+  "~dotfiles/ssh"
+
+  "~nhooyr/websocket"
+  "~nhooyr/blog"
+  "~cdr/x11wasm"
+  "~cdr/code-server"
+)
+
+setup_bookmarks() {
+  for b in "${bookmarks[@]}"; do
+    local name="$(basename "$b")"
+    local full_path="$(eval "echo $b")"
+
+    hash -d "$name=$full_path"
+  done
+}
+setup_bookmarks
