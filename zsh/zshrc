@@ -4,7 +4,7 @@ source ~/src/nhooyr/dotfiles/zsh/bookmarks.zsh
 if [[ "$OSTYPE" == darwin* ]]; then
   source ~zsh/macos.zsh
 elif [[ "$DISTRO" == "fedora" ]]; then
-  source ~zsh/linux.zsh
+  source ~zsh/fedora.zsh
 fi
 
 source_if_exists ~secrets/env.zsh || true
