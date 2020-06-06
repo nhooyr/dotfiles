@@ -27,3 +27,9 @@ prepend_PATH() {
 command_exists() {
   command -v "$@" > /dev/null
 }
+
+distro() {
+  if [ -f /etc/os-release ]; then
+    DISTRO="$(. /etc/os-release && echo "$ID")"
+  fi
+}
