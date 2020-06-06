@@ -153,7 +153,7 @@ git() {
   if command_exists hub; then
     hub "$@"
   else
-    git "$@"
+    command git "$@"
   fi
 }
 
