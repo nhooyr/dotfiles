@@ -4,7 +4,7 @@ prompt() {
 
   echo -n "%B"
 
-  if [[ $USER != nhooyr ]]; then
+  if [[ "$USER" != "nhooyr" ]]; then
     local user=1
     if [[ $USER == "root" ]]; then
       echo -n "%F{red}"

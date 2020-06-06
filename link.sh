@@ -1,33 +1,23 @@
 #!/bin/sh
 set -eu
 
-ensure() {
+main() {
+  cd "$(dirname "$0")"
+
   ./ci/link.sh nvim ~/.config/nvim
   ./ci/link.sh zsh/zshrc ~/.zshrc
   ./ci/link.sh fish ~/.config/fish
   ./ci/link.sh emacs ~/.emacs.d
 
   ./ci/link.sh git ~/.config/git
-  ./ci/link.sh secrets/gnupg ~/.gnupg
-  ./ci/link.sh secrets/ssh ~/.ssh
-  ./ci/link.sh ssh/config ~/.ssh/config
-
-  # Otherwise ssh and gpg will complain.
-  find secrets -type f -exec chmod 600 {} \;
-  find secrets -type d -exec chmod 700 {} \;
+  ./ci/link.sh fd ~/.config/fd
 
   # Required for SSH multiplexing.
   mkdir -p ~/.ssh/sockets
+  chmod 700 ~/.ssh
+  ./ci/link.sh ssh/config ~/.ssh/config
 
-  ./ci/link.sh fd ~/.config/fd
-  ./ci/link.sh coc ~/.config/coc
-}
-
-main() {
-  cd "$(dirname "$0")"
-  git submodule update --init
-
-  ensure
+  ./secrets/link.sh
 }
 
 main "$@"

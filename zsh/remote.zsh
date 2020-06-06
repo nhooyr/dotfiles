@@ -71,8 +71,6 @@ EOF
     return
   fi
 
-  set -x
-
   # We have git available, we should only sync what's changed.
   if [[ "$remote_sha" != "$local_sha" ]]; then
     # If the commits are different we sync all non excluded files.
@@ -112,7 +110,7 @@ xor_files() {
 x() {
   (
     setopt +o NOMATCH
-    if ! ls ~/.ssh/sockets/* -$REMOTE_HOST &> /dev/null; then
+    if ! ls ~/.ssh/sockets/*@$REMOTE_HOST &> /dev/null; then
       local vm_status="$(gcloud --configuration=nhooyr-coder compute instances describe --zone=us-central1-a "$REMOTE_HOST" --format=json | jq -r .status)"
       if [[ "$vm_status" != "RUNNING" ]]; then
         echo "$REMOTE_HOST: $vm_status"

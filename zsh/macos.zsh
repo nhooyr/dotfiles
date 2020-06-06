@@ -1,7 +1,7 @@
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_COLOR=1
 
-export REMOTE_HOST="xayah-2"
+export REMOTE_HOST="xayah"
 
 alias b="brew"
 alias bu="brew update && brew upgrade && brew cask upgrade"
