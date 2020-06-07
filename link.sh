@@ -14,6 +14,13 @@ main() {
   chmod 700 ~/.ssh
   ./ci/link.sh ssh/config ~/.ssh/config
 
+  if [ -f /etc/os-release ]; then
+    DISTRO="$(. /etc/os-release && echo "$ID")"
+    if [ "$DISTRO" = "debian" ]; then
+      ./debian/link.sh
+    fi
+  fi
+
   if [ -f ./secrets/link.sh ]; then
     ./secrets/link.sh
   fi

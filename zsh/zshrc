@@ -3,8 +3,8 @@ source ~/src/nhooyr/dotfiles/zsh/bookmarks.zsh
 
 if [[ "$OSTYPE" == darwin* ]]; then
   source ~zsh/macos.zsh
-elif [[ "$DISTRO" == "fedora" ]]; then
-  source ~zsh/fedora.zsh
+elif [[ "$DISTRO" == "debian" ]]; then
+  source ~zsh/debian.zsh
 fi
 
 source_if_exists ~secrets/env.zsh || true

@@ -28,6 +28,12 @@ command_exists() {
   command -v "$@" > /dev/null
 }
 
+echo_on_failure() {
+  if ! out=$("$@" 2>&1); then
+    echo "$out" >&2
+  fi
+}
+
 if [[ -f /etc/os-release ]]; then
   DISTRO="$(. /etc/os-release && echo "$ID")"
 fi
