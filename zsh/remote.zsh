@@ -1,23 +1,50 @@
-create_instance() {
-  gcloud --configuration=nhooyr-coder compute instances create xayah \
-    --zone=northamerica-northeast1-a \
+GCP_ZONE="--zone=northamerica-northeast1-a"
+
+xgcloud() {
+  gcloud --configuration=nhooyr-coder "$@"
+}
+
+xcreate() {
+  if [[ "$REMOTE_HOST" == "xayah" ]]; then
+    set -- \
+      --address=xayah \
+      --private-network-ip=xayah-internal \
+      "$@"
+  fi
+  xgcloud compute instances create "$REMOTE_HOST" \
+    "$GCP_ZONE" \
     --machine-type=e2-custom-8-16384 \
     --subnet=main \
-    --address=xayah \
-    --private-network-ip=xayah-internal \
     --scopes=https://www.googleapis.com/auth/cloud-platform \
-    --image=debian-10-buster-v20200521 \
-    --image-project=debian-cloud \
+    --image=debian-sid-v20190812 \
+    --image-project=debian-cloud-testing \
     --boot-disk-size=128GB \
-    --boot-disk-type=pd-ssd
+    --boot-disk-type=pd-ssd \
+    "$@"
 }
 
-delete_instance() {
-  gcloud compute instances delete xayah
+xinit() {(
+  set -euo pipefail
+
+  sed -i.bak "/$REMOTE_HOST/d" ~/.ssh/known_hosts
+  ssh "$REMOTE_HOST" sh < ~dotfiles/debian/init.sh
+)}
+
+xdelete() {
+  xgcloud compute instances delete "$GCP_ZONE" "$REMOTE_HOST"
 }
 
+xstart() {
+  if [[ "$REMOTE_HOST" == "xayah" ]]; then
+    echo_on_failure xgcloud compute instances start "$GCP_ZONE" "$REMOTE_HOST"
+  fi
+}
 
-fp() {
+xtop() {
+  ssh "$REMOTE_HOST" sudo poweroff
+}
+
+xp() {
   if [[ "$#" -ne 1 ]]; then
     echo "bad arguments"
     return 1
@@ -44,9 +71,7 @@ fp() {
     "echo '$success_msg' && cat > /dev/null"
 }
 
-rsx() {
-  trap "set +x" EXIT
-
+xrs() {
   local sync_path="${1-$PWD}"
 
   if [[ ! -e "$sync_path" ]]; then
@@ -130,10 +155,10 @@ x() {
   (
     setopt +o NOMATCH
     if ! ls ~/.ssh/sockets/*@$REMOTE_HOST &> /dev/null; then
-      local vm_status="$(gcloud --configuration=nhooyr-coder compute instances describe --zone=us-central1-a "$REMOTE_HOST" --format=json | jq -r .status)"
+      local vm_status="$(xgcloud compute instances describe "$GCP_ZONE" "$REMOTE_HOST" --format=json | jq -r .status)"
       if [[ "$vm_status" != "RUNNING" ]]; then
         echo "$REMOTE_HOST: $vm_status"
-        gcloud --configuration=nhooyr-coder compute instances start --zone=us-central1-a "$REMOTE_HOST"
+        xstart
       fi
     fi
 
@@ -144,5 +169,5 @@ x() {
   )
 }
 
-# rsi() {
-#}
+xsr() {
+}
