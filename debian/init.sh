@@ -1,18 +1,19 @@
 #!/bin/sh
-set -eu
+set -eux
 
 export DEBIAN_FRONTEND=noninteractive 
 
 sudo -E apt update
 sudo -E apt full-upgrade -y --purge
-sudo -E apt auto-remove -y --purge
+sudo -E apt autoremove -y --purge
 sudo -E apt install -y \
   zsh \
   git \
   golang \
   rsync \
   fzf \
-  fd-find
+  fd-find \
+  neovim
 
 sudo -E apt install -y docker.io
 sudo groupadd -f docker
