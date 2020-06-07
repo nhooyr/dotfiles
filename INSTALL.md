@@ -120,7 +120,10 @@
    1. Save reading list offline automatically.
 1. wipr
 1. Alfred
-   1. Import settings.
+   1. Set theme to macOS.
+      - Hide hat, result shortcuts and menu bar.
+   1. Setup only clipboard history on `Cmd+Shift+v` with 3 months duration.
+   1. Disable snippets in clipboard history integration.
 1. Terminal.app
    1. Import settings.
 1. BetterTouchTool
