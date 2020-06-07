@@ -34,7 +34,6 @@ zle-line-init() {
 zle -N zle-line-init
 
 export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux:32:sn=32"
-unalias ls 2> /dev/null # Fedora
 ls() {
   if command_exists exa; then
     set -- "${@/-lh/-l}"
