@@ -4,13 +4,9 @@ set -eu
 main() {
   cd "$(dirname "$0")"
 
+  ./ci/link.sh git ~/.config/git
   ./ci/link.sh nvim ~/.config/nvim
   ./ci/link.sh zsh/zshrc ~/.zshrc
-  ./ci/link.sh zsh/zlogout ~/.zlogout
-  ./ci/link.sh fish ~/.config/fish
-  ./ci/link.sh emacs ~/.emacs.d
-
-  ./ci/link.sh git ~/.config/git
   ./ci/link.sh fd ~/.config/fd
 
   # Required for SSH multiplexing.
