@@ -6,6 +6,7 @@ main() {
 
   ./ci/link.sh nvim ~/.config/nvim
   ./ci/link.sh zsh/zshrc ~/.zshrc
+  ./ci/link.sh zsh/zlogout ~/.zlogout
   ./ci/link.sh fish ~/.config/fish
   ./ci/link.sh emacs ~/.emacs.d
 
@@ -17,7 +18,9 @@ main() {
   chmod 700 ~/.ssh
   ./ci/link.sh ssh/config ~/.ssh/config
 
-  ./secrets/link.sh
+  if [ -f ./secrets/link.sh ]; then
+    ./secrets/link.sh
+  fi
 }
 
 main "$@"

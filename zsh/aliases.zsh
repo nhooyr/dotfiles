@@ -11,6 +11,11 @@ alias pd="prevd"
 alias nd="nextd"
 alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
+alias rb="reboot"
+
+if [[ "$EDITOR" ]]; then
+  alias "$EDITOR=false"
+fi
 
 e() {
   export QUICK_PATH="$(mktemp -d)/quick_path"
@@ -29,7 +34,7 @@ zle-line-init() {
 zle -N zle-line-init
 
 export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux:32:sn=32"
-unalias ls 2> /dev/null# Fedora
+unalias ls 2> /dev/null # Fedora
 ls() {
   if command_exists exa; then
     set -- "${@/-lh/-l}"
@@ -160,7 +165,13 @@ git() {
 alias rg="rg -S"
 alias rgi="rg -S --no-ignore --hidden"
 alias h="fc -R"
-alias n="time noti "
+n() {
+  if command_exists noti; then
+    set -- noti "$@"
+  fi
+  time ("$@")
+}
+
 rs() {
   if [[ "$RSYNC_UNSHARED" ]]; then
     set -- -e "ssh -oControlPath=none" "$@"
