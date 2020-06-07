@@ -23,11 +23,12 @@ function! s:plugins() abort
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lsp'
-  Plug 'haorenW1025/completion-nvim'
+  Plug 'haorenW1025/completion-nvim', { 'commit': '03af7f89d285f61689c9a12994dcc93a196639ad' }
   Plug 'hrsh7th/vim-vsnip'
   Plug 'hrsh7th/vim-vsnip-integ'
 
   Plug 'mattn/emmet-vim'
+  Plug 'PeterRincker/vim-argumentative'
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -72,6 +73,12 @@ function! s:settings() abort
 
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
+
+  set foldmethod=indent
+  set foldnestmax=1
+  set foldlevel=1
+
+  set scrolloff=5
 endfunction
 call s:settings()
 
@@ -81,6 +88,7 @@ function! s:binds() abort
   noremap ; :
   noremap , ;
   nnoremap <silent> <nowait> q :quit<CR>
+  nnoremap <nowait> Q q
   nnoremap <silent> <leader>ec :e $MYVIMRC<CR>
   nnoremap <silent> k gk
   nnoremap <silent> j gj

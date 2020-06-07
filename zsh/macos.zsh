@@ -4,9 +4,13 @@ export HOMEBREW_NO_COLOR=1
 export REMOTE_HOST="xayah"
 
 alias b="brew"
+alias bs="brew search"
+alias bc="brew cask"
 alias bu="brew update && brew upgrade && brew cask upgrade"
 alias i="brew install"
+alias ic="brew cask install"
 alias u="brew remove"
+alias uc="brew cask remove"
 alias ports="netstat -vanp tcp"
 alias uti="mdls -name kMDItemContentTypeTree"
 alias o="open"

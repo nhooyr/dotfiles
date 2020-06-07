@@ -7,3 +7,4 @@ ControlPersist yes
 ServerAliveInterval 5
 TCPKeepAlive no
 ExitOnForwardFailure yes
+LogLevel=QUIET

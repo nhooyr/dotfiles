@@ -121,7 +121,7 @@ x() {
     if [[ $# -gt 0 ]]; then
       local argv="-c '$*'"
     fi
-    ssh -t "$REMOTE_HOST" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -l $argv"
+    ssh -t "$REMOTE_HOST" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li $argv"
   )
 }
 

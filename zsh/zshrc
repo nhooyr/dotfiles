@@ -11,8 +11,8 @@ source_if_exists ~secrets/env.zsh || true
 
 source ~zsh/misc.zsh
 source ~zsh/completion.zsh
-source ~zsh/aliases.zsh
 source ~zsh/env.zsh
+source ~zsh/aliases.zsh
 source ~zsh/history.zsh
 source ~zsh/prompt.zsh
 source ~zsh/quick.zsh
