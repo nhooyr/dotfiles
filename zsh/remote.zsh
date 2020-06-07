@@ -26,14 +26,20 @@ xcreate() {
 xinit() {(
   set -euo pipefail
 
-  sed -i.bak "/^$REMOTE_HOST /d" ~/.ssh/known_hosts
+  sed -i.bak "/^${REMOTE_HOST}[, ]/d" ~/.ssh/known_hosts
+
   local i
-  for i in {1..5}; do
-    if ssh "$REMOTE_HOST" sh < ~dotfiles/debian/init.sh; then
-      sshq "$REMOTE_HOST"
-      return
+  for i in {1..10}; do
+    if ! ssh "$REMOTE_HOST" true; then
+      sleep 1
+      continue
     fi
+    ssh "$REMOTE_HOST" sh < ~dotfiles/debian/init.sh
+    sshq "$REMOTE_HOST"
+    return
   done
+
+  false
 )}
 
 xdelete() {
