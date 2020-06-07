@@ -1,5 +1,3 @@
-Include ~/src/nhooyr/dotfiles/secrets/ssh/hosts_config
-
 Host *
 ControlPath ~/.ssh/sockets/%r@%n
 ControlMaster auto
