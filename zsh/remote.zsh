@@ -35,7 +35,6 @@ xinit() {(
       continue
     fi
     ssh "$REMOTE_HOST" sh < ~dotfiles/debian/init.sh
-    sshq "$REMOTE_HOST"
     return
   done
 
