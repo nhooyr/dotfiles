@@ -1,6 +1,7 @@
 DOTFILES="$HOME/src/nhooyr/dotfiles"
 
 bookmarks=(
+  "/usr/local/Cellar"
   "~/.local/share/gopath"
   "~/src"
   "~src/nhooyr"

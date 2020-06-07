@@ -32,6 +32,13 @@ quick_paths() {
   fd -aH -d4 .
 }
 
+# Used by my neovim config.
+normalize() {
+  local normalized="$(echo "$1" | replace_bookmarks)"
+  normalized="$(echo "${(q)normalized}" | sed 's/\\~/~/g')"
+  echo "$normalized"
+}
+
 replace_bookmarks() {
   local sed_expr=""
   for b in "${(Oa)bookmarks[@]}"; do
@@ -48,7 +55,7 @@ replace_bookmarks() {
 
 execi() {
   LBUFFER="$*"
-  if [[ ! "$insert_only" ]]; then
+  if [[ "$execute" ]]; then
     zle accept-line
   fi
 }
@@ -62,15 +69,15 @@ fzf-quick-paths() {
 
   local selected
   selected=("${(@f)$(quick_paths | filter_duplicates | replace_bookmarks | \
-    fzf --expect=ctrl-v,ctrl-x,ctrl-i --height=40% --query="$word")}")
+    fzf --expect=ctrl-v,ctrl-x --height=40% --query="$word")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
   if [[ "$quick_path" ]]; then
-    local equick_path="$(eval "echo $quick_path")"
-    local qquick_path="$(tr ' ' '\ ' <<< "$quick_path")"
-    if [[ "$key" == "ctrl-i" ]]; then
-      local insert_only=1
+    local qquick_path="$(echo "${(q)quick_path}" | sed 's/\\~/~/g')"
+    local equick_path="$(eval "echo $qquick_path")"
+    if [[ "$key" == "ctrl-v" ]]; then
+      local execute=1
     fi
     if [[ ! "$BUFFER" ]]; then
       if [[ -d "$equick_path" ]]; then

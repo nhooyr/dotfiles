@@ -232,6 +232,17 @@ augroup nhooyr
   autocmd FileType * silent! iunmap <C-x><CR>
 augroup END
 
+" Adds all accessed files into my shell history.
+function! s:history_update() abort
+  if empty(&buftype) || &filetype ==# 'netrw'
+    call jobstart(['zsh', '-ic', 'print -rs e "$(normalize '.expand('%:p:S').')"'])
+  endif
+endfunction
+augroup history
+  autocmd!
+  autocmd BufWinEnter,BufFilePost * call s:history_update()
+augroup END
+
 function! s:quick() abort
   function! s:exit_quick() abort
     if $QUICK_PATH != ""
