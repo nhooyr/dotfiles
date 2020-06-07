@@ -1,7 +1,7 @@
 #!/bin/sh
-set -eux
+set -eu
 
-export DEBIAN_FRONTEND=noninteractive 
+export DEBIAN_FRONTEND=noninteractive
 
 sudo -E apt update
 sudo -E apt full-upgrade -y --purge
@@ -13,15 +13,19 @@ sudo -E apt install -y \
   rsync \
   fzf \
   fd-find \
-  neovim
+  neovim \
+  jq
 
 sudo -E apt install -y docker.io
 sudo groupadd -f docker
 sudo usermod -aG docker "$USER"
-newgrp docker 
+newgrp docker
 
-mkdir -p ~/src/nhooyr/dotfiles
-git clone https://github.com/nhooyr/dotfiles ~/src/nhooyr/dotfiles
+if [ ! -d ~/src/nhooyr/dotfiles ]; then
+  mkdir -p ~/src/nhooyr/dotfiles
+  git --recurse-submodules clone https://github.com/nhooyr/dotfiles ~/src/nhooyr/dotfiles
+fi
+git -C ~/src/nhooyr/dotfiles pull
 ~/src/nhooyr/dotfiles/link.sh
 
-chsh -s /bin/zsh
+sudo chsh -s "$(command -v zsh)" "$USER"
