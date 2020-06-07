@@ -68,7 +68,7 @@ function! s:settings() abort
   set mouse=a
   set rulerformat=%=%l
   set updatetime=100
-  set laststatus=1
+  "set laststatus=1
   set autochdir
 
   " Neovim's TUI cursor bugs out often enough.
