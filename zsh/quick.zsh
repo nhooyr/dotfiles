@@ -68,7 +68,7 @@ fzf-quick-paths() {
   local word="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(quick_paths | filter_duplicates | replace_bookmarks | \
+  selected=("${(@f)$(quick_paths | filter_duplicates | relative_path | replace_bookmarks | \
     fzf --expect=ctrl-v,ctrl-x --height=40% --query="$word")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"

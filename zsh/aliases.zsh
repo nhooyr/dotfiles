@@ -172,13 +172,13 @@ n() {
 }
 
 rs() {
-  if [[ "$RSYNC_UNSHARED" ]]; then
+  if [[ "${RSYNC_UNSHARED-}" ]]; then
     set -- -e "ssh -oControlPath=none" "$@"
   fi
-  if [[ "$RSYNC_VERBOSE" ]]; then
+  if [[ "${RSYNC_VERBOSE-}" ]]; then
     set -- -v "$@"
   fi
-  if [[ "$RSYNC_COMPRESS" ]]; then
+  if [[ "${RSYNC_COMPRESS-}" ]]; then
     set -- -z "$@"
   fi
   if [[ "$(rsync --version)" != *"Copyright (C) 1996-2006 by Andrew Tridgell"* ]]; then

@@ -4,7 +4,9 @@ xgcloud() {
   gcloud --configuration=nhooyr-coder "$@"
 }
 
-xcreate() {
+xcreate() {(
+  set -euo pipefail
+
   if [[ "$REMOTE_HOST" == "xayah" ]]; then
     set -- \
       --address=xayah \
@@ -21,7 +23,7 @@ xcreate() {
     --boot-disk-size=128GB \
     --boot-disk-type=pd-ssd \
     "$@"
-}
+)}
 
 xinit() {(
   set -euo pipefail
@@ -35,6 +37,7 @@ xinit() {(
       continue
     fi
     ssh "$REMOTE_HOST" sh < ~dotfiles/debian/init.sh
+    sshq "$REMOTE_HOST"
     return
   done
 
@@ -51,11 +54,30 @@ xstart() {
   fi
 }
 
-xtop() {
+xstop() {
   ssh "$REMOTE_HOST" sudo poweroff
 }
 
-xp() {
+x() {(
+  set -euo pipefail
+  setopt +o NOMATCH
+  if ! ls ~/.ssh/sockets/*@$REMOTE_HOST &> /dev/null; then
+    local vm_status="$(xgcloud compute instances describe "$GCP_ZONE" "$REMOTE_HOST" --format=json | jq -r .status)"
+    if [[ "$vm_status" != "RUNNING" ]]; then
+      echo "$REMOTE_HOST: $vm_status"
+      xstart
+    fi
+  fi
+
+  if [[ $# -gt 0 ]]; then
+    local argv="-c '$*'"
+  fi
+  ssh -t "$REMOTE_HOST" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li $argv"
+  )}
+
+xp() {(
+  set -euo pipefail
+
   if [[ "$#" -ne 1 ]]; then
     echo "bad arguments"
     return 1
@@ -80,9 +102,11 @@ xp() {
     -L "$local_port:$local_host:$remote_port" \
     "$REMOTE_HOST" \
     "echo '$success_msg' && cat > /dev/null"
-}
+)}
 
-xrs() {
+xrs() {(
+  set -euo pipefail
+
   local sync_path="${1-$PWD}"
 
   if [[ ! -e "$sync_path" ]]; then
@@ -151,7 +175,7 @@ EOF
   rs --delete \
     "--files-from=$files_from" \
     "$sync_path/" "$REMOTE_HOST:$rel_path/"
-}
+)}
 
 xor_files() {
   local first="$1"
@@ -160,24 +184,6 @@ xor_files() {
 
   cat "$first" "$second" | sort | uniq -u > "$dst.incomplete"
   mv "$dst.incomplete" "$dst"
-}
-
-x() {
-  (
-    setopt +o NOMATCH
-    if ! ls ~/.ssh/sockets/*@$REMOTE_HOST &> /dev/null; then
-      local vm_status="$(xgcloud compute instances describe "$GCP_ZONE" "$REMOTE_HOST" --format=json | jq -r .status)"
-      if [[ "$vm_status" != "RUNNING" ]]; then
-        echo "$REMOTE_HOST: $vm_status"
-        xstart
-      fi
-    fi
-
-    if [[ $# -gt 0 ]]; then
-      local argv="-c '$*'"
-    fi
-    ssh -t "$REMOTE_HOST" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li $argv"
-  )
 }
 
 xsr() {

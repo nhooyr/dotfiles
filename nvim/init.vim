@@ -23,7 +23,7 @@ function! s:plugins() abort
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lsp'
-  Plug 'haorenW1025/completion-nvim', { 'commit': '03af7f89d285f61689c9a12994dcc93a196639ad' }
+  Plug 'haorenW1025/completion-nvim'
   Plug 'hrsh7th/vim-vsnip'
   Plug 'hrsh7th/vim-vsnip-integ'
 
@@ -259,7 +259,11 @@ call s:quick()
 
 function! s:lsp() abort
   lua << EOF
-  local lsp = require 'nvim_lsp'
+  local lsp_loaded, lsp = pcall(require, 'nvim_lsp')
+  if not lsp_loaded then
+    return
+  end
+
   local on_attach = function(client)
     require'completion'.on_attach(client)
   end
@@ -310,10 +314,19 @@ EOF
     setlocal omnifunc=v:lua.vim.lsp.omnifunc
   endfunction
 
+  function! s:attach_completion() abort
+    lua << EOF
+    local loaded, completion = pcall(require, 'completion')
+    if loaded then
+      completion.on_attach()
+    end
+EOF
+  endfunction
+
   augroup lsp
     autocmd!
     autocmd FileType go,vim,typescript*,c,cpp call s:b_lsp()
-    autocmd BufEnter * lua require'completion'.on_attach()
+    autocmd BufEnter * call s:attach_completion()
   augroup END
 endfunction
 call s:lsp()
