@@ -149,28 +149,32 @@ EOF
     rs --delete "$sync_path/" "$REMOTE_HOST:$rel_path/"
     return
   fi
+  
+  set -x
 
   # We have git available, we sync only what's changed.
+  # If the commits are different we push and check it out remotely.
   if [[ "$remote_sha" != "$local_sha" ]]; then
-    # If the commits are different we push and check it out remotely.
-    git push -q --progress "ssh://$REMOTE_HOST/~/$rel_path"
-    x "cd \"$rel_path\" && git checkout -q --progress -f $local_sha"
+    # Make sure repo exists remotely.
+    ssh "$REMOTE_HOST" "mkdir -p \"$rel_path\" && cd \"$rel_path\" && git init -q"
+    git push "ssh://$REMOTE_HOST/~/$rel_path" "${local_sha}:refs/heads/xrs"
+    ssh "$REMOTE_HOST" "cd \"$rel_path\" && git checkout -f $local_sha"
+    ssh "$REMOTE_HOST" "cd \"$rel_path\" && git submodule update -f --init"
   fi
 
-  local files_from="$(mktemp)"
-  local files_deleted="$(mktemp)"
-  # Sync all untracked and modified files.
-  git -C "$sync_path" ls-files --exclude-standard -mo > "$files_from"
-  # Remove all deleted files from the list.
-  git -C "$sync_path" ls-files --exclude-standard -d > "$files_deleted"
-  xor_files "$files_deleted" "$files_from" "$files_from"
-  # Sync all modified but staged files.
-  git -C "$sync_path" diff --name-only --cached >> "$files_from"
+  local untracked_files="$(mktemp)"
+  local modified_files="$(mktemp)"
+  local modified_staged_files="$(mktemp)"
+  git -C "$sync_path" ls-files --exclude-standard -o > "$files_from"
+  git -C "$sync_path" diff --name-only >> "$files_from"
+  #git -C "$sync_path" diff --name-only --cached >> "$files_from"
   if [[ ! -s "$files_from" ]]; then
     # Nothing to sync.
     return
   fi
+  cat "$files_from"
   rs --delete \
+    "--files-from=$files_from" \
     "--files-from=$files_from" \
     "$sync_path/" "$REMOTE_HOST:$rel_path/"
 )}
