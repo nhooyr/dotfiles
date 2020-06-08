@@ -150,13 +150,11 @@ EOF
     return
   fi
 
-  # We have git available, we should only sync what's changed.
+  # We have git available, we sync only what's changed.
   if [[ "$remote_sha" != "$local_sha" ]]; then
-    # If the commits are different we sync all non excluded files.
-    rs --delete \
-      --exclude-from=<(git -C "$sync_path" ls-files --exclude-standard -io --directory) \
-      "$sync_path/" "$REMOTE_HOST:$rel_path/"
-    return
+    # If the commits are different we push and check it out remotely.
+    git push -q --progress "ssh://$REMOTE_HOST/~/$rel_path"
+    x "cd \"$rel_path\" && git checkout -q --progress -f $local_sha"
   fi
 
   local files_from="$(mktemp)"
