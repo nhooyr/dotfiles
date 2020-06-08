@@ -17,6 +17,8 @@ relative_path() {
 }
 
 quick_paths() {
+  fd -aH -d4 .
+
   echo ~/src/nhooyr/dotfiles
   fd -H -d1 . ~/src/nhooyr/dotfiles
   fd -H -d2 . ~/src/nhooyr/dotfiles
@@ -28,11 +30,11 @@ quick_paths() {
   fd -H -d1 . ~/src
   fd -H -d2 . ~/src
 
-  echo ~/Downloads
-  fd -H -d1 . ~/Downloads
-  fd -H -d2 . ~/Downloads
-
-  fd -aH -d4 .
+  if [[ -d ~/Downloads ]]; then
+    echo ~/Downloads
+    fd -H -d1 . ~/Downloads
+    fd -H -d2 . ~/Downloads
+  fi
 }
 
 # Used by my neovim config.
