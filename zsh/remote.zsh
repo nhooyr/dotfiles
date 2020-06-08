@@ -8,6 +8,14 @@ remote_instance() {
   echo "${REMOTE_HOST#*@}"
 }
 
+xssh() {
+  ssh "$REMOTE_HOST" "$@"
+}
+
+xsshq() {
+  sshq "$REMOTE_HOST" "$@"
+}
+
 xcreate() {(
   set -euo pipefail
 
@@ -36,12 +44,12 @@ xinit() {(
 
   local i
   for i in {1..10}; do
-    if ! ssh "$REMOTE_HOST" true; then
+    if ! xssh true; then
       sleep 1
       continue
     fi
-    ssh "$REMOTE_HOST" sh < ~dotfiles/debian/init.sh
-    sshq "$REMOTE_HOST"
+    xssh sh < ~dotfiles/debian/init.sh
+    xsshq
     return
   done
 
@@ -57,7 +65,7 @@ xstart() {
 }
 
 xstop() {
-  ssh "$REMOTE_HOST" sudo poweroff
+  xssh sudo poweroff
 }
 
 x() {(
@@ -74,7 +82,7 @@ x() {(
   if [[ $# -gt 0 ]]; then
     local args="-c '$*'"
   fi
-  ssh -t "$REMOTE_HOST" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
+  xssh -t "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
 )}
 
 xp() {(
@@ -99,31 +107,33 @@ xp() {(
   fi
 
   local success_msg="$(print -P "%B%F{green}=%f%b")"
-  ssh \
+  xssh \
     -oControlPath=none \
     -L "$local_port:$local_host:$remote_port" \
-    "$REMOTE_HOST" \
     "echo '$success_msg' && cat > /dev/null"
 )}
 
-xrs() {(
+xs() {(
   set -euo pipefail
 
-  local local_path="$(realpath "${1-$PWD}")"
-  local cmd="${@:2}"
-  if [[ ! -e "$local_path" ]]; then
-    echo "does not exist" >&2
-    return 1
+  if [[ "$#" -eq 0 ]]; then
+    set -- "$PWD"
   fi
 
-  _xrs "$local_path"
-  x "$cmd"
+  for local_path in "$@"; do
+    local local_path="$(realpath "$local_path")"
+    _xs "$local_path"
+  done
 )}
 
-_xrs() {
+_xs() {
   local local_path="$1"
   local remote_path="${local_path#$HOME/}"
 
+  if [[ ! -e "$local_path" ]]; then
+    echo "${(q)local_path} does not exist" >&2
+    return 1
+  fi
   if [[ -f "$local_path" ]]; then
     rs "$local_path" "$REMOTE_HOST:$remote_path"
     return
@@ -132,7 +142,7 @@ _xrs() {
     echo "can only sync a file or directory" >&2
     return 1
   fi
-  ssh "$REMOTE_HOST" mkdir -p "$remote_path"
+  xssh mkdir -p "$remote_path"
 
   local rsync_args=()
   local git_dir="$(git -C "$local_path" rev-parse --show-toplevel 2> /dev/null)"
@@ -165,11 +175,46 @@ git_exclude_paths() {
   done
 }
 
-xsr() {(
+xi() {(
   set -euo pipefail
 
-  local local_path="$(realpath "${1-$PWD}")"
+  if [[ "$#" -eq 0 ]]; then
+    set -- "$PWD"
+  fi
+
+  for local_path in "$@"; do
+    local local_path="$(realpath "$local_path")"
+    _xi "$local_path"
+  done
+)}
+
+_xi() {
+  local local_path="$1"
   local remote_path="${local_path#$HOME/}"
 
-  rs --delete "$REMOTE_HOST:$remote_path/" "$local_path/"
-)}
+  if xssh [ ! -e "$remote_path" ]; then
+    echo "${(q)remote_path} does not exist" >&2
+    return 1
+  fi
+  if xssh [ -f "$remote_path" ]; then
+    rs "$REMOTE_HOST:$remote_path" "$local_path"
+    return
+  fi
+  if xssh [ ! -d "$remote_path" ]; then
+    echo "can only sync a file or directory" >&2
+    return 1
+  fi
+  mkdir -p "$local_path"
+
+  local rsync_args=()
+  local git_dir="$(xssh git -C "$remote_path" rev-parse --show-toplevel 2> /dev/null)"
+  if [[ "$git_dir" ]]; then
+    local exclude_from="$(mktemp)"
+    git_exclude_paths "$git_dir" | sed "s#^$remote_path##" > "$exclude_from"
+    rsync_args+=(
+      "--exclude-from=$exclude_from"
+    )
+  fi
+
+  rs --update --delete "${rsync_args[@]}" "$REMOTE_HOST:$remote_path/" "$local_path/"
+}
