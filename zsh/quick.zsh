@@ -65,10 +65,6 @@ execi() {
   fi
 }
 
-filter_duplicates() {
-  awk '!seen[$0]++'
-}
-
 fzf-quick-paths() {
   local word="${LBUFFER##* }"
 

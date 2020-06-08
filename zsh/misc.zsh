@@ -11,7 +11,9 @@ real    %*E
 user    %*U
 sys     %*S"
 
-tabs -2
+if [[ -t 0 ]]; then
+  tabs -2
+fi
 setopt AUTO_CD
 setopt AUTO_PUSHD
 setopt PUSHD_SILENT

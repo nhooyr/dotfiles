@@ -117,18 +117,28 @@ xp() {(
 xs() {(
   set -euo pipefail
 
-  if [[ "$#" -eq 0 ]]; then
-    set -- "$PWD"
+  rsx "$PWD"
+  if [[ "$#" -gt 0 ]]; then
+    x "$@"
   fi
-
-  for local_path in "$@"; do
-    local local_path="$(realpath "$local_path")"
-    _xs "$local_path"
-  done
 )}
 
-_xs() {
-  local local_path="$1"
+rsx() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --no-ignore)
+        local NO_IGNORE=1
+        ;;
+      -*)
+        echoerr "Unknown flag $1"
+        return 1
+        ;;
+    esac
+
+    shift
+  done
+
+  local local_path="$(realpath "${1-$PWD}")"
   local remote_path="${local_path#$HOME/}"
 
   if [[ ! -e "$local_path" ]]; then
@@ -143,79 +153,51 @@ _xs() {
     echo "can only sync a file or directory" >&2
     return 1
   fi
+
   xssh mkdir -p "$remote_path"
 
-  local rsync_args=()
-  local git_dir="$(git -C "$local_path" rev-parse --show-toplevel 2> /dev/null)"
-  if [[ "$git_dir" ]]; then
-    local exclude_from="$(mktemp)"
-    git_exclude_paths "$git_dir" | sed "s#^$local_path##" > "$exclude_from"
-    rsync_args+=(
-      "--exclude-from=$exclude_from"
-    )
-  fi
-
-  rs --delete "${rsync_args[@]}" "$local_path/" "$REMOTE_HOST:$remote_path/"
-}
-
-git_exclude_paths() {
-  local git_dir="$1"
-  git -C "$git_dir" ls-files --exclude-standard -io --directory | sed "s#^#$git_dir/#"
-
-  if [[ ! -f "$git_dir/.gitmodules" ]]; then
+  local local_sha="$(git -C "$local_path" rev-parse HEAD 2> /dev/null)"
+  if [[ ! "$local_sha" || "${NO_IGNORE-}" ]]; then
+    rs --delete "$local_path/" "$REMOTE_HOST:$remote_path/"
     return
   fi
 
-  local submodules=(
-    "${(@f)$(git config --file "$git_dir/.gitmodules" --get-regexp "path" | awk '{ print $2 }' | sed "s#^#$git_dir/#" )}"
-  )
-  for sub in "${submodules[@]}"; do
-    if [[ "$sub" == "$local_path"* ]]; then
-      git_exclude_paths "$sub"
-    fi
-  done
+  local remote_sha="$(xssh git -C "$remote_path" rev-parse HEAD 2> /dev/null)"
+
+  if [[ "$remote_sha" != "$local_sha" ]]; then
+    xssh git init -q "$remote_path"
+    git push -q "ssh://$REMOTE_HOST/~/$remote_path" "${local_sha}:refs/heads/xrs"
+    xssh git -C "$remote_path" checkout -qf "$local_sha"
+  fi
+
+  # Sync all untracked and modified files.
+  local local_files="$(mktemp)"
+  # Both -m and -c are required here as when a modified file is staged, it only shows up with -c.
+  # This does mean we get all the files in the index but that's no big deal.
+  git -C "$local_path" ls-files --exclude-standard -mco | filter_duplicates > "$local_files"
+  rs "--files-from=$local_files" "$local_path/" "$REMOTE_HOST:$remote_path/"
+
+  # Sync deletions.
+  local remote_files="$(mktemp)"
+  xssh git -C "$remote_path" ls-files --exclude-standard -mco | filter_duplicates > "$remote_files"
+
+  # These files exist on only the remote end as we just synced local.
+  # Therefore they must be deleted.
+  local unique_files=("${(@f)$(cat "$local_files" "$remote_files" | sort | uniq -u)}")
+  if [[ "${#unique_files[@]}" -gt 0 ]]; then
+    xssh "git -C $remote_path rm -qf ${unique_files[*]} 2>/dev/null || true"
+    xssh "cd $remote_path && rm -f ${unique_files[*]} || true"
+  fi
 }
 
-xi() {(
+rsi() {(
   set -euo pipefail
 
-  if [[ "$#" -eq 0 ]]; then
-    set -- "$PWD"
-  fi
-
-  for local_path in "$@"; do
-    local local_path="$(realpath "$local_path")"
-    _xi "$local_path"
-  done
-)}
-
-_xi() {
-  local local_path="$1"
+  local local_path="$(realpath "$1")"
   local remote_path="${local_path#$HOME/}"
-
-  if xssh [ ! -e "$remote_path" ]; then
-    echo "${(q)remote_path} does not exist" >&2
-    return 1
-  fi
   if xssh [ -f "$remote_path" ]; then
-    rs "$REMOTE_HOST:$remote_path" "$local_path"
-    return
+    rs "$local_path" "$REMOTE_HOST:$remote_path"
+  else
+    rs --delete "$local_path/" "$REMOTE_HOST:$remote_path/"
   fi
-  if xssh [ ! -d "$remote_path" ]; then
-    echo "can only sync a file or directory" >&2
-    return 1
-  fi
-  mkdir -p "$local_path"
-
-  local rsync_args=()
-  local git_dir="$(xssh git -C "$remote_path" rev-parse --show-toplevel 2> /dev/null)"
-  if [[ "$git_dir" ]]; then
-    local exclude_from="$(mktemp)"
-    git_exclude_paths "$git_dir" | sed "s#^$remote_path##" > "$exclude_from"
-    rsync_args+=(
-      "--exclude-from=$exclude_from"
-    )
-  fi
-
-  rs --update --delete "${rsync_args[@]}" "$REMOTE_HOST:$remote_path/" "$local_path/"
-}
+)}
