@@ -1,7 +1,9 @@
 # Disables control flow so that Ctrl + S works
 # for forward history search.
 # https://superuser.com/a/1067896
-stty -ixon
+if [[ -t 0 ]]; then
+  stty -ixon
+fi
 
 # Disables the beep on ambigous completion.
 unsetopt LIST_BEEP

@@ -24,7 +24,9 @@ EOF
     shellcheck \
     shfmt \
     neovim \
-    duti
+    duti \
+    coreutils \
+    exa
 
   brew cask install \
     alfred \
