@@ -34,6 +34,14 @@ echo_on_failure() {
   fi
 }
 
+filter_duplicates() {
+  awk '!seen[$0]++'
+}
+
+echoerr() {
+  echo "$@" >&2
+}
+
 if [[ -f /etc/os-release ]]; then
   DISTRO="$(. /etc/os-release && echo "$ID")"
 fi

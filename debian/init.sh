@@ -21,6 +21,7 @@ main() {
   install_neovim
   install_docker
   install_misc
+  install_exa
 }
 
 install_node() {
@@ -86,7 +87,20 @@ install_neovim() {
 }
 
 install_misc() {
-  sudo -E apt install -y shellcheck
+  sudo -E apt install -y shellcheck ripgrep
+}
+
+install_exa() {
+  if command -v exa > /dev/null; then
+    return
+  fi
+
+  cd "$(mktemp -d)"
+  curl -fsSL -O https://github.com/ogham/exa/releases/download/v0.9.0/exa-linux-x86_64-0.9.0.zip 
+  unzip exa-linux-x86_64-0.9.0.zip 
+  sudo mv exa-linux-x86_64 /usr/local/bin/exa
+  rm exa-linux-x86_64-0.9.0.zip
+  cd -
 }
 
 main "$@"
