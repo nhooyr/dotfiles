@@ -10,6 +10,9 @@ fzf_default_opts=(
 export FZF_DEFAULT_OPTS="${fzf_default_opts[*]}"
 
 relative_path() {
+  if [[ "$PWD" == ~ ]]; then
+    cat
+  fi
   sed "s#$PWD/##g"
 }
 
