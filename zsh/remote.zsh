@@ -138,11 +138,10 @@ _xrs() {
   local git_dir="$(git -C "$local_path" rev-parse --show-toplevel 2> /dev/null)"
   if [[ "$git_dir" ]]; then
     local exclude_from="$(mktemp)"
-    git_exclude_paths "$git_dir" > "$exclude_from"
+    git_exclude_paths "$git_dir" | sed "s#^$local_path##" > "$exclude_from"
     rsync_args+=(
-    "--exclude-from=$exclude_from"
-    "--exclude=.git"
-  )
+      "--exclude-from=$exclude_from"
+    )
   fi
 
   rs --delete "${rsync_args[@]}" "$local_path/" "$REMOTE_HOST:$remote_path/"
@@ -160,7 +159,9 @@ git_exclude_paths() {
     "${(@f)$(git config --file "$git_dir/.gitmodules" --get-regexp "path" | awk '{ print $2 }' | sed "s#^#$git_dir/#" )}"
   )
   for sub in "${submodules[@]}"; do
-    git_exclude_paths "$sub"
+    if [[ "$sub" == "$local_path"* ]]; then
+      git_exclude_paths "$sub"
+    fi
   done
 }
 
