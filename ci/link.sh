@@ -16,7 +16,11 @@ main() {
   fi
 
   mkdir -p "$(dirname "$to")"
-  ln -s "$PWD/$src" "$to"
+  case "$src" in
+  /*) ;;
+  *) src="$PWD/$src" ;;
+  esac
+  ln -s "$src" "$to"
 }
 
 main "$@"

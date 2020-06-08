@@ -4,8 +4,8 @@ set -eu
 main() {
   cd "$(dirname "$0")/.."
 
-  npx doctoc --title '# INSTALL' macos/INSTALL.md
-  npx prettier \
+  doctoc --title '# INSTALL' macos/INSTALL.md
+  prettier \
     --write \
     --print-width=120 \
     --no-semi \

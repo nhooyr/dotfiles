@@ -4,16 +4,20 @@ xgcloud() {
   gcloud --configuration=nhooyr-coder "$@"
 }
 
+remote_instance() {
+  echo "${REMOTE_HOST#*@}"
+}
+
 xcreate() {(
   set -euo pipefail
 
-  if [[ "$REMOTE_HOST" == "xayah" ]]; then
+  if [[ "$(remote_instance)" == "xayah" ]]; then
     set -- \
       --address=xayah \
       --private-network-ip=xayah-internal \
       "$@"
   fi
-  xgcloud compute instances create "$REMOTE_HOST" \
+  xgcloud compute instances create "$(remote_instance)" \
     "$GCP_ZONE" \
     --machine-type=e2-custom-8-16384 \
     --subnet=main \
@@ -28,7 +32,7 @@ xcreate() {(
 xinit() {(
   set -euo pipefail
 
-  sed -i.bak "/^${REMOTE_HOST}[, ]/d" ~/.ssh/known_hosts
+  sed -i.bak "/^$(remote_instance)[, ]/d" ~/.ssh/known_hosts
 
   local i
   for i in {1..10}; do
@@ -45,13 +49,11 @@ xinit() {(
 )}
 
 xdelete() {
-  xgcloud compute instances delete "$GCP_ZONE" "$REMOTE_HOST"
+  xgcloud compute instances delete "$GCP_ZONE" "$(remote_instance)"
 }
 
 xstart() {
-  if [[ "$REMOTE_HOST" == "xayah" ]]; then
-    echo_on_failure xgcloud compute instances start "$GCP_ZONE" "$REMOTE_HOST"
-  fi
+  echo_on_failure xgcloud compute instances start "$GCP_ZONE" "$(remote_instance)"
 }
 
 xstop() {
@@ -61,19 +63,19 @@ xstop() {
 x() {(
   set -euo pipefail
   setopt +o NOMATCH
-  if ! ls ~/.ssh/sockets/*@$REMOTE_HOST &> /dev/null; then
-    local vm_status="$(xgcloud compute instances describe "$GCP_ZONE" "$REMOTE_HOST" --format=json | jq -r .status)"
+  if ! ls ~/.ssh/sockets/*@$(remote_instance) &> /dev/null; then
+    local vm_status="$(xgcloud compute instances describe "$GCP_ZONE" "$(remote_instance)" --format=json | jq -r .status)"
     if [[ "$vm_status" != "RUNNING" ]]; then
-      echo "$REMOTE_HOST: $vm_status"
+      echo "$(remote_instance): $vm_status"
       xstart
     fi
   fi
 
   if [[ $# -gt 0 ]]; then
-    local argv="-c '$*'"
+    local args="-c '$*'"
   fi
-  ssh -t "$REMOTE_HOST" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li $argv"
-  )}
+  ssh -t "$REMOTE_HOST" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
+)}
 
 xp() {(
   set -euo pipefail
@@ -107,86 +109,66 @@ xp() {(
 xrs() {(
   set -euo pipefail
 
-  local sync_path="${1-$PWD}"
-
-  if [[ ! -e "$sync_path" ]]; then
-    echo "cannot sync nonexistent path" >&2
+  local local_path="$(realpath "${1-$PWD}")"
+  local cmd="${@:2}"
+  if [[ ! -e "$local_path" ]]; then
+    echo "does not exist" >&2
     return 1
   fi
 
-  if [[ "$sync_path" != /* ]]; then
-    local abs_path="$PWD/$sync_path"
-  else
-    local abs_path="$sync_path"
-  fi
-  if [[ "$abs_path" != $HOME/* ]]; then
-    echo "cannot sync path not in ~" >&2
-    return 1
-  fi
-  local rel_path="${abs_path#$HOME/}"
+  _xrs "$local_path"
+  x "$cmd"
+)}
 
-  local remote_sha="$(ssh "$REMOTE_HOST" sh -s -- <<EOF
-  set -eu
-  mkdir -p "$rel_path"
-  git -C "$rel_path" rev-parse HEAD 2> /dev/null
-EOF
-)"
+_xrs() {
+  local local_path="$1"
+  local remote_path="${local_path#$HOME/}"
 
-  if [[ -f "$sync_path" ]]; then
-    rs "$sync_path" "$REMOTE_HOST:$rel_path"
+  if [[ -f "$local_path" ]]; then
+    rs "$local_path" "$REMOTE_HOST:$remote_path"
     return
   fi
-  if [[ ! -d "$sync_path" ]]; then
+  if [[ ! -d "$local_path" ]]; then
     echo "can only sync a file or directory" >&2
     return 1
   fi
+  ssh "$REMOTE_HOST" mkdir -p "$remote_path"
 
-  # We're syncing a directory.
-  local local_sha="$(git -C "$sync_path" rev-parse HEAD 2> /dev/null)"
+  local rsync_args=()
+  local git_dir="$(git -C "$local_path" rev-parse --show-toplevel 2> /dev/null)"
+  if [[ "$git_dir" ]]; then
+    local exclude_from="$(mktemp)"
+    git_exclude_paths "$git_dir" > "$exclude_from"
+    rsync_args+=(
+    "--exclude-from=$exclude_from"
+    "--exclude=.git"
+  )
+  fi
 
-  # No git, we have to sync everything.
-  if [[ ! "$local_sha" ]]; then
-    rs --delete "$sync_path/" "$REMOTE_HOST:$rel_path/"
+  rs --delete "${rsync_args[@]}" "$local_path/" "$REMOTE_HOST:$remote_path/"
+}
+
+git_exclude_paths() {
+  local git_dir="$1"
+  git -C "$git_dir" ls-files --exclude-standard -io --directory | sed "s#^#$git_dir/#"
+
+  if [[ ! -f "$git_dir/.gitmodules" ]]; then
     return
   fi
-  
-  set -x
 
-  # We have git available, we sync only what's changed.
-  # If the commits are different we push and check it out remotely.
-  if [[ "$remote_sha" != "$local_sha" ]]; then
-    # Make sure repo exists remotely.
-    ssh "$REMOTE_HOST" "mkdir -p \"$rel_path\" && cd \"$rel_path\" && git init -q"
-    git push "ssh://$REMOTE_HOST/~/$rel_path" "${local_sha}:refs/heads/xrs"
-    ssh "$REMOTE_HOST" "cd \"$rel_path\" && git checkout -f $local_sha"
-    ssh "$REMOTE_HOST" "cd \"$rel_path\" && git submodule update -f --init"
-  fi
+  local submodules=(
+    "${(@f)$(git config --file "$git_dir/.gitmodules" --get-regexp "path" | awk '{ print $2 }' | sed "s#^#$git_dir/#" )}"
+  )
+  for sub in "${submodules[@]}"; do
+    git_exclude_paths "$sub"
+  done
+}
 
-  local untracked_files="$(mktemp)"
-  local modified_files="$(mktemp)"
-  local modified_staged_files="$(mktemp)"
-  git -C "$sync_path" ls-files --exclude-standard -o > "$files_from"
-  git -C "$sync_path" diff --name-only >> "$files_from"
-  #git -C "$sync_path" diff --name-only --cached >> "$files_from"
-  if [[ ! -s "$files_from" ]]; then
-    # Nothing to sync.
-    return
-  fi
-  cat "$files_from"
-  rs --delete \
-    "--files-from=$files_from" \
-    "--files-from=$files_from" \
-    "$sync_path/" "$REMOTE_HOST:$rel_path/"
+xsr() {(
+  set -euo pipefail
+
+  local local_path="$(realpath "${1-$PWD}")"
+  local remote_path="${local_path#$HOME/}"
+
+  rs --delete "$REMOTE_HOST:$remote_path/" "$local_path/"
 )}
-
-xor_files() {
-  local first="$1"
-  local second="$2"
-  local dst="$3"
-
-  cat "$first" "$second" | sort | uniq -u > "$dst.incomplete"
-  mv "$dst.incomplete" "$dst"
-}
-
-xsr() {
-}
