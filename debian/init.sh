@@ -65,6 +65,7 @@ install_dotfiles() {
 }
 
 install_neovim() {
+  sudo -E apt install -y python3-neovim
   # https://github.com/neovim/neovim/wiki/Building-Neovim
   sudo -E apt install -y ninja-build gettext libtool libtool-bin autoconf automake cmake g++ pkg-config unzip
   if [ ! -d ~/src/neovim/neovim ]; then
