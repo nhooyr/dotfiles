@@ -19,6 +19,7 @@ main() {
   install_go
   install_node
   install_neovim
+  install_docker
 }
 
 install_node() {
@@ -56,10 +57,8 @@ install_dotfiles() {
     fd-find
   if [ ! -d ~/src/nhooyr/dotfiles ]; then
     mkdir -p ~/src/nhooyr
-    git clone https://github.com/nhooyr/dotfiles ~/src/nhooyr/dotfiles
+    git clone --recurse-submodules https://github.com/nhooyr/dotfiles ~/src/nhooyr/dotfiles
   fi
-  git -C ~/src/nhooyr/dotfiles submodule update --init
-  git -C ~/src/nhooyr/dotfiles pull
   ~/src/nhooyr/dotfiles/link.sh
   sudo chsh -s "$(command -v zsh)" "$USER"
 }
