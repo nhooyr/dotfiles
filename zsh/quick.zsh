@@ -34,7 +34,7 @@ quick_paths() {
 
 # Used by my neovim config.
 normalize() {
-  local normalized="$(echo "$1" | replace_bookmarks)"
+  local normalized="$(realpath "$1" | replace_bookmarks)"
   normalized="$(echo "${(q)normalized}" | sed 's/\\~/~/g')"
   echo "$normalized"
 }
