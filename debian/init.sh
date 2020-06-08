@@ -20,6 +20,7 @@ main() {
   install_node
   install_neovim
   install_docker
+  install_misc
 }
 
 install_node() {
@@ -27,10 +28,13 @@ install_node() {
   sudo apt-get install -y nodejs
 
   sudo npm install -g yarn
+  yarn config set prefix ~/.local
   yarn global add \
     vim-language-server \
     typescript \
-    typescript-language-server
+    typescript-language-server \
+    prettier \
+    doctoc
 }
 
 install_go() {
@@ -40,6 +44,10 @@ install_go() {
   export GO111MODULE=on
   go get golang.org/x/tools/gopls@latest
   go get mvdan.cc/sh/v3/cmd/shfmt@latest
+  go get golang.org/x/tools/cmd/goimports@latest
+  go get golang.org/x/tools/cmd/stringer@latest
+  go get golang.org/x/lint/golint@latest
+  go get github.com/agnivade/wasmbrowsertest@latest
 }
 
 install_docker() {
@@ -75,6 +83,10 @@ install_neovim() {
   make CMAKE_BUILD_TYPE=RelWithDebInfo
   sudo make install
   cd -
+}
+
+install_misc() {
+  sudo -E apt install -y shellcheck
 }
 
 main "$@"

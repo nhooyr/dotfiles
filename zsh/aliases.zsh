@@ -4,7 +4,9 @@ alias ll="ls -lha"
 alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
 alias s="sudo "
-alias sudo="sudo "
+sudo() {
+  command sudo zsh -ic "$*"
+}
 alias m="man"
 alias d="docker"
 alias pd="prevd"
@@ -164,12 +166,15 @@ git() {
 alias rg="rg -S"
 alias rgi="rg -S --no-ignore --hidden"
 alias h="fc -R"
+set -o ALIAS_FUNC_DEF
+alias n="n "
 n() {
   if command_exists noti; then
     set -- noti "$@"
   fi
   time ("$@")
 }
+set +o ALIAS_FUNC_DEF
 
 rs() {
   if [[ "${RSYNC_UNSHARED-}" ]]; then
