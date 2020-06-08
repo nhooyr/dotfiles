@@ -27,7 +27,7 @@ xcreate() {(
   fi
   xgcloud compute instances create "$(remote_instance)" \
     "$GCP_ZONE" \
-    --machine-type=e2-custom-8-16384 \
+    --machine-type=e2-custom-16-16384 \
     --subnet=main \
     --scopes=https://www.googleapis.com/auth/cloud-platform \
     --image=debian-sid-v20190812 \
@@ -123,16 +123,20 @@ xs() {(
   fi
 )}
 
-rsx() {
+rsx() {(
+  set -euo pipefail
+
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --no-ignore)
-        local NO_IGNORE=1
-        ;;
+        local NO_IGNORE=1 ;;
+      --recurse-submodules)
+        local SUBMODULES=1 ;;
       -*)
         echoerr "Unknown flag $1"
-        return 1
-        ;;
+        return 1 ;;
+      *)
+        break ;;
     esac
 
     shift
@@ -158,7 +162,7 @@ rsx() {
 
   local local_sha="$(git -C "$local_path" rev-parse HEAD 2> /dev/null)"
   if [[ ! "$local_sha" || "${NO_IGNORE-}" ]]; then
-    rs --delete "$local_path/" "$REMOTE_HOST:$remote_path/"
+    rs --delete --exclude=.git "$local_path/" "$REMOTE_HOST:$remote_path/"
     return
   fi
 
@@ -184,20 +188,40 @@ rsx() {
   # These files exist on only the remote end as we just synced local.
   # Therefore they must be deleted.
   local unique_files=("${(@f)$(cat "$local_files" "$remote_files" | sort | uniq -u)}")
-  if [[ "${#unique_files[@]}" -gt 0 ]]; then
+  if [[ "${unique_files[*]}" ]]; then
     xssh "git -C $remote_path rm -qf ${unique_files[*]} 2>/dev/null || true"
     xssh "cd $remote_path && rm -f ${unique_files[*]} || true"
   fi
+
+  if [[ "${SUBMODULES-}" ]]; then
+    xssh git -C "$remote_path" submodule update -q --force --init
+    rsx_submodules "$local_path"
+  fi
+)}
+
+rsx_submodules() {
+  local git_dir="$1"
+
+  if [[ ! -f "$git_dir/.gitmodules" ]]; then
+    return
+  fi
+
+  local submodules=(
+    "${(@f)$(git config --file "$git_dir/.gitmodules" --get-regexp "path" | awk '{ print $2 }')}"
+  )
+  for sub in "${submodules[@]}"; do
+    rsx --recurse-submodules "$git_dir/$sub"
+  done
 }
 
 rsi() {(
   set -euo pipefail
 
-  local local_path="$(realpath "$1")"
+  local local_path="$(realpath "${1-$PWD}")"
   local remote_path="${local_path#$HOME/}"
   if xssh [ -f "$remote_path" ]; then
-    rs "$local_path" "$REMOTE_HOST:$remote_path"
+    rs "$REMOTE_HOST:$remote_path" "$local_path"
   else
-    rs --delete "$local_path/" "$REMOTE_HOST:$remote_path/"
+    rs --delete --exclude=.git "$REMOTE_HOST:$remote_path/" "$local_path/"
   fi
 )}
