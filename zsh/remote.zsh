@@ -106,6 +106,7 @@ xp() {(
     local remote_port="${fields[3]}"
   fi
 
+  x true
   local success_msg="$(print -P "%B%F{green}=%f%b")"
   xssh \
     -oControlPath=none \
