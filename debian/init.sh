@@ -5,22 +5,40 @@ main() {
   export DEBIAN_FRONTEND=noninteractive
 
   sudo -E apt update
+  install_dotfiles
+
   sudo -E apt full-upgrade -y --purge
   sudo -E apt autoremove -y --purge
   sudo -E apt install -y \
-    zsh \
-    git \
-    golang \
     rsync \
-    fzf \
-    fd-find \
-    neovim \
     jq \
     build-essential \
-    cmake
+    cmake \
+    git
 
-  install_dotfiles
+  install_go
+  install_node
   install_neovim
+}
+
+install_node() {
+  curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+
+  sudo npm install -g yarn
+  yarn global add \
+    vim-language-server \
+    typescript \
+    typescript-language-server
+}
+
+install_go() {
+  sudo -E apt install -y golang
+
+  export GOPATH="$HOME/.local/share/gopath"
+  export GO111MODULE=on
+  go get golang.org/x/tools/gopls@latest
+  go get mvdan.cc/sh/v3/cmd/shfmt@latest
 }
 
 install_docker() {
@@ -31,6 +49,11 @@ install_docker() {
 }
 
 install_dotfiles() {
+  sudo -E apt install -y \
+    git \
+    zsh \
+    fzf \
+    fd-find
   if [ ! -d ~/src/nhooyr/dotfiles ]; then
     mkdir -p ~/src/nhooyr
     git clone https://github.com/nhooyr/dotfiles ~/src/nhooyr/dotfiles
@@ -39,7 +62,6 @@ install_dotfiles() {
   git -C ~/src/nhooyr/dotfiles pull
   ~/src/nhooyr/dotfiles/link.sh
   sudo chsh -s "$(command -v zsh)" "$USER"
-
 }
 
 install_neovim() {
