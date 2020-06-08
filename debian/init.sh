@@ -87,7 +87,7 @@ install_neovim() {
 }
 
 install_misc() {
-  sudo -E apt install -y shellcheck ripgrep
+  sudo -E apt install -y shellcheck ripgrep htop
 }
 
 install_exa() {

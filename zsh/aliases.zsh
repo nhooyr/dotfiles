@@ -5,7 +5,7 @@ alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
 alias s="sudo "
 sudo() {
-  command sudo zsh -ic "$*"
+  command sudo -s "$@"
 }
 alias m="man"
 alias d="docker"
