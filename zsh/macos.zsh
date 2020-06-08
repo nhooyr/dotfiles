@@ -31,8 +31,10 @@ noti() {
   fi
   if "$@"; then
     afplay /System/Library/Sounds/Glass.aiff &!
+    true
   else
     osascript -e beep &!
+    false
   fi
 }
 
