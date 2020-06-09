@@ -14,6 +14,7 @@ alias nd="nextd"
 alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
 alias rb="reboot"
+alias ses="screen -qD -R"
 
 if [[ "$EDITOR" ]]; then
   alias "$EDITOR=false"

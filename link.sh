@@ -8,6 +8,7 @@ main() {
   ./ci/link.sh nvim ~/.config/nvim
   ./ci/link.sh zsh/zshrc ~/.zshrc
   ./ci/link.sh fd ~/.config/fd
+  ./ci/link.sh screen/screenrc ~/.screenrc
 
   # Required for SSH multiplexing.
   mkdir -p ~/.ssh/sockets
