@@ -220,6 +220,9 @@ function! s:plugin_settings() abort
 
   let g:user_emmet_leader_key = '<M-e>'
   let g:user_emmet_mode='i'
+
+  " Has obnoxious defaults. <CR> is mapped in s:lsp()
+  let g:endwise_no_mappings = 1
 endfunction
 call s:plugin_settings()
 
@@ -230,8 +233,6 @@ augroup nhooyr
   " In particular this was added for man.vim which uses close instead of quit
   " and so we cannot quit if there is only a man window left.
   autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
-  " endwise has an obnoxious keybinding that interferes with my C-x.
-  autocmd FileType * silent! iunmap <C-x><CR>
 augroup END
 
 " Adds all accessed files into my shell history.
@@ -289,7 +290,6 @@ EOF
   let g:completion_auto_change_source = 1
   let g:completion_enable_snippet = 'Neosnippet'
   let g:completion_confirm_key = ""
-  let g:endwise_no_mappings = 1
   imap <expr> <CR> pumvisible() ? complete_info()["selected"] != "-1" ?
         \ "\<Plug>(completion_confirm_completion)" : "\<C-e>\<CR>\<Plug>DiscretionaryEnd" :  "\<CR>\<Plug>DiscretionaryEnd"
 
