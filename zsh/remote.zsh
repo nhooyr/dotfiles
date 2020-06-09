@@ -27,7 +27,7 @@ xcreate() {(
   fi
   xgcloud compute instances create "$(remote_instance)" \
     "$GCP_ZONE" \
-    --machine-type=e2-custom-16-16384 \
+    --machine-type=e2-custom-8-8192 \
     --subnet=main \
     --scopes=https://www.googleapis.com/auth/cloud-platform \
     --image=debian-sid-v20190812 \
@@ -170,7 +170,7 @@ rsx() {(
 
   if [[ "$remote_sha" != "$local_sha" ]]; then
     xssh git init -q "$remote_path"
-    git push -q "ssh://$REMOTE_HOST/~/$remote_path" "${local_sha}:refs/heads/xrs"
+    git push -fq "ssh://$REMOTE_HOST/~/$remote_path" "${local_sha}:refs/heads/xrs"
     xssh git -C "$remote_path" checkout -qf "$local_sha"
   fi
 
