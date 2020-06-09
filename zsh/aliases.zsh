@@ -217,12 +217,10 @@ ghd() {
     return
   fi
 
-  mkdir -p "$dst" &&
-    if git clone --recursive "https://github.com/$repo_path" "$dst"; then
-      cd "$dst"
-    else
-      rm -Rf "$dst"
-    fi
+  mkdir -p "$(dirname "$dst")"
+  if git clone --recursive "https://github.com/$repo_path" "$dst"; then
+    cd "$dst"
+  fi
 }
 
 gh() {
