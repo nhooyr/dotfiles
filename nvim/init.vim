@@ -39,7 +39,8 @@ call s:plugins()
 
 function! s:settings() abort
   set clipboard=unnamed
-  set noshowmode
+  " https://github.com/vim/vim/issues/3412#issuecomment-570905815
+  "set noshowmode
   set signcolumn=no
   set cursorline
   set noshowcmd
@@ -67,9 +68,9 @@ function! s:settings() abort
   endif
   set shortmess+=aIAc
   set mouse=a
-  set rulerformat=%=%l
+  set noruler
   set updatetime=100
-  "set laststatus=1
+  set laststatus=1
   set autochdir
 
   " Neovim's TUI cursor bugs out often enough.
