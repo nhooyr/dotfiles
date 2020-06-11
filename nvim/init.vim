@@ -191,7 +191,9 @@ function! s:binds() abort
     endif
   endfunction
 
-  inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
+  " Seeing buggy behaviour where it works only sometimes
+  " when used right after deleting some text.
+  " inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
 endfunction
 call s:binds()
 
@@ -283,26 +285,20 @@ function! s:lsp() abort
 EOF
 
   " https://github.com/vim/vim/issues/3412#issuecomment-642821562
-  set complete-=t
+  set complete=.
   set completeopt=menuone,noselect
-  set pumheight=10
+  set pumheight=5
 
   inoremap <C-l> <C-x>
 
   let g:completion_trigger_keyword_length = 3
   let g:completion_matching_ignore_case = 1
-  let g:completion_auto_change_source = 1
   let g:completion_enable_snippet = 'Neosnippet'
   let g:completion_confirm_key = ""
   imap <expr> <CR> pumvisible() ? complete_info()["selected"] != "-1" ?
-        \ "\<Plug>(completion_confirm_completion)" : "\<C-e>\<CR>\<Plug>DiscretionaryEnd" :  "\<CR>\<Plug>DiscretionaryEnd"
+        \ "\<Plug>(completion_confirm_completion)" : "\<C-e>\<CR>\<Plug>DiscretionaryEnd" :
+        \ "\<CR>\<Plug>DiscretionaryEnd"
 
-  let g:completion_chain_complete_list = [
-        \{'complete_items': ['lsp', 'snippet']},
-        \{'mode': '<c-p>'},
-        \{'mode': 'path'}
-        \]
-  imap <C-k> <cmd>lua require'source'.nextCompletion()<CR>
   inoremap <silent> <expr> <C-space> completion#trigger_completion()
 
   function! s:b_lsp() abort
