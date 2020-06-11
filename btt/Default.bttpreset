@@ -156,7 +156,7 @@
     "showOtherTriggersTab" : true,
     "BSTSnapAreaDefaultPictoDistanceFromLeft" : 0.10000000149011612
   },
-  "BTTPresetUUID" : "BD39EB02-3CC3-4644-856D-0121BE69AC50",
+  "BTTPresetUUID" : "F222143A-D3AA-4894-B5A9-619FE7587A4D",
   "BTTPresetContent" : [
     {
       "BTTAppBundleIdentifier" : "BT.G",
@@ -166,25 +166,6 @@
         "BTTDisable1FScrolling" : 1
       },
       "BTTTriggers" : [
-        {
-          "BTTTriggerType" : 114,
-          "BTTTriggerTypeDescription" : "TipTap Right (1 Finger Fix)",
-          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
-          "BTTPredefinedActionType" : -1,
-          "BTTPredefinedActionName" : "No Action",
-          "BTTLayoutIndependentActionChar" : "]",
-          "BTTAutoAdaptActionToKeyboardLayout" : true,
-          "BTTShortcutToSend" : "56,55,30",
-          "BTTEnabled2" : 1,
-          "BTTAlternateModifierKeys" : 0,
-          "BTTRepeatDelay" : 0,
-          "BTTUUID" : "480E09D5-F709-4801-BEE4-17D8670ACBE3",
-          "BTTNotesInsteadOfDescription" : 0,
-          "BTTEnabled" : 1,
-          "BTTModifierMode" : 0,
-          "BTTOrder" : 7,
-          "BTTDisplayOrder" : 0
-        },
         {
           "BTTTriggerType" : 100,
           "BTTTriggerTypeDescription" : "3 Finger Swipe Left",
@@ -259,6 +240,22 @@
           "BTTDisplayOrder" : 0
         },
         {
+          "BTTTriggerType" : 112,
+          "BTTTriggerTypeDescription" : "3 Finger Click",
+          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
+          "BTTPredefinedActionType" : 1,
+          "BTTPredefinedActionName" : "Middle Click",
+          "BTTEnabled2" : 1,
+          "BTTAlternateModifierKeys" : 0,
+          "BTTRepeatDelay" : 0,
+          "BTTUUID" : "1F686D7F-3E58-42B2-876D-3A89A61EFCD7",
+          "BTTNotesInsteadOfDescription" : 0,
+          "BTTEnabled" : 1,
+          "BTTModifierMode" : 0,
+          "BTTOrder" : 6,
+          "BTTDisplayOrder" : 0
+        },
+        {
           "BTTTriggerType" : 118,
           "BTTTriggerTypeDescription" : "Rotate Right",
           "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
@@ -274,7 +271,7 @@
           "BTTNotesInsteadOfDescription" : 0,
           "BTTEnabled" : 1,
           "BTTModifierMode" : 0,
-          "BTTOrder" : 8,
+          "BTTOrder" : 5,
           "BTTDisplayOrder" : 0
         },
         {
@@ -332,25 +329,6 @@
           "BTTEnabled" : 1,
           "BTTModifierMode" : 0,
           "BTTOrder" : 4,
-          "BTTDisplayOrder" : 0
-        },
-        {
-          "BTTTriggerType" : 113,
-          "BTTTriggerTypeDescription" : "TipTap Left (1 Finger Fix)",
-          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
-          "BTTPredefinedActionType" : -1,
-          "BTTPredefinedActionName" : "No Action",
-          "BTTLayoutIndependentActionChar" : "[",
-          "BTTAutoAdaptActionToKeyboardLayout" : true,
-          "BTTShortcutToSend" : "56,55,33",
-          "BTTEnabled2" : 1,
-          "BTTAlternateModifierKeys" : 0,
-          "BTTRepeatDelay" : 0,
-          "BTTUUID" : "12FB968A-D92E-4562-88A8-832A598C3F50",
-          "BTTNotesInsteadOfDescription" : 0,
-          "BTTEnabled" : 1,
-          "BTTModifierMode" : 0,
-          "BTTOrder" : 6,
           "BTTDisplayOrder" : 0
         }
       ]
