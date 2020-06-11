@@ -70,7 +70,7 @@ fzf-quick-paths() {
 
   local selected
   selected=("${(@f)$(quick_paths | filter_duplicates | relative_path | replace_bookmarks | \
-    fzf --expect=ctrl-v,ctrl-x --height=40% --query="$word")}")
+    fzf --expect=ctrl-v,ctrl-x --height=30% --query="$word")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
@@ -101,7 +101,7 @@ bindkey "\ev" fzf-quick-paths
 
 fzf-history() {
   local selected
-  selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=40% --query="$LBUFFER")}")
+  selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=30% --query="$LBUFFER")}")
   local key="${selected[1]}"
   local cmd="${selected[2]}"
   if [[ "$cmd" ]]; then

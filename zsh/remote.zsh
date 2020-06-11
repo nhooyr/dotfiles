@@ -65,7 +65,7 @@ xstart() {(
     return
   fi
 
-  echo "$(remote_instance): $vm_status"
+  echo "$vm_status"
   echo_on_failure xgcloud compute instances start "$(remote_instance)"
   xwait
 )}
