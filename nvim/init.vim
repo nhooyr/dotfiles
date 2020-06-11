@@ -15,11 +15,12 @@ function! s:plugins() abort
 
   Plug 'simnalamburt/vim-mundo'
   Plug 'machakann/vim-highlightedyank'
-  Plug 'tpope/vim-unimpaired'
 
+  Plug 'tpope/vim-unimpaired'
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-sleuth'
+  Plug 'tpope/vim-commentary'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
@@ -39,8 +40,7 @@ call s:plugins()
 
 function! s:settings() abort
   set clipboard=unnamed
-  " https://github.com/vim/vim/issues/3412#issuecomment-570905815
-  "set noshowmode
+  set noshowmode
   set signcolumn=no
   set cursorline
   set noshowcmd
@@ -79,8 +79,7 @@ function! s:settings() abort
   set foldmethod=indent
   set foldnestmax=1
   set foldlevel=1
-
-  set scrolloff=5
+  set textwidth=100
 endfunction
 call s:settings()
 
@@ -215,7 +214,7 @@ function! s:plugin_settings() abort
   let g:surround_no_insert_mappings = 1
 
   map! <silent> <C-j> <Plug>(neosnippet_jump_or_expand)
-  set conceallevel=3
+  "set conceallevel=3
   set concealcursor=niv
 
   let g:user_emmet_leader_key = '<M-e>'
@@ -223,6 +222,8 @@ function! s:plugin_settings() abort
 
   " Has obnoxious defaults. <CR> is mapped in s:lsp()
   let g:endwise_no_mappings = 1
+
+  nmap <M-c> gcc
 endfunction
 call s:plugin_settings()
 
@@ -233,6 +234,7 @@ augroup nhooyr
   " In particular this was added for man.vim which uses close instead of quit
   " and so we cannot quit if there is only a man window left.
   autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+  autocmd FileType go setlocal noexpandtab
 augroup END
 
 " Adds all accessed files into my shell history.
@@ -280,9 +282,12 @@ function! s:lsp() abort
   lsp.clangd.setup{ on_attach = on_attach }
 EOF
 
-  inoremap <silent> <M-x> <C-x>
+  " https://github.com/vim/vim/issues/3412#issuecomment-642821562
+  set complete-=t
   set completeopt=menuone,noselect
   set pumheight=10
+
+  inoremap <C-l> <C-x>
 
   let g:completion_trigger_keyword_length = 3
   let g:completion_matching_strategy_list = ['exact', 'substring', 'fuzzy']
