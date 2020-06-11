@@ -7,8 +7,6 @@ prompt() {
   if [[ "$USER" != "nhooyr" ]]; then
     local user=1
     if [[ $USER == "root" ]]; then
-      echo -n "%F{red}"
-    else
       echo -n "%F{yellow}"
     fi
     echo -n "%n%f"
@@ -38,7 +36,7 @@ prompt() {
 
   echo
   if [[ $USER == root ]]; then
-    echo -n "%F{red}"
+    echo -n "%F{yellow}"
   fi
   echo -n "%(!.#.$)%f%b "
 }

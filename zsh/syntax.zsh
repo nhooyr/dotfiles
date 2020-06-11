@@ -3,7 +3,7 @@ if [[ "${#ZSH_HIGHLIGHT_STYLES[@]}" -eq 0 ]]; then
 fi
 ZSH_HIGHLIGHT_STYLES=()
 ZSH_HIGHLIGHT_STYLES[reserved-word]="fg=magenta"
-ZSH_HIGHLIGHT_STYLES[precommand]="fg=red"
+ZSH_HIGHLIGHT_STYLES[precommand]="fg=yellow"
 ZSH_HIGHLIGHT_STYLES[commandseparator]="fg=magenta"
 ZSH_HIGHLIGHT_STYLES[globbing]="fg=magenta"
 ZSH_HIGHLIGHT_STYLES[history-expansion]="fg=magenta"

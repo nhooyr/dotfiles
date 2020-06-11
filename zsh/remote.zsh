@@ -16,6 +16,10 @@ xsshq() {
   sshq "$REMOTE_HOST" "$@"
 }
 
+xpath() {
+  ssh "$REMOTE_HOST" realpath "./${PWD#$HOME}"
+}
+
 xcreate() {(
   set -euo pipefail
 
