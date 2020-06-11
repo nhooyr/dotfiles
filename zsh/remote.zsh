@@ -1,7 +1,5 @@
-GCP_ZONE="--zone=northamerica-northeast1-a"
-
 xgcloud() {
-  gcloud --configuration=nhooyr-coder "$@"
+  gcloud --configuration=nhooyr-coder "$@" --zone=northamerica-northeast1-a
 }
 
 remote_instance() {
@@ -30,7 +28,6 @@ xcreate() {(
       "$@"
   fi
   xgcloud compute instances create "$(remote_instance)" \
-    "$GCP_ZONE" \
     --machine-type=e2-custom-8-8192 \
     --subnet=main \
     --scopes=https://www.googleapis.com/auth/cloud-platform \
@@ -46,48 +43,57 @@ xinit() {(
 
   sed -i.bak "/^$(remote_instance)[, ]/d" ~/.ssh/known_hosts
 
-  local i
-  for i in {1..10}; do
-    if ! xssh true; then
-      sleep 1
-      continue
-    fi
-    xssh sh < ~dotfiles/debian/init.sh
-    xsshq
-    return
-  done
-
-  false
+  xstart
+  xssh sh < ~dotfiles/debian/init.sh
+  xsshq
 )}
 
 xdelete() {
-  xgcloud compute instances delete "$GCP_ZONE" "$(remote_instance)"
+  xgcloud compute instances delete "$(remote_instance)"
 }
 
-xstart() {
-  echo_on_failure xgcloud compute instances start "$GCP_ZONE" "$(remote_instance)"
-}
+xstart() {(
+  set -euo pipefail
+
+  setopt +o NOMATCH
+  if ls ~/.ssh/sockets/"$REMOTE_HOST" &> /dev/null; then
+    return
+  fi
+
+  local vm_status="$(xgcloud compute instances describe "$(remote_instance)" --format=json | jq -r .status)"
+  if [[ "$vm_status" == "RUNNING" ]]; then
+    return
+  fi
+
+  echo "$(remote_instance): $vm_status"
+  echo_on_failure xgcloud compute instances start "$(remote_instance)"
+  xwait
+)}
 
 xstop() {
   xssh sudo poweroff
 }
 
 x() {(
-  set -euo pipefail
-  setopt +o NOMATCH
-  if ! ls ~/.ssh/sockets/*@$(remote_instance) &> /dev/null; then
-    local vm_status="$(xgcloud compute instances describe "$GCP_ZONE" "$(remote_instance)" --format=json | jq -r .status)"
-    if [[ "$vm_status" != "RUNNING" ]]; then
-      echo "$(remote_instance): $vm_status"
-      xstart
-    fi
-  fi
-
   if [[ $# -gt 0 ]]; then
     local args="-c '$*'"
   fi
+  xstart
   xssh -t "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
 )}
+
+xwait() {
+  local i
+  for i in {1..10}; do
+    if xssh true; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "failed to wait for instance startup"
+  return 1
+}
 
 xp() {(
   set -euo pipefail
@@ -110,7 +116,7 @@ xp() {(
     local remote_port="${fields[3]}"
   fi
 
-  x true
+  xstart
   local success_msg="$(print -P "%B%F{green}=%f%b")"
   xssh \
     -oControlPath=none \
@@ -154,6 +160,7 @@ rsx() {(
     return 1
   fi
   if [[ -f "$local_path" ]]; then
+    xstart
     rs "$local_path" "$REMOTE_HOST:$remote_path"
     return
   fi
@@ -162,6 +169,7 @@ rsx() {(
     return 1
   fi
 
+  xstart
   xssh mkdir -p "$remote_path"
 
   local local_sha="$(git -C "$local_path" rev-parse HEAD 2> /dev/null)"
@@ -220,6 +228,8 @@ rsx_submodules() {
 
 rsi() {(
   set -euo pipefail
+
+  xstart
 
   local local_path="$(realpath "${1-$PWD}")"
   local remote_path="${local_path#$HOME/}"
