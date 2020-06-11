@@ -96,8 +96,8 @@ install_exa() {
   fi
 
   cd "$(mktemp -d)"
-  curl -fsSL -O https://github.com/ogham/exa/releases/download/v0.9.0/exa-linux-x86_64-0.9.0.zip 
-  unzip exa-linux-x86_64-0.9.0.zip 
+  curl -fsSL -O https://github.com/ogham/exa/releases/download/v0.9.0/exa-linux-x86_64-0.9.0.zip
+  unzip exa-linux-x86_64-0.9.0.zip
   sudo mv exa-linux-x86_64 /usr/local/bin/exa
   rm exa-linux-x86_64-0.9.0.zip
   cd -
