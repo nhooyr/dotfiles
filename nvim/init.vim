@@ -265,24 +265,27 @@ endfunction
 call s:quick()
 
 function! s:lsp() abort
-  lua << EOF
-  local lsp_loaded, lsp = pcall(require, 'nvim_lsp')
-  if not lsp_loaded then
-    return
-  end
+  if !exists("g:nhooyr_lsp")
+    let g:nhooyr_lsp = 1
+    lua << EOF
+    local lsp_loaded, lsp = pcall(require, "nvim_lsp")
+    if not lsp_loaded then
+      return
+    end
 
-  local on_attach = function(client)
-    require'completion'.on_attach(client)
-  end
+    local on_attach = function(client)
+      require"completion".on_attach(client)
+    end
 
-  -- Disable diagnostics globally.
-  vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
+    -- Disable diagnostics globally.
+    vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
 
-  lsp.gopls.setup{ on_attach = on_attach }
-  lsp.tsserver.setup{ on_attach = on_attach }
-  lsp.vimls.setup{ on_attach = on_attach }
-  lsp.clangd.setup{ on_attach = on_attach }
+    lsp.gopls.setup{on_attach = on_attach}
+    lsp.tsserver.setup{on_attach = on_attach}
+    lsp.vimls.setup{on_attach = on_attach}
+    lsp.clangd.setup{on_attach = on_attach}
 EOF
+  endif
 
   " https://github.com/vim/vim/issues/3412#issuecomment-642821562
   set complete=.
