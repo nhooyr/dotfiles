@@ -35,7 +35,7 @@
     "oldScale" : 1,
     "BTTAllowThumbIfAllFingersArePlacedSimultaneously" : true,
     "functionMove" : true,
-    "cmdMove" : false,
+    "cmdMove" : true,
     "BTTShowControlStripItem" : true,
     "BSTSnapAreaDefaultCornerRadius" : 0,
     "BTTMovePastedToTop" : true,
@@ -44,7 +44,7 @@
     "BTTTpFourFingerSwipeSensitivity" : 0.40000000000000002,
     "BSTMoveTreshold" : 2,
     "BTTHideFomControlStripWhenOpen" : false,
-    "BTTNumberOfStarts" : 5434,
+    "BTTNumberOfStarts" : 5379,
     "BTTForceNormalClickPressure3F" : 150,
     "showSiriRemoteTab" : true,
     "SIRIScrollSpeed" : 1,
@@ -83,7 +83,7 @@
     "BTTForceNormalClickPressure5F" : 200,
     "BTTShowESCWhenControlStripHidden" : true,
     "showBTTRemoteTab" : true,
-    "optMove" : true,
+    "optMove" : false,
     "BTTFilterMagicMouseLeftRightEdge" : true,
     "BTTDrawingsHighlightStartPoint" : true,
     "BTTEnableUsageLogging" : true,
@@ -123,7 +123,7 @@
     "BTTHandleThumbsRestingOnTopEdgeAndCorners" : true,
     "BTTAutoSwitchToOldKeyboardImplementation" : true,
     "BTTWindowSnappingHighPerformanceMode" : true,
-    "BTTTpThreeFingerSwipeSensitivity" : 0.16216610477178423,
+    "BTTTpThreeFingerSwipeSensitivity" : 0.14955588692946059,
     "BTTCopyImgurURLToClipboard" : true,
     "BTTForceNormalHapticResponse" : 12,
     "BTTTouchBarSupportEnabled" : false,
@@ -156,32 +156,49 @@
     "showOtherTriggersTab" : true,
     "BSTSnapAreaDefaultPictoDistanceFromLeft" : 0.10000000149011612
   },
-  "BTTPresetUUID" : "E26269E1-7D53-4857-903B-B020A93AC64F",
+  "BTTPresetUUID" : "BD39EB02-3CC3-4644-856D-0121BE69AC50",
   "BTTPresetContent" : [
     {
-      "BTTAppBundleIdentifier" : "com.apple.Safari",
-      "BTTAppName" : "Safari",
+      "BTTAppBundleIdentifier" : "BT.G",
+      "BTTAppName" : "Global",
       "BTTAppAutoInvertIcon" : 1,
-      "BTTAppProcessMatchMode" : 2,
-      "BTTAppProcessName" : "Safari",
+      "BTTAppSpecificSettings" : {
+        "BTTDisable1FScrolling" : 1
+      },
       "BTTTriggers" : [
         {
-          "BTTTriggerType" : 173,
-          "BTTTriggerTypeDescription" : "2 Finger Tap",
+          "BTTTriggerType" : 114,
+          "BTTTriggerTypeDescription" : "TipTap Right (1 Finger Fix)",
           "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
           "BTTPredefinedActionType" : -1,
           "BTTPredefinedActionName" : "No Action",
-          "BTTLayoutIndependentActionChar" : "l",
+          "BTTLayoutIndependentActionChar" : "]",
           "BTTAutoAdaptActionToKeyboardLayout" : true,
-          "BTTShortcutToSend" : "55,37",
+          "BTTShortcutToSend" : "56,55,30",
           "BTTEnabled2" : 1,
           "BTTAlternateModifierKeys" : 0,
           "BTTRepeatDelay" : 0,
-          "BTTUUID" : "AF5A453B-F68A-4513-820A-192DC94A24F2",
+          "BTTUUID" : "480E09D5-F709-4801-BEE4-17D8670ACBE3",
           "BTTNotesInsteadOfDescription" : 0,
           "BTTEnabled" : 1,
           "BTTModifierMode" : 0,
-          "BTTOrder" : 2,
+          "BTTOrder" : 7,
+          "BTTDisplayOrder" : 0
+        },
+        {
+          "BTTTriggerType" : 100,
+          "BTTTriggerTypeDescription" : "3 Finger Swipe Left",
+          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
+          "BTTPredefinedActionType" : 78,
+          "BTTPredefinedActionName" : "3F Swipe Right (Page Forward)",
+          "BTTEnabled2" : 1,
+          "BTTAlternateModifierKeys" : 0,
+          "BTTRepeatDelay" : 0,
+          "BTTUUID" : "44B08619-D605-4D46-A582-0B82E4250B9C",
+          "BTTNotesInsteadOfDescription" : 0,
+          "BTTEnabled" : 1,
+          "BTTModifierMode" : 0,
+          "BTTOrder" : 1,
           "BTTDisplayOrder" : 0
         },
         {
@@ -196,94 +213,34 @@
           "BTTEnabled2" : 1,
           "BTTAlternateModifierKeys" : 0,
           "BTTRepeatDelay" : 0,
-          "BTTUUID" : "EBAA4675-4973-465F-A268-798C6D6F848B",
+          "BTTUUID" : "C1B19DDC-10E8-4E34-880D-85FFF4B2A51D",
           "BTTNotesInsteadOfDescription" : 0,
           "BTTEnabled" : 1,
           "BTTModifierMode" : 0,
-          "BTTOrder" : 0,
+          "BTTOrder" : 2,
           "BTTDisplayOrder" : 0
-        }
-      ]
-    },
-    {
-      "BTTAppBundleIdentifier" : "com.tinyspeck.slackmacgap",
-      "BTTAppName" : "Slack",
-      "BTTAppAutoInvertIcon" : 1,
-      "BTTAppProcessMatchMode" : 2,
-      "BTTAppProcessName" : "Slack",
-      "BTTTriggers" : [
+        },
         {
-          "BTTTriggerType" : 173,
-          "BTTTriggerTypeDescription" : "2 Finger Tap",
-          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
-          "BTTPredefinedActionType" : -1,
-          "BTTPredefinedActionName" : "No Action",
-          "BTTLayoutIndependentActionChar" : "k",
-          "BTTAutoAdaptActionToKeyboardLayout" : true,
-          "BTTShortcutToSend" : "55,40",
+          "BTTTriggerType" : 0,
+          "BTTTriggerClass" : "BTTTriggerTypeKeyboardShortcut",
+          "BTTPredefinedActionType" : 253,
+          "BTTPredefinedActionName" : "Run JavaScript for Automation (blocking)",
+          "BTTInlineAppleScript" : "let safari = Application(\"Safari\")\n\nsafari.make({new: \"document\"})\nsafari.activate()",
+          "BTTAdditionalConfiguration" : "1310729",
           "BTTEnabled2" : 1,
-          "BTTAlternateModifierKeys" : 0,
+          "BTTKeyboardShortcutKeyboardType" : 5759,
           "BTTRepeatDelay" : 0,
-          "BTTUUID" : "FBDDE3D6-E481-4E6B-A23B-BBB709146B3B",
+          "BTTUUID" : "D4204CAF-5020-441F-BEF2-2F5F596558E2",
+          "BTTTriggerOnDown" : 1,
           "BTTNotesInsteadOfDescription" : 0,
+          "BTTLayoutIndependentChar" : "s",
           "BTTEnabled" : 1,
           "BTTModifierMode" : 0,
-          "BTTOrder" : 0,
-          "BTTDisplayOrder" : 0
-        }
-      ]
-    },
-    {
-      "BTTAppBundleIdentifier" : "com.apple.Terminal",
-      "BTTAppName" : "Terminal",
-      "BTTAppAutoInvertIcon" : 1,
-      "BTTAppProcessMatchMode" : 2,
-      "BTTAppProcessName" : "Terminal",
-      "BTTTriggers" : [
-        {
-          "BTTTriggerType" : 103,
-          "BTTTriggerTypeDescription" : "3 Finger Swipe Down",
-          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
-          "BTTPredefinedActionType" : -1,
-          "BTTPredefinedActionName" : "No Action",
-          "BTTLayoutIndependentActionChar" : "t",
-          "BTTAutoAdaptActionToKeyboardLayout" : true,
-          "BTTShortcutToSend" : "55,17",
-          "BTTEnabled2" : 1,
-          "BTTAlternateModifierKeys" : 0,
-          "BTTRepeatDelay" : 0,
-          "BTTUUID" : "91D99CD2-DEAE-4E6C-AF1E-FB98E38A9427",
-          "BTTNotesInsteadOfDescription" : 0,
-          "BTTEnabled" : 1,
-          "BTTModifierMode" : 0,
-          "BTTOrder" : 0,
-          "BTTDisplayOrder" : 0
-        }
-      ]
-    },
-    {
-      "BTTAppBundleIdentifier" : "BT.G",
-      "BTTAppName" : "Global",
-      "BTTAppAutoInvertIcon" : 1,
-      "BTTTriggers" : [
-        {
-          "BTTTriggerType" : 103,
-          "BTTTriggerTypeDescription" : "3 Finger Swipe Down",
-          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
-          "BTTPredefinedActionType" : -1,
-          "BTTPredefinedActionName" : "No Action",
-          "BTTLayoutIndependentActionChar" : "n",
-          "BTTAutoAdaptActionToKeyboardLayout" : true,
-          "BTTShortcutToSend" : "55,45",
-          "BTTEnabled2" : 1,
-          "BTTAlternateModifierKeys" : 0,
-          "BTTRepeatDelay" : 0,
-          "BTTUUID" : "3BB2AFB7-0FAD-4E2C-84F9-EE095BE61181",
-          "BTTNotesInsteadOfDescription" : 0,
-          "BTTEnabled" : 1,
-          "BTTModifierMode" : 0,
-          "BTTOrder" : 6,
-          "BTTDisplayOrder" : 0
+          "BTTShortcutKeyCode" : 1,
+          "BTTShortcutModifierKeys" : 1310720,
+          "BTTOrder" : 1,
+          "BTTDisplayOrder" : 0,
+          "BTTAutoAdaptToKeyboardLayout" : 0
         },
         {
           "BTTTriggerType" : 101,
@@ -302,19 +259,41 @@
           "BTTDisplayOrder" : 0
         },
         {
-          "BTTTriggerType" : 100,
-          "BTTTriggerTypeDescription" : "3 Finger Swipe Left",
+          "BTTTriggerType" : 118,
+          "BTTTriggerTypeDescription" : "Rotate Right",
           "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
-          "BTTPredefinedActionType" : 78,
-          "BTTPredefinedActionName" : "3F Swipe Right (Page Forward)",
+          "BTTPredefinedActionType" : -1,
+          "BTTPredefinedActionName" : "No Action",
+          "BTTLayoutIndependentActionChar" : "r",
+          "BTTAutoAdaptActionToKeyboardLayout" : true,
+          "BTTShortcutToSend" : "55,15",
           "BTTEnabled2" : 1,
           "BTTAlternateModifierKeys" : 0,
           "BTTRepeatDelay" : 0,
-          "BTTUUID" : "44B08619-D605-4D46-A582-0B82E4250B9C",
+          "BTTUUID" : "0F19B6FD-E7D0-4805-B946-D1F1EBDCCAA4",
           "BTTNotesInsteadOfDescription" : 0,
           "BTTEnabled" : 1,
           "BTTModifierMode" : 0,
-          "BTTOrder" : 1,
+          "BTTOrder" : 8,
+          "BTTDisplayOrder" : 0
+        },
+        {
+          "BTTTriggerType" : 102,
+          "BTTTriggerTypeDescription" : "3 Finger Swipe Up",
+          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
+          "BTTPredefinedActionType" : -1,
+          "BTTPredefinedActionName" : "No Action",
+          "BTTLayoutIndependentActionChar" : "w",
+          "BTTAutoAdaptActionToKeyboardLayout" : true,
+          "BTTShortcutToSend" : "55,13",
+          "BTTEnabled2" : 1,
+          "BTTAlternateModifierKeys" : 0,
+          "BTTRepeatDelay" : 0,
+          "BTTUUID" : "726BFE49-EBAB-4E26-AB67-1C4D361BF849",
+          "BTTNotesInsteadOfDescription" : 0,
+          "BTTEnabled" : 1,
+          "BTTModifierMode" : 0,
+          "BTTOrder" : 3,
           "BTTDisplayOrder" : 0
         },
         {
@@ -340,184 +319,44 @@
           "BTTAutoAdaptToKeyboardLayout" : 0
         },
         {
-          "BTTTriggerType" : 102,
-          "BTTTriggerTypeDescription" : "3 Finger Swipe Up",
+          "BTTTriggerType" : 156,
+          "BTTTriggerTypeDescription" : "3 Finger Clickswipe Down",
           "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
-          "BTTPredefinedActionType" : -1,
-          "BTTPredefinedActionName" : "No Action",
-          "BTTLayoutIndependentActionChar" : "w",
-          "BTTAutoAdaptActionToKeyboardLayout" : true,
-          "BTTShortcutToSend" : "55,13",
+          "BTTPredefinedActionType" : 58,
+          "BTTPredefinedActionName" : "Search Selected Text With Google",
           "BTTEnabled2" : 1,
           "BTTAlternateModifierKeys" : 0,
           "BTTRepeatDelay" : 0,
-          "BTTUUID" : "1E7B4A34-0E79-49D0-B3D8-6580491933AB",
+          "BTTUUID" : "E57F8BA5-423A-47FB-AF38-554A2D5F38F0",
           "BTTNotesInsteadOfDescription" : 0,
           "BTTEnabled" : 1,
           "BTTModifierMode" : 0,
-          "BTTOrder" : 3,
+          "BTTOrder" : 4,
           "BTTDisplayOrder" : 0
         },
         {
-          "BTTTriggerType" : 0,
-          "BTTTriggerClass" : "BTTTriggerTypeKeyboardShortcut",
-          "BTTPredefinedActionType" : 253,
-          "BTTPredefinedActionName" : "Run JavaScript for Automation (blocking)",
-          "BTTInlineAppleScript" : "let safari = Application(\"Safari\")\n\nsafari.make({new: \"document\"})\nsafari.activate()",
-          "BTTAdditionalConfiguration" : "1310729",
+          "BTTTriggerType" : 113,
+          "BTTTriggerTypeDescription" : "TipTap Left (1 Finger Fix)",
+          "BTTTriggerClass" : "BTTTriggerTypeTouchpadAll",
+          "BTTPredefinedActionType" : -1,
+          "BTTPredefinedActionName" : "No Action",
+          "BTTLayoutIndependentActionChar" : "[",
+          "BTTAutoAdaptActionToKeyboardLayout" : true,
+          "BTTShortcutToSend" : "56,55,33",
           "BTTEnabled2" : 1,
-          "BTTKeyboardShortcutKeyboardType" : 5759,
+          "BTTAlternateModifierKeys" : 0,
           "BTTRepeatDelay" : 0,
-          "BTTUUID" : "D4204CAF-5020-441F-BEF2-2F5F596558E2",
-          "BTTTriggerOnDown" : 1,
+          "BTTUUID" : "12FB968A-D92E-4562-88A8-832A598C3F50",
           "BTTNotesInsteadOfDescription" : 0,
-          "BTTLayoutIndependentChar" : "s",
           "BTTEnabled" : 1,
           "BTTModifierMode" : 0,
-          "BTTShortcutKeyCode" : 1,
-          "BTTShortcutModifierKeys" : 1310720,
-          "BTTOrder" : 1,
-          "BTTDisplayOrder" : 0,
-          "BTTAutoAdaptToKeyboardLayout" : 0
+          "BTTOrder" : 6,
+          "BTTDisplayOrder" : 0
         }
       ]
     }
   ],
   "BTTPresetSnapAreas" : [
-    {
-      "BTTDisplayIsBuiltIn" : 1,
-      "BTTDisplayID" : 2077750265,
-      "BTTDisplayIsMain" : 1,
-      "BTTDisplayModel" : 41008,
-      "BTTDisplayResolution" : "{1680, 1050}",
-      "BTTDisplayScreenFrame" : "{{0, 0}, {1680, 1050}}",
-      "BTTDisplayScreenSize" : "{330.79069270644078, 206.74418294152548}",
-      "BTTDisplaySerialNumber" : "0",
-      "BTTDisplayVendorID" : 1552,
-      "BTTDisplaySnappedDragpoints" : [
-        {
-          "BTTSnapAreaPreviewBorderColor" : "0.000000, 0.000000, 0.000000, 255.000000",
-          "BTTSnapAreaColor" : "129.988851, 201.126536, 227.013970, 104.550003",
-          "BTTSnapAreaFrame" : "{{871, 0}, {372, 216}}",
-          "BTTSnapAreaHighlightColor" : "92.624286, 122.650396, 161.665578, 56.099998",
-          "BTTSnapAreaIsInvisible" : 1,
-          "BTTSnapAreaPictogramDistanceFromLeft" : 0.10000000149011612,
-          "BTTSnapAreaPictogramDistanceFromBottom" : 0.10000000149011612,
-          "BTTSnapAreaPictogramSize" : 0.69999998807907104,
-          "BTTSnapAreaPreviewFrame" : "{{570, 19}, {1090, 1010}}",
-          "BTTSnapAreaUUID" : "4747F90C-D869-491C-AB0E-AD59CDC6B4D5",
-          "BTTSnapAreaShowsForApps" : [
 
-          ]
-        },
-        {
-          "BTTSnapAreaPreviewBorderColor" : "0.000000, 0.000000, 0.000000, 255.000000",
-          "BTTSnapAreaColor" : "129.988851, 201.126536, 227.013970, 104.550003",
-          "BTTSnapAreaFrame" : "{{480, 0}, {368, 217}}",
-          "BTTSnapAreaHighlightColor" : "92.624286, 122.650396, 161.665578, 56.099998",
-          "BTTSnapAreaIsInvisible" : 1,
-          "BTTSnapAreaPictogramDistanceFromLeft" : 0.10000000149011612,
-          "BTTSnapAreaPictogramDistanceFromBottom" : 0.10000000149011612,
-          "BTTSnapAreaPictogramSize" : 0.69999998807907104,
-          "BTTSnapAreaPreviewFrame" : "{{20, 19}, {1095, 1010}}",
-          "BTTSnapAreaUUID" : "FFA8D327-B5C2-4E3A-8439-9EC963F64EAF",
-          "BTTSnapAreaShowsForApps" : [
-
-          ]
-        },
-        {
-          "BTTSnapAreaPreviewBorderColor" : "0.000000, 0.000000, 0.000000, 255.000000",
-          "BTTSnapAreaColor" : "129.988851, 201.126536, 227.013970, 104.550003",
-          "BTTSnapAreaFrame" : "{{83, 0}, {379, 215}}",
-          "BTTSnapAreaHighlightColor" : "92.624286, 122.650396, 161.665578, 56.099998",
-          "BTTSnapAreaIsInvisible" : 1,
-          "BTTSnapAreaPictogramDistanceFromLeft" : 0.10000000149011612,
-          "BTTSnapAreaPictogramDistanceFromBottom" : 0.10000000149011612,
-          "BTTSnapAreaPictogramSize" : 0.69999998807907104,
-          "BTTSnapAreaPreviewFrame" : "{{20, 19}, {533, 1010}}",
-          "BTTSnapAreaUUID" : "4F257E95-BE11-4ECB-91CF-F8B57F6AC72F",
-          "BTTSnapAreaShowsForApps" : [
-
-          ]
-        },
-        {
-          "BTTSnapAreaPreviewBorderColor" : "0.000000, 0.000000, 0.000000, 255.000000",
-          "BTTSnapAreaColor" : "129.988851, 201.126536, 227.013970, 104.550003",
-          "BTTSnapAreaFrame" : "{{1263, 0}, {323, 216.609375}}",
-          "BTTSnapAreaHighlightColor" : "92.624286, 122.650396, 161.665578, 56.099998",
-          "BTTSnapAreaIsInvisible" : 1,
-          "BTTSnapAreaPictogramDistanceFromLeft" : 0.10000000149011612,
-          "BTTSnapAreaPictogramDistanceFromBottom" : 0.10000000149011612,
-          "BTTSnapAreaPictogramSize" : 0.69999998807907104,
-          "BTTSnapAreaPreviewFrame" : "{{1133, 19}, {529, 1010}}",
-          "BTTSnapAreaUUID" : "97CFEC97-36EF-434B-9DC1-4667E9D90E21",
-          "BTTSnapAreaShowsForApps" : [
-
-          ]
-        }
-      ],
-      "BTTDisplayDisplayedDragpoints" : [
-        {
-          "BTTSnapAreaPreviewBorderColor" : "0.000000, 0.000000, 0.000000, 255.000000",
-          "BTTSnapAreaColor" : "129.988851, 201.126536, 227.013970, 104.550003",
-          "BTTSnapAreaFrame" : "{{871, 0}, {372, 216}}",
-          "BTTSnapAreaHighlightColor" : "92.624286, 122.650396, 161.665578, 56.099998",
-          "BTTSnapAreaIsInvisible" : 1,
-          "BTTSnapAreaPictogramDistanceFromLeft" : 0.10000000149011612,
-          "BTTSnapAreaPictogramDistanceFromBottom" : 0.10000000149011612,
-          "BTTSnapAreaPictogramSize" : 0.69999998807907104,
-          "BTTSnapAreaPreviewFrame" : "{{570, 19}, {1090, 1010}}",
-          "BTTSnapAreaUUID" : "4747F90C-D869-491C-AB0E-AD59CDC6B4D5",
-          "BTTSnapAreaShowsForApps" : [
-
-          ]
-        },
-        {
-          "BTTSnapAreaPreviewBorderColor" : "0.000000, 0.000000, 0.000000, 255.000000",
-          "BTTSnapAreaColor" : "129.988851, 201.126536, 227.013970, 104.550003",
-          "BTTSnapAreaFrame" : "{{480, 0}, {368, 217}}",
-          "BTTSnapAreaHighlightColor" : "92.624286, 122.650396, 161.665578, 56.099998",
-          "BTTSnapAreaIsInvisible" : 1,
-          "BTTSnapAreaPictogramDistanceFromLeft" : 0.10000000149011612,
-          "BTTSnapAreaPictogramDistanceFromBottom" : 0.10000000149011612,
-          "BTTSnapAreaPictogramSize" : 0.69999998807907104,
-          "BTTSnapAreaPreviewFrame" : "{{20, 19}, {1095, 1010}}",
-          "BTTSnapAreaUUID" : "FFA8D327-B5C2-4E3A-8439-9EC963F64EAF",
-          "BTTSnapAreaShowsForApps" : [
-
-          ]
-        },
-        {
-          "BTTSnapAreaPreviewBorderColor" : "0.000000, 0.000000, 0.000000, 255.000000",
-          "BTTSnapAreaColor" : "129.988851, 201.126536, 227.013970, 104.550003",
-          "BTTSnapAreaFrame" : "{{83, 0}, {379, 215}}",
-          "BTTSnapAreaHighlightColor" : "92.624286, 122.650396, 161.665578, 56.099998",
-          "BTTSnapAreaIsInvisible" : 1,
-          "BTTSnapAreaPictogramDistanceFromLeft" : 0.10000000149011612,
-          "BTTSnapAreaPictogramDistanceFromBottom" : 0.10000000149011612,
-          "BTTSnapAreaPictogramSize" : 0.69999998807907104,
-          "BTTSnapAreaPreviewFrame" : "{{20, 19}, {533, 1010}}",
-          "BTTSnapAreaUUID" : "4F257E95-BE11-4ECB-91CF-F8B57F6AC72F",
-          "BTTSnapAreaShowsForApps" : [
-
-          ]
-        },
-        {
-          "BTTSnapAreaPreviewBorderColor" : "0.000000, 0.000000, 0.000000, 255.000000",
-          "BTTSnapAreaColor" : "129.988851, 201.126536, 227.013970, 104.550003",
-          "BTTSnapAreaFrame" : "{{1263, 0}, {323, 216.609375}}",
-          "BTTSnapAreaHighlightColor" : "92.624286, 122.650396, 161.665578, 56.099998",
-          "BTTSnapAreaIsInvisible" : 1,
-          "BTTSnapAreaPictogramDistanceFromLeft" : 0.10000000149011612,
-          "BTTSnapAreaPictogramDistanceFromBottom" : 0.10000000149011612,
-          "BTTSnapAreaPictogramSize" : 0.69999998807907104,
-          "BTTSnapAreaPreviewFrame" : "{{1133, 19}, {529, 1010}}",
-          "BTTSnapAreaUUID" : "97CFEC97-36EF-434B-9DC1-4667E9D90E21",
-          "BTTSnapAreaShowsForApps" : [
-
-          ]
-        }
-      ]
-    }
   ]
 }
