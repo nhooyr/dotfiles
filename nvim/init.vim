@@ -297,6 +297,7 @@ EOF
   let g:completion_trigger_keyword_length = 3
   let g:completion_matching_ignore_case = 1
   let g:completion_enable_snippet = 'Neosnippet'
+  let g:completion_auto_change_source = 1
   let g:completion_confirm_key = ""
   imap <expr> <CR> pumvisible() ? complete_info()["selected"] != "-1" ?
         \ "\<Plug>(completion_confirm_completion)" : "\<C-e>\<CR>\<Plug>DiscretionaryEnd" :

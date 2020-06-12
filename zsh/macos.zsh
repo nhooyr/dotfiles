@@ -1,7 +1,9 @@
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_COLOR=1
 
-export REMOTE_HOST="$USER@xayah"
+if [[ ! "$REMOTE_HOST" ]]; then
+  export REMOTE_HOST="$USER@xayah"
+fi
 
 alias b="brew"
 alias bs="brew search"
