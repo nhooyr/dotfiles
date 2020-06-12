@@ -22,24 +22,6 @@ prepend_PATH /usr/local/opt/llvm/bin
 prepend_PATH /usr/local/opt/make/libexec/gnubin
 prepend_PATH /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin
 
-noti() {
-  local last_status="$?"
-  if [[ "$#" -eq 0 ]]; then
-    if [[ "$last_status" -eq 0 ]]; then
-      set -- true
-    else
-      set -- false
-    fi
-  fi
-  if "$@"; then
-    afplay /System/Library/Sounds/Glass.aiff &!
-    true
-  else
-    osascript -e beep &!
-    false
-  fi
-}
-
 prepend_path FPATH /usr/local/share/zsh-completions
 # Disables ~<USER> completion. Way too many on macOS.
 # I only want to see my bookmarks.
