@@ -6,8 +6,7 @@ select-word-style bash
 # Bash"s time format is much better.
 # ZSH"s default is a single line.
 # https://superuser.com/a/71890
-TIMEFMT="
-real    %*E
+TIMEFMT="real    %*E
 user    %*U
 sys     %*S"
 

@@ -12,6 +12,7 @@ function! s:plugins() abort
   Plug 'peitalin/vim-jsx-typescript'
   " Default syntax does not work well.
   Plug 'leafgarland/typescript-vim'
+  Plug 'fatih/vim-go'
 
   Plug 'simnalamburt/vim-mundo'
   Plug 'machakann/vim-highlightedyank'
@@ -25,9 +26,6 @@ function! s:plugins() abort
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lsp'
-  Plug 'haorenW1025/completion-nvim'
-  Plug 'hrsh7th/vim-vsnip'
-  Plug 'hrsh7th/vim-vsnip-integ'
 
   Plug 'mattn/emmet-vim'
   Plug 'PeterRincker/vim-argumentative'
@@ -80,6 +78,8 @@ function! s:settings() abort
   set foldnestmax=1
   set foldlevel=1
   set textwidth=100
+
+  set formatoptions+=cro
 endfunction
 call s:settings()
 
@@ -215,15 +215,13 @@ function! s:plugin_settings() abort
 
   let g:surround_no_insert_mappings = 1
 
-  map! <silent> <C-j> <Plug>(neosnippet_jump_or_expand)
-  "set conceallevel=3
-  set concealcursor=niv
+  map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
 
   let g:user_emmet_leader_key = '<M-e>'
   let g:user_emmet_mode='i'
 
-  " Has obnoxious defaults. <CR> is mapped in s:lsp()
-  let g:endwise_no_mappings = 1
+  let g:go_gopls_enabled = 0
+  let g:go_template_autocreate = 0
 
   nmap <M-c> gcc
 endfunction
@@ -236,7 +234,8 @@ augroup nhooyr
   " In particular this was added for man.vim which uses close instead of quit
   " and so we cannot quit if there is only a man window left.
   autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
-  autocmd FileType go setlocal noexpandtab
+  " endwise has an obnoxious keybinding that interferes with my C-x.
+  autocmd FileType * silent! iunmap <C-x><CR>
 augroup END
 
 " Adds all accessed files into my shell history.
@@ -273,17 +272,13 @@ function! s:lsp() abort
       return
     end
 
-    local on_attach = function(client)
-      require"completion".on_attach(client)
-    end
-
     -- Disable diagnostics globally.
     vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
 
-    lsp.gopls.setup{on_attach = on_attach}
-    lsp.tsserver.setup{on_attach = on_attach}
-    lsp.vimls.setup{on_attach = on_attach}
-    lsp.clangd.setup{on_attach = on_attach}
+    lsp.gopls.setup{}
+    lsp.tsserver.setup{}
+    lsp.vimls.setup{}
+    lsp.clangd.setup{}
 EOF
   endif
 
@@ -292,18 +287,8 @@ EOF
   set completeopt=menuone,noselect
   set pumheight=5
 
-  inoremap <C-l> <C-x>
-
-  let g:completion_trigger_keyword_length = 3
-  let g:completion_matching_ignore_case = 1
-  let g:completion_enable_snippet = 'Neosnippet'
-  let g:completion_auto_change_source = 1
-  let g:completion_confirm_key = ""
-  imap <expr> <CR> pumvisible() ? complete_info()["selected"] != "-1" ?
-        \ "\<Plug>(completion_confirm_completion)" : "\<C-e>\<CR>\<Plug>DiscretionaryEnd" :
-        \ "\<CR>\<Plug>DiscretionaryEnd"
-
-  inoremap <silent> <expr> <C-space> completion#trigger_completion()
+  inoremap <C-i> <C-x><C-o>
+  inoremap <C-l> <C-x><C-f>
 
   function! s:b_lsp() abort
     nnoremap <silent> <buffer> gd    <cmd>lua vim.lsp.buf.declaration()<CR>
@@ -320,19 +305,9 @@ EOF
     setlocal omnifunc=v:lua.vim.lsp.omnifunc
   endfunction
 
-  function! s:attach_completion() abort
-    lua << EOF
-    local loaded, completion = pcall(require, 'completion')
-    if loaded then
-      completion.on_attach()
-    end
-EOF
-  endfunction
-
   augroup lsp
     autocmd!
     autocmd FileType go,vim,typescript*,c,cpp call s:b_lsp()
-    autocmd BufEnter * call s:attach_completion()
   augroup END
 endfunction
 call s:lsp()
