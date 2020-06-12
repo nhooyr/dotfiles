@@ -217,9 +217,9 @@
 	AAAAAAAAAAOV
 	</data>
 	<key>Bell</key>
-	<false/>
+	<true/>
 	<key>CommandString</key>
-	<string>login -pfq nhooyr</string>
+	<string>login -fpql nhooyr /bin/zsh -l</string>
 	<key>Font</key>
 	<data>
 	YnBsaXN0MDDUAQIDBAUGBwpYJHZlcnNpb25ZJGFyY2hpdmVyVCR0b3BYJG9iamVjdHMS
@@ -260,7 +260,7 @@
 	<key>ShowRepresentedURLInTitle</key>
 	<true/>
 	<key>ShowRepresentedURLPathInTabTitle</key>
-	<true/>
+	<false/>
 	<key>ShowRepresentedURLPathInTitle</key>
 	<false/>
 	<key>ShowShellCommandInTitle</key>
@@ -271,6 +271,8 @@
 	<true/>
 	<key>UseBrightBold</key>
 	<false/>
+	<key>VisualBell</key>
+	<true/>
 	<key>VisualBellOnlyWhenMuted</key>
 	<false/>
 	<key>WindowTitle</key>
@@ -295,7 +297,7 @@
 		</dict>
 		<dict>
 			<key>ProcessName</key>
-			<string>-zsh</string>
+			<string>zsh</string>
 		</dict>
 	</array>
 	<key>rowCount</key>
@@ -306,5 +308,7 @@
 	<string>Window Settings</string>
 	<key>useOptionAsMetaKey</key>
 	<true/>
+	<key>warnOnShellCloseAction</key>
+	<integer>1</integer>
 </dict>
 </plist>

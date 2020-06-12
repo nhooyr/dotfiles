@@ -285,7 +285,7 @@ EOF
   set completeopt=menuone,noselect
   set pumheight=5
 
-  inoremap <C-i> <C-x><C-o>
+  inoremap <C-k> <C-x><C-o>
   inoremap <C-l> <C-x><C-f>
 
   function! s:b_lsp() abort
