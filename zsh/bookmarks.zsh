@@ -29,9 +29,3 @@ setup_bookmarks() {
   done
 }
 setup_bookmarks
-
-prepend_path CDPATH ~/src
-prepend_path CDPATH ~/.config
-prepend_path CDPATH ~/src/cdr
-prepend_path CDPATH ~/src/nhooyr
-prepend_path CDPATH ~/src/nhooyr/dotfiles
