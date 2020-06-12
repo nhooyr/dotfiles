@@ -28,7 +28,7 @@ xcreate() {(
       "$@"
   fi
   xgcloud compute instances create "$(remote_instance)" \
-    --machine-type=e2-custom-8-8192 \
+    --machine-type=e2-custom-8-16384 \
     --subnet=main \
     --scopes=https://www.googleapis.com/auth/cloud-platform \
     --image=debian-sid-v20190812 \
@@ -62,6 +62,7 @@ xstart() {(
 
   local vm_status="$(xgcloud compute instances describe "$(remote_instance)" --format=json | jq -r .status)"
   if [[ "$vm_status" == "RUNNING" ]]; then
+    xwait
     return
   fi
 
@@ -84,7 +85,7 @@ x() {(
 
 xwait() {
   local i
-  for i in {1..10}; do
+  for i in {1..60}; do
     if xssh true; then
       return 0
     fi
@@ -182,7 +183,7 @@ rsx() {(
 
   if [[ "$remote_sha" != "$local_sha" ]]; then
     xssh git init -q "$remote_path"
-    git push -fq "ssh://$REMOTE_HOST/~/$remote_path" "${local_sha}:refs/heads/xrs"
+    git -C "$local_path" push -fq "ssh://$REMOTE_HOST/~/$remote_path" "${local_sha}:refs/heads/xrs"
     xssh git -C "$remote_path" checkout -qf "$local_sha"
   fi
 

@@ -7,9 +7,8 @@ prompt() {
   if [[ "$USER" != "nhooyr" ]]; then
     local user=1
     if [[ $USER == "root" ]]; then
-      echo -n "%F{yellow}"
+      echo -n "%F{yellow}%n%f"
     fi
-    echo -n "%n%f"
   fi
 
   if [[ $HOST != ien* ]]; then
@@ -17,7 +16,7 @@ prompt() {
     if [[ $user ]]; then
       echo -n "@"
     fi
-    echo -n "%F{green}%m%f"
+    echo -n "%F{magenta}%m%f"
   fi
 
   if [[ $user || $host ]]; then

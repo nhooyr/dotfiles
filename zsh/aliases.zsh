@@ -279,3 +279,7 @@ up_d() {
     dir="$(dirname "$dir")"
   done
 }
+
+calc() {
+  command bc <<< "$*"
+}

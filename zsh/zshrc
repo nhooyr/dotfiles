@@ -18,6 +18,8 @@ source ~zsh/prompt.zsh
 source ~zsh/quick.zsh
 source ~zsh/remote.zsh
 source ~zsh/syntax.zsh
+# Machine specific overrides.
+source_if_exists ~zsh/local.zsh
 
 if command_exists post_os_zshrc; then
   post_os_zshrc
