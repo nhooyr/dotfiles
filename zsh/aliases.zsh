@@ -14,7 +14,10 @@ alias nd="nextd"
 alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
 alias rb="reboot"
-alias ses="screen -qD -R"
+
+ses() {
+  tmux new -A -s "${1-default}"
+}
 
 if [[ "$EDITOR" ]]; then
   alias "$EDITOR=false"
@@ -167,10 +170,11 @@ git() {
 alias rg="rg -S"
 alias rgi="rg -S --no-ignore --hidden"
 alias h="fc -R"
+alias n="t noti "
 set -o ALIAS_FUNC_DEF
-alias n="n "
-n() {
-  time (noti "$@")
+alias t="t "
+t() {
+  time ("$@")
 }
 set +o ALIAS_FUNC_DEF
 

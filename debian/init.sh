@@ -87,7 +87,7 @@ install_neovim() {
 }
 
 install_misc() {
-  sudo -E apt install -y shellcheck ripgrep htop screen
+  sudo -E apt install -y shellcheck ripgrep htop tmux
 }
 
 install_exa() {
