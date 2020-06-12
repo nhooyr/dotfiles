@@ -1,16 +1,21 @@
 snippet ctxa
+options word
   ctx context.Context
 
 snippet ctxc
+options head
   ctx, cancel := context.WithCancel(ctx)
 
 snippet ctxt
+options head
   ctx, cancel := context.WithTimeout(ctx, ${1:timeout})
 
-snippet ctxv "context.WithValue" b
+snippet ctxv
+options head
   ctx := context.WithValue(ctx, ${1:key}, ${2:value})
 
-snippet httpfn "http handler function" w
+snippet httpfn
+options word
   http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
     $0
   })
