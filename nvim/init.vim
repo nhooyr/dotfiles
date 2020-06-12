@@ -191,9 +191,7 @@ function! s:binds() abort
     endif
   endfunction
 
-  " Seeing buggy behaviour where it works only sometimes
-  " when used right after deleting some text.
-  " inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
+  inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
 endfunction
 call s:binds()
 
