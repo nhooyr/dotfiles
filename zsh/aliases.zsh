@@ -170,12 +170,24 @@ alias h="fc -R"
 set -o ALIAS_FUNC_DEF
 alias n="n "
 n() {
-  if command_exists noti; then
-    set -- noti "$@"
-  fi
-  time ("$@")
+  time (noti "$@")
 }
 set +o ALIAS_FUNC_DEF
+
+noti() {
+  local last_status="$?"
+  if [[ "$#" -eq 0 ]]; then
+    if [[ "$last_status" -eq 0 ]]; then
+      set -- true
+    else
+      set -- false
+    fi
+  fi
+  "$@"
+  last_status="$?"
+  echo -ne '\a'
+  [[ "$last_status" -eq 0 ]]
+}
 
 rs() {
   if [[ "${RSYNC_UNSHARED-}" ]]; then
