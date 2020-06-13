@@ -71,7 +71,7 @@ xstart() {(
   xwait
 )}
 
-xstop() {
+xpo() {
   xssh sudo poweroff
 }
 

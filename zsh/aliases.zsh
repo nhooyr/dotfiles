@@ -7,21 +7,18 @@ alias s="sudo "
 sudo() {
   command sudo -Es "$@"
 }
-alias m="man"
+alias m="make"
 alias d="docker"
 alias pd="prevd"
 alias nd="nextd"
 alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
 alias rb="reboot"
+alias po="poweroff"
 
 ses() {
   tmux new -A -s "${1-default}"
 }
-
-if [[ "$EDITOR" ]]; then
-  alias "$EDITOR=false"
-fi
 
 e() {
   export QUICK_PATH="$(mktemp -d)/quick_path"
@@ -118,7 +115,7 @@ alias chx="chmod +x"
 alias md="mkdir -p"
 
 alias g="git"
-alias gch="git checkout"
+alias gch="git switch -C"
 alias ga="git add"
 alias gaa="git add -A"
 alias gap="git add -p"
@@ -130,6 +127,7 @@ alias grt="git reset"
 alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
+alias gfork="git fork && git config remote.pushDefault nhooyr"
 alias gp="git push"
 alias gpf="git push -f"
 alias gs="git status"
