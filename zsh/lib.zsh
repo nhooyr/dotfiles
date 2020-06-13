@@ -31,6 +31,7 @@ command_exists() {
 echo_on_failure() {
   if ! out=$("$@" 2>&1); then
     echo "$out" >&2
+    return 1
   fi
 }
 

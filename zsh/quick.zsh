@@ -91,7 +91,7 @@ fzf-quick-paths() {
         fi
       fi
     else
-      LBUFFER="${LBUFFER%$word}$quick_path"
+      execi "${LBUFFER%$word}$quick_path"
     fi
   fi
   zle reset-prompt
