@@ -78,7 +78,9 @@ function! s:settings() abort
 
   set foldmethod=indent
   set foldnestmax=1
-  set foldlevel=1
+  if has('vim_starting')
+    set foldlevel=1
+  endif
   set textwidth=100
 
   set formatoptions+=cro
