@@ -5,14 +5,14 @@ syntax reset
 let g:colors_name = "elysian"
 
 " Vim UI colors.
+hi Normal       ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi CursorLine   ctermfg=NONE   ctermbg=12   cterm=NONE
 hi CursorLineNr ctermfg=244    ctermbg=12   cterm=NONE
 hi LineNr       ctermfg=244    ctermbg=NONE cterm=NONE
 hi ErrorMsg     ctermfg=yellow ctermbg=NONE cterm=bold
 hi VertSplit    ctermfg=244    ctermbg=NONE cterm=NONE
 hi MatchParen   ctermfg=NONE   ctermbg=225  cterm=NONE
-" hi ModeMsg      ctermfg=white  ctermbg=NONE cterm=NONE
-hi NonText      ctermfg=white  ctermbg=NONE cterm=NONE
+hi NonText      ctermfg=244    ctermbg=NONE cterm=NONE
 hi IncSearch    ctermfg=NONE   ctermbg=218  cterm=bold
 hi Search       ctermfg=NONE   ctermbg=153  cterm=NONE
 hi StatusLine   ctermfg=black  ctermbg=194  cterm=bold
@@ -27,7 +27,6 @@ hi Folded       ctermfg=244    ctermbg=255  cterm=NONE
 hi Directory    ctermfg=4  ctermbg=NONE cterm=NONE
 
 " Language colors.
-hi Normal       ctermfg=NONE  ctermbg=NONE cterm=NONE
 hi Comment      ctermfg=244  ctermbg=NONE cterm=NONE
 hi Constant     ctermfg=168  ctermbg=NONE cterm=NONE
 hi String       ctermfg=2    ctermbg=NONE cterm=NONE

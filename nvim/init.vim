@@ -86,7 +86,9 @@ function! s:settings() abort
   set formatoptions+=cro
 
   " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
-  set fdo-=search
+  set foldopen-=search
+  " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
+  let &fillchars='eob: '
 endfunction
 call s:settings()
 
@@ -97,7 +99,8 @@ function! s:binds() abort
   noremap , ;
   nnoremap <silent> <nowait> q :quit<CR>
   nnoremap <nowait> Q q
-  nnoremap <silent> <leader>ec :e $MYVIMRC<CR>
+  nnoremap <silent> <leader>ee :e $MYVIMRC<CR>
+  nnoremap <silent> <leader>ec :e $COLOR<CR>
   nnoremap <silent> k gk
   nnoremap <silent> j gj
   " https://vim.fandom.com/wiki/Format_pasted_text_automatically
