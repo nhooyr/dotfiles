@@ -8,6 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - run: GO111MODULE=on go get mvdan.cc/sh/v3/cmd/shfmt
+      - run: sudo npm install -g doctoc prettier
       - run: PATH=$PATH:~/go/bin ./ci/fmt.sh
 
   lint:
