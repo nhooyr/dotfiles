@@ -5,8 +5,6 @@ main() {
   export DEBIAN_FRONTEND=noninteractive
 
   sudo -E apt update
-  install_dotfiles
-
   sudo -E apt full-upgrade -y --purge
   sudo -E apt autoremove -y --purge
   sudo -E apt install -y \
@@ -14,7 +12,10 @@ main() {
     jq \
     build-essential \
     cmake \
-    git
+    git \
+    curl
+
+  install_dotfiles
 
   install_go
   install_node
@@ -60,7 +61,6 @@ install_docker() {
 
 install_dotfiles() {
   sudo -E apt install -y \
-    git \
     zsh \
     fzf \
     fd-find

@@ -17,7 +17,7 @@ prompt() {
     if [[ $user ]]; then
       echo -n "@"
     fi
-    echo -n "%F{magenta}%m%f"
+    echo -n "%F{magenta}%M%f"
   fi
 
   if [[ $user || $host ]]; then
