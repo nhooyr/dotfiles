@@ -115,7 +115,7 @@ alias chx="chmod +x"
 alias md="mkdir -p"
 
 alias g="git"
-alias gch="git switch -C"
+alias gch="git checkout"
 alias ga="git add"
 alias gaa="git add -A"
 alias gap="git add -p"
