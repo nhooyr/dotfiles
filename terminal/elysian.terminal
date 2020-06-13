@@ -218,6 +218,8 @@
 	</data>
 	<key>Bell</key>
 	<true/>
+	<key>BellBounceCritical</key>
+	<false/>
 	<key>CommandString</key>
 	<string>login -fpql nhooyr /bin/zsh -l</string>
 	<key>Font</key>
@@ -251,6 +253,8 @@
 	<true/>
 	<key>ShowActivityIndicatorInTab</key>
 	<true/>
+	<key>ShowCommandKeyInTitle</key>
+	<false/>
 	<key>ShowComponentsWhenTabHasCustomTitle</key>
 	<false/>
 	<key>ShowDimensionsInTitle</key>
@@ -266,6 +270,8 @@
 	<key>ShowShellCommandInTitle</key>
 	<false/>
 	<key>ShowTTYNameInTitle</key>
+	<false/>
+	<key>ShowWindowSettingsNameInTitle</key>
 	<false/>
 	<key>UseBoldFonts</key>
 	<true/>

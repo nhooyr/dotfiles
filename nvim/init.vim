@@ -16,12 +16,14 @@ function! s:plugins() abort
 
   Plug 'simnalamburt/vim-mundo'
   Plug 'machakann/vim-highlightedyank'
+  Plug 'ntpeters/vim-better-whitespace'
 
   Plug 'tpope/vim-unimpaired'
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-sleuth'
-  Plug 'tpope/vim-commentary'
+  Plug 'tpope/vim-fugitive'
+  Plug 'tomtom/tcomment_vim'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
@@ -80,6 +82,9 @@ function! s:settings() abort
   set textwidth=100
 
   set formatoptions+=cro
+
+  " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
+  set fdo-=search
 endfunction
 call s:settings()
 
@@ -192,6 +197,8 @@ function! s:binds() abort
   endfunction
 
   inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
+
+  nnoremap <silent> <Leader>w :StripWhitespace<CR>
 endfunction
 call s:binds()
 
@@ -219,6 +226,7 @@ function! s:plugin_settings() abort
   let g:user_emmet_mode='i'
 
   let g:go_gopls_enabled = 0
+  let g:go_echo_go_info = 0
   let g:go_template_autocreate = 0
 
   nmap <M-c> gcc
@@ -277,6 +285,7 @@ function! s:lsp() abort
     lsp.tsserver.setup{}
     lsp.vimls.setup{}
     lsp.clangd.setup{}
+    lsp.sumneko_lua.setup{}
 EOF
   endif
 
@@ -285,7 +294,7 @@ EOF
   set completeopt=menuone,noselect
   set pumheight=5
 
-  inoremap <C-k> <C-x><C-o>
+  inoremap <C-Space> <C-x><C-o>
   inoremap <C-l> <C-x><C-f>
 
   function! s:b_lsp() abort
@@ -305,7 +314,7 @@ EOF
 
   augroup lsp
     autocmd!
-    autocmd FileType go,vim,typescript*,c,cpp call s:b_lsp()
+    autocmd FileType go,vim,lua,typescript*,c,cpp call s:b_lsp()
   augroup END
 endfunction
 call s:lsp()
