@@ -10,7 +10,7 @@ xssh() {
   ssh "$REMOTE_HOST" "$@"
 }
 
-xsshq() {
+xq() {
   sshq "$REMOTE_HOST" "$@"
 }
 
@@ -60,22 +60,32 @@ xstart() {(
     return
   fi
 
-  local vm_status="$(xgcloud compute instances describe "$(remote_instance)" --format=json | jq -r .status)"
-  if [[ "$vm_status" == "RUNNING" ]]; then
+  if [[ "$REMOTE_HOST" != *xayah* ]]; then
+    return
+  fi
+
+  if [[ "$REMOTE_HOST" == *.local ]]; then
+    local vm_status="$(prlctl status "$(remote_instance)")"
+    if [[ "$vm_status" != "VM $(remote_instance) exist running" ]]; then
+      echo "$vm_status"
+      prlctl start "$(remote_instance)"
+    fi
     xwait
     return
   fi
 
-  echo "$vm_status"
-  echo_on_failure xgcloud compute instances start "$(remote_instance)"
+  local vm_status="$(xgcloud compute instances describe "$(remote_instance)" --format=json | jq -r .status)"
+  if [[ "$vm_status" != "RUNNING" ]]; then
+    echo "$vm_status"
+    echo_on_failure xgcloud compute instances start "$(remote_instance)"
+  fi
+
   xwait
 )}
 
-xpo() {
-  xssh sudo poweroff
-}
-
 x() {(
+  set -euo pipefail
+
   if [[ $# -gt 0 ]]; then
     local args="-c '$*'"
   fi
