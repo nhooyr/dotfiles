@@ -92,6 +92,8 @@ fzf-quick-paths() {
         else
           execi e "$qquick_path"
         fi
+      else
+        execi "false $qquick_path"
       fi
     else
       execi "${LBUFFER%$word}$quick_path"
