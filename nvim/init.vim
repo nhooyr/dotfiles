@@ -97,8 +97,6 @@ function! s:binds() abort
 
   noremap ; :
   noremap , ;
-  nnoremap <silent> <nowait> q :quit<CR>
-  nnoremap <nowait> Q q
   nnoremap <silent> <leader>ee :e $MYVIMRC<CR>
   nnoremap <silent> <leader>ec :e $COLOR<CR>
   nnoremap <silent> k gk
@@ -241,10 +239,6 @@ call s:plugin_settings()
 augroup nhooyr
   autocmd!
   autocmd FileType gitcommit startinsert
-  " q should always quit.
-  " In particular this was added for man.vim which uses close instead of quit
-  " and so we cannot quit if there is only a man window left.
-  autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
   " endwise has an obnoxious keybinding that interferes with my C-x.
   autocmd FileType * silent! iunmap <C-x><CR>
 augroup END
