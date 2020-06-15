@@ -1,14 +1,14 @@
 function! s:plugins() abort
-  let s:vim_plug = '~/.local/share/nvim/site/autoload/plug.vim'
+  let s:vim_plug = "~/.local/share/nvim/site/autoload/plug.vim"
   if empty(glob(s:vim_plug, 1))
-    execute 'silent !curl -fLo' s:vim_plug '--create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
+    execute "silent !curl -fLo" s:vim_plug "--create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
     augroup vim-plug
       autocmd!
       autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
     augroup END
   endif
 
-  call plug#begin(stdpath('data') . '/plugged')
+  call plug#begin(stdpath("data") . "/plugged")
   Plug 'peitalin/vim-jsx-typescript'
   " Default syntax does not work well.
   Plug 'leafgarland/typescript-vim'
@@ -53,14 +53,14 @@ function! s:settings() abort
   set undolevels=10000
   set inccommand=nosplit
   set gdefault
-  let $COLOR = stdpath('config') . '/colors/elysian.vim'
+  let $COLOR = stdpath("config") . "/colors/elysian.vim"
   colorscheme elysian
   augroup elysian
     autocmd!
     autocmd BufWritePost elysian.vim colorscheme elysian
     autocmd BufWritePost $MYVIMRC source $MYVIMRC
   augroup END
-  if has('vim_starting')
+  if has("vim_starting")
     set tabstop=2
     set softtabstop=2
     set shiftwidth=2
@@ -71,14 +71,14 @@ function! s:settings() abort
   set noruler
   set updatetime=100
   set laststatus=1
-  set autochdir
+  "set autochdir
 
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
 
   set foldmethod=indent
   set foldnestmax=1
-  if has('vim_starting')
+  if has("vim_starting")
     set foldlevel=1
   endif
   set textwidth=100
@@ -88,7 +88,7 @@ function! s:settings() abort
   " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
   set foldopen-=search
   " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
-  let &fillchars='eob: '
+  let &fillchars="eob: "
 endfunction
 call s:settings()
 
@@ -177,27 +177,27 @@ function! s:binds() abort
   noremap! <silent> <C-z> <ESC>zzcc
 
   " https://stackoverflow.com/a/9464929/4283659
-  nnoremap <silent> <Leader>s :echo map(synstack(line('.'), col('.')), 'synIDattr(v:val, "name")')<CR>
+  nnoremap <silent> <Leader>s :echo map(synstack(line("."), col(".")), "synIDattr(v:val, 'name')")<CR>
 
   " Revert to last write.
   nnoremap <silent> <Leader>rv :earlier 1f<CR>
   " Adapted from https://www.reddit.com/r/vim/comments/7gqowu/hungrysmart_backspace_support/
   function! s:backspace() abort
-    if getline(line('.')) =~ '\S'
+    if getline(line(".")) =~ '\S'
       " Fallback to default behaviour.
-      call feedkeys("\<BS>", 'n')
+      call feedkeys("\<BS>", "n")
       return
     endif
 
     " Remove all text on the current line as it's just whitespace.
-    if col('.') > 1
-      call feedkeys("\<BS>", 'n')
+    if col(".") > 1
+      call feedkeys("\<BS>", "n")
     endif
-    call feedkeys("\<BS>", 'n')
+    call feedkeys("\<BS>", "n")
 
-    if getline(line('.')-1) !~ '\S'
+    if getline(line(".")-1) !~ '\S'
       " Reindent current line if empty.
-      call feedkeys("\<C-o>cc", 'n')
+      call feedkeys("\<C-o>cc", "n")
     endif
   endfunction
 
@@ -227,8 +227,8 @@ function! s:plugin_settings() abort
 
   map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
 
-  let g:user_emmet_leader_key = '<M-e>'
-  let g:user_emmet_mode='i'
+  let g:user_emmet_leader_key = "<M-e>"
+  let g:user_emmet_mode="i"
 
   let g:go_gopls_enabled = 0
   let g:go_echo_go_info = 0
@@ -251,8 +251,14 @@ augroup END
 
 " Adds all accessed files into my shell history.
 function! s:history_update() abort
-  if empty(&buftype) || &filetype ==# 'netrw'
-    call jobstart(['zsh', '-ic', 'print -rs e "$(normalize '.expand('%:p:S').')"'])
+  if empty(&buftype) || &filetype ==# "netrw"
+    let path = expand("%:p:S")
+    if !empty(path)
+      if path =~ "/.git"
+        return
+      endif
+      call jobstart(["zsh", "-ic", 'print -rs e "$(normalize '.expand('%:p:S').')"'])
+    endif
   endif
 endfunction
 augroup history
@@ -261,16 +267,15 @@ augroup history
 augroup END
 
 function! s:quick() abort
-  function! s:exit_quick() abort
-    if $QUICK_PATH != ""
-      call system("touch " . $QUICK_PATH)
+  function! s:exit_quick(type) abort
+    if !empty($QUICK_PATH)
+      call system("echo " . a:type . " > " . $QUICK_PATH)
     endif
     quit!
   endfunction
 
-  nnoremap <silent> <M-v> :call <SID>exit_quick()<CR>
-
-  inoremap <silent> <M-v> <ESC>:call <SID>exit_quick()<CR>
+  nnoremap <silent> <M-v> :call <SID>exit_quick("all")<CR>
+  inoremap <silent> <M-v> <ESC>:call <SID>exit_quick("all")<CR>
 endfunction
 call s:quick()
 

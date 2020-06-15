@@ -30,8 +30,12 @@ e() {
 
 zle-line-init() {
   if [[ -e "$QUICK_PATH" ]]; then
-    unset QUICK_PATH
-    fzf-quick-paths
+    case "$(cat $QUICK_PATH)" in
+      all)
+        unset QUICK_PATH
+        fzf-quick-paths
+        ;;
+    esac
   fi
 }
 zle -N zle-line-init
