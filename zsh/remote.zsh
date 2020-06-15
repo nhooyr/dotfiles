@@ -76,7 +76,7 @@ xstart() {(
 
   local vm_status="$(xgcloud compute instances describe "$(remote_instance)" --format=json | jq -r .status)"
   if [[ "$vm_status" != "RUNNING" ]]; then
-    echo "$vm_status"
+    echo "$(remote_instance): $vm_status"
     echo_on_failure xgcloud compute instances start "$(remote_instance)"
   fi
 
