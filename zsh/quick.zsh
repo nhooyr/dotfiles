@@ -17,7 +17,7 @@ relative_path() {
 }
 
 quick_paths() {
-  fc -lnr 1 | grep "^e \S" | sed "s#^e ##g"
+  fc -lnr 1 | grep "^e [/~]" | sed "s#^e ##g"
 
   fd -aH -d6 .
 
