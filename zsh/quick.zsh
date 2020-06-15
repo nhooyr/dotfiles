@@ -17,7 +17,8 @@ relative_path() {
 }
 
 quick_paths() {
-  fc -lnr 1 | grep "^e [/~]" | sed "s#^e ##g"
+  # Ensures only absolute paths and the first argument are printed.
+  fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g"
 
   fd -aH -d6 .
 
