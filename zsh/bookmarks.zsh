@@ -17,6 +17,7 @@ bookmarks=(
   "~nhooyr/websocket"
   "~nhooyr/blog"
   "~cdr/x11wasm"
+  "~cdr/bark"
   "~cdr/code-server"
 )
 
