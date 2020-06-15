@@ -62,8 +62,7 @@ function! s:settings() abort
   augroup END
   if has("vim_starting")
     set tabstop=2
-    set softtabstop=2
-    set shiftwidth=2
+    let &shiftwidth=&tabstop
     set expandtab
   endif
   set shortmess+=aIAc
@@ -241,6 +240,8 @@ augroup nhooyr
   autocmd FileType gitcommit startinsert
   " endwise has an obnoxious keybinding that interferes with my C-x.
   autocmd FileType * silent! iunmap <C-x><CR>
+  " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
+  autocmd FocusGained * checktime
 augroup END
 
 function! s:quick() abort
