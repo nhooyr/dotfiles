@@ -17,6 +17,8 @@ relative_path() {
 }
 
 quick_paths() {
+  fc -lnr 1 | grep "^e \S" | sed "s#^e ##g"
+
   fd -aH -d6 .
 
   echo ~/src/nhooyr/dotfiles
@@ -69,7 +71,7 @@ fzf-quick-paths() {
   local word="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(quick_paths | filter_duplicates | relative_path | replace_bookmarks | \
+  selected=("${(@f)$(quick_paths | replace_bookmarks | filter_duplicates | \
     fzf --expect=ctrl-v,ctrl-x --height=30% --query="$word")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
