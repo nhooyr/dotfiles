@@ -86,14 +86,12 @@ fzf-quick-paths() {
     if [[ ! "$BUFFER" ]]; then
       if [[ -d "$equick_path" ]]; then
         execi cd "$qquick_path"
-      elif [[ -e "$equick_path" ]]; then
+      else
         if [[ "$key" == "ctrl-x" ]]; then
           execi "$qquick_path"
         else
           execi e "$qquick_path"
         fi
-      else
-        execi "false $qquick_path"
       fi
     else
       execi "${LBUFFER%$word}$quick_path"
@@ -104,9 +102,13 @@ fzf-quick-paths() {
 zle -N fzf-quick-paths
 bindkey "\ev" fzf-quick-paths
 
+_pristine_history() {
+  fc -lnr 1 | grep -v "^\(e\|cd\) \S\+$"
+}
+
 fzf-history() {
   local selected
-  selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=30% --query="$LBUFFER")}")
+  selected=("${(@f)$(_pristine_history | fzf --expect=ctrl-v --no-sort --height=30% --query="$LBUFFER")}")
   local key="${selected[1]}"
   local cmd="${selected[2]}"
   if [[ "$cmd" ]]; then
