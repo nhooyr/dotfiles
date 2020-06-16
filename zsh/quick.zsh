@@ -20,7 +20,7 @@ quick_paths() {
   # Ensures only absolute paths and the first argument are printed.
   # The reason we expand bookmarks is to handle old bookmarks appropriately.
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks \
-    | grep -F "$PWD" | replace_bookmarks
+    | grep -F "$PWD/" | replace_bookmarks
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g"
 
   fd -aH -d6 .
@@ -87,7 +87,7 @@ fzf-quick-paths() {
     fi
     if [[ ! "$BUFFER" ]]; then
       if [[ -d "$equick_path" ]]; then
-        execi cd "$qquick_path"
+        execi cd "$qquick_path "
       else
         if [[ "$key" == "ctrl-x" ]]; then
           execi "$qquick_path"
