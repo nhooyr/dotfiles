@@ -173,7 +173,7 @@ function! s:binds() abort
   nnoremap <silent> <C-h> <C-W>h
 
   noremap <silent> <C-z> zz
-  noremap! <silent> <C-z> <ESC>zzcc
+  inoremap <silent> <C-z> <C-o>zz
 
   " https://stackoverflow.com/a/9464929/4283659
   nnoremap <silent> <Leader>s :echo map(synstack(line("."), col(".")), "synIDattr(v:val, 'name')")<CR>

@@ -18,45 +18,47 @@ relative_path() {
 
 quick_paths() {
   # Ensures only absolute paths and the first argument are printed.
+  # The reason we expand bookmarks is to handle old bookmarks appropriately.
+  fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks \
+    | grep -F "$PWD" | replace_bookmarks
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g"
 
   fd -aH -d6 .
 
-  echo ~/src/nhooyr/dotfiles
-  fd -H -d1 . ~/src/nhooyr/dotfiles
-  fd -H -d2 . ~/src/nhooyr/dotfiles
-  fd -H -d3 . ~/src/nhooyr/dotfiles
-  fd -H -d6 . ~/src/nhooyr/dotfiles
-  fd -H . ~/src/nhooyr/dotfiles
+  echo ~src
+  fd -H . ~dotfiles
 
   echo ~/src
-  fd -H -d1 . ~/src
   fd -H -d2 . ~/src
 
   if [[ -d ~/Downloads ]]; then
     echo ~/Downloads
-    fd -H -d1 . ~/Downloads
-    fd -H -d2 . ~/Downloads
+    fd -d2 . ~/Downloads
   fi
-}
-
-# Used by my neovim config.
-normalize() {
-  local normalized="$(realpath "$1" | replace_bookmarks)"
-  normalized="$(echo "${(q)normalized}" | sed 's/\\~/~/g')"
-  echo "$normalized"
 }
 
 replace_bookmarks() {
   local sed_expr=""
   for b in "${(Oa)bookmarks[@]}"; do
-    local name="~$(basename "$b")"
-    local full_path="$(eval "echo $b")"
+    local full_path="$b"
+    local name="~${b##*/}"
 
-    sed_expr+="; s#$full_path\$#$name#g"
-    sed_expr+="; s#$full_path/#$name/#g"
+    sed_expr+="; s#^$full_path#$name#g"
   done
   sed_expr+="; s#^$HOME#~#g"
+
+  sed "$sed_expr"
+}
+
+expand_bookmarks() {
+  local sed_expr=""
+  for b in "${(Oa)bookmarks[@]}"; do
+    local full_path="$b"
+    local name="~${b##*/}"
+
+    sed_expr+="; s#^$name#$full_path#g"
+  done
+  sed_expr+="; s#^~#$HOME#g"
 
   sed "$sed_expr"
 }
