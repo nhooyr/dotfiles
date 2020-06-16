@@ -43,7 +43,8 @@ replace_bookmarks() {
     local full_path="$b"
     local name="~${b##*/}"
 
-    sed_expr+="; s#^$full_path#$name#g"
+    sed_expr+="; s#^$full_path\$#$name#g"
+    sed_expr+="; s#^$full_path/#$name/#g"
   done
   sed_expr+="; s#^$HOME#~#g"
 
@@ -56,7 +57,8 @@ expand_bookmarks() {
     local full_path="$b"
     local name="~${b##*/}"
 
-    sed_expr+="; s#^$name#$full_path#g"
+    sed_expr+="; s#^$name\$#$full_path#g"
+    sed_expr+="; s#^$name/#$full_path/#g"
   done
   sed_expr+="; s#^~#$HOME#g"
 
@@ -104,13 +106,9 @@ fzf-quick-paths() {
 zle -N fzf-quick-paths
 bindkey "\ev" fzf-quick-paths
 
-_pristine_history() {
-  fc -lnr 1 | grep -v "^\(e\|cd\) \S\+$"
-}
-
 fzf-history() {
   local selected
-  selected=("${(@f)$(_pristine_history | fzf --expect=ctrl-v --no-sort --height=30% --query="$LBUFFER")}")
+  selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=30% --query="$LBUFFER")}")
   local key="${selected[1]}"
   local cmd="${selected[2]}"
   if [[ "$cmd" ]]; then
