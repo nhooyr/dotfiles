@@ -15,7 +15,7 @@ source ~zsh/env.zsh
 source ~zsh/aliases.zsh
 source ~zsh/history.zsh
 source ~zsh/prompt.zsh
-source ~zsh/quick.zsh
+source ~zsh/fzf.zsh
 source ~zsh/remote.zsh
 source ~zsh/syntax.zsh
 # Machine specific overrides.
