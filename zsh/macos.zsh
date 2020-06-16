@@ -23,9 +23,6 @@ prepend_PATH /usr/local/opt/make/libexec/gnubin
 prepend_PATH /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin
 
 prepend_path FPATH /usr/local/share/zsh-completions
-# Disables ~<USER> completion. Way too many on macOS.
-# I only want to see my bookmarks.
-zstyle ":completion:*" users
 
 # Has to be loaded after completion.
 post_os_zshrc() {
