@@ -13,12 +13,13 @@ zstyle ":completion:*:default" list-colors ${(s.:.)MY_LS_COLORS} "ma=48;5;153;1"
 # https://stackoverflow.com/a/842370/4283659
 bindkey "^[[Z" reverse-menu-complete
 
-zstyle ":completion:*" list-dirs-first
+zstyle ":completion:*" list-dirs-first true
 zstyle ":completion:*" group-name ""
 zstyle ":completion:*" matcher-list "" "+m:{[:lower:]}={[:upper:]}" "+r:|[._-]=** r:|=**" "+l:|=* r:|=*"
 zstyle ":completion:*" menu select yes
 zstyle ":completion:*" list-prompt %B%p%b
 zstyle ":completion:*" select-prompt %B%p%b
+zstyle ':completion:*' use-cache true
 
 # Always reloads command list before completing.
 # https://bbs.archlinux.org/viewtopic.php?id=175388
