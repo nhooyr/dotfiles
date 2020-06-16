@@ -153,10 +153,6 @@ function! s:binds() abort
   nnoremap <silent> <C-q> :quitall!<CR>
   inoremap <silent> <C-q> <Esc>:quitall!<CR>
   cnoremap <silent> <C-q> <C-c>:quitall!<CR>
-  nnoremap <silent> <C-s> :w<CR>
-  inoremap <silent> <C-s> <Esc>:w<CR>
-  nnoremap <silent> <C-x> :xa<CR>
-  inoremap <silent> <C-x> <Esc>:xa<CR>
 
   nnoremap <silent> <C-e> 2<C-e>
   nnoremap <silent> <C-y> 2<C-y>
@@ -242,15 +238,13 @@ augroup nhooyr
   " In particular this was added for man.vim which uses close instead of quit
   " and so we cannot quit if there is only a man window left.
   autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
-  " endwise has an obnoxious keybinding that interferes with my C-x.
-  autocmd FileType * silent! iunmap <C-x><CR>
   " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
   autocmd FocusGained * checktime
 
   autocmd BufWinEnter * call s:restore_cursor()
 
   " Autosave - https://github.com/907th/vim-auto-save#events
-  autocmd TextChanged * silent write
+  autocmd TextChanged * if &buftype == "" | silent write | endif
   autocmd InsertLeave * silent write
 augroup END
 
