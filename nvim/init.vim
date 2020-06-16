@@ -31,6 +31,9 @@ function! s:plugins() abort
 
   Plug 'mattn/emmet-vim'
   Plug 'PeterRincker/vim-argumentative'
+
+  Plug '/usr/local/opt/fzf'
+  Plug 'junegunn/fzf.vim'
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -244,7 +247,7 @@ augroup nhooyr
   autocmd BufWinEnter * call s:restore_cursor()
 
   " Autosave - https://github.com/907th/vim-auto-save#events
-  autocmd TextChanged * if &buftype == "" | silent write | endif
+  autocmd TextChanged * if &buftype == "" && !&readonly | silent write | endif
   autocmd InsertLeave * silent write
 augroup END
 
@@ -252,8 +255,8 @@ function! s:restore_cursor() abort
   if &filetype ==# "gitcommit"
     return
   endif
-  if line('`"') > '0' && line('`"') <= line("$")
-    normal! g`"zz
+  if line("'\"") <= line("$")
+    normal! g'"zz
   endif
 endfunction
 
