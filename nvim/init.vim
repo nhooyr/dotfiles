@@ -55,11 +55,6 @@ function! s:settings() abort
   set gdefault
   let $COLOR = stdpath("config") . "/colors/elysian.vim"
   colorscheme elysian
-  augroup elysian
-    autocmd!
-    autocmd BufWritePost elysian.vim colorscheme elysian
-    autocmd BufWritePost $MYVIMRC source $MYVIMRC
-  augroup END
   if has("vim_starting")
     set tabstop=2
     let &shiftwidth=&tabstop
@@ -85,7 +80,7 @@ function! s:settings() abort
   set formatoptions+=cro
 
   " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
-  set foldopen-=search
+  set foldopen=
   " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
   let &fillchars="eob: "
 endfunction
@@ -176,7 +171,7 @@ function! s:binds() abort
   inoremap <silent> <C-z> <C-o>zz
 
   " https://stackoverflow.com/a/9464929/4283659
-  nnoremap <silent> <Leader>s :echo map(synstack(line("."), col(".")), "synIDattr(v:val, 'name')")<CR>
+  nnoremap <silent> <Leader>l :echo map(synstack(line("."), col(".")), "synIDattr(v:val, 'name')")<CR>
 
   " Revert to last write.
   nnoremap <silent> <Leader>rv :earlier 1f<CR>
@@ -203,6 +198,9 @@ function! s:binds() abort
   inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
 
   nnoremap <silent> <Leader>w :StripWhitespace<CR>
+
+  nnoremap <silent> <Leader>sc :colorscheme elysian<CR>
+  nnoremap <silent> <Leader>ss :source $MYVIMRC<CR>
 endfunction
 call s:binds()
 
@@ -248,7 +246,22 @@ augroup nhooyr
   autocmd FileType * silent! iunmap <C-x><CR>
   " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
   autocmd FocusGained * checktime
+
+  autocmd BufWinEnter * call s:restore_cursor()
+
+  " Autosave - https://github.com/907th/vim-auto-save#events
+  autocmd TextChanged * silent write
+  autocmd InsertLeave * silent write
 augroup END
+
+function! s:restore_cursor() abort
+  if &filetype ==# "gitcommit"
+    return
+  endif
+  if line('`"') > '0' && line('`"') <= line("$")
+    normal! g`"zz
+  endif
+endfunction
 
 function! s:quick() abort
   function! s:exit_quick(type) abort
