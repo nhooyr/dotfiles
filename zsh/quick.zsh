@@ -6,6 +6,7 @@ fzf_default_opts=(
   "--layout=reverse"
   "--info=hidden"
   "--no-bold"
+  "--tiebreak=index"
 )
 export FZF_DEFAULT_OPTS="${fzf_default_opts[*]}"
 

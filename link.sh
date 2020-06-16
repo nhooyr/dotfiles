@@ -25,7 +25,6 @@ main() {
   if [ -f ./secrets/link.sh ]; then
     ./secrets/link.sh
   fi
-  sudo rsync -aL --no-owner --no-group ~/.ssh/ ~root/.ssh/
 }
 
 main "$@"
