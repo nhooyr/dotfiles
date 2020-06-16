@@ -3,28 +3,30 @@ DOTFILES="$HOME/src/nhooyr/dotfiles"
 bookmarks=(
   "/usr/local/Cellar"
   "/usr/local/Homebrew"
-  "~/.local/share/gopath"
-  "~/src"
-  "~src/nhooyr"
-  "~src/cdr"
+  "$HOME/.local/share/gopath"
+  "$HOME/src"
+  "$HOME/src/nhooyr"
+  "$HOME/src/cdr"
 
-  "~nhooyr/dotfiles"
-  "~dotfiles/nvim"
-  "~dotfiles/zsh"
-  "~dotfiles/secrets"
-  "~dotfiles/ssh"
+  "$HOME/src/nhooyr/dotfiles"
+  "$HOME/src/nhooyr/dotfiles/nvim"
+  "$HOME/src/nhooyr/dotfiles/zsh"
+  "$HOME/src/nhooyr/dotfiles/secrets"
+  "$HOME/src/nhooyr/dotfiles/ssh"
 
-  "~nhooyr/websocket"
-  "~nhooyr/blog"
-  "~cdr/x11wasm"
-  "~cdr/bark"
-  "~cdr/code-server"
+  "$HOME/src/nhooyr/websocket"
+  "$HOME/src/nhooyr/blog"
+  "$HOME/src/cdr/x11wasm"
+  "$HOME/src/cdr/bark"
+  "$HOME/src/cdr/code-server"
+
+  "$HOME/src/neovim/neovim"
 )
 
 setup_bookmarks() {
   for b in "${bookmarks[@]}"; do
-    local name="$(basename "$b")"
-    local full_path="$(eval "echo $b")"
+    local full_path="$b"
+    local name="${b##*/}"
 
     hash -d "$name=$full_path"
   done
