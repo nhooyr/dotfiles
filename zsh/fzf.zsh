@@ -6,12 +6,11 @@ fzf_default_opts=(
   "--layout=reverse"
   "--info=hidden"
   "--no-bold"
-  "--tiebreak=index"
 )
 export FZF_DEFAULT_OPTS="${fzf_default_opts[*]}"
 
 relative_path() {
-  if [[ "$PWD" == ~ ]]; then
+  if [[ "$PWD" == ~  || "$PWD" == ~/src ]]; then
     cat
   fi
   sed "s#$PWD/##g"
@@ -72,16 +71,23 @@ execi() {
   fi
 }
 
+bookmark_pwd() {
+  replace_bookmarks <<< "$PWD"
+}
+
 fzf-quick-paths() {
   local word="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(quick_paths | replace_bookmarks | filter_duplicates | \
+  selected=("${(@f)$(quick_paths | relative_path | replace_bookmarks | filter_duplicates | \
     fzf --expect=ctrl-v,ctrl-x --height=30% --query="$word")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
   if [[ "$quick_path" ]]; then
+    if [[ "$quick_path" != /* && "$quick_path" != \~* ]]; then
+      quick_path="$(bookmark_pwd)/$quick_path"
+    fi
     local qquick_path="$(echo "${(q)quick_path}" | sed 's/\\~/~/g')"
     local equick_path="$(eval "echo $qquick_path")"
     if [[ "$key" == "ctrl-v" ]]; then
