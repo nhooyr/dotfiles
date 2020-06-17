@@ -1,7 +1,7 @@
 prompt() {
   echo -n "%B"
   echo -n "%F{yellow}"
-  echo -n "%(0?..-
+  echo -n "%(0?..+
 )%f"
 
   if [[ "$USER" != "nhooyr" ]]; then
