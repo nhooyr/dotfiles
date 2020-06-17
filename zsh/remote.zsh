@@ -14,8 +14,12 @@ xssh() {
   ssh "$REMOTE_HOST" "$@"
 }
 
-xq() {
+xsshq() {
   sshq "$REMOTE_HOST" "$@"
+}
+
+xsshu() {
+  sshu "$REMOTE_HOST" "$@"
 }
 
 xpath() {
@@ -49,7 +53,7 @@ xinit() {(
 
   xstart
   xssh sh < ~dotfiles/debian/init.sh
-  xq
+  xsshq
 )}
 
 xdelete() {
