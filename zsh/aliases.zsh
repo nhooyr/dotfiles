@@ -23,23 +23,12 @@ ses() {
 
 e() {
   export QUICK_PATH="$(mktemp -d)/quick_path"
-  command $EDITOR "$@"
+  command "$EDITOR" "$@"
   if [[ ! -e "$QUICK_PATH" ]]; then
     unset QUICK_PATH
   fi
+  unset EDITOR_LINE
 }
-
-zle-line-init() {
-  if [[ -e "$QUICK_PATH" ]]; then
-    case "$(cat $QUICK_PATH)" in
-      all)
-        unset QUICK_PATH
-        fzf-quick-paths
-        ;;
-    esac
-  fi
-}
-zle -N zle-line-init
 
 export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux=33:ue=33:tx=33:gx=33:sn=32"
 ls() {
@@ -170,7 +159,14 @@ git() {
   fi
 }
 
-alias rg="rg -S --colors match:fg:yellow"
+rg() {
+  command rg -S \
+    --colors match:fg:yellow \
+    --colors match:style:nobold \
+    --colors line:fg:black \
+    --colors path:fg:black \
+    "$@"
+}
 alias rgi="rg --no-ignore --hidden"
 alias h="fc -R"
 alias n="t noti "

@@ -249,6 +249,11 @@ augroup nhooyr
 augroup END
 
 function! s:restore_cursor() abort
+  if $EDITOR_LINE !=# ""
+    execute 'normal! ' . $EDITOR_LINE.'G^'
+    unlet $EDITOR_LINE
+    return
+  endif
   if &filetype ==# "gitcommit"
     return
   endif
@@ -258,15 +263,15 @@ function! s:restore_cursor() abort
 endfunction
 
 function! s:quick() abort
-  function! s:exit_quick(type) abort
+  function! s:exit_quick() abort
     if !empty($QUICK_PATH)
-      call system("echo " . a:type . " > " . $QUICK_PATH)
+      call system("touch " . $QUICK_PATH)
     endif
     quit!
   endfunction
 
-  nnoremap <silent> <M-v> :call <SID>exit_quick("all")<CR>
-  inoremap <silent> <M-v> <ESC>:call <SID>exit_quick("all")<CR>
+  nnoremap <silent> <M-v> :call <SID>exit_quick()<CR>
+  inoremap <silent> <M-v> <ESC>:call <SID>exit_quick()<CR>
 endfunction
 call s:quick()
 

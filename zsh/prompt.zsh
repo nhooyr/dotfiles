@@ -1,8 +1,8 @@
 prompt() {
-  echo -n "%(0?..⭕
-)"
-
   echo -n "%B"
+  echo -n "%F{yellow}"
+  echo -n "%(0?..-
+)%f"
 
   if [[ "$USER" != "nhooyr" ]]; then
     local user=1
