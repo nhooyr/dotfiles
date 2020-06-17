@@ -9,7 +9,7 @@ sudo() {
   if [[ "$#" -eq 0 ]]; then
     command sudo -Es
   else
-    command sudo -E zsh -ic "$*"
+    command sudo -E "$SHELL" -ic "$*"
   fi
 }
 alias m="make"
