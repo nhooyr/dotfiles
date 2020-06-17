@@ -29,7 +29,7 @@ e() {
   fi
 }
 
-export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux=33:ue=33:tx=33:gx=33:sn=32"
+export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux=33:ue=33:tx=33:gx=33:sn=reset:sb=reset"
 ls() {
   if command_exists exa; then
     set -- "${@/-lh/-l}"
@@ -41,6 +41,7 @@ ls() {
     command ls -GF "$@"
   fi
 }
+alias lr="l --reverse --sort=size"
 
 declare -a prev_dirs
 cd() {
