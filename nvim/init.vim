@@ -249,11 +249,6 @@ augroup nhooyr
 augroup END
 
 function! s:restore_cursor() abort
-  if $EDITOR_LINE !=# ""
-    execute 'normal! ' . $EDITOR_LINE.'G^'
-    unlet $EDITOR_LINE
-    return
-  endif
   if &filetype ==# "gitcommit"
     return
   endif
