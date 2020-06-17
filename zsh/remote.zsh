@@ -198,6 +198,7 @@ rsx() {(
   fi
 
   # Sync all untracked and modified files.
+  local local_files
   local local_files="$(mktemp)"
   # Both -m and -c are required here as when a modified file is staged, it only shows up with -c.
   # This does mean we get all the files in the index but that's no big deal.
@@ -205,6 +206,7 @@ rsx() {(
   rs "--files-from=$local_files" "$local_path/" "$REMOTE_HOST:$remote_path/"
 
   # Sync deletions.
+  local remote_files
   local remote_files="$(mktemp)"
   xssh git -C "$remote_path" ls-files --exclude-standard -mco | filter_duplicates > "$remote_files"
 
@@ -242,8 +244,10 @@ rsi() {(
 
   xstart
 
-  local local_path="$(realpath "${1-$PWD}")"
-  local remote_path="${local_path#$HOME/}"
+  local local_path
+  local_path="$(realpath "${1-$PWD}")"
+  local remote_path
+  remote_path="${local_path#$HOME/}"
   if xssh [ -f "$remote_path" ]; then
     rs "$REMOTE_HOST:$remote_path" "$local_path"
   else

@@ -14,6 +14,9 @@ main() {
   mkdir -p ~/.ssh/sockets
   chmod 700 ~/.ssh
   ./ci/link.sh ssh/config ~/.ssh/config
+  sudo mkdir -p ~root/.ssh/sockets
+  sudo chmod 700 ~root/.ssh
+  sudo ./ci/cp.sh ssh/config ~root/.ssh/config
 
   if [ -f /etc/os-release ]; then
     DISTRO="$(. /etc/os-release && echo "$ID")"

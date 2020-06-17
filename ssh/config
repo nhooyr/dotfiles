@@ -8,3 +8,4 @@ ExitOnForwardFailure yes
 LogLevel=QUIET
 StrictHostKeyChecking accept-new
 ConnectTimeout 5
+AddKeysToAgent yes
