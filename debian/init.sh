@@ -21,6 +21,7 @@ main() {
   install_node
   install_neovim
   install_docker
+  install_locale
   install_misc
   install_exa
 }
@@ -87,7 +88,18 @@ install_neovim() {
 }
 
 install_misc() {
-  sudo -E apt install -y shellcheck ripgrep htop tmux
+  sudo -E apt install -y \
+    shellcheck \
+    ripgrep \
+    htop \
+    tmux
+}
+
+install_locale() {
+  sudo -E apt install -y locales
+  sudo -E sed -i "s/# en_CA.UTF-8/en_CA.UTF-8/" /etc/locale.gen
+  sudo -E locale-gen
+  sudo -E update-locale LANG=en_CA.UTF-8
 }
 
 install_exa() {
