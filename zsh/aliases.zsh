@@ -1,6 +1,7 @@
 alias r="source ~/.zshrc"
 alias l="ls -lh"
 alias ll="ls -lha"
+export GREP_COLOR='1;33'
 alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
 alias s="sudo "
@@ -169,8 +170,8 @@ git() {
   fi
 }
 
-alias rg="rg -S"
-alias rgi="rg -S --no-ignore --hidden"
+alias rg="rg -S --colors match:fg:yellow"
+alias rgi="rg --no-ignore --hidden"
 alias h="fc -R"
 alias n="t noti "
 set -o ALIAS_FUNC_DEF
