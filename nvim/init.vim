@@ -83,6 +83,8 @@ function! s:settings() abort
   set foldopen=
   " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
   let &fillchars="eob: "
+
+  set statusline=[%f]
 endfunction
 call s:settings()
 
@@ -197,6 +199,8 @@ function! s:binds() abort
 
   nnoremap <silent> <Leader>sc :colorscheme elysian<CR>
   nnoremap <silent> <Leader>ss :source $MYVIMRC<CR>
+
+  nnoremap <silent> <Leader>d "ayy"ap
 endfunction
 call s:binds()
 
@@ -233,7 +237,6 @@ call s:plugin_settings()
 
 augroup nhooyr
   autocmd!
-  autocmd FileType gitcommit startinsert
   " q should always quit.
   " In particular this was added for man.vim which uses close instead of quit
   " and so we cannot quit if there is only a man window left.
@@ -243,9 +246,11 @@ augroup nhooyr
 
   autocmd BufWinEnter * call s:restore_cursor()
 
-  " Autosave - https://github.com/907th/vim-auto-save#events
+  " Autosave from https://github.com/907th/vim-auto-save#events.
   autocmd TextChanged * silent! write
   autocmd InsertLeave * silent! write
+
+  autocmd FileType qf setlocal statusline=%f
 augroup END
 
 function! s:restore_cursor() abort

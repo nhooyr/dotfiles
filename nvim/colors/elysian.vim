@@ -24,7 +24,7 @@ hi TabLineSel   ctermfg=NONE   ctermbg=218  cterm=bold
 hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Folded       ctermfg=244    ctermbg=255  cterm=NONE
 
-hi Directory    ctermfg=4  ctermbg=NONE cterm=NONE
+hi Directory    ctermfg=NONE  ctermbg=NONE cterm=NONE
 
 " Language colors.
 hi Comment      ctermfg=244  ctermbg=NONE cterm=NONE

@@ -6,7 +6,11 @@ alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
 alias s="sudo "
 sudo() {
-  command sudo -Es "$@"
+  if [[ "$#" -eq 0 ]]; then
+    command sudo -Es
+  else
+    command sudo -E zsh -ic "$*"
+  fi
 }
 alias m="make"
 alias d="docker"
@@ -14,8 +18,8 @@ alias pd="prevd"
 alias nd="nextd"
 alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
-alias rb="reboot"
-alias po="poweroff"
+alias rb="s reboot"
+alias po="s poweroff"
 
 ses() {
   tmux new -A -s "${1-default}"
