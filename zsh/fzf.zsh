@@ -1,11 +1,12 @@
 fzf_default_opts=(
   "--color light"
-  "--color bg+:153,fg+:-1,pointer:-1,prompt:-1"
-  "--color hl:125,hl+:125,info:-1,spinner:-1"
+  "--color bg+:12,fg+:-1,pointer:-1,prompt:-1"
+  "--color hl:3,hl+:3,info:-1,spinner:-1"
   "--tabstop=4"
   "--layout=reverse"
   "--info=hidden"
   "--no-bold"
+  "--height=30%"
 )
 export FZF_DEFAULT_OPTS="${fzf_default_opts[*]}"
 
@@ -80,7 +81,7 @@ fzf-quick-paths() {
 
   local selected
   selected=("${(@f)$(quick_paths | relative_path | replace_bookmarks | filter_duplicates | \
-    fzf --expect=ctrl-v,ctrl-x --height=30% --query="$word")}")
+    fzf --expect=ctrl-v,ctrl-x --query="$word")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
@@ -114,7 +115,7 @@ bindkey "\ev" fzf-quick-paths
 
 fzf-history() {
   local selected
-  selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --no-sort --height=30% --query="$LBUFFER")}")
+  selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --tiebreak=index --query="$LBUFFER")}")
   local key="${selected[1]}"
   local cmd="${selected[2]}"
   if [[ "$cmd" ]]; then
@@ -129,3 +130,38 @@ zle -N fzf-history
 if command_exists fzf; then
   bindkey "^R" fzf-history
 fi
+
+rgf() {
+  RG_ARGS=("$@")
+  if [[ ! "$RG_ARGS" ]]; then
+    RG_ARGS=("")
+  fi
+}
+
+fzf-rg() {
+  local selected
+  selected=("${(@f)$(rg --no-heading --line-number --color=always "$@" \
+    | fzf --ansi --expect=ctrl-v --query="$LBUFFER")}")
+  local key="${selected[1]}"
+  local match=("${(@s.:.)selected[2]}")
+  if [[ "$match" ]]; then
+    local file="$(bookmark_pwd)/${match[1]}"
+    export EDITOR_LINE="${match[2]}"
+    LBUFFER="e $file"
+    if [[ "$key" == "ctrl-v" ]]; then
+      zle accept-line
+    fi
+  fi
+  zle reset-prompt
+}
+
+zle-line-init() {
+  if [[ -e "$QUICK_PATH" ]]; then
+    unset QUICK_PATH
+    fzf-quick-paths
+  elif [[ "${#RG_ARGS[@]}" -gt 0 ]]; then
+    fzf-rg "${RG_ARGS[@]}"
+    unset RG_ARGS
+  fi
+}
+zle -N zle-line-init
