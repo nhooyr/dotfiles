@@ -15,6 +15,7 @@ bindkey "^[[Z" reverse-menu-complete
 
 zstyle ":completion:*" list-dirs-first true
 zstyle ":completion:*" group-name ""
+# Worth confirming that this is indeed correctly set.
 zstyle ":completion:*" matcher-list "" "+m:{[:lower:]}={[:upper:]}" "+r:|[._-]=** r:|=**" "+l:|=* r:|=*"
 zstyle ":completion:*" menu select yes
 zstyle ":completion:*" list-prompt %B%p%b
