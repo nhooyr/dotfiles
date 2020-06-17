@@ -1,3 +1,7 @@
+# TODO: These need to become actual scripts as unfortunately -u does not really work in an
+#       interactive context. I should also check all other functions I have and move them to scripts
+#       or find a work around.
+
 xgcloud() {
   gcloud --configuration=nhooyr-coder "$@" --zone=northamerica-northeast1-a
 }
@@ -45,7 +49,7 @@ xinit() {(
 
   xstart
   xssh sh < ~dotfiles/debian/init.sh
-  xsshq
+  xq
 )}
 
 xdelete() {
