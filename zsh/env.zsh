@@ -3,7 +3,6 @@ prepend_PATH ~gopath/bin
 
 if command_exists nvim; then
   export EDITOR=nvim
-  export PAGER="ansifilter | nvim -R"
   export MANPAGER="nvim +Man!"
 elif command_exists vim; then
   export EDITOR=vim
