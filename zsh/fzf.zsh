@@ -89,7 +89,7 @@ fzf-quick-paths() {
   local selected
   selected=("${(@f)$(quick_paths | grep -Fxv "$PWD" | relative_path \
     | replace_bookmarks | filter_duplicates \
-    | fzf --expect=ctrl-v,ctrl-x --query="$query")}")
+    | fzf --tiebreak=index --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
@@ -139,22 +139,9 @@ if command_exists fzf; then
   bindkey "^R" fzf-history
 fi
 
-rgf() {
-  RG_ARGS=("$@")
-  if [[ ! "$RG_ARGS" ]]; then
-    RG_ARGS=("")
-  fi
-}
-
 fzf-rg() {
-  if [[ "${#RG_ARGS[@]}" -gt 0 ]]; then
-    local query=("${RG_ARGS[@]}")
-  else
-    local query="${LBUFFER##* }"
-  fi
-
   local selected
-  selected=("${(@f)$(rg --no-heading --line-number --color=always "${query[@]}" \
+  selected=("${(@f)$(rg --no-heading --line-number --color=always "" \
     | fzf --ansi --expect=ctrl-v)}")
   local key="${selected[1]}"
   local match=("${(@s.:.)selected[2]}")
@@ -164,13 +151,13 @@ fzf-rg() {
       local execute=1
     fi
 
-    if [[ ! "$BUFFER" || "$BUFFER" == "$query" ]]; then
+    if [[ ! "$BUFFER" ]]; then
       if [[ "$execute" ]]; then
         export EDITOR_LINE="${match[2]}"
       fi
       execi e "$file"
     else
-      execi "${LBUFFER%$query}$file"
+      execi "$LBUFFER$file"
     fi
   fi
   zle reset-prompt
@@ -183,9 +170,6 @@ zle-line-init() {
   if [[ -e "$QUICK_PATH" ]]; then
     unset QUICK_PATH
     fzf-quick-paths
-  elif [[ "${#RG_ARGS[@]}" -gt 0 ]]; then
-    fzf-rg "${RG_ARGS[@]}"
-    unset RG_ARGS
   fi
 }
 zle -N zle-line-init

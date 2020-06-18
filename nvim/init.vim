@@ -59,7 +59,7 @@ function! s:settings() abort
     let &shiftwidth=&tabstop
     set expandtab
   endif
-  set shortmess+=aIAc
+  set shortmess+=aAIcqsS
   set mouse=a
   set noruler
   set updatetime=100
@@ -241,7 +241,7 @@ endfunction
 
   if executable('rg')
     let &grepprg="rg -S --vimgrep"
-    command! -nargs=+ Grep silent grep! <args>
+    command! -nargs=+ Rg silent grep! <args>
   endif
 call s:plugin_settings()
 
@@ -270,7 +270,7 @@ augroup END
 
 function! s:restore_cursor() abort
   if $EDITOR_LINE !=# ""
-    execute 'normal! ' . $EDITOR_LINE.'G^'
+    execute 'normal! ' . $EDITOR_LINE.'G^zz'
     unlet $EDITOR_LINE
     return
   endif

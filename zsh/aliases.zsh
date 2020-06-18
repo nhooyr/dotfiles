@@ -172,7 +172,6 @@ rg() {
     "$@"
 }
 alias rgi="rg --no-ignore --hidden"
-alias h="fc -R"
 alias n="t noti "
 set -o ALIAS_FUNC_DEF
 alias t="t "
