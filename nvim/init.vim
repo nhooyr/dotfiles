@@ -82,7 +82,7 @@ function! s:settings() abort
   " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
   let &fillchars="eob: ,diff: "
 
-  set statusline=[%F]
+  set statusline=[%f]
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 endfunction
@@ -261,7 +261,7 @@ augroup nhooyr
   autocmd TextChanged * silent! write
   autocmd InsertLeave * silent! write
 
-  autocmd FileType qf setlocal statusline=%F
+  autocmd FileType qf setlocal statusline=%f
 
   " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
   autocmd QuickFixCmdPost [^l]* cwindow
