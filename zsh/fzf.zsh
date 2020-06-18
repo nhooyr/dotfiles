@@ -1,3 +1,6 @@
+# TODO: Not everything needs to be a ZLE module now that I use SHARE_HISTORY!
+#       i.e rgf should just spawn fzf directly instead of setting an env var for line-init.
+
 fzf_default_opts=(
   "--color light"
   "--color bg+:12,fg+:-1,pointer:-1,prompt:-1"
@@ -76,6 +79,13 @@ bookmark_pwd() {
   replace_bookmarks <<< "$PWD"
 }
 
+# Used by my neovim config.
+normalize() {
+  local normalized="$(realpath "$1" | replace_bookmarks)"
+  normalized="$(echo "${(q)normalized}" | sed 's/\\~/~/g')"
+  echo "$normalized"
+}
+
 fzf-quick-paths() {
   local word="${LBUFFER##* }"
 
@@ -132,10 +142,37 @@ if command_exists fzf; then
   bindkey "^R" fzf-history
 fi
 
+rgf() {
+  RG_ARGS=("$@")
+  if [[ ! "$RG_ARGS" ]]; then
+    RG_ARGS=("")
+  fi
+}
+
+fzf-rg() {
+  local selected
+  selected=("${(@f)$(rg --no-heading --line-number --color=always "$@" \
+    | fzf --ansi --expect=ctrl-v --query="$LBUFFER")}")
+  local key="${selected[1]}"
+  local match=("${(@s.:.)selected[2]}")
+  if [[ "$match" ]]; then
+    local file="$(bookmark_pwd)/${match[1]}"
+    export EDITOR_LINE="${match[2]}"
+    LBUFFER="e $file"
+    if [[ "$key" == "ctrl-v" ]]; then
+      zle accept-line
+    fi
+  fi
+  zle reset-prompt
+}
+
 zle-line-init() {
   if [[ -e "$QUICK_PATH" ]]; then
     unset QUICK_PATH
     fzf-quick-paths
+  elif [[ "${#RG_ARGS[@]}" -gt 0 ]]; then
+    fzf-rg "${RG_ARGS[@]}"
+    unset RG_ARGS
   fi
 }
 zle -N zle-line-init
