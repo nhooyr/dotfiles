@@ -84,11 +84,10 @@ normalize() {
 }
 
 fzf-quick-paths() {
-  fc -R
   local query="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(quick_paths | grep -Fxv "$PWD" | relative_path \
+  selected=("${(@f)$(fc -R && quick_paths | grep -Fxv "$PWD" | relative_path \
     | replace_bookmarks | filter_duplicates \
     | fzf --tiebreak=index --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
@@ -123,7 +122,6 @@ zle -N fzf-quick-paths
 bindkey "\ev" fzf-quick-paths
 
 fzf-history() {
-  fc -R
   local selected
   selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --tiebreak=index --query="$LBUFFER")}")
   local key="${selected[1]}"
