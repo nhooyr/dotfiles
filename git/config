@@ -18,3 +18,12 @@
  	ff = false
 [diff]
 	algorithm = patience
+[color "diff"]
+	meta = no-bold
+[color "decorate"]
+	branch = no-bold
+	remoteBranch = no-bold
+	tag = no-bold
+	stash = no-bold
+	head = no-bold
+	grafted = no-bold
