@@ -162,10 +162,12 @@ fzf-rg() {
     local file="$(bookmark_pwd)/${match[1]}"
     if [[ "$key" == "ctrl-v" ]]; then
       local execute=1
-      export EDITOR_LINE="${match[2]}"
     fi
 
     if [[ ! "$BUFFER" || "$BUFFER" == "$query" ]]; then
+      if [[ "$execute" ]]; then
+        export EDITOR_LINE="${match[2]}"
+      fi
       execi e "$file"
     else
       execi "${LBUFFER%$query}$file"

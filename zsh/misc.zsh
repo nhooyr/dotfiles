@@ -21,9 +21,9 @@ setopt INTERACTIVE_COMMENTS
 setopt NOBEEP
 setopt CDABLE_VARS
 
+# Required explicitly for tmux.
+bindkey -e
+
 autoload -U edit-command-line
 zle -N edit-command-line
 bindkey "\ee" edit-command-line
-
-# Required explicitly for tmux.
-bindkey -e
