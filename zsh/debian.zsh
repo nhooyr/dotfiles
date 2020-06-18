@@ -1,4 +1,3 @@
-alias b="sudo apt"
-alias i="b install -y"
-alias u="b remove -y"
+alias a="sudo apt"
+alias u="sudo apt update && sudo apt full-upgrade -y"
 alias fd="fdfind"
