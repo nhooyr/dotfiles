@@ -234,6 +234,11 @@ function! s:plugin_settings() abort
   let g:go_template_autocreate = 0
 
   nmap <M-c> gcc
+
+  augroup nhooyr_plugins
+    autocmd!
+    autocmd FileType git DisableWhitespace
+  augroup END
 endfunction
 call s:plugin_settings()
 
