@@ -86,7 +86,7 @@ function! s:settings() abort
 
   set statusline=[%f]
 
-  set diffopt+=foldcolumn:0
+  set diffopt+=foldcolumn:0,algorithm:histogram
 endfunction
 call s:settings()
 
