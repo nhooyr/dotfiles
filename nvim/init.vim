@@ -64,7 +64,6 @@ function! s:settings() abort
   set noruler
   set updatetime=100
   set laststatus=1
-  set autochdir
 
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
@@ -242,7 +241,7 @@ endfunction
 
   if executable('rg')
     let &grepprg="rg -S --vimgrep"
-    command! -bang -nargs=+ Rg silent grep<bang> <args>
+    command! -nargs=+ Grep silent grep! <args>
   endif
 call s:plugin_settings()
 
@@ -297,7 +296,7 @@ endfunction
 call s:quick()
 
 " Adds all accessed files into my shell history.
-function! s:history_update() abort
+function! s:update_history() abort
   if empty(&buftype) || &filetype ==# "netrw"
     let path = expand("%:p:S")
     if !empty(path)
@@ -310,7 +309,7 @@ function! s:history_update() abort
 endfunction
 augroup history
   autocmd!
-  autocmd BufWinEnter,BufFilePost * call s:history_update()
+  autocmd BufWinEnter,BufFilePost * call s:update_history()
 augroup END
 
 function! s:lsp() abort
