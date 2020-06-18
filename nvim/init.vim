@@ -42,7 +42,6 @@ function! s:settings() abort
   set clipboard=unnamed
   set noshowmode
   set signcolumn=no
-  " set cursorline
   set noshowcmd
   set splitright
   set splitbelow
@@ -65,7 +64,7 @@ function! s:settings() abort
   set noruler
   set updatetime=100
   set laststatus=1
-  " set autochdir
+  set autochdir
 
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
@@ -84,7 +83,7 @@ function! s:settings() abort
   " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
   let &fillchars="eob: ,diff: "
 
-  set statusline=[%f]
+  set statusline=[%F]
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 endfunction
@@ -240,6 +239,11 @@ function! s:plugin_settings() abort
     autocmd FileType git DisableWhitespace
   augroup END
 endfunction
+
+  if executable('rg')
+    let &grepprg="rg -S --vimgrep"
+    command! -bang -nargs=+ Rg silent grep<bang> <args>
+  endif
 call s:plugin_settings()
 
 augroup nhooyr
@@ -258,10 +262,19 @@ augroup nhooyr
   autocmd TextChanged * silent! write
   autocmd InsertLeave * silent! write
 
-  autocmd FileType qf setlocal statusline=%f
+  autocmd FileType qf setlocal statusline=%F
+
+  " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
+  autocmd QuickFixCmdPost [^l]* cwindow
+  autocmd QuickFixCmdPost l*    lwindow
 augroup END
 
 function! s:restore_cursor() abort
+  if $EDITOR_LINE !=# ""
+    execute 'normal! ' . $EDITOR_LINE.'G^'
+    unlet $EDITOR_LINE
+    return
+  endif
   if &filetype ==# "gitcommit"
     return
   endif
@@ -282,6 +295,23 @@ function! s:quick() abort
   inoremap <silent> <M-v> <ESC>:call <SID>exit_quick()<CR>
 endfunction
 call s:quick()
+
+" Adds all accessed files into my shell history.
+function! s:history_update() abort
+  if empty(&buftype) || &filetype ==# "netrw"
+    let path = expand("%:p:S")
+    if !empty(path)
+      if path =~ "/.git"
+        return
+      endif
+      call jobstart(["zsh", "-ic", 'print -rs e "$(normalize '.expand('%:p:S').')"'])
+    endif
+  endif
+endfunction
+augroup history
+  autocmd!
+  autocmd BufWinEnter,BufFilePost * call s:history_update()
+augroup END
 
 function! s:lsp() abort
   if !exists("g:nhooyr_lsp")
