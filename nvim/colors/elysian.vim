@@ -9,20 +9,21 @@ hi Normal       ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi CursorLine   ctermfg=NONE   ctermbg=12   cterm=NONE
 hi CursorLineNr ctermfg=244    ctermbg=12   cterm=NONE
 hi LineNr       ctermfg=244    ctermbg=NONE cterm=NONE
-hi ErrorMsg     ctermfg=yellow ctermbg=NONE cterm=bold
+hi ErrorMsg     ctermfg=yellow ctermbg=NONE cterm=NONE
 hi VertSplit    ctermfg=244    ctermbg=NONE cterm=NONE
 hi MatchParen   ctermfg=NONE   ctermbg=225  cterm=NONE
 hi NonText      ctermfg=244    ctermbg=NONE cterm=NONE
-hi IncSearch    ctermfg=NONE   ctermbg=218  cterm=bold
+hi IncSearch    ctermfg=NONE   ctermbg=218  cterm=NONE
 hi Search       ctermfg=NONE   ctermbg=153  cterm=NONE
-hi StatusLine   ctermfg=black  ctermbg=218  cterm=bold
-hi StatusLineNC ctermfg=NONE   ctermbg=255 cterm=NONE
+hi StatusLine   ctermfg=black  ctermbg=218  cterm=NONE
+hi StatusLineNC ctermfg=NONE   ctermbg=255  cterm=NONE
 hi Visual       ctermfg=NONE   ctermbg=225  cterm=NONE
 hi TabLine      ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi TabLineFill  ctermfg=NONE   ctermbg=NONE cterm=NONE
-hi TabLineSel   ctermfg=NONE   ctermbg=218  cterm=bold
+hi TabLineSel   ctermfg=NONE   ctermbg=218  cterm=NONE
 hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Folded       ctermfg=244    ctermbg=255  cterm=NONE
+hi FoldColumn   ctermfg=244    ctermbg=NONE cterm=NONE
 
 hi Directory    ctermfg=NONE  ctermbg=NONE cterm=NONE
 
@@ -40,12 +41,12 @@ hi Error        ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
 
 " Git colors.
-hi DiffAdd            ctermfg=2    ctermbg=NONE cterm=NONE
-hi DiffChange         ctermfg=5    ctermbg=NONE cterm=NONE
-hi DiffDelete         ctermfg=1    ctermbg=NONE cterm=NONE
+hi DiffAdd            ctermfg=2 ctermbg=NONE cterm=NONE
+hi DiffText           ctermfg=NONE ctermbg=NONE cterm=reverse
+hi DiffChange         ctermfg=4 ctermbg=NONE cterm=NONE
+hi DiffDelete         ctermfg=1 ctermbg=NONE cterm=NONE
 hi link diffAdded DiffAdd
 hi link diffRemoved DiffDelete
-hi gitKeyword         ctermfg=NONE ctermbg=NONE cterm=bold
-hi gitIdentityKeyword ctermfg=NONE ctermbg=NONE cterm=bold
+hi link gitcommitSummary Normal
 
 hi ExtraWhitespace ctermfg=NONE ctermbg=yellow cterm=NONE

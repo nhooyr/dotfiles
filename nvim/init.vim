@@ -42,7 +42,7 @@ function! s:settings() abort
   set clipboard=unnamed
   set noshowmode
   set signcolumn=no
-  set cursorline
+  " set cursorline
   set noshowcmd
   set splitright
   set splitbelow
@@ -65,7 +65,7 @@ function! s:settings() abort
   set noruler
   set updatetime=100
   set laststatus=1
-  "set autochdir
+  " set autochdir
 
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
@@ -82,9 +82,11 @@ function! s:settings() abort
   " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
   set foldopen=
   " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
-  let &fillchars="eob: "
+  let &fillchars="eob: ,diff: "
 
   set statusline=[%f]
+
+  set diffopt+=foldcolumn:0
 endfunction
 call s:settings()
 
@@ -243,6 +245,7 @@ augroup nhooyr
   autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
   " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
   autocmd FocusGained * checktime
+  autocmd FocusLost * wshada
 
   autocmd BufWinEnter * call s:restore_cursor()
 
