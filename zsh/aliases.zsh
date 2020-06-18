@@ -31,7 +31,6 @@ e() {
   if [[ ! -e "$QUICK_PATH" ]]; then
     unset QUICK_PATH
   fi
-  unset EDITOR_LINE
 }
 
 export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux=33:ue=33:tx=33:gx=33:sn=reset:sb=reset"

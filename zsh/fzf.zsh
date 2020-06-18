@@ -1,6 +1,3 @@
-# TODO: Not everything needs to be a ZLE module now that I use SHARE_HISTORY!
-#       i.e rgf should just spawn fzf directly instead of setting an env var for line-init.
-
 fzf_default_opts=(
   "--color light"
   "--color bg+:12,fg+:-1,pointer:-1,prompt:-1"
@@ -87,12 +84,12 @@ normalize() {
 }
 
 fzf-quick-paths() {
-  local word="${LBUFFER##* }"
+  local query="${LBUFFER##* }"
 
   local selected
   selected=("${(@f)$(quick_paths | grep -Fxv "$PWD" | relative_path \
     | replace_bookmarks | filter_duplicates \
-    | fzf --expect=ctrl-v,ctrl-x --query="$word")}")
+    | fzf --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
@@ -116,7 +113,7 @@ fzf-quick-paths() {
         fi
       fi
     else
-      execi "${LBUFFER%$word}$quick_path"
+      execi "${LBUFFER%$query}$quick_path"
     fi
   fi
   zle reset-prompt
@@ -150,23 +147,37 @@ rgf() {
 }
 
 fzf-rg() {
+  if [[ "${#RG_ARGS[@]}" -gt 0 ]]; then
+    local query=("${RG_ARGS[@]}")
+  else
+    local query="${LBUFFER##* }"
+  fi
+
   local selected
-  selected=("${(@f)$(rg --no-heading --line-number --color=always "$@" \
-    | fzf --ansi --expect=ctrl-v --query="$LBUFFER")}")
+  selected=("${(@f)$(rg --no-heading --line-number --color=always "${query[@]}" \
+    | fzf --ansi --expect=ctrl-v)}")
   local key="${selected[1]}"
   local match=("${(@s.:.)selected[2]}")
   if [[ "$match" ]]; then
     local file="$(bookmark_pwd)/${match[1]}"
-    export EDITOR_LINE="${match[2]}"
-    LBUFFER="e $file"
     if [[ "$key" == "ctrl-v" ]]; then
-      zle accept-line
+      local execute=1
+      export EDITOR_LINE="${match[2]}"
+    fi
+
+    if [[ ! "$BUFFER" || "$BUFFER" == "$query" ]]; then
+      execi e "$file"
+    else
+      execi "${LBUFFER%$query}$file"
     fi
   fi
   zle reset-prompt
 }
+zle -N fzf-rg
+bindkey "\et" fzf-rg
 
 zle-line-init() {
+  unset EDITOR_LINE
   if [[ -e "$QUICK_PATH" ]]; then
     unset QUICK_PATH
     fzf-quick-paths
