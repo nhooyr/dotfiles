@@ -84,6 +84,7 @@ normalize() {
 }
 
 fzf-quick-paths() {
+  fc -R
   local query="${LBUFFER##* }"
 
   local selected
@@ -122,6 +123,7 @@ zle -N fzf-quick-paths
 bindkey "\ev" fzf-quick-paths
 
 fzf-history() {
+  fc -R
   local selected
   selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --tiebreak=index --query="$LBUFFER")}")
   local key="${selected[1]}"
