@@ -1,15 +1,15 @@
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_EMOJI=1
 
-if [[ ! "$REMOTE_HOST" ]]; then
-  export REMOTE_HOST="$USER@xayah"
-fi
-
 brew() {
   # Remove bold and brew emoji.
   # https://github.com/Homebrew/brew/issues/7753
   HOMEBREW_COLOR=1 command brew "$@" | sed "s/"$'\e'"\[1m//g"
 }
+
+if [[ ! "$REMOTE_HOST" ]]; then
+  export REMOTE_HOST="$USER@xayah"
+fi
 
 alias b="brew"
 alias bs="brew search"
