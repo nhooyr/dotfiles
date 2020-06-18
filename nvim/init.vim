@@ -59,7 +59,7 @@ function! s:settings() abort
     let &shiftwidth=&tabstop
     set expandtab
   endif
-  set shortmess+=aAIcqsS
+  set shortmess+=aAIcqs
   set mouse=a
   set noruler
   set updatetime=100
@@ -231,7 +231,7 @@ function! s:plugin_settings() abort
   let g:go_echo_go_info = 0
   let g:go_template_autocreate = 0
 
-  nmap <M-c> gcc
+  map <M-c> gcc
 
   augroup nhooyr_plugins
     autocmd!

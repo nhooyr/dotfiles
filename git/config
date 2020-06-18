@@ -31,3 +31,5 @@
 	stash = no-bold
 	head = no-bold
 	grafted = no-bold
+[color "interactive"]
+	prompt = no-bold
