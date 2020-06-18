@@ -22,7 +22,7 @@ function! s:plugins() abort
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-sleuth'
-  Plug 'tpope/vim-fugitive'
+  " Plug 'tpope/vim-fugitive'
   Plug 'tomtom/tcomment_vim'
 
   Plug 'Shougo/neosnippet.vim'
