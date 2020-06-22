@@ -16,8 +16,8 @@ function! s:plugins() abort
 
   Plug 'simnalamburt/vim-mundo'
   Plug 'machakann/vim-highlightedyank'
-  Plug 'ntpeters/vim-better-whitespace'
 
+  Plug 'tpope/vim-vinegar'
   Plug 'tpope/vim-unimpaired'
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
@@ -85,6 +85,9 @@ function! s:settings() abort
   set statusline=[%f]
 
   set diffopt+=foldcolumn:0,algorithm:histogram
+
+  " https://stackoverflow.com/questions/9850360/what-is-netrwhist
+  let g:netrw_dirhistmax = 0
 endfunction
 call s:settings()
 
@@ -112,9 +115,9 @@ function! s:binds() abort
   "
   " Below we set clipboard to unnamed to always use clipboard
   " for yanks.
-  nnoremap <silent> <BS> "_d
+  nmap <silent> <BS> "_d
   nnoremap <silent> <BS><BS> "_dd
-  vnoremap <silent> <BS> "_d
+  vmap <silent> <BS> "_d
   nnoremap <silent> x "_x
   vnoremap <silent> x "_x
   nnoremap <silent> c "_c
@@ -195,24 +198,12 @@ function! s:binds() abort
 
   inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
 
-  nnoremap <silent> <Leader>w :StripWhitespace<CR>
-
   nnoremap <silent> <Leader>sc :colorscheme elysian<CR>
   nnoremap <silent> <Leader>ss :source $MYVIMRC<CR>
 
   nnoremap <silent> <Leader>d "ayy"ap
 endfunction
 call s:binds()
-
-function! s:netrw() abort
-  " https://stackoverflow.com/questions/9850360/what-is-netrwhist
-  let g:netrw_dirhistmax = 0
-  let g:netrw_banner = 0
-  " Hides ./ and ../
-  let g:netrw_list_hide = '^\.\.\=/$'
-  nnoremap <silent> - :Ex<CR>
-endfunction
-call s:netrw()
 
 function! s:plugin_settings() abort
   let g:mundo_close_on_revert = 1
@@ -232,11 +223,6 @@ function! s:plugin_settings() abort
   let g:go_template_autocreate = 0
 
   map <M-c> gcc
-
-  augroup nhooyr_plugins
-    autocmd!
-    autocmd FileType git DisableWhitespace
-  augroup END
 endfunction
 
   if executable('rg')
@@ -277,7 +263,7 @@ function! s:restore_cursor() abort
   if &filetype ==# "gitcommit"
     return
   endif
-  if line("'\"") <= line("$")
+  if line("'\"") > 0 && line("'\"") <= line("$")
     normal! g'"zz
   endif
 endfunction
@@ -297,15 +283,20 @@ call s:quick()
 
 " Adds all accessed files into my shell history.
 function! s:update_history() abort
-  if empty(&buftype) || &filetype ==# "netrw"
-    let path = expand("%:p:S")
-    if !empty(path)
-      if path =~ "/.git"
-        return
-      endif
-      call jobstart(["zsh", "-ic", 'print -rs e "$(normalize '.expand('%:p:S').')"'])
-    endif
+  if &buftype !=# "" && &filetype !=# "netrw"
+    return
   endif
+  if expand("%") =~ "[Plugins]"
+    return
+  endif
+  let path = expand("%:p:S")
+  if empty(path)
+    return
+  endif
+  if path =~ "/.git"
+    return
+  endif
+  call jobstart(["zsh", "-ic", 'print -rs e "$(normalize '.expand('%:p:S').')"'])
 endfunction
 augroup history
   autocmd!
