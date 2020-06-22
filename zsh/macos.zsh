@@ -16,6 +16,7 @@ alias u="brew update && brew upgrade && brew cask upgrade"
 alias ports="netstat -vanp tcp"
 alias uti="mdls -name kMDItemContentTypeTree"
 alias o="open"
+alias o.="open ."
 
 prepend_PATH /usr/local/sbin
 prepend_PATH /usr/local/opt/llvm/bin

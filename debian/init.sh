@@ -92,7 +92,11 @@ install_misc() {
     shellcheck \
     ripgrep \
     htop \
-    tmux
+    tmux \
+    apt-file \
+    apparmor-utils
+  sudo -E apt-file update
+  sudo -E aa-disable /etc/apparmor.d/usr.bin.man
 }
 
 install_locale() {

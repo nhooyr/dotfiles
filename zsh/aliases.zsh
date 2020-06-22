@@ -32,6 +32,7 @@ e() {
     unset QUICK_PATH
   fi
 }
+alias e.="e ."
 
 export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux=33:ue=33:tx=33:gx=33:sn=reset:sb=reset"
 ls() {
@@ -134,6 +135,8 @@ alias gy="git sync"
 alias gsh="git show"
 alias gd="git diff"
 alias gdc="git diff --cached"
+alias gdd="git difftool"
+alias gddc="git difftool --cached"
 alias gl="git log"
 alias gpr="git pull-request -p"
 alias gcl="git clone"
@@ -173,6 +176,7 @@ rg() {
     "$@"
 }
 alias rgi="rg --no-ignore --hidden"
+alias h="fc -R"
 alias n="t noti "
 set -o ALIAS_FUNC_DEF
 alias t="t "
