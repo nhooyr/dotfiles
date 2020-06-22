@@ -21,6 +21,11 @@
  	ff = false
 [diff]
 	algorithm = histogram
+	tool = nvimdiff
+[difftool "nvimdiff"]
+	cmd = "nvim -d \"$LOCAL\" \"$REMOTE\""
+[difftool]
+	prompt = false
 
 [color "diff"]
 	meta = no-bold
