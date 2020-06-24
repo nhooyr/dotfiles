@@ -1,8 +1,9 @@
 export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_INSTALL_CLEANUP=1
 export HOMEBREW_NO_EMOJI=1
 
 brew() {
-  # Remove bold and brew emoji.
+  # Remove bold.
   # https://github.com/Homebrew/brew/issues/7753
   HOMEBREW_COLOR=1 command brew "$@" | sed "s/"$'\e'"\[1m//g"
 }
