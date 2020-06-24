@@ -223,12 +223,12 @@ function! s:plugin_settings() abort
   let g:go_template_autocreate = 0
 
   map <M-c> gcc
-endfunction
 
-  if executable('rg')
+  if executable("rg")
     let &grepprg="rg -S --vimgrep"
     command! -nargs=+ Rg silent grep! <args>
   endif
+endfunction
 call s:plugin_settings()
 
 augroup nhooyr

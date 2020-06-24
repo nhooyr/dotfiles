@@ -105,12 +105,13 @@ xwait() {
   local i
   for i in {1..60}; do
     if xssh true; then
+      noti
       return 0
     fi
     sleep 1
   done
 
-  echo "failed to wait for instance startup"
+  noti echo "failed to wait for instance startup"
   return 1
 }
 
@@ -200,8 +201,11 @@ rsx() {(
   local remote_sha="$(xssh git -C "$remote_path" rev-parse HEAD 2> /dev/null)"
 
   if [[ "$remote_sha" != "$local_sha" ]]; then
-    xssh git init -q "$remote_path"
-    git -C "$local_path" push -fq "ssh://$REMOTE_HOST/~/$remote_path" "${local_sha}:refs/heads/xrs"
+    local_root="$(git -C "$local_path" rev-parse --show-toplevel)"
+    local remote_root="${local_root#$HOME/}"
+
+    xssh git init -q "$remote_root"
+    git -C "$local_root" push -fq "ssh://$REMOTE_HOST/~/$remote_root" "${local_sha}:refs/heads/xrs"
     xssh git -C "$remote_path" checkout -qf "$local_sha"
   fi
 
