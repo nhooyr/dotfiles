@@ -48,5 +48,3 @@ hi DiffDelete         ctermfg=white ctermbg=1    cterm=NONE
 hi diffAdded          ctermfg=2     ctermbg=NONE cterm=NONE
 hi diffRemoved        ctermfg=1     ctermbg=NONE cterm=NONE
 hi link gitcommitSummary Normal
-
-hi ExtraWhitespace ctermfg=NONE ctermbg=yellow cterm=NONE
