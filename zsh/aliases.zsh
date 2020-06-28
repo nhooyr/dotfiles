@@ -8,12 +8,16 @@ alias s="sudo "
 sudo() {
   if [[ "$#" -eq 0 ]]; then
     command sudo -Es
-  else
-    command sudo -E "$SHELL" -ic "$*"
+    return
   fi
+
+  local args=""
+  for a in "$@"; do
+    args+=" ${(q)a}"
+  done
+  command sudo -E "$SHELL" -ic "$args"
 }
 alias m="make"
-alias d="docker"
 alias pd="prevd"
 alias nd="nextd"
 alias sshq="ssh -O exit"
@@ -291,7 +295,7 @@ up_d() {
   while true; do;
     local head="$(basename "$dir")"
 
-    if grep -q "$pattern" <<< "$head"; then
+    if rg -q "$pattern" <<< "$head"; then
       cd "$dir"
       return
     fi

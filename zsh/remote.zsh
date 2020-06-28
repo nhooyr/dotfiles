@@ -95,7 +95,11 @@ x() {(
   set -euo pipefail
 
   if [[ $# -gt 0 ]]; then
-    local args="-c '$*'"
+    local args=""
+    for a in "$@"; do
+      args+=" ${(q)a}"
+    done
+    args="-c '$args'"
   fi
   xstart
   xssh -t "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
