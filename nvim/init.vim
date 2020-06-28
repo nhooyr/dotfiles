@@ -83,7 +83,9 @@ function! s:settings() abort
   let &fillchars="eob: ,diff: "
 
   set statusline=[%f]
-  set number
+  if has("vim_starting")
+    set number
+  endif
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 
@@ -198,9 +200,11 @@ function! s:binds() abort
   inoremap <silent> <M-BS> <C-O>:call <SID>meta_backspace()<CR>
 
   nnoremap <silent> <Leader>sc :colorscheme elysian<CR>
-  nnoremap <silent> <Leader>ss :source $MYVIMRC<CR>
+  nnoremap <silent> <C-s> :source $MYVIMRC<CR>
 
   nnoremap <silent> <Leader>d "ayy"ap
+
+  nnoremap <silent> <C-c> cc
 endfunction
 call s:binds()
 
@@ -247,7 +251,7 @@ augroup nhooyr
   autocmd InsertLeave * silent! write
 
   autocmd FileType qf setlocal statusline=%f
-  autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>
+  autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
 
   " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
   autocmd QuickFixCmdPost [^l]* cwindow
