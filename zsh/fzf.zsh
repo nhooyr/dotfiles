@@ -89,7 +89,7 @@ fzf-quick-paths() {
   local selected
   selected=("${(@f)$(fc -R && quick_paths | grep -Fxv "$PWD" | relative_path \
     | replace_bookmarks | filter_duplicates \
-    | fzf --tiebreak=index --expect=ctrl-v,ctrl-x --query="$query")}")
+    | fzf --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 

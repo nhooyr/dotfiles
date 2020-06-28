@@ -63,7 +63,7 @@ function! s:settings() abort
   set mouse=a
   set noruler
   set updatetime=100
-  set laststatus=1
+  set laststatus=2
 
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
@@ -83,6 +83,7 @@ function! s:settings() abort
   let &fillchars="eob: ,diff: "
 
   set statusline=[%f]
+  set number
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 
@@ -153,7 +154,6 @@ function! s:binds() abort
   inoremap <M-f> <C-o>w
   inoremap <M-b> <C-o>b
   inoremap <M-d> <C-o>dw
-  inoremap <M-BS> <C-w>
 
   nnoremap <silent> <C-q> :quitall!<CR>
   inoremap <silent> <C-q> <Esc>:quitall!<CR>
@@ -177,10 +177,9 @@ function! s:binds() abort
   " Revert to last write.
   nnoremap <silent> <Leader>rv :earlier 1f<CR>
   " Adapted from https://www.reddit.com/r/vim/comments/7gqowu/hungrysmart_backspace_support/
-  function! s:backspace() abort
+  function! s:meta_backspace() abort
     if getline(line(".")) =~ '\S'
-      " Fallback to default behaviour.
-      call feedkeys("\<BS>", "n")
+      call feedkeys("\<C-o>b\<C-o>\"_dw", "n")
       return
     endif
 
@@ -196,7 +195,7 @@ function! s:binds() abort
     endif
   endfunction
 
-  inoremap <silent> <BS> <C-O>:call <SID>backspace()<CR>
+  inoremap <silent> <M-BS> <C-O>:call <SID>meta_backspace()<CR>
 
   nnoremap <silent> <Leader>sc :colorscheme elysian<CR>
   nnoremap <silent> <Leader>ss :source $MYVIMRC<CR>
@@ -248,6 +247,7 @@ augroup nhooyr
   autocmd InsertLeave * silent! write
 
   autocmd FileType qf setlocal statusline=%f
+  autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>
 
   " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
   autocmd QuickFixCmdPost [^l]* cwindow
