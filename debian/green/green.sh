@@ -9,7 +9,7 @@ main() {
     exit 0
   fi
 
-  tmux_sessions="$(tmux ls 2>/dev/null || true)"
+  tmux_sessions="$(tmux ls 2> /dev/null || true)"
   if [ "$tmux_sessions" ]; then
     echo "tmux sessions active:"
     echo "$tmux_sessions"
