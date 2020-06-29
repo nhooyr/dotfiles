@@ -2,17 +2,17 @@
 set -eu
 
 main() {
-  active_users="$(who | grep -E '([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})')" || true
-  if [ "$active_users" ]; then
-    echo "remote users logged in:"
-    echo "$active_users"
-    exit 0
-  fi
-
   tmux_sessions="$(tmux ls 2> /dev/null || true)"
   if [ "$tmux_sessions" ]; then
     echo "tmux sessions active:"
     echo "$tmux_sessions"
+    exit 0
+  fi
+
+  active_users="$(who | grep -E '([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})' || true)"
+  if [ "$active_users" ]; then
+    echo "remote users logged in:"
+    echo "$active_users"
     exit 0
   fi
 
