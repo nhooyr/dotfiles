@@ -41,10 +41,10 @@ hi Error        ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
 
 " Git colors.
-hi DiffAdd            ctermfg=white ctermbg=2    cterm=NONE
-hi DiffText           ctermfg=NONE  ctermbg=NONE cterm=reverse
-hi DiffChange         ctermfg=white ctermbg=4    cterm=NONE
-hi DiffDelete         ctermfg=white ctermbg=1    cterm=NONE
 hi diffAdded          ctermfg=2     ctermbg=NONE cterm=NONE
 hi diffRemoved        ctermfg=1     ctermbg=NONE cterm=NONE
+hi DiffAdd            ctermfg=2     ctermbg=NONE cterm=NONE
+hi DiffText           ctermfg=NONE  ctermbg=NONE cterm=reverse
+hi DiffChange         ctermfg=NONE  ctermbg=NONE cterm=NONE
+hi DiffDelete         ctermfg=1     ctermbg=NONE cterm=NONE
 hi link gitcommitSummary Normal
