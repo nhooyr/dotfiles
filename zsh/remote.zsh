@@ -106,6 +106,10 @@ x() {(
 )}
 
 xwait() {
+  if xssh true; then
+    return 0
+  fi
+
   local i
   for i in {1..60}; do
     if xssh true; then
@@ -177,6 +181,10 @@ rsx() {(
   done
 
   local local_path="$(realpath "${1-$PWD}")"
+  if [[ "$local_path" != "$HOME/"* ]]; then
+    echo "can only sync paths in ~/"
+    return 1
+  fi
   local remote_path="${local_path#$HOME/}"
 
   if [[ ! -e "$local_path" ]]; then
