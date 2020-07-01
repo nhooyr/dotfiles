@@ -24,6 +24,7 @@ alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
 alias rb="s reboot"
 alias po="s poweroff"
+alias tmux="tmux -S /tmp/tmux"
 
 ses() {
   tmux new -A -s "${1-default}"
@@ -312,3 +313,5 @@ up_d() {
 calc() {
   command bc <<< "$*"
 }
+
+alias p8="ping 8.8.8.8"

@@ -14,23 +14,21 @@ function! s:plugins() abort
   Plug 'leafgarland/typescript-vim'
   Plug 'fatih/vim-go'
 
-  Plug 'simnalamburt/vim-mundo'
-  Plug 'machakann/vim-highlightedyank'
-
   Plug 'tpope/vim-vinegar'
-  Plug 'tpope/vim-unimpaired'
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-sleuth'
-  " Plug 'tpope/vim-fugitive'
+  Plug 'tpope/vim-fugitive'
   Plug 'tomtom/tcomment_vim'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lsp'
 
+  Plug 'simnalamburt/vim-mundo'
   Plug 'mattn/emmet-vim'
   Plug 'PeterRincker/vim-argumentative'
+  Plug 'godlygeek/tabular'
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -54,11 +52,6 @@ function! s:settings() abort
   set gdefault
   let $COLOR = stdpath("config") . "/colors/elysian.vim"
   colorscheme elysian
-  if has("vim_starting")
-    set tabstop=2
-    let &shiftwidth=&tabstop
-    set expandtab
-  endif
   set shortmess+=aAIcqs
   set mouse=a
   set noruler
@@ -68,9 +61,13 @@ function! s:settings() abort
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
 
-  set foldmethod=indent
-  set foldnestmax=1
   if has("vim_starting")
+    set tabstop=2
+    let &shiftwidth=&tabstop
+    set expandtab
+
+    set foldmethod=indent
+    set foldnestmax=1
     set foldlevel=1
   endif
   set textwidth=100
@@ -80,17 +77,20 @@ function! s:settings() abort
   " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
   set foldopen=
   " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
-  let &fillchars="eob: ,diff: "
-
-  set statusline=[%f]
-  if has("vim_starting")
-    set number
-  endif
+  let &fillchars="eob: "
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 
   " https://stackoverflow.com/questions/9850360/what-is-netrwhist
   let g:netrw_dirhistmax = 0
+
+  let g:markdown_fenced_languages = ["bash=sh", "go"]
+
+  set statusline=\ %f
+  augroup nhooyr_settings
+    autocmd!
+    autocmd BufWinEnter * setlocal number
+  augroup END
 endfunction
 call s:settings()
 
@@ -144,8 +144,6 @@ function! s:binds() abort
   cnoremap <C-a> <Home>
   inoremap <C-a> <C-o>^
   noremap! <C-d> <Del>
-  cnoremap <C-k> <C-c>:
-  inoremap <C-k> <Esc>"_ddO
 
   cnoremap <M-f> <S-Right>
   cnoremap <M-b> <S-Left>
@@ -205,14 +203,17 @@ function! s:binds() abort
   nnoremap <silent> <Leader>d "ayy"ap
 
   nnoremap <silent> <C-c> cc
+
+  nnoremap <silent> ]q :cnext<CR>
+  nnoremap <silent> [q :cprev<CR>
+  nnoremap <silent> ]t :tabn<CR>
+  nnoremap <silent> [t :tabp<CR>
 endfunction
 call s:binds()
 
 function! s:plugin_settings() abort
   let g:mundo_close_on_revert = 1
   nnoremap <silent> <Leader>u :MundoToggle<CR>
-
-  let g:highlightedyank_highlight_duration = 150
 
   let g:surround_no_insert_mappings = 1
 
@@ -231,14 +232,18 @@ function! s:plugin_settings() abort
     let &grepprg="rg -S --vimgrep"
     command! -nargs=+ Rg silent grep! <args>
   endif
+
+  augroup nhooyr_plugins
+    autocmd!
+    autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
+  augroup END
 endfunction
 call s:plugin_settings()
 
 augroup nhooyr
   autocmd!
+  autocmd TextYankPost * silent! lua require'vim.highlight'.on_yank(nil, 150)
   " q should always quit.
-  " In particular this was added for man.vim which uses close instead of quit
-  " and so we cannot quit if there is only a man window left.
   autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
   " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
   autocmd FocusGained * checktime
