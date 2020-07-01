@@ -25,7 +25,7 @@ function! s:plugins() abort
   Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lsp'
 
-  Plug 'simnalamburt/vim-mundo'
+  Plug 'nhooyr/vim-mundo'
   Plug 'mattn/emmet-vim'
   Plug 'PeterRincker/vim-argumentative'
   Plug 'godlygeek/tabular'
@@ -150,6 +150,8 @@ function! s:binds() abort
   " This one does not work well because C-w uses iskeyword but S-Right does not
   cnoremap <M-d> <S-Right><C-w>
   cnoremap <M-BS> <C-w>
+  cnoremap <M-n> <Down>
+  cnoremap <M-p> <Up>
 
   inoremap <M-f> <C-o>w
   inoremap <M-b> <C-o>b
@@ -176,26 +178,7 @@ function! s:binds() abort
 
   " Revert to last write.
   nnoremap <silent> <Leader>rv :earlier 1f<CR>
-  " Adapted from https://www.reddit.com/r/vim/comments/7gqowu/hungrysmart_backspace_support/
-  function! s:meta_backspace() abort
-    if getline(line(".")) =~ '\S'
-      call feedkeys("\<C-o>b\<C-o>\"_dw", "n")
-      return
-    endif
-
-    " Remove all text on the current line as it's just whitespace.
-    if col(".") > 1
-      call feedkeys("\<BS>", "n")
-    endif
-    call feedkeys("\<BS>", "n")
-
-    if getline(line(".")-1) !~ '\S'
-      " Reindent current line if empty.
-      call feedkeys("\<C-o>cc", "n")
-    endif
-  endfunction
-
-  inoremap <silent> <M-BS> <C-O>:call <SID>meta_backspace()<CR>
+  inoremap <silent> <M-BS> <C-w>
 
   nnoremap <silent> <Leader>sc :colorscheme elysian<CR>
   nnoremap <silent> <C-s> :source $MYVIMRC<CR>
@@ -213,6 +196,8 @@ call s:binds()
 
 function! s:plugin_settings() abort
   let g:mundo_close_on_revert = 1
+  let g:mundo_verbose_graph = 0
+  let g:mundo_header = 0
   nnoremap <silent> <Leader>u :MundoToggle<CR>
 
   let g:surround_no_insert_mappings = 1
@@ -269,7 +254,8 @@ function! s:restore_cursor() abort
     unlet $EDITOR_LINE
     return
   endif
-  if &filetype ==# "gitcommit"
+  let path = expand("%:p:S")
+  if path =~ "/.git"
     return
   endif
   if line("'\"") > 0 && line("'\"") <= line("$")
