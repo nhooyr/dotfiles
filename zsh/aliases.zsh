@@ -315,3 +315,4 @@ calc() {
 }
 
 alias p8="ping 8.8.8.8"
+alias we="watchexec"
