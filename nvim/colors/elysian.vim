@@ -15,8 +15,8 @@ hi MatchParen   ctermfg=NONE   ctermbg=225  cterm=NONE
 hi NonText      ctermfg=244    ctermbg=NONE cterm=NONE
 hi IncSearch    ctermfg=NONE   ctermbg=218  cterm=NONE
 hi Search       ctermfg=NONE   ctermbg=153  cterm=NONE
-hi StatusLine   ctermfg=black  ctermbg=218  cterm=NONE
-hi StatusLineNC ctermfg=NONE   ctermbg=255  cterm=NONE
+hi StatusLine   ctermfg=black  ctermbg=12   cterm=NONE
+hi StatusLineNC ctermfg=NONE   ctermbg=12   cterm=NONE
 hi Visual       ctermfg=NONE   ctermbg=225  cterm=NONE
 hi TabLine      ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi TabLineFill  ctermfg=NONE   ctermbg=NONE cterm=NONE
@@ -33,6 +33,7 @@ hi Constant     ctermfg=168  ctermbg=NONE cterm=NONE
 hi String       ctermfg=2    ctermbg=NONE cterm=NONE
 hi Identifier   ctermfg=61   ctermbg=NONE cterm=NONE
 hi Statement    ctermfg=54   ctermbg=NONE cterm=NONE
+hi Title        ctermfg=54   ctermbg=NONE cterm=NONE
 hi PreProc      ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Type         ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Special      ctermfg=6    ctermbg=NONE cterm=NONE
