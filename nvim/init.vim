@@ -50,7 +50,6 @@ function! s:settings() abort
   set undolevels=10000
   set inccommand=nosplit
   set gdefault
-  let $COLOR = stdpath("config") . "/colors/elysian.vim"
   colorscheme elysian
   set shortmess+=aAIcqs
   set mouse=a
@@ -102,7 +101,7 @@ function! s:binds() abort
   nnoremap <silent> <nowait> q :quit<CR>
   nnoremap <nowait> Q q
   nnoremap <silent> <leader>ee :e $MYVIMRC<CR>
-  nnoremap <silent> <leader>ec :e $COLOR<CR>
+  nnoremap <silent> <leader>ec :e ~/.config/nvim/colors/elysian.vim<CR>
   nnoremap <silent> k gk
   nnoremap <silent> j gj
   " https://vim.fandom.com/wiki/Format_pasted_text_automatically
@@ -180,7 +179,6 @@ function! s:binds() abort
   nnoremap <silent> <Leader>rv :earlier 1f<CR>
   inoremap <silent> <M-BS> <C-w>
 
-  nnoremap <silent> <Leader>sc :colorscheme elysian<CR>
   nnoremap <silent> <C-s> :source $MYVIMRC<CR>
 
   nnoremap <silent> <Leader>d "ayy"ap
@@ -211,7 +209,8 @@ function! s:plugin_settings() abort
   let g:go_echo_go_info = 0
   let g:go_template_autocreate = 0
 
-  map <M-c> gcc
+  map <M-c> <C-i_><C-_>
+  imap <M-c> <C-o><C-_><C-_>
 
   if executable("rg")
     let &grepprg="rg -S --vimgrep"
@@ -264,15 +263,18 @@ function! s:restore_cursor() abort
 endfunction
 
 function! s:quick() abort
-  function! s:exit_quick() abort
+  function! s:exit_quick(type) abort
     if !empty($QUICK_PATH)
-      call system("touch " . $QUICK_PATH)
+      call system("echo " . a:type . " > " . $QUICK_PATH)
     endif
     quit!
   endfunction
 
-  nnoremap <silent> <M-v> :call <SID>exit_quick()<CR>
-  inoremap <silent> <M-v> <ESC>:call <SID>exit_quick()<CR>
+  nnoremap <silent> <M-v> :call <SID>exit_quick("mru")<CR>
+  inoremap <silent> <M-v> <ESC>:call <SID>exit_quick("mru")<CR>
+
+  nnoremap <silent> <M-t> :call <SID>exit_quick("search")<CR>
+  inoremap <silent> <M-t> <ESC>:call <SID>exit_quick("search")<CR>
 endfunction
 call s:quick()
 

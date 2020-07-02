@@ -89,7 +89,7 @@ fzf-quick-paths() {
   local selected
   selected=("${(@f)$(fc -R && quick_paths | grep -Fxv "$PWD" | relative_path \
     | replace_bookmarks | filter_duplicates \
-    | fzf --expect=ctrl-v,ctrl-x --query="$query")}")
+    | fzf --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
@@ -168,8 +168,17 @@ bindkey "\et" fzf-rg
 zle-line-init() {
   unset EDITOR_LINE
   if [[ -e "$QUICK_PATH" ]]; then
+    local fzf_type
+    fzf_type="$(<"$QUICK_PATH")"
     unset QUICK_PATH
-    fzf-quick-paths
+    case "$fzf_type" in
+      mru)
+        fzf-quick-paths
+        ;;
+      search)
+        fzf-rg
+        ;;
+    esac
   fi
 }
 zle -N zle-line-init
