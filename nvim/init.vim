@@ -95,6 +95,7 @@ call s:settings()
 
 function! s:binds() abort
   command! S :source $MYVIMRC
+  command! W :%s/\s\+$//e
 
   noremap ; :
   noremap , ;
@@ -178,8 +179,6 @@ function! s:binds() abort
   " Revert to last write.
   nnoremap <silent> <Leader>rv :earlier 1f<CR>
   inoremap <silent> <M-BS> <C-w>
-
-  nnoremap <silent> <C-s> :source $MYVIMRC<CR>
 
   nnoremap <silent> <Leader>d "ayy"ap
 

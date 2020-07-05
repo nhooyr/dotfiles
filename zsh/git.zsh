@@ -139,6 +139,12 @@ gsync() {(
 gho() {(
   set -euo pipefail
 
+  if [[ "$#" -gt 0 ]]; then
+    url="https://github.com/$*"
+    o "$url"
+    return
+  fi
+
   branch="$(git rev-parse --abbrev-ref HEAD)"
   url="$(git remote get-url origin | sed -e 's#https://github.com/##' -e 's#.git$##' )"
   url="https://github.com/$url"
