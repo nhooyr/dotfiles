@@ -88,27 +88,6 @@ prevd() {
   fi
 }
 
-gcd() {
-  cd "$(git rev-parse --show-toplevel)"
-  if [[ "$#" -gt 0 ]]; then
-    eval "$@"
-    prevd
-  fi
-}
-
-scd() {
-  local super="$(git rev-parse --show-superproject-working-tree)"
-  if [[ ! "$super" ]]; then
-    gcd "$@"
-    return
-  fi
-  cd "$(git rev-parse --show-superproject-working-tree)"
-  if [[ "$#" -gt 0 ]]; then
-    eval "$@"
-    prevd
-  fi
-}
-
 mcd() {
   mkdir -p "$@"
   cd "$@"
@@ -118,46 +97,6 @@ compdef _directories mcd
 alias chx="chmod +x"
 alias md="mkdir -p"
 
-alias g="git"
-alias gch="git checkout"
-alias ga="git add"
-alias gaa="git add -A"
-alias gap="git add -p"
-alias gcm="git commit -v"
-alias gcma="git commit -v --amend"
-alias gcmae="git commit -v --amend --no-edit"
-alias gcmf="git commit -v --fixup"
-alias gb="git branch"
-alias grt="git reset"
-alias grth="git reset --reset"
-alias grb="git rebase"
-alias gpl="git pull"
-alias gf="git fetch"
-alias gfork="git fork && git config remote.pushDefault nhooyr"
-alias gp="git push"
-alias gpf="git push -f"
-alias gs="git status"
-alias gst="git stash"
-alias gy="git sync"
-alias gsh="git show"
-alias gd="git diff"
-alias gdc="git diff --cached"
-alias gdd="git difftool"
-alias gddc="git difftool --cached"
-alias gl="git log"
-alias gpr="git pull-request -p"
-alias gcl="git clone"
-alias grv="git revert"
-alias gro="git remote"
-alias grm="git rm"
-alias gcp="git cherry-pick"
-alias gm="git merge"
-alias gt="git tag"
-alias gacm="gaa && gcm"
-alias gacmp="gaa && gcm && gp"
-alias gcmp="gcm && gp"
-alias fcm="gaa && gcm --amend --no-edit && gpf"
-alias gbl="git blame"
 alias y="yarn -s"
 alias ya="yarn -s add"
 alias yad="yarn -s add --dev"
@@ -165,14 +104,6 @@ alias yd="yarn -s dev"
 alias yp="yarn -s prod"
 alias yc="yarn -s ci"
 alias yf="yarn -s fix"
-
-git() {
-  if command_exists hub; then
-    hub "$@"
-  else
-    command git "$@"
-  fi
-}
 
 rg() {
   command rg -S \
@@ -229,50 +160,6 @@ rs() {
 alias pc="pbcopy"
 alias pp="pbpaste"
 alias catq="jq -R"
-
-ghd() {
-  local repo_path="$1"
-  repo_path="${repo_path/*:\/\//}"
-  repo_path="${repo_path/github.com\//}"
-  repo_path="$(grep -o "^[^/]\+/[^/]\+" <<< "$repo_path")"
-
-  if [[ ! "$repo_path" ]]; then
-    echo "invalid url or repo_path"
-    return
-  fi
-
-  local dst="$HOME/src/$repo_path"
-  if [[ -d "$dst" ]]; then
-    cd "$dst"
-    return
-  fi
-
-  mkdir -p "$(dirname "$dst")"
-  if git clone --recursive "https://github.com/$repo_path" "$dst"; then
-    cd "$dst"
-  fi
-}
-
-gh() {
-  local branch="$(git rev-parse --abbrev-ref HEAD)"
-  if [[ ! "$branch" ]]; then
-    return
-  fi
-
-  if [[ "$(git remote)" = *nhooyr* ]] ; then
-    branch="nhooyr:$branch"
-  fi
-  local url="$(hub pr list -f $'%U\n' -h "$branch" | head -n 1)"
-  if [[ ! "$url" ]]; then
-    url="$(hub browse -u)"
-  fi
-
-  echo "$url"
-
-  if command_exists o; then
-    o "$url"
-  fi
-}
 
 up() {
   if [[ "$#" -eq 0 ]]; then
