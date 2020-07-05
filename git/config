@@ -1,24 +1,23 @@
 [user]
 	name = Anmol Sethi
 	email = hi@nhooyr.io
-	signingkey = 8CEF1878FF10ADEB
+	signingKey = 8CEF1878FF10ADEB
 
 [commit]
-	gpgsign = true
+	gpgSign = true
 [rebase]
-	autosquash = true
+	autoSquash = true
 [push]
 	default = current
 
 [pull]
-	default = current
 	rebase = true
 [fetch]
 	prune = true
+	pruneTags = true
 
 [merge]
  	conflictstyle = diff3
- 	ff = false
 [diff]
 	algorithm = histogram
 	tool = nvimdiff
