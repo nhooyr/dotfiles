@@ -13,6 +13,7 @@ source ~zsh/misc.zsh
 source ~zsh/completion.zsh
 source ~zsh/env.zsh
 source ~zsh/aliases.zsh
+source ~zsh/git.zsh
 source ~zsh/history.zsh
 source ~zsh/prompt.zsh
 source ~zsh/fzf.zsh
