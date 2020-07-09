@@ -9,7 +9,7 @@ alias gcmae="git commit -v --amend --no-edit"
 alias gcmf="git commit -v --fixup"
 alias gb="git branch"
 alias grt="git reset"
-alias grth="git reset --reset"
+alias grth="git reset --hard"
 alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
@@ -94,7 +94,7 @@ ghd() {
   fi
 }
 
-gsy() {(
+gy() {(
   set -euo pipefail
 
   sh_c() {
@@ -112,7 +112,7 @@ gsy() {(
   git fetch
 
   current_branch="$(git rev-parse --abbrev-ref HEAD)"
-  branches=("${(@f)$(git branch | sed 's#^. ##' | grep -Fxv "master")}")
+  branches=("${(@f)$(git branch | sed 's#^. ##' | grep -Fxv "master" || true)}")
   for b in "${branches[@]}"; do
     if ! remote="$(git config --get "branch.$b.remote")"; then
       # No remote so skip.
