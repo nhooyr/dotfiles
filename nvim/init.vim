@@ -37,6 +37,10 @@ endfunction
 call s:plugins()
 
 function! s:settings() abort
+  set backup
+  set backupdir=~/.local/share/nvim/backup//
+  call mkdir(&backupdir, "p")
+
   set clipboard=unnamed
   set noshowmode
   set signcolumn=no
