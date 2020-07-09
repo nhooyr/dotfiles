@@ -1,9 +1,5 @@
-[Unit]
-Description=Ensure system is only up if being used
-
 [Timer]
-OnBootSec=3600
-OnUnitActiveSec=600
+OnCalendar=*:0/5
 
 [Install]
 WantedBy=timers.target

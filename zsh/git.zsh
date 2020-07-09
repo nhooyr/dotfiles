@@ -94,7 +94,7 @@ ghd() {
   fi
 }
 
-gsync() {(
+gsy() {(
   set -euo pipefail
 
   sh_c() {
@@ -145,10 +145,10 @@ gho() {(
     return
   fi
 
-  branch="$(git rev-parse --abbrev-ref HEAD)"
   url="$(git remote get-url origin | sed -e 's#https://github.com/##' -e 's#.git$##' )"
   url="https://github.com/$url"
-  if [[ "$branch" != "master" ]]; then
+  branch="$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)"
+  if [[ "$branch" != "HEAD" && "$branch" != "master" ]]; then
     if true || hub pr list -h "$branch" &> /dev/null; then
       url+="/pull/$branch"
     fi

@@ -17,6 +17,14 @@ relative_path() {
   sed "s#$PWD/##g"
 }
 
+filter_exists() {
+  while IFS= read -r line; do
+    if [[ -e "$line" ]]; then
+      echo "$line"
+    fi
+  done
+}
+
 quick_paths() {
   # Ensures only absolute paths and the first argument are printed.
   # The reason we expand bookmarks is to handle old bookmarks appropriately.
@@ -87,7 +95,7 @@ fzf-quick-paths() {
   local query="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(fc -R && quick_paths | grep -Fxv "$PWD" | relative_path \
+  selected=("${(@f)$(fc -R && quick_paths | grep -Fxv "$PWD" | filter_exists | relative_path \
     | replace_bookmarks | filter_duplicates \
     | fzf --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
