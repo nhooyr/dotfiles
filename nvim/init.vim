@@ -161,9 +161,9 @@ function! s:binds() abort
   inoremap <M-b> <C-o>b
   inoremap <M-d> <C-o>dw
 
-  nnoremap <silent> <C-q> :quitall!<CR>
-  inoremap <silent> <C-q> <Esc>:quitall!<CR>
-  cnoremap <silent> <C-q> <C-c>:quitall!<CR>
+  nnoremap <silent> <C-s> :quitall!<CR>
+  inoremap <silent> <C-s> <Esc>:quitall!<CR>
+  cnoremap <silent> <C-s> <C-c>:quitall!<CR>
 
   nnoremap <silent> <C-e> 2<C-e>
   nnoremap <silent> <C-y> 2<C-y>
