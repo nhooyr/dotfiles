@@ -89,7 +89,7 @@ function! s:settings() abort
 
   let g:markdown_fenced_languages = ["bash=sh", "go"]
 
-  set statusline=\ %f
+  set statusline=\ %f\ %m
   augroup nhooyr_settings
     autocmd!
     autocmd BufWinEnter * setlocal number
