@@ -8,8 +8,6 @@
 	verbose = true
 [rebase]
 	autoSquash = true
-[push]
-	default = current
 
 [pull]
 	rebase = true

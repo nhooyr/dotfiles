@@ -14,8 +14,8 @@ alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
 alias gfork="gh repo fork --remote"
-alias gp="git push"
-alias gpf="git push -f"
+alias gp="gitpush"
+alias gpf="gitpush -f"
 alias gs="git status"
 alias gst="git stash"
 alias gsh="git show"
@@ -158,4 +158,17 @@ gho() {(
   if command_exists o; then
     o "$url"
   fi
+)}
+
+gitpush() {(
+  set -euo pipefail
+
+  # If there is no remote tracking branch and the arguments are
+  # empty, then set upstream.
+  if ! git rev-parse "@{u}" &> /dev/null && [[ "$#" -eq 0 ]]; then
+    git -c push.default=current push -u
+    return
+  fi
+
+  git push "$@"
 )}
