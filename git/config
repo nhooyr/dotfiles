@@ -5,6 +5,7 @@
 
 [commit]
 	gpgSign = true
+	verbose = true
 [rebase]
 	autoSquash = true
 [push]
