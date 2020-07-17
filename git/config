@@ -26,7 +26,7 @@
 	prompt = false
 
 [color "diff"]
-	meta = no-bold
+	meta = normal 211
 [color "decorate"]
 	branch = no-bold
 	remoteBranch = no-bold
