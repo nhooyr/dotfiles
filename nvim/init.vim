@@ -90,9 +90,39 @@ function! s:settings() abort
   let g:markdown_fenced_languages = ["bash=sh", "go"]
 
   set statusline=\ %f\ %m
-  augroup nhooyr_settings
+
+  function! s:init_filetype() abort
+    if &ft !=# "netrw"
+      setlocal number
+    endif
+    if &ft ==# "gitcommit" && getline(1) ==# ""
+      startinsert
+    endif
+  endfunction
+
+  augroup nhooyr
     autocmd!
-    autocmd BufWinEnter * setlocal number
+    autocmd FileType * call s:init_filetype()
+
+    autocmd TextYankPost * silent! lua require'vim.highlight'.on_yank(nil, 150)
+    " q should always quit.
+    autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+    " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
+    autocmd FocusGained * checktime
+    autocmd FocusLost * wshada
+
+    autocmd BufWinEnter * call s:restore_cursor()
+
+    " Autosave from https://github.com/907th/vim-auto-save#events.
+    autocmd TextChanged * silent! write
+    autocmd InsertLeave * silent! write
+
+    autocmd FileType qf setlocal statusline=%f
+    autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
+
+    " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
+    autocmd QuickFixCmdPost [^l]* cwindow
+    autocmd QuickFixCmdPost l*    lwindow
   augroup END
 endfunction
 call s:settings()
@@ -226,29 +256,6 @@ function! s:plugin_settings() abort
   augroup END
 endfunction
 call s:plugin_settings()
-
-augroup nhooyr
-  autocmd!
-  autocmd TextYankPost * silent! lua require'vim.highlight'.on_yank(nil, 150)
-  " q should always quit.
-  autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
-  " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
-  autocmd FocusGained * checktime
-  autocmd FocusLost * wshada
-
-  autocmd BufWinEnter * call s:restore_cursor()
-
-  " Autosave from https://github.com/907th/vim-auto-save#events.
-  autocmd TextChanged * silent! write
-  autocmd InsertLeave * silent! write
-
-  autocmd FileType qf setlocal statusline=%f
-  autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
-
-  " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
-  autocmd QuickFixCmdPost [^l]* cwindow
-  autocmd QuickFixCmdPost l*    lwindow
-augroup END
 
 function! s:restore_cursor() abort
   if $EDITOR_LINE !=# ""
