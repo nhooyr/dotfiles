@@ -56,6 +56,8 @@ alias grba="git rebase --abort"
 alias grt="git reset"
 alias grth="git reset --hard"
 
+alias cm="gae && gcm && gp"
+
 gcd() {
   local root_dir
   root_dir="$(git rev-parse --show-toplevel)"
