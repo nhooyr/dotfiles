@@ -81,7 +81,7 @@ function! s:settings() abort
     autocmd TextChanged * silent! call s:write()
     autocmd InsertLeave * silent! call s:write()
 
-    autocmd FileType * if &ft !=# "netrw" | setlocal number | endif
+    autocmd BufWinEnter * if &ft !=# "netrw" | setlocal number | endif
     autocmd FileType diff let &commentstring="# %s"
   augroup END
 endfunction
