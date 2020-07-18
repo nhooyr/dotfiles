@@ -66,7 +66,6 @@ function! s:settings() abort
     autocmd InsertLeave * silent! write
 
     autocmd FileType * if &ft !=# "netrw" | setlocal number | endif
-    autocmd FileType gitcommit if getline(1) ==# "" | startinsert | endif
   augroup END
 endfunction
 call s:settings()
