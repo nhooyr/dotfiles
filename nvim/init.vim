@@ -39,7 +39,7 @@ function! s:settings() abort
   " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
   set foldopen=
   " https://github.com/neovim/neovim/issues/2067#issuecomment-398283872
-  let &fillchars="eob: "
+  let &fillchars="eob: ,diff: "
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 
