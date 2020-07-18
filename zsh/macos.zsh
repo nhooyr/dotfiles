@@ -13,6 +13,7 @@ if [[ ! "$REMOTE_HOST" ]]; then
 fi
 
 alias b="brew"
+alias i="brew install"
 alias u="brew update && brew upgrade && brew cask upgrade"
 alias ports="netstat -vanp tcp"
 alias uti="mdls -name kMDItemContentTypeTree"
