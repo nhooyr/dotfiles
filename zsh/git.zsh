@@ -1,10 +1,13 @@
 alias g="git"
 alias gch="git checkout"
 alias gcm="git commit"
-alias ga="git add"
-alias gaa="git add -A"
+a() {
+  if [[ ! "$@" ]]; then
+    set -- -A
+  fi
+  git add "$@"
+}
 alias gb="git branch"
-alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
 alias gp="gitpush"
@@ -15,6 +18,7 @@ alias gst="git stash"
 alias gl="git log"
 alias gcl="git clone"
 alias grv="git revert"
+alias grb="git rebase"
 alias gro="git remote"
 alias grm="git rm"
 alias gcp="git cherry-pick"
@@ -188,6 +192,10 @@ gae() {(
 
   patch_file="$(mktemp)"
   git diff "$@" > "$patch_file"
+  if [[ ! -s "$patch_file" ]]; then
+    return
+  fi
+
   sed -i.bak -e '/^+++ /!s/^+/# +/' "$patch_file"
   sed -i.bak -e '/^--- /!s/^-/# -/' "$patch_file"
 
