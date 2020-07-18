@@ -75,7 +75,7 @@ call s:settings()
 
 function! s:maps() abort
   nnoremap <silent> <Leader>s :source $MYVIMRC<CR>
-  command! StripWhitespace %s/\s\+$//e | nohlsearch
+  command! StripWhitespace %s/\s\+$// | nohlsearch
 
   noremap ; :
   noremap , ;
@@ -171,8 +171,10 @@ function! s:maps() abort
   nnoremap <silent> z] zo]z
   nnoremap <silent> z[ zo[z
 
-  nnoremap <Leader>r :%s//
-  vnoremap <Leader>r :s//
+  nnoremap <Leader>r :%s##
+  vnoremap <Leader>r :s##
+
+  nnoremap <Leader>c :%s/^# //<CR>
 
   augroup nhooyr_maps
     autocmd!
