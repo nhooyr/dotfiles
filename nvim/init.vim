@@ -156,8 +156,6 @@ function! s:maps() abort
   " https://stackoverflow.com/a/9464929/4283659
   nnoremap <silent> <Leader>p :echo map(synstack(line("."), col(".")), "synIDattr(v:val, 'name')")<CR>
 
-  " Revert to last write.
-  nnoremap <silent> <Leader>rv :earlier 1f<CR>
   inoremap <silent> <M-BS> <C-w>
 
   " We use mkview to preserve cursor position.
