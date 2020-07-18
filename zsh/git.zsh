@@ -152,6 +152,25 @@ gitsync() {(
   done
 )}
 
+# TODO: consolidate with below.
+ghi() {(
+  set -euo pipefail
+
+  if [[ "$#" -gt 0 ]]; then
+    url="https://github.com/$*"
+    o "$url"
+    return
+  fi
+
+  url="$(git remote get-url origin | sed -e 's#https://github.com/##' -e 's#.git$##' )"
+  url="https://github.com/$url/issues/new"
+
+  echo "$url"
+  if command_exists o; then
+    o "$url"
+  fi
+)}
+
 gho() {(
   set -euo pipefail
 
