@@ -4,19 +4,19 @@ set -eu
 main() {
   cd "$(dirname "$0")"
 
-  ./ci/link.sh git ~/.config/git
-  ./ci/link.sh nvim ~/.config/nvim
-  ./ci/link.sh zsh/zshrc ~/.zshrc
-  ./ci/link.sh fd ~/.config/fd
-  ./ci/link.sh tmux/tmux.conf ~/.tmux.conf
+  ./ln.sh git ~/.config/git
+  ./ln.sh nvim ~/.config/nvim
+  ./ln.sh zsh/zshrc ~/.zshrc
+  ./ln.sh fd ~/.config/fd
+  ./ln.sh tmux/tmux.conf ~/.tmux.conf
 
   # Required for SSH multiplexing.
   mkdir -p ~/.ssh/sockets
   chmod 700 ~/.ssh
-  ./ci/link.sh ssh/config ~/.ssh/config
+  ./ln.sh ssh/config ~/.ssh/config
   sudo mkdir -p ~root/.ssh/sockets
   sudo chmod 700 ~root/.ssh
-  sudo ./ci/cp.sh ssh/config ~root/.ssh/config
+  sudo ./cp.sh ssh/config ~root/.ssh/config
 
   if [ -f /etc/os-release ]; then
     DISTRO="$(. /etc/os-release && echo "$ID")"
