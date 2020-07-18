@@ -39,6 +39,10 @@ e() {
 }
 alias e.="e ."
 
+# TODO: Switch away from exa :(
+# https://github.com/ogham/exa/issues/621
+# Sucks.
+# Colors are also not always the best.
 export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux=33:ue=33:tx=33:gx=33:sn=reset:sb=reset"
 ls() {
   if command_exists exa; then
