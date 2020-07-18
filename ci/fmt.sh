@@ -21,13 +21,19 @@ main() {
 }
 
 ensure_fmt() {
-  if [ "$(git ls-files --other --modified --exclude-standard)" ]; then
-    git -c color.ui=always --no-pager diff
-    echo
-    echo "Please run the following locally:"
-    echo "  ./ci/fmt.sh"
-    exit 1
+  # In case there's an untracked file.
+  git add -A
+
+  diff="$(git -c color.ui=always --no-pager diff)"
+  if [ ! "$diff" ]; then
+    return
   fi
+
+  echo "$diff"
+  echo
+  echo "Please run:"
+  echo "./ci/fmt.sh"
+  exit 1
 }
 
 main "$@"
