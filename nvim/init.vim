@@ -209,6 +209,7 @@ function! s:restore() abort
     endif
   endfunction
 endfunction
+call s:restore()
 
 function! s:fzf() abort
   function! s:exit_fzf(type) abort
