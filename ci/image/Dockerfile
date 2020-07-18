@@ -1,4 +1,8 @@
-FROM golang
+FROM alpine
 
-RUN GO111MODULE=on go get mvdan.cc/sh/v3/cmd/shfmt
-RUN npm install -g doctoc prettier
+RUN apk add shellcheck
+RUN apk add clang-format
+RUN apk add shfmt
+RUN apk add yarn
+
+RUN yarn global add prettier
