@@ -58,6 +58,7 @@ alias grt="git reset"
 alias grth="git reset --hard"
 
 alias cm="rep 'gae && gcm'"
+alias cmp="cm && gp"
 
 gcd() {
   local root_dir
