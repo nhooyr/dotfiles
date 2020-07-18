@@ -16,6 +16,7 @@ ga() {
   git add "$@"
 }
 alias gb="git branch"
+alias gbd="git branch -d"
 alias gpl="git pull"
 alias gf="git fetch"
 alias gp="git_push"
