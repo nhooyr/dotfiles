@@ -10,8 +10,8 @@ TIMEFMT="real    %*E
 user    %*U
 sys     %*S"
 
-if [[ -t 0 ]]; then
-  tabs -2
+if [[ -f /dev/tty ]]; then
+  tabs -2 > /dev/tty
 fi
 setopt AUTO_CD
 setopt AUTO_PUSHD
