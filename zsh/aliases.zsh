@@ -139,7 +139,7 @@ noti() {
   fi
   "$@"
   last_status="$?"
-  echo -ne '\a'
+  echo -ne '\a' >&2
   [[ "$last_status" -eq 0 ]]
 }
 
