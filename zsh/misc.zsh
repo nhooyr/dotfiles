@@ -27,3 +27,9 @@ bindkey -e
 autoload -U edit-command-line
 zle -N edit-command-line
 bindkey "\ee" edit-command-line
+
+append_ampersands() {
+  LBUFFER+=" && "
+}
+zle -N append_ampersands
+bindkey "\el" append_ampersands
