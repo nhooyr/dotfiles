@@ -9,7 +9,6 @@ gch() {
 }
 alias gcm="git commit"
 alias gcma="gcm --amend"
-alias gcme="gcm --amend --no-edit"
 ga() {
   if [[ ! "$@" ]]; then
     set -- -A
@@ -54,11 +53,6 @@ alias grth="git reset --hard"
 
 alias cm="rep 'gae && gcm'"
 alias cma="gae && gcma"
-alias cme="gae && gcme"
-
-alias cmp="rep 'gae && gcm' && gp"
-alias cmap="gae && gcma && gpf"
-alias cmep="gae && gcme && gpf"
 
 gcd() {
   local root_dir
