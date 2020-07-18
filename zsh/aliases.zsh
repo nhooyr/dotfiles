@@ -31,10 +31,10 @@ ses() {
 }
 
 e() {
-  export QUICK_PATH="$(mktemp -d)/quick_path"
+  export NVIM_FZF_TYPE="$(mktemp -d)/nvim_fzf_type"
   command "$EDITOR" "$@"
-  if [[ ! -e "$QUICK_PATH" ]]; then
-    unset QUICK_PATH
+  if [[ ! -e "$NVIM_FZF_TYPE" ]]; then
+    unset NVIM_FZF_TYPE
   fi
 }
 alias e.="e ."
