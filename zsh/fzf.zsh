@@ -175,10 +175,10 @@ bindkey "\et" fzf-rg
 
 zle-line-init() {
   unset EDITOR_LINE
-  if [[ -e "$QUICK_PATH" ]]; then
+  if [[ -e "$NVIM_FZF_TYPE" ]]; then
     local fzf_type
-    fzf_type="$(<"$QUICK_PATH")"
-    unset QUICK_PATH
+    fzf_type="$(<"$NVIM_FZF_TYPE")"
+    unset NVIM_FZF_TYPE
     case "$fzf_type" in
       mru)
         fzf-quick-paths

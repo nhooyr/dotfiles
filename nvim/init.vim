@@ -208,19 +208,19 @@ function! s:restore() abort
   endfunction
 endfunction
 
-function! s:quick() abort
-  function! s:exit_quick(type) abort
-    if !empty($QUICK_PATH)
-      call system("echo " . a:type . " > " . $QUICK_PATH)
+function! s:fzf() abort
+  function! s:exit_fzf(type) abort
+    if !empty($NVIM_FZF_TYPE)
+      call system("echo " . a:type . " > " . $NVIM_FZF_TYPE)
     endif
     quit!
   endfunction
 
-  nnoremap <silent> <M-v> :call <SID>exit_quick("mru")<CR>
-  inoremap <silent> <M-v> <ESC>:call <SID>exit_quick("mru")<CR>
+  nnoremap <silent> <M-v> :call <SID>exit_fzf("mru")<CR>
+  inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("mru")<CR>
 
-  nnoremap <silent> <M-t> :call <SID>exit_quick("search")<CR>
-  inoremap <silent> <M-t> <ESC>:call <SID>exit_quick("search")<CR>
+  nnoremap <silent> <M-t> :call <SID>exit_fzf("search")<CR>
+  inoremap <silent> <M-t> <ESC>:call <SID>exit_fzf("search")<CR>
 
   " Adds all accessed files into my shell history.
   function! s:update_history() abort
@@ -239,12 +239,12 @@ function! s:quick() abort
     endif
     call jobstart(["zsh", "-ic", 'print -rs e "$(normalize '.expand('%:p:S').')"'])
   endfunction
-  augroup nhooyr_quick
+  augroup nhooyr_fzf
     autocmd!
     autocmd BufWinEnter,BufFilePost * call s:update_history()
   augroup END
 endfunction
-call s:quick()
+call s:fzf()
 
 function! s:lsp() abort
   if !exists("g:nhooyr_lsp")
