@@ -1,7 +1,7 @@
 alias g="git"
 alias gch="git checkout"
 alias gcm="git commit"
-a() {
+ga() {
   if [[ ! "$@" ]]; then
     set -- -A
   fi
@@ -26,20 +26,20 @@ alias gm="git merge"
 alias gt="git tag"
 alias gbl="git blame"
 
-alias d="git diff"
-alias dc="git diff --cached"
-alias dd="git difftool"
-alias ddc="git difftool --cached"
+alias gd="git diff"
+alias gdc="git diff --cached"
+alias gdd="git difftool"
+alias gddc="git difftool --cached"
 
-alias rt="git reset"
-alias rth="git reset --hard"
+alias grt="git reset"
+alias grth="git reset --hard"
 
 alias cm="gae && gcm"
 alias cmf="gae && gcm --fixup"
 alias cmp="gae && gcm && gp"
 
-alias cma="gcm --amend"
-alias cme="gcm --amend --no-edit"
+alias gcma="gcm --amend"
+alias gcme="gcm --amend --no-edit"
 
 gcd() {
   local root_dir
@@ -187,7 +187,8 @@ gitpush() {(
   git push "$@"
 )}
 
-gae() {(
+alias gae="git_edit_stage"
+git_edit_stage() {(
   set -euo pipefail
 
   patch_file="$(mktemp)"
