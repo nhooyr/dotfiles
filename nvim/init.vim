@@ -188,12 +188,11 @@ function! s:maps() abort
   nnoremap <Leader>r :%s##
   vnoremap <Leader>r :s##
 
-  nnoremap <Leader>c :%s/^# //<CR> \| :nohlsearch<CR>
-
   augroup nhooyr_maps
     autocmd!
     autocmd FileType qf setlocal statusline=%f
     autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
+    autocmd FileType diff nnoremap <Leader>c :%s/^# //<CR> \| :nohlsearch<CR>
 
     " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
     autocmd QuickFixCmdPost [^l]* cwindow
