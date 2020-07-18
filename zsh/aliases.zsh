@@ -154,7 +154,7 @@ rs() {
     # Older rsync included with macOS.
     set -- --progress "$@"
   fi
-  rsync -ah --partial "$@"
+  rsync -ah --partial "$@" >&2
 }
 
 alias pc="pbcopy"
