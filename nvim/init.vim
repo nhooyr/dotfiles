@@ -238,6 +238,7 @@ function! s:fzf() abort
     endif
     call jobstart(["zsh", "-ic", 'print -rs e "$(normalize '.expand('%:p:S').')"'])
   endfunction
+
   augroup nhooyr_fzf
     autocmd!
     autocmd BufWinEnter,BufFilePost * call s:update_history()
