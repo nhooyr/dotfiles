@@ -1,41 +1,3 @@
-function! s:plugins() abort
-  let s:vim_plug = "~/.local/share/nvim/site/autoload/plug.vim"
-  if empty(glob(s:vim_plug, 1))
-    execute "silent !curl -fLo" s:vim_plug "--create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
-    augroup vim-plug
-      autocmd!
-      autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
-    augroup END
-  endif
-
-  call plug#begin(stdpath("data") . "/plugged")
-  Plug 'peitalin/vim-jsx-typescript'
-  " Default syntax does not work well.
-  Plug 'leafgarland/typescript-vim'
-  Plug 'fatih/vim-go'
-
-  Plug 'tpope/vim-vinegar'
-  Plug 'tpope/vim-surround'
-  Plug 'tpope/vim-endwise'
-  Plug 'tpope/vim-sleuth'
-  Plug 'tpope/vim-fugitive'
-  Plug 'tomtom/tcomment_vim'
-
-  Plug 'Shougo/neosnippet.vim'
-  Plug 'Shougo/neosnippet-snippets'
-  Plug 'neovim/nvim-lsp'
-
-  Plug 'nhooyr/vim-mundo'
-  Plug 'mattn/emmet-vim'
-  Plug 'PeterRincker/vim-argumentative'
-  Plug 'godlygeek/tabular'
-  call plug#end()
-
-  command! PU PlugUpgrade | PlugUpdate
-  command! PC PlugClean
-endfunction
-call s:plugins()
-
 function! s:settings() abort
   set backup
   set backupdir=~/.local/share/nvim/backup//
@@ -91,45 +53,27 @@ function! s:settings() abort
 
   set statusline=\ %f\ %m
 
-  function! s:init_filetype() abort
-    if &ft !=# "netrw"
-      setlocal number
-    endif
-    if &ft ==# "gitcommit" && getline(1) ==# ""
-      startinsert
-    endif
-  endfunction
-
-  augroup nhooyr
+  augroup nhooyr_settings
     autocmd!
-    autocmd FileType * call s:init_filetype()
-
     autocmd TextYankPost * silent! lua require'vim.highlight'.on_yank(nil, 150)
-    " q should always quit.
-    autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+
     " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
     autocmd FocusGained * checktime
     autocmd FocusLost * wshada
-
-    autocmd BufWinEnter * call s:restore_cursor()
 
     " Autosave from https://github.com/907th/vim-auto-save#events.
     autocmd TextChanged * silent! write
     autocmd InsertLeave * silent! write
 
-    autocmd FileType qf setlocal statusline=%f
-    autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
-
-    " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
-    autocmd QuickFixCmdPost [^l]* cwindow
-    autocmd QuickFixCmdPost l*    lwindow
+    autocmd FileType * if &ft !=# "netrw" | setlocal number | endif
+    autocmd FileType gitcommit if getline(1) ==# "" | startinsert | endif
   augroup END
 endfunction
 call s:settings()
 
-function! s:binds() abort
-  command! S :source $MYVIMRC
-  command! W :%s/\s\+$//e
+function! s:maps() abort
+  nnoremap <silent> <Leader>s :source $MYVIMRC<CR>
+  command! StripWhitespace :%s/\s\+$//e
 
   noremap ; :
   noremap , ;
@@ -140,13 +84,13 @@ function! s:binds() abort
   nnoremap <silent> k gk
   nnoremap <silent> j gj
   " https://vim.fandom.com/wiki/Format_pasted_text_automatically
-  nnoremap <silent> p :normal! p=`]<CR>
-  nnoremap <silent> P :normal! P=`]<CR>
+  nnoremap <silent> p ]p
+  nnoremap <silent> P ]P
 
   nnoremap <silent> Y y$
 
-  nnoremap <silent> 0 ^
-  nnoremap <silent> ^ 0
+  noremap <silent> 0 ^
+  noremap <silent> ^ 0
 
   " Always use black hole register for deletes.
   "
@@ -191,9 +135,9 @@ function! s:binds() abort
   inoremap <M-b> <C-o>b
   inoremap <M-d> <C-o>dw
 
-  nnoremap <silent> <C-s> :quitall!<CR>
-  inoremap <silent> <C-s> <Esc>:quitall!<CR>
-  cnoremap <silent> <C-s> <C-c>:quitall!<CR>
+  nnoremap <silent> <C-s> :quit<CR>
+  inoremap <silent> <C-s> <Esc>:quit<CR>
+  cnoremap <silent> <C-s> <C-c>:quit<CR>
 
   nnoremap <silent> <C-e> 2<C-e>
   nnoremap <silent> <C-y> 2<C-y>
@@ -205,16 +149,17 @@ function! s:binds() abort
   nnoremap <silent> <C-h> <C-W>h
 
   noremap <silent> <C-z> zz
-  inoremap <silent> <C-z> <C-o>zz
+  inoremap <silent> <C-z> <C-o>zz<C-f>
 
   " https://stackoverflow.com/a/9464929/4283659
-  nnoremap <silent> <Leader>l :echo map(synstack(line("."), col(".")), "synIDattr(v:val, 'name')")<CR>
+  nnoremap <silent> <Leader>p :echo map(synstack(line("."), col(".")), "synIDattr(v:val, 'name')")<CR>
 
   " Revert to last write.
   nnoremap <silent> <Leader>rv :earlier 1f<CR>
   inoremap <silent> <M-BS> <C-w>
 
-  nnoremap <silent> <Leader>d "ayy"ap
+  " We use mkview to preserve cursor position.
+  nnoremap <silent> <Leader>d :mkview<CR>"ayy"ap:loadview<CR>j
 
   nnoremap <silent> <C-c> cc
 
@@ -222,54 +167,45 @@ function! s:binds() abort
   nnoremap <silent> [q :cprev<CR>
   nnoremap <silent> ]t :tabn<CR>
   nnoremap <silent> [t :tabp<CR>
-endfunction
-call s:binds()
 
-function! s:plugin_settings() abort
-  let g:mundo_close_on_revert = 1
-  let g:mundo_verbose_graph = 0
-  let g:mundo_header = 0
-  nnoremap <silent> <Leader>u :MundoToggle<CR>
+  nnoremap <silent> z] zo]z
+  nnoremap <silent> z[ zo[z
 
-  let g:surround_no_insert_mappings = 1
-
-  map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
-
-  let g:user_emmet_leader_key = "<M-e>"
-  let g:user_emmet_mode="i"
-
-  let g:go_gopls_enabled = 0
-  let g:go_echo_go_info = 0
-  let g:go_template_autocreate = 0
-
-  map <M-c> <C-_><C-_>
-  imap <M-c> <C-o><C-_><C-_>
-
-  if executable("rg")
-    let &grepprg="rg -S --vimgrep"
-    command! -nargs=+ Rg silent grep! <args>
-  endif
-
-  augroup nhooyr_plugins
+  augroup nhooyr_maps
     autocmd!
-    autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
+    autocmd FileType qf setlocal statusline=%f
+    autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
+
+    " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
+    autocmd QuickFixCmdPost [^l]* cwindow
+    autocmd QuickFixCmdPost l*    lwindow
+
+    " q should always quit.
+    autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
   augroup END
 endfunction
-call s:plugin_settings()
+call s:maps()
 
-function! s:restore_cursor() abort
-  if $EDITOR_LINE !=# ""
-    execute 'normal! ' . $EDITOR_LINE.'G^zz'
-    unlet $EDITOR_LINE
-    return
-  endif
-  let path = expand("%:p:S")
-  if path =~ "/.git"
-    return
-  endif
-  if line("'\"") > 0 && line("'\"") <= line("$")
-    normal! g'"zz
-  endif
+function! s:restore() abort
+  augroup nhooyr_restore
+    autocmd!
+    autocmd BufWinEnter * call s:restore_cursor()
+  augroup END
+
+  function! s:restore_cursor() abort
+    if $EDITOR_LINE !=# ""
+      execute 'normal! ' . $EDITOR_LINE.'G^zz'
+      unlet $EDITOR_LINE
+      return
+    endif
+    let path = expand("%:p:S")
+    if path =~ "/.git"
+      return
+    endif
+    if line("'\"") > 0 && line("'\"") <= line("$")
+      normal! g'"zz
+    endif
+  endfunction
 endfunction
 
 function! s:quick() abort
@@ -285,30 +221,30 @@ function! s:quick() abort
 
   nnoremap <silent> <M-t> :call <SID>exit_quick("search")<CR>
   inoremap <silent> <M-t> <ESC>:call <SID>exit_quick("search")<CR>
+
+  " Adds all accessed files into my shell history.
+  function! s:update_history() abort
+    if &buftype !=# "" && &filetype !=# "netrw"
+      return
+    endif
+    if expand("%") =~ "[Plugins]"
+      return
+    endif
+    let path = expand("%:p:S")
+    if empty(path)
+      return
+    endif
+    if path =~ "/.git"
+      return
+    endif
+    call jobstart(["zsh", "-ic", 'print -rs e "$(normalize '.expand('%:p:S').')"'])
+  endfunction
+  augroup nhooyr_quick
+    autocmd!
+    autocmd BufWinEnter,BufFilePost * call s:update_history()
+  augroup END
 endfunction
 call s:quick()
-
-" Adds all accessed files into my shell history.
-function! s:update_history() abort
-  if &buftype !=# "" && &filetype !=# "netrw"
-    return
-  endif
-  if expand("%") =~ "[Plugins]"
-    return
-  endif
-  let path = expand("%:p:S")
-  if empty(path)
-    return
-  endif
-  if path =~ "/.git"
-    return
-  endif
-  call jobstart(["zsh", "-ic", 'print -rs e "$(normalize '.expand('%:p:S').')"'])
-endfunction
-augroup history
-  autocmd!
-  autocmd BufWinEnter,BufFilePost * call s:update_history()
-augroup END
 
 function! s:lsp() abort
   if !exists("g:nhooyr_lsp")
@@ -353,9 +289,87 @@ EOF
     setlocal omnifunc=v:lua.vim.lsp.omnifunc
   endfunction
 
-  augroup lsp
+  augroup nhooyr_lsp
     autocmd!
     autocmd FileType go,vim,lua,typescript*,c,cpp call s:b_lsp()
   augroup END
 endfunction
 call s:lsp()
+
+function! s:plugins() abort
+  let s:vim_plug = "~/.local/share/nvim/site/autoload/plug.vim"
+  if empty(glob(s:vim_plug, 1))
+    execute "silent !curl -fLo" s:vim_plug "--create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
+    augroup nhooyr_plug_install
+      autocmd!
+      autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
+    augroup END
+  endif
+
+  call plug#begin(stdpath("data") . "/plugged")
+  Plug 'peitalin/vim-jsx-typescript'
+  " Default syntax does not work well.
+  Plug 'leafgarland/typescript-vim'
+  Plug 'fatih/vim-go'
+
+  Plug 'tpope/vim-vinegar'
+  Plug 'tpope/vim-surround'
+  Plug 'tpope/vim-endwise'
+  Plug 'tpope/vim-sleuth'
+  Plug 'tpope/vim-fugitive'
+  Plug 'tomtom/tcomment_vim'
+
+  Plug 'Shougo/neosnippet.vim'
+  Plug 'Shougo/neosnippet-snippets'
+  Plug 'neovim/nvim-lsp'
+
+  Plug 'nhooyr/vim-mundo'
+  Plug 'mattn/emmet-vim'
+  Plug 'PeterRincker/vim-argumentative'
+  Plug 'godlygeek/tabular'
+  call plug#end()
+
+  command! PU PlugUpgrade | PlugUpdate
+  command! PC PlugClean
+endfunction
+call s:plugins()
+
+function! s:plugin_settings() abort
+  let g:mundo_close_on_revert = 1
+  let g:mundo_verbose_graph = 0
+  let g:mundo_header = 0
+  nnoremap <silent> <Leader>u :MundoToggle<CR>
+
+  let g:surround_no_insert_mappings = 1
+
+  map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
+
+  let g:user_emmet_leader_key = "<M-e>"
+  let g:user_emmet_mode="i"
+
+  let g:go_gopls_enabled = 0
+  let g:go_echo_go_info = 0
+  let g:go_template_autocreate = 0
+
+  map <M-c> <C-_><C-_>
+  imap <M-c> <C-o><C-_><C-_>
+
+  if executable("rg")
+    let &grepprg="rg -S --vimgrep"
+    command! -nargs=+ Rg silent grep! <args>
+  endif
+
+  if exists("*tcomment#type#Define")
+    call tcomment#type#Define("c", {
+          \ "commentstring": "// %s",
+          \ "replacements": g:tcomment#replacements_c,
+          \ }
+          \ )
+  endif
+
+  augroup nhooyr_plugin_maps
+    autocmd!
+    autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
+  augroup END
+endfunction
+call s:plugin_settings()
