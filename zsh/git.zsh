@@ -1,6 +1,16 @@
 alias g="git"
-alias gch="git checkout"
+gch() {
+  if [[ "$#" -eq 1 ]]; then
+    if [ ! "$(git branch --list "$@")" ]; then
+      git branch "$@"
+    fi
+  fi
+  git checkout "$@"
+}
 alias gcm="git commit"
+alias gcma="gcm --amend"
+alias gcme="gcm --amend --no-edit"
+alias gcmf="gcm --fixup"
 ga() {
   if [[ ! "$@" ]]; then
     set -- -A
@@ -20,6 +30,7 @@ alias gls="git log --pretty=oneline --decorate"
 alias gcl="git clone"
 alias grv="git revert"
 alias grb="git rebase"
+alias grbi="git rebase -i"
 alias gro="git remote"
 alias grm="git rm"
 alias gcp="git cherry-pick"
@@ -34,14 +45,6 @@ alias gddc="git difftool --cached"
 
 alias grt="git reset"
 alias grth="git reset --hard"
-
-alias cm="gae && gcm"
-alias cmf="gae && gcm --fixup"
-alias gcmp="gcm && gp"
-alias cmp="gae && gcmp"
-
-alias gcma="gcm --amend"
-alias gcme="gcm --amend --no-edit"
 
 gcd() {
   local root_dir
