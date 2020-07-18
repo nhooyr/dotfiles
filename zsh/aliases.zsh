@@ -203,3 +203,11 @@ calc() {
 
 alias p8="ping 8.8.8.8"
 alias we="watchexec"
+
+inf() {
+  while; do "$@"; done
+}
+
+alias dr="docker run -it --rm"
+alias db="docker build"
+alias cv="command -v"
