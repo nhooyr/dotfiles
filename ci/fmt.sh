@@ -4,7 +4,7 @@ set -eu
 main() {
   cd "$(dirname "$0")/.."
 
-  doctoc --title '# INSTALL' macos/INSTALL.md
+  doctoc --notitle macos/INSTALL.md
   prettier \
     --write \
     --print-width=120 \
