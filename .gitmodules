@@ -4,9 +4,6 @@
 [submodule "zsh/zsh-syntax-highlighting"]
 	path = zsh/zsh-syntax-highlighting
 	url = https://github.com/zsh-users/zsh-syntax-highlighting
-[submodule "secrets"]
-	path = secrets
-	url = https://github.com/nhooyr/secrets.git
 [submodule "ci/ci"]
 	path = ci/ci
 	url = https://github.com/nhooyr/ci.git
