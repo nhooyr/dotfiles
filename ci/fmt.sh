@@ -4,12 +4,12 @@ set -eu
 main() {
   cd "$(dirname "$0")/.."
 
-  doctoc --notitle macos/INSTALL.md
+  npx doctoc --notitle macos/install.md
 
   ignore_file="$(mktemp)"
   git config --file .gitmodules --get-regexp "path" | awk '{ print $2 }' > "$ignore_file"
   git ls-files -io --exclude-standard --directory >> "$ignore_file"
-  prettier \
+  npx prettier \
     --write \
     --print-width=120 \
     --no-semi \
