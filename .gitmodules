@@ -7,3 +7,6 @@
 [submodule "secrets"]
 	path = secrets
 	url = ./secrets
+[submodule "ci/ci"]
+	path = ci/ci
+	url = https://github.com/nhooyr/ci.git
