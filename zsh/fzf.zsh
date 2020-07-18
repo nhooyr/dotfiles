@@ -30,6 +30,9 @@ quick_paths() {
   # The reason we expand bookmarks is to handle old bookmarks appropriately.
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks | grep -F "$PWD/"
   fd -aH -d6 .
+  if [[ "${FD_ALL-}" ]]; then
+    fd -aI .
+  fi
 
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks
 
@@ -97,7 +100,7 @@ fzf-quick-paths() {
   local selected
   selected=("${(@f)$(fc -R && quick_paths | grep -Fxv "$PWD" | filter_exists | relative_path \
     | replace_bookmarks | filter_duplicates \
-    | fzf --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
+    | fzf --bind=alt-c:toggle-sort --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
@@ -128,6 +131,12 @@ fzf-quick-paths() {
 }
 zle -N fzf-quick-paths
 bindkey "\ev" fzf-quick-paths
+
+fzf-quick-paths-all() {
+  FD_ALL=1 fzf-quick-paths
+}
+zle -N fzf-quick-paths-all
+bindkey "\ec" fzf-quick-paths-all
 
 fzf-history() {
   local selected
