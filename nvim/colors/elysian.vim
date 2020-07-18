@@ -44,7 +44,7 @@ hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
 " Git colors.
 hi diffAdded   ctermfg=2     ctermbg=NONE  cterm=NONE
 hi diffRemoved ctermfg=1     ctermbg=NONE  cterm=NONE
-hi diffFile    ctermfg=NONE  ctermbg=211   cterm=NONE
+hi diffFile    ctermfg=54    ctermbg=NONE  cterm=underline
 hi link gitcommitSummary Normal
 
 " Diff mode colors.
