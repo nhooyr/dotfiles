@@ -29,10 +29,7 @@ quick_paths() {
   # Ensures only absolute paths and the first argument are printed.
   # The reason we expand bookmarks is to handle old bookmarks appropriately.
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks | grep -F "$PWD/"
-  fd -aH -d6 .
-  if [[ "${FD_ALL-}" ]]; then
-    fd -aI .
-  fi
+  fd -aH -d3 .
 
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks
 
@@ -45,6 +42,11 @@ quick_paths() {
   if [[ -d ~/Downloads ]]; then
     echo ~/Downloads
     fd -d2 . ~/Downloads
+  fi
+
+  fd -aH -d6 .
+  if [[ "${FD_ALL-}" ]]; then
+    fd -aI .
   fi
 }
 
