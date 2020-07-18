@@ -53,6 +53,20 @@ function! s:settings() abort
   function! s:write() abort
     call mkdir(expand("%:h"), "p")
     write
+
+    " TODO: Extract into a plugin.
+    for l:i in range(0, 99)
+      let l:history_path = stdpath("data") . "/history" . expand("%:p") . "-" . system("head -c 8 /dev/urandom | base64")
+      call mkdir(fnamemodify(l:history_path, (":h")), "p")
+
+      try
+        execute "write " . l:history_path
+      catch /E13: File exists/
+        continue
+      endtry
+
+      return
+    endfor
   endfunction
 
   augroup nhooyr_settings

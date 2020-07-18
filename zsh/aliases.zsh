@@ -51,7 +51,8 @@ ls() {
     command ls -GF "$@"
   fi
 }
-alias lr="l --reverse --sort=size"
+alias lr="ll --reverse --sort=size"
+alias lm="ll --reverse --sort=modified"
 
 declare -a prev_dirs
 cd() {
