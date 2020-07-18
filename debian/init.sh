@@ -69,7 +69,7 @@ install_dotfiles() {
     mkdir -p ~/src/nhooyr
     git clone --recurse-submodules https://github.com/nhooyr/dotfiles ~/src/nhooyr/dotfiles
   fi
-  ~/src/nhooyr/dotfiles/link.sh
+  ~/src/nhooyr/dotfiles/ensure.sh
   sudo chsh -s "$(command -v zsh)" "$USER"
 }
 
