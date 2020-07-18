@@ -142,7 +142,7 @@ bindkey "\ec" fzf-quick-paths-all
 
 fzf-history() {
   local selected
-  selected=("${(@f)$(fc -lnr 1 | fzf --expect=ctrl-v --tiebreak=index --query="$LBUFFER")}")
+  selected=("${(@f)$(fc -lnr 1 | fzf --bind=ctrl-r:toggle-sort --expect=ctrl-v --tiebreak=index --query="$LBUFFER")}")
   local key="${selected[1]}"
   local cmd="${selected[2]}"
   if [[ "$cmd" ]]; then
@@ -183,6 +183,27 @@ fzf-rg() {
 }
 zle -N fzf-rg
 bindkey "\et" fzf-rg
+
+fzf-commits() {
+  local query="${LBUFFER##* }"
+
+  local selected
+  selected=("${(@f)$(gls | \
+    fzf --bind=ctrl-g:toggle-sort --expect=ctrl-v --tiebreak=index --query="$query")}")
+  local key="${selected[1]}"
+  local commit="$(echo "${selected[2]}" | awk '{ print $1 }' )"
+  if [[ "$commit" ]]; then
+    if [[ "$key" == "ctrl-v" ]]; then
+      local execute=1
+    fi
+    execi "${LBUFFER%$query}$commit"
+  fi
+  zle reset-prompt
+}
+zle -N fzf-commits
+if command_exists fzf; then
+  bindkey "^g" fzf-commits
+fi
 
 zle-line-init() {
   unset EDITOR_LINE
