@@ -188,7 +188,7 @@ function! s:maps() abort
   nnoremap <Leader>r :%s##
   vnoremap <Leader>r :s##
 
-  nnoremap <Leader>c :%s/^# //<CR>
+  nnoremap <Leader>c :%s/^# //<CR> \| :nohlsearch<CR>
 
   augroup nhooyr_maps
     autocmd!
