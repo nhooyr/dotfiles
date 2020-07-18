@@ -57,8 +57,7 @@ alias grba="git rebase --abort"
 alias grt="git reset"
 alias grth="git reset --hard"
 
-alias cm="rep 'gae && gcm'"
-alias cmp="cm && gp"
+alias c="gae && gcm"
 
 gcd() {
   local root_dir
