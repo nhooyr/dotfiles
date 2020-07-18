@@ -5,15 +5,25 @@ main() {
   cd "$(dirname "$0")/.."
 
   doctoc --notitle macos/INSTALL.md
+
+  ignore_file="$(mktemp)"
+  git config --file .gitmodules --get-regexp "path" | awk '{ print $2 }' > "$ignore_file"
+  git ls-files -io --exclude-standard --directory >> "$ignore_file"
   prettier \
     --write \
     --print-width=120 \
     --no-semi \
     --trailing-comma=all \
-    --loglevel=warn \
+    --no-bracket-spacing \
     --arrow-parens=avoid \
-    $(git ls-files "*.yml" "*.md" "*.js" "*.css" "*.html")
-  shfmt -i 2 -w -s -sr $(git ls-files "*.sh")
+    "--ignore-path=$ignore_file" \
+    . || true
+
+  files="$(shfmt -f $(git ls-files))"
+  if [ -s "$ignore_file" ]; then
+    files="$(echo "$files" | grep -Fvf "$ignore_file" || true)"
+  fi
+  shfmt -i 2 -w -s -sr $files
 
   if [ "${CI-}" ]; then
     ensure_fmt
@@ -21,16 +31,17 @@ main() {
 }
 
 ensure_fmt() {
-  # In case there's an untracked file.
-  git add -A
-
-  diff="$(git -c color.ui=always --no-pager diff)"
-  if [ ! "$diff" ]; then
+  changed_files="$(git ls-files --other --modified --exclude-standard)"
+  if [ ! "$changed_files" ]; then
     return
   fi
 
-  echo "$diff"
+  echo "$changed_files" | sed "s/^/~ /"
   echo
+
+  git -c color.ui=always --no-pager diff
+  echo
+
   echo "Please run:"
   echo "./ci/fmt.sh"
   exit 1
