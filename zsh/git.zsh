@@ -28,7 +28,6 @@ alias grth="git reset --hard"
 alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
-alias gfork="gh repo fork --remote"
 alias gp="gitpush"
 alias gpf="gitpush -f"
 alias gs="git status"
@@ -39,7 +38,6 @@ alias gdc="git diff --cached"
 alias gdd="git difftool"
 alias gddc="git difftool --cached"
 alias gl="git log"
-alias gpr="gh pr create -fw"
 alias gcl="git clone"
 alias grv="git revert"
 alias gro="git remote"
@@ -49,8 +47,11 @@ alias gm="git merge"
 alias gt="git tag"
 alias gacm="gaa && gcm"
 alias gacmp="gaa && gcm && gp"
+alias gaecm="gae && git commit"
+alias gaecmp="gae && gcm && gp"
 alias gcmp="gcm && gp"
-alias fcm="gaa && gcm --amend --no-edit && gpf"
+alias gcmap="gcma && gpf"
+alias fcm="gaa && gcmae && gpf"
 alias gbl="git blame"
 
 gcd() {
@@ -109,7 +110,8 @@ ghd() {
   fi
 }
 
-gy() {(
+alias gy="gitsync"
+gitsync() {(
   set -euo pipefail
 
   sh_c() {
@@ -127,7 +129,7 @@ gy() {(
   git fetch
 
   current_branch="$(git rev-parse --abbrev-ref HEAD)"
-  branches=("${(@f)$(git branch | sed 's#^. ##' | grep -Fxv "master" || true)}")
+  branches=("${(@f)$(git branch | sed 's#^. ##' || true)}")
   for b in "${branches[@]}"; do
     if ! remote="$(git config --get "branch.$b.remote")"; then
       # No remote so skip.
@@ -165,6 +167,10 @@ gho() {(
   branch="$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)"
   if [[ "$branch" != "HEAD" && "$branch" != "master" ]]; then
     if true || hub pr list -h "$branch" &> /dev/null; then
+      # Automatically opens either the PR for this branch or shows
+      # the page to open the PR.
+      #
+      # Very neat.
       url+="/pull/$branch"
     fi
   fi
@@ -174,6 +180,9 @@ gho() {(
     o "$url"
   fi
 )}
+
+alias gfr="gh repo fork --remote"
+alias gcr="gh repo create"
 
 gitpush() {(
   set -euo pipefail
