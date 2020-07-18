@@ -10,12 +10,6 @@ gch() {
 alias gcm="git commit"
 alias gcma="gcm --amend"
 alias gcme="gcm --amend --no-edit"
-gcmf() {
-  if [[ ! "$@" ]]; then
-    set -- HEAD
-  fi
-  git commit --fixup "$@"
-}
 ga() {
   if [[ ! "$@" ]]; then
     set -- -A
