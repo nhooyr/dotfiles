@@ -196,6 +196,9 @@ function! s:restore() abort
   augroup END
 
   function! s:restore_cursor() abort
+    if &diff
+      return
+    endif
     if $EDITOR_LINE !=# ""
       execute 'normal! ' . $EDITOR_LINE.'G^zz'
       unlet $EDITOR_LINE
