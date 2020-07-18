@@ -21,12 +21,12 @@ main() {
   if [ -f /etc/os-release ]; then
     DISTRO="$(. /etc/os-release && echo "$ID")"
     if [ "$DISTRO" = "debian" ]; then
-      ./debian/link.sh
+      ./debian/ensure.sh
     fi
   fi
 
-  if [ -f ./secrets/link.sh ]; then
-    ./secrets/link.sh
+  if [ -f ./secrets/ensure.sh ]; then
+    ./secrets/ensure.sh
   fi
 }
 
