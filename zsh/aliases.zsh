@@ -205,11 +205,11 @@ alias p8="ping 8.8.8.8"
 alias we="watchexec"
 
 inf() {
-  while; do eval "${(q)@}"; done
+  while; do eval "$@"; done
 }
 
 rep() {
-  while eval "${(q)@}"; do; done
+  while eval "$@"; do; done
 }
 
 alias dr="docker run -it --rm"
