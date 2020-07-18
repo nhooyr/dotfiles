@@ -113,7 +113,6 @@ xwait() {
   local i
   for i in {1..60}; do
     if xssh true; then
-      noti
       return 0
     fi
     sleep 1
@@ -155,13 +154,14 @@ xp() {(
 xs() {(
   set -euo pipefail
 
-  rsx "$PWD"
+  xsr "$PWD"
   if [[ "$#" -gt 0 ]]; then
     x "$@"
   fi
 )}
 
-rsx() {(
+# TODO: looks like there's a bug here with deleted and untracked files.
+xsr() {(
   set -euo pipefail
 
   while [ "$#" -gt 0 ]; do
@@ -244,11 +244,11 @@ rsx() {(
 
   if [[ "${SUBMODULES-}" ]]; then
     xssh git -C "$remote_path" submodule update -q --force --init
-    rsx_submodules "$local_path"
+    xsr_submodules "$local_path"
   fi
 )}
 
-rsx_submodules() {
+xsr_submodules() {
   local git_dir="$1"
 
   if [[ ! -f "$git_dir/.gitmodules" ]]; then
@@ -259,11 +259,11 @@ rsx_submodules() {
     "${(@f)$(git config --file "$git_dir/.gitmodules" --get-regexp "path" | awk '{ print $2 }')}"
   )
   for sub in "${submodules[@]}"; do
-    rsx --recurse-submodules "$git_dir/$sub"
+    xsr --recurse-submodules "$git_dir/$sub"
   done
 }
 
-rsi() {(
+xsi() {(
   set -euo pipefail
 
   xstart
