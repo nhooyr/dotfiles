@@ -50,6 +50,11 @@ function! s:settings() abort
 
   let &statusline=" %f"
 
+  function! s:write() abort
+    call mkdir(expand("%:h"), "p")
+    write
+  endfunction
+
   augroup nhooyr_settings
     autocmd!
     autocmd TextYankPost * silent! lua require'vim.highlight'.on_yank(nil, 150)
@@ -59,8 +64,8 @@ function! s:settings() abort
     autocmd FocusLost * wshada
 
     " Autosave from https://github.com/907th/vim-auto-save#events.
-    autocmd TextChanged * silent! write
-    autocmd InsertLeave * silent! write
+    autocmd TextChanged * silent! call s:write()
+    autocmd InsertLeave * silent! call s:write()
 
     autocmd FileType * if &ft !=# "netrw" | setlocal number | endif
     autocmd FileType diff let &commentstring="# %s"
