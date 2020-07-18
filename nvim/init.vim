@@ -171,6 +171,9 @@ function! s:maps() abort
   nnoremap <silent> z] zo]z
   nnoremap <silent> z[ zo[z
 
+  nnoremap <Leader>r :%s//
+  vnoremap <Leader>r :s//
+
   augroup nhooyr_maps
     autocmd!
     autocmd FileType qf setlocal statusline=%f
