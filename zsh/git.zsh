@@ -1,42 +1,17 @@
 alias g="git"
 alias gch="git checkout"
+alias gcm="git commit"
 alias ga="git add"
 alias gaa="git add -A"
-alias gap="git add -p"
-gae() {(
-  set -euo pipefail
-
-  patch_file="$(mktemp)"
-  git diff "$@" > "$patch_file"
-  sed -i.bak -e '/^+++ /!s/^+/#+/' "$patch_file"
-  sed -i.bak -e '/^--- /!s/^-/#-/' "$patch_file"
-
-  e "$patch_file"
-
-  sed -i.bak -e '/^#+/d' "$patch_file"
-  sed -i.bak -e 's/^#-/ /' "$patch_file"
-
-  EDITOR="sh -c 'cp "$patch_file" \$1' -s" git add -e
-)}
-alias gcm="git commit"
-alias gcma="git commit --amend"
-alias gcmae="git commit --amend --no-edit"
-alias gcmf="git commit --fixup"
 alias gb="git branch"
-alias grt="git reset"
-alias grth="git reset --hard"
 alias grb="git rebase"
 alias gpl="git pull"
 alias gf="git fetch"
 alias gp="gitpush"
 alias gpf="gitpush -f"
 alias gs="git status"
-alias gst="git stash"
 alias gsh="git show"
-alias gd="git diff"
-alias gdc="git diff --cached"
-alias gdd="git difftool"
-alias gddc="git difftool --cached"
+alias gst="git stash"
 alias gl="git log"
 alias gcl="git clone"
 alias grv="git revert"
@@ -45,14 +20,22 @@ alias grm="git rm"
 alias gcp="git cherry-pick"
 alias gm="git merge"
 alias gt="git tag"
-alias gacm="gaa && gcm"
-alias gacmp="gaa && gcm && gp"
-alias gaecm="gae && git commit"
-alias gaecmp="gae && gcm && gp"
-alias gcmp="gcm && gp"
-alias gcmap="gcma && gpf"
-alias fcm="gaa && gcmae && gpf"
 alias gbl="git blame"
+
+alias d="git diff"
+alias dc="git diff --cached"
+alias dd="git difftool"
+alias ddc="git difftool --cached"
+
+alias rt="git reset"
+alias rth="git reset --hard"
+
+alias cm="gae && gcm"
+alias cmf="gae && gcm --fixup"
+alias cmp="gae && gcm && gp"
+
+alias cma="gcm --amend"
+alias cme="gcm --amend --no-edit"
 
 gcd() {
   local root_dir
@@ -181,8 +164,11 @@ gho() {(
   fi
 )}
 
-alias gfr="gh repo fork --remote"
-alias gcr="gh repo create"
+alias ghf="gh repo fork --remote"
+ghc() {
+  gh repo create "$@" | cat &&
+  ghd "$@"
+}
 
 gitpush() {(
   set -euo pipefail
@@ -195,4 +181,20 @@ gitpush() {(
   fi
 
   git push "$@"
+)}
+
+gae() {(
+  set -euo pipefail
+
+  patch_file="$(mktemp)"
+  git diff "$@" > "$patch_file"
+  sed -i.bak -e '/^+++ /!s/^+/# +/' "$patch_file"
+  sed -i.bak -e '/^--- /!s/^-/# -/' "$patch_file"
+
+  e "$patch_file"
+
+  sed -i.bak -e '/^# +/d' "$patch_file"
+  sed -i.bak -e 's/^# -/ /' "$patch_file"
+
+  EDITOR="sh -c 'cp "$patch_file" \$1' -s" git add -e
 )}
