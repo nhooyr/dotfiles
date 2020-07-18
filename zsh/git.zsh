@@ -36,8 +36,8 @@ alias grth="git reset --hard"
 
 alias cm="gae && gcm"
 alias cmf="gae && gcm --fixup"
-alias cmp="gae && gcm && gp"
 alias gcmp="gcm && gp"
+alias cmp="gae && gcmp"
 
 alias gcma="gcm --amend"
 alias gcme="gcm --amend --no-edit"
