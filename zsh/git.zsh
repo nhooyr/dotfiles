@@ -10,8 +10,8 @@ ga() {
 alias gb="git branch"
 alias gpl="git pull"
 alias gf="git fetch"
-alias gp="gitpush"
-alias gpf="gitpush -f"
+alias gp="git_push"
+alias gpf="git_push -f"
 alias gs="git status"
 alias gsh="git show"
 alias gst="git stash"
@@ -37,6 +37,7 @@ alias grth="git reset --hard"
 alias cm="gae && gcm"
 alias cmf="gae && gcm --fixup"
 alias cmp="gae && gcm && gp"
+alias gcmp="gcm && gp"
 
 alias gcma="gcm --amend"
 alias gcme="gcm --amend --no-edit"
@@ -171,10 +172,10 @@ gho() {(
 alias ghf="gh repo fork --remote"
 ghc() {
   gh repo create "$@" | cat &&
-  ghd "$@"
+  ghd "${@[-1]}"
 }
 
-gitpush() {(
+git_push() {(
   set -euo pipefail
 
   # If there is no remote tracking branch and the arguments are
@@ -187,8 +188,8 @@ gitpush() {(
   git push "$@"
 )}
 
-alias gae="git_edit_stage"
-git_edit_stage() {(
+alias gae="git_add_edit"
+git_add_edit() {(
   set -euo pipefail
 
   patch_file="$(mktemp)"
