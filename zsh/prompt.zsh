@@ -38,7 +38,8 @@ prompt() {
   if [[ $USER == root ]]; then
     echo -n "%F{yellow}"
   fi
-  echo -n "%(!.#.$)%f%b "
+  echo -n "%(!.#.$)"
+  echo -n "%f%b "
 }
 
 branch_name() {
