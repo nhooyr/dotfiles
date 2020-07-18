@@ -3,6 +3,21 @@ alias gch="git checkout"
 alias ga="git add"
 alias gaa="git add -A"
 alias gap="git add -p"
+gae() {(
+  set -euo pipefail
+
+  patch_file="$(mktemp)"
+  git diff "$@" > "$patch_file"
+  sed -i.bak -e '/^+++ /!s/^+/#+/' "$patch_file"
+  sed -i.bak -e '/^--- /!s/^-/#-/' "$patch_file"
+
+  e "$patch_file"
+
+  sed -i.bak -e '/^#+/d' "$patch_file"
+  sed -i.bak -e 's/^#-/ /' "$patch_file"
+
+  EDITOR="sh -c 'cp "$patch_file" \$1' -s" git add -e
+)}
 alias gcm="git commit"
 alias gcma="git commit --amend"
 alias gcmae="git commit --amend --no-edit"
