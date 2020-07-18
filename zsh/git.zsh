@@ -42,7 +42,12 @@ alias gdd="git difftool"
 alias gddc="git difftool --cached"
 
 alias grb="git rebase"
-alias grbi="git rebase --interactive"
+grbi() {
+  if [[ ! "$@" ]]; then
+    set -- origin/master
+  fi
+  git rebase --interactive "$@"
+}
 alias grbc="git rebase --continue"
 alias grbe="git rebase --edit-todo"
 alias grbs="git rebase --skip"
