@@ -50,7 +50,7 @@ hi link gitcommitSummary Normal
 
 " Diff mode colors.
 hi DiffAdd    ctermfg=NONE  ctermbg=194  cterm=NONE
-hi DiffText   ctermfg=NONE  ctermbg=12   cterm=bold,underline
-hi DiffChange ctermfg=NONE  ctermbg=189  cterm=NONE
+hi DiffText   ctermfg=NONE  ctermbg=12   cterm=underline
+hi DiffChange ctermfg=NONE  ctermbg=12   cterm=NONE
 hi DiffDelete ctermfg=NONE  ctermbg=217  cterm=NONE
 hi link diffIndexLine diffFile
