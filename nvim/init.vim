@@ -52,6 +52,7 @@ function! s:settings() abort
   let &statusline=" %f"
 
   function! s:write(path) abort
+    kx
     '[
     ka
     ']
@@ -61,6 +62,7 @@ function! s:settings() abort
     k[
     'b
     k]
+    'x
   endfunction
 
   function! s:autosave() abort
