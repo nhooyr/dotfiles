@@ -156,7 +156,6 @@ xs() {(
   fi
 )}
 
-# TODO: looks like there's a bug here with deleted and untracked files.
 xsr() {(
   set -euo pipefail
 
