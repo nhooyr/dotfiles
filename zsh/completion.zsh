@@ -11,7 +11,10 @@ bindkey "^[[Z" reverse-menu-complete
 
 zstyle ":completion:*" list-dirs-first true
 zstyle ":completion:*" group-name ""
-zstyle ":completion:*" matcher-list "" "+m:{[:lower:]}={[:upper:]}" "+r:|[._-]=** r:|=**" "+l:|=* r:|=*"
+# _approximate is not default.
+zstyle ':completion:*' completer _complete _ignored _approximate
+# Full case insensitive and then substring match if that returns nothing.
+zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}' '+l:|=* r:|=*'
 zstyle ":completion:*" menu select yes
 zstyle ":completion:*" list-prompt %B%p%b
 zstyle ":completion:*" select-prompt %B%p%b
