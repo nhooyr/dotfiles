@@ -242,11 +242,14 @@ function! s:fzf() abort
     quit!
   endfunction
 
-  nnoremap <silent> <M-v> :call <SID>exit_fzf("mru")<CR>
-  inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("mru")<CR>
+  nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
+  inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
 
-  nnoremap <silent> <M-t> :call <SID>exit_fzf("search")<CR>
-  inoremap <silent> <M-t> <ESC>:call <SID>exit_fzf("search")<CR>
+  nnoremap <silent> <M-a> :call <SID>exit_fzf("paths-all")<CR>
+  inoremap <silent> <M-a> <ESC>:call <SID>exit_fzf("paths-all")<CR>
+
+  nnoremap <silent> <M-t> :call <SID>exit_fzf("rg")<CR>
+  inoremap <silent> <M-t> <ESC>:call <SID>exit_fzf("rg")<CR>
 
   " Adds all accessed files into my shell history.
   function! s:update_history() abort

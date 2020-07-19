@@ -102,7 +102,7 @@ fzf-quick-paths() {
   local selected
   selected=("${(@f)$(fc -R && quick_paths | grep -Fxv "$PWD" | filter_exists | relative_path \
     | replace_bookmarks | filter_duplicates \
-    | fzf --bind=alt-c:toggle-sort --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
+    | fzf --bind=alt-a:toggle-sort --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
   local quick_path="${selected[2]}"
 
@@ -138,7 +138,7 @@ fzf-quick-paths-all() {
   FD_ALL=1 fzf-quick-paths
 }
 zle -N fzf-quick-paths-all
-bindkey "\ec" fzf-quick-paths-all
+bindkey "\ea" fzf-quick-paths-all
 
 fzf-history() {
   local selected
@@ -212,10 +212,13 @@ zle-line-init() {
     fzf_type="$(<"$NVIM_FZF_TYPE")"
     unset NVIM_FZF_TYPE
     case "$fzf_type" in
-      mru)
+      paths)
         fzf-quick-paths
         ;;
-      search)
+      paths-all)
+        fzf-quick-paths-all
+        ;;
+      rg)
         fzf-rg
         ;;
     esac
