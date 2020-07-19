@@ -158,7 +158,6 @@ gitsync() {(
   done
 )}
 
-# TODO: consolidate with below.
 ghi() {(
   set -euo pipefail
 
