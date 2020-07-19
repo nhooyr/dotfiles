@@ -1,6 +1,4 @@
 alias r="source ~/.zshrc"
-alias l="ls -lh"
-alias ll="ls -lha"
 export GREP_COLOR='1;33'
 alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
@@ -39,6 +37,8 @@ e() {
 }
 alias e.="e ."
 
+alias l="ls -lh -gG"
+alias ll="ls -lha -gG"
 ls() {
   if command -v gls > /dev/null; then
     command gls --indicator-style=classify --color=auto --group-directories-first "$@"
@@ -46,8 +46,7 @@ ls() {
     command ls -GF "$@"
   fi
 }
-alias lr="ll --reverse --sort=size"
-alias lm="ll --reverse --sort=modified"
+alias la="ls -lha"
 
 declare -a prev_dirs
 cd() {
