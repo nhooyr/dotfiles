@@ -83,6 +83,7 @@ function! s:settings() abort
 
     autocmd BufWinEnter * if &ft !=# "netrw" | setlocal number | endif
     autocmd FileType diff let &commentstring="# %s"
+    autocmd FileType c let &commentstring="// %s"
   augroup END
 endfunction
 call s:settings()
@@ -339,7 +340,7 @@ function! s:plugins() abort
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-sleuth'
-  Plug 'tomtom/tcomment_vim'
+  Plug 'tpope/vim-commentary'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
@@ -373,20 +374,14 @@ function! s:plugin_settings() abort
   let g:go_echo_go_info = 0
   let g:go_template_autocreate = 0
 
-  map <M-c> <C-_><C-_>
-  imap <M-c> <C-o><C-_><C-_>
+  nmap <C-_> gcc
+  vmap <C-_> gc
+  nmap <M-c> gcgc
+  imap <C-_> <C-o>gcc
 
   if executable("rg")
     let &grepprg="rg -S --vimgrep"
     command! -nargs=+ Rg silent grep! <args>
-  endif
-
-  if exists("*tcomment#type#Define")
-    call tcomment#type#Define("c", {
-          \ "commentstring": "// %s",
-          \ "replacements": g:tcomment#replacements_c,
-          \ }
-          \ )
   endif
 
   augroup nhooyr_plugin_maps
