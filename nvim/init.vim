@@ -45,6 +45,7 @@ function! s:settings() abort
 
   " https://stackoverflow.com/questions/9850360/what-is-netrwhist
   let g:netrw_dirhistmax = 0
+  let g:netrw_cursor = 0
 
   let g:markdown_fenced_languages = ["bash=sh", "go"]
 
