@@ -234,10 +234,21 @@ git_add_edit() {(
   set -euo pipefail
 
   patch_file="$(mktemp "/tmp/$(git rev-parse --show-toplevel | sed 's#.*/##')-stage.patch-XXXXXX")"
-  git diff "$@" > "$patch_file"
+  # Cannot easily uncomment deleted files.
+  # The patch indicates it's been "renamed" to ./dev/null and
+  # deleted. Perhaps at some point in the future I wrote some Go
+  # to handle this correctly.
+  git diff --diff-filter=d "$@" > "$patch_file"
   if [[ ! -s "$patch_file" ]]; then
     return
   fi
+
+  # TODO: Add untracked files to the diff and if uncommented,
+  # add them to the index.
+  #
+  # Likewise with deleted files.
+  for file in "${(@f)$(git ls-files --exclude-standard -o)}"; do
+  done
 
   sed -i.bak -e '/^+++ /!s/^+/# +/' "$patch_file"
   sed -i.bak -e '/^--- /!s/^-/# -/' "$patch_file"
