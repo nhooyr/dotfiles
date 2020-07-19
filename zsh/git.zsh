@@ -1,4 +1,5 @@
 alias g="git"
+alias gb="git branch"
 gch() {
   if [[ "$#" -eq 1 ]]; then
     if [ ! "$(git branch --list "$@")" ]; then
@@ -7,16 +8,17 @@ gch() {
   fi
   git checkout "$@"
 }
+alias gs="git status --short"
 gcm() {
   if git commit --porcelain > /dev/null; then
     git commit "$@"
   else
     # Nothing to commit.
-    git status --short
+    gs
     return 1
   fi
 }
-alias gcma="gcm --amend"
+alias gcma="git commit --amend"
 alias gcme="gcm --amend --no-edit"
 ga() {
   if [[ ! "$@" ]]; then
@@ -24,14 +26,14 @@ ga() {
   fi
   git add "$@"
 }
+alias gap="git add -p"
+alias gai="git add -i"
 alias gac="gae && gcm"
-alias gb="git branch"
 alias gbd="git branch -d"
 alias gpl="git pull"
 alias gf="git fetch"
 alias gp="git_push"
 alias gpf="git_push -f"
-alias gs="git status --short"
 alias gsh="git show"
 alias gst="git stash"
 alias gstk="git stash --keep-index"
