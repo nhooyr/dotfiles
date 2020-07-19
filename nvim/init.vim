@@ -210,7 +210,7 @@ function! s:maps() abort
     autocmd FileType qf setlocal statusline=%f
     autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
 
-    autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<CR>:nohlsearch<CR>
+    autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<CR>:nohlsearch<CR><C-o>
     " Jumps to the next comment block.
     " Regex is ^[^#].*\n\zs\%(# .*\n\)\+
     " Meaning find the next line starting without # with a bunch starting with # and start
