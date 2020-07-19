@@ -219,17 +219,17 @@ xsr() {(
   # Sync all untracked and modified files.
   local local_files
   local local_files="$(mktemp)"
-  # Both -m and -c are required here as when a modified file is staged, it only shows up with -c.
+  # -c is used here instead of -m as when a modified file is staged, it only shows up with -c.
   # This does mean we get all the files in the index but that's no big deal.
-  # We filter duplicates in case the file is modified and part of the stage.
-  git -C "$local_path" ls-files --exclude-standard -mco | filter_duplicates > "$local_files"
+  git -C "$local_path" ls-files --exclude-standard -co > "$local_files"
   # --delete-missing-args to delete any files on the remote end that have been deleted locally.
+  # i.e unstaged deletions.
   rs --delete-missing-args "--files-from=$local_files" "$local_path/" "$REMOTE_HOST:$remote_path/"
 
-  # Sync staged deletions.
+  # Sync staged deletions where the file now only exists on the remote end.
   local remote_files
   local remote_files="$(mktemp)"
-  xssh git -C "$remote_path" ls-files --exclude-standard -mco | filter_duplicates > "$remote_files"
+  xssh git -C "$remote_path" ls-files --exclude-standard -co > "$remote_files"
 
   # These files exist on only the remote end as we just synced local.
   # Therefore they must be deleted.
