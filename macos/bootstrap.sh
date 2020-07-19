@@ -26,7 +26,6 @@ EOF
     neovim \
     duti \
     coreutils \
-    exa
 
   brew cask install \
     alfred \

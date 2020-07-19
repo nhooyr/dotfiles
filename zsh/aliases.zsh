@@ -39,14 +39,9 @@ e() {
 }
 alias e.="e ."
 
-export EXA_COLORS="da=reset:uu=reset:gu=reset:ur=33:uw=33:ux=33:ue=33:tx=33:gx=33:sn=reset:sb=reset"
 ls() {
-  if command_exists exa; then
-    set -- "${@/-lh/-l}"
-    set -- "${@/-la/-laa}"
-    exa -F --group-directories-first "$@"
-  elif command_exists gls; then
-    gls --indicator-style=classify --color=auto --group-directories-first "$@"
+  if command -v gls > /dev/null; then
+    command gls --indicator-style=classify --color=auto --group-directories-first "$@"
   else
     command ls -GF "$@"
   fi

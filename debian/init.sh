@@ -23,7 +23,6 @@ main() {
   install_docker
   install_locale
   install_misc
-  install_exa
 }
 
 install_node() {
@@ -104,19 +103,6 @@ install_locale() {
   sudo -E sed -i "s/# en_CA.UTF-8/en_CA.UTF-8/" /etc/locale.gen
   sudo -E locale-gen
   sudo -E update-locale LANG=en_CA.UTF-8
-}
-
-install_exa() {
-  if command -v exa > /dev/null; then
-    return
-  fi
-
-  cd "$(mktemp -d)"
-  curl -fsSL -O https://github.com/ogham/exa/releases/download/v0.9.0/exa-linux-x86_64-0.9.0.zip
-  unzip exa-linux-x86_64-0.9.0.zip
-  sudo mv exa-linux-x86_64 /usr/local/bin/exa
-  rm exa-linux-x86_64-0.9.0.zip
-  cd -
 }
 
 main "$@"
