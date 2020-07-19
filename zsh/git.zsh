@@ -157,17 +157,20 @@ gitsync() {(
   done
 )}
 
-ghi() {(
-  set -euo pipefail
-
+gh_url() {
   if [[ "$#" -gt 0 ]]; then
-    url="https://github.com/$*"
-    o "$url"
+    echo "https://github.com/$*"
     return
   fi
 
-  url="$(git remote get-url origin | sed -e 's#https://github.com/##' -e 's#.git$##' )"
-  url="https://github.com/$url/issues/new"
+  repo_path="$(git remote get-url origin | sed -e 's#https://github.com/##' -e 's#.git$##' )"
+  echo "https://github.com/$repo_path"
+}
+
+ghi() {(
+  set -euo pipefail
+
+  url="$(gh_url "$@")/issues/new"
 
   echo "$url"
   if command_exists o; then
@@ -178,22 +181,17 @@ ghi() {(
 gho() {(
   set -euo pipefail
 
-  if [[ "$#" -gt 0 ]]; then
-    url="https://github.com/$*"
-    o "$url"
-    return
-  fi
-
-  url="$(git remote get-url origin | sed -e 's#https://github.com/##' -e 's#.git$##' )"
-  url="https://github.com/$url"
-  branch="$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)"
-  if [[ "$branch" != "HEAD" && "$branch" != "master" ]]; then
-    if true || hub pr list -h "$branch" &> /dev/null; then
-      # Automatically opens either the PR for this branch or shows
-      # the page to open the PR.
-      #
-      # Very neat.
-      url+="/pull/$branch"
+  url="$(gh_url "$@")"
+  if [[ "$#" -eq 0 ]]; then
+    branch="$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)"
+    if [[ "$branch" != "HEAD" && "$branch" != "master" ]]; then
+      if true || hub pr list -h "$branch" &> /dev/null; then
+        # Automatically opens either the PR for this branch or shows
+        # the page to open the PR.
+        #
+        # Very neat.
+        url+="/pull/$branch"
+      fi
     fi
   fi
 
