@@ -221,10 +221,12 @@ xsr() {(
   local local_files="$(mktemp)"
   # Both -m and -c are required here as when a modified file is staged, it only shows up with -c.
   # This does mean we get all the files in the index but that's no big deal.
+  # We filter duplicates in case the file is modified and part of the stage.
   git -C "$local_path" ls-files --exclude-standard -mco | filter_duplicates > "$local_files"
-  rs "--files-from=$local_files" "$local_path/" "$REMOTE_HOST:$remote_path/"
+  # --delete-missing-args to delete any files on the remote end that have been deleted locally.
+  rs --delete-missing-args "--files-from=$local_files" "$local_path/" "$REMOTE_HOST:$remote_path/"
 
-  # Sync deletions.
+  # Sync staged deletions.
   local remote_files
   local remote_files="$(mktemp)"
   xssh git -C "$remote_path" ls-files --exclude-standard -mco | filter_duplicates > "$remote_files"
