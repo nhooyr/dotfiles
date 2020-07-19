@@ -51,6 +51,10 @@ function! s:settings() abort
   let &statusline=" %f"
 
   function! s:write() abort
+    if expand("%:p") ==# ""
+      return
+    endif
+
     call mkdir(expand("%:h"), "p")
     write
 
