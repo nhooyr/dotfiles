@@ -224,7 +224,7 @@ alias gae="git_add_edit"
 git_add_edit() {(
   set -euo pipefail
 
-  patch_file="$(mktemp)"
+  patch_file="$(mktemp "/tmp/$(git rev-parse --show-toplevel | sed 's#.*/##')-stage.patch-XXXXXX")"
   git diff "$@" > "$patch_file"
   if [[ ! -s "$patch_file" ]]; then
     return
