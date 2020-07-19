@@ -15,6 +15,7 @@ ga() {
   fi
   git add "$@"
 }
+alias gac="gae && gcm"
 alias gb="git branch"
 alias gbd="git branch -d"
 alias gpl="git pull"
@@ -56,8 +57,6 @@ alias grba="git rebase --abort"
 
 alias grt="git reset"
 alias grth="git reset --hard"
-
-alias c="gae && gcm"
 
 gcd() {
   local root_dir
