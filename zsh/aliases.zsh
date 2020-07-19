@@ -40,7 +40,7 @@ alias e.="e ."
 alias l="ls -lh -gG"
 alias ll="ls -lha -gG"
 ls() {
-  if command -v gls > /dev/null; then
+  if command_exists gls; then
     command gls --indicator-style=classify --color=auto --group-directories-first "$@"
   else
     command ls -GF "$@"
