@@ -206,9 +206,17 @@ function! s:maps() abort
 
   augroup nhooyr_maps
     autocmd!
+
     autocmd FileType qf setlocal statusline=%f
     autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
-    autocmd FileType diff nnoremap <Leader>c :%s/^# //<CR> \| :nohlsearch<CR>
+
+    autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<CR>:nohlsearch<CR>
+    " Jumps to the next comment block.
+    " Regex is ^[^#].*\n\zs\%(# .*\n\)\+
+    " Meaning find the next line starting without # with a bunch starting with # and start
+    " the match at before first #.
+    autocmd FileType diff nnoremap <buffer> <silent> [c ?^[^#].*\n\zs\%(# .*\n\)\+<CR>:nohlsearch<CR>
+    autocmd FileType diff nnoremap <buffer> <silent> ]c /^[^#].*\n\zs\%(# .*\n\)\+<CR>:nohlsearch<CR>
 
     " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
     autocmd QuickFixCmdPost [^l]* cwindow
