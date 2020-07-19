@@ -7,7 +7,15 @@ gch() {
   fi
   git checkout "$@"
 }
-alias gcm="git commit"
+gcm() {
+  if git commit --porcelain > /dev/null; then
+    git commit "$@"
+  else
+    # Nothing to commit.
+    git status --short
+    return 1
+  fi
+}
 alias gcma="gcm --amend"
 ga() {
   if [[ ! "$@" ]]; then
