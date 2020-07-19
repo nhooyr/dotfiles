@@ -25,7 +25,7 @@ EOF
     shfmt \
     neovim \
     duti \
-    coreutils \
+    coreutils
 
   brew cask install \
     alfred \
