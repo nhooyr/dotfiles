@@ -17,6 +17,7 @@ gcm() {
   fi
 }
 alias gcma="gcm --amend"
+alias gcme="gcm --amend --no-edit"
 ga() {
   if [[ ! "$@" ]]; then
     set -- -A
