@@ -50,20 +50,32 @@ function! s:settings() abort
 
   let &statusline=" %f"
 
-  function! s:write() abort
+  function! s:write(path) abort
+    '[
+    ka
+    ']
+    kb
+    execute "write " . a:path
+    'a
+    k[
+    'b
+    k]
+  endfunction
+
+  function! s:autosave() abort
     if expand("%:p") ==# ""
       return
     endif
 
     call mkdir(expand("%:h"), "p")
-    write
+    call s:write("")
 
     for l:i in range(0, 99)
       let l:history_path = stdpath("data") . "/history" . expand("%:p") . "-" . system("head -c 8 /dev/urandom | base64")
       call mkdir(fnamemodify(l:history_path, (":h")), "p")
 
       try
-        execute "write " . l:history_path
+        call s:write(l:history_path)
       catch /E13: File exists/
         continue
       endtry
@@ -81,8 +93,8 @@ function! s:settings() abort
     autocmd FocusLost * wshada
 
     " Autosave from https://github.com/907th/vim-auto-save#events.
-    autocmd TextChanged * silent! call s:write()
-    autocmd InsertLeave * silent! call s:write()
+    autocmd TextChanged * silent! call s:autosave()
+    autocmd InsertLeave * silent! call s:autosave()
 
     autocmd BufWinEnter * if &ft !=# "netrw" | setlocal number | endif
     autocmd FileType diff let &commentstring="# %s"
@@ -382,7 +394,7 @@ function! s:plugin_settings() abort
 
   nmap <C-_> gcc
   vmap <C-_> gc
-  nmap <M-c> gcgc
+  nmap <M-c> gcgc`]
   imap <C-_> <C-o>gcc
 
   if executable("rg")
