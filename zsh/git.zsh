@@ -16,7 +16,7 @@ _gch() {
 compdef _gch gch
 alias gs="git status --short"
 gcm() {
-  if git commit --porcelain > /dev/null; then
+  if [[ "$#" -gt 0 ]] || git commit --porcelain > /dev/null; then
     git commit "$@"
   else
     # Nothing to commit.
@@ -25,7 +25,7 @@ gcm() {
   fi
 }
 compdef _git gcm=git-commit
-alias gcma="git commit --amend"
+alias gcma="gcm --amend"
 alias gcme="gcm --amend --no-edit"
 ga() {
   if [[ ! "$@" ]]; then
