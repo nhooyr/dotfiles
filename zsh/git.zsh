@@ -245,6 +245,7 @@ _git_push() {
 # The default git push completion includes directories for some reason...
 compdef _git_push git_push
 
+alias gfg="nvim +G +only"
 alias gae="git_add_edit"
 git_add_edit() {(
   set -euo pipefail
