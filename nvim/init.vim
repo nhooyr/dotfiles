@@ -228,6 +228,11 @@ function! s:maps() abort
     " q should always quit.
     autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
   augroup END
+
+  if executable("rg")
+    let &grepprg="rg -S --vimgrep"
+    command! -nargs=+ Rg silent grep! <args>
+  endif
 endfunction
 call s:maps()
 
@@ -407,11 +412,6 @@ function! s:plugin_settings() abort
   vmap <C-_> gc
   nmap <M-c> gcgc`]
   imap <C-_> <C-o>gcc
-
-  if executable("rg")
-    let &grepprg="rg -S --vimgrep"
-    command! -nargs=+ Rg silent grep! <args>
-  endif
 
   augroup nhooyr_plugin_maps
     autocmd!
