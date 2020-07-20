@@ -8,7 +8,12 @@ gch() {
   fi
   git checkout "$@"
 }
-compdef _git gch=git-checkout
+_gch() {
+  branches=("${(@f)$(git branch | sed 's#^. ##')}")
+  compadd "${branches[@]}"
+}
+# The included completion function is too slow for my needs.
+compdef _gch gch
 alias gs="git status --short"
 gcm() {
   if git commit --porcelain > /dev/null; then
