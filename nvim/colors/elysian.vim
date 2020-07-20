@@ -44,8 +44,8 @@ hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
 " Git colors.
 hi diffAdded   ctermfg=2     ctermbg=NONE  cterm=NONE
 hi diffRemoved ctermfg=1     ctermbg=NONE  cterm=NONE
-hi diffFile    ctermfg=NONE  ctermbg=NONE  cterm=underline
-hi diffLine    ctermfg=6     ctermbg=NONE  cterm=NONE
+hi diffFile    ctermfg=54  ctermbg=NONE  cterm=underline
+hi diffLine    ctermfg=61    ctermbg=NONE  cterm=underline
 hi link gitcommitSummary Normal
 hi fugitiveUnstagedHeading  ctermfg=54  ctermbg=NONE  cterm=underline
 hi fugitiveUnstagedSection  ctermfg=54  ctermbg=NONE  cterm=underline
