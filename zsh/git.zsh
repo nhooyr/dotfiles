@@ -227,7 +227,6 @@ ghc() {
   ghd "${@[-1]}"
 }
 
-compdef _git git_push=git-push
 git_push() {(
   set -euo pipefail
 
@@ -240,6 +239,11 @@ git_push() {(
 
   git push "$@"
 )}
+_git_push() {
+  compadd "${(@f)$(git remote)}"
+}
+# The default git push completion includes directories for some reason...
+compdef _git_push git_push
 
 alias gae="git_add_edit"
 git_add_edit() {(
