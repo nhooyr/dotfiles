@@ -8,6 +8,7 @@ gch() {
   fi
   git checkout "$@"
 }
+compdef _git gch=git-checkout
 alias gs="git status --short"
 gcm() {
   if git commit --porcelain > /dev/null; then
@@ -18,6 +19,7 @@ gcm() {
     return 1
   fi
 }
+compdef _git gcm=git-commit
 alias gcma="git commit --amend"
 alias gcme="gcm --amend --no-edit"
 ga() {
@@ -26,6 +28,7 @@ ga() {
   fi
   git add "$@"
 }
+compdef _git ga=git-add
 alias gap="git add -p"
 alias gai="git add -i"
 alias gac="gae && gcm"
@@ -61,6 +64,7 @@ grbi() {
   fi
   git rebase --interactive "$@"
 }
+compdef _git grbi=git-rebase
 alias grbc="git rebase --continue"
 alias grbe="git rebase --edit-todo"
 alias grbs="git rebase --skip"
@@ -218,6 +222,7 @@ ghc() {
   ghd "${@[-1]}"
 }
 
+compdef _git git_push=git-push
 git_push() {(
   set -euo pipefail
 
