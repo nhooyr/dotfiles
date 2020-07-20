@@ -212,7 +212,7 @@ xsr() {(
     local remote_root="${local_root#$HOME/}"
 
     xssh git init -q "$remote_root"
-    git -C "$local_root" push -fq "ssh://$REMOTE_HOST/~/$remote_root" "${local_sha}:refs/heads/xrs"
+    git -C "$local_root" push -fq "ssh://$REMOTE_HOST/~/$remote_root" "${local_sha}:refs/heads/xsr"
     xssh git -C "$remote_path" checkout -qf "$local_sha"
   fi
 
