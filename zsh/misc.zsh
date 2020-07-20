@@ -20,6 +20,7 @@ setopt EXTENDED_GLOB
 setopt INTERACTIVE_COMMENTS
 setopt NOBEEP
 setopt CDABLE_VARS
+setopt NO_CASE_GLOB
 
 # Required explicitly for tmux.
 bindkey -e
