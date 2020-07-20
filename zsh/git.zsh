@@ -26,6 +26,10 @@ gcm() {
 }
 compdef _git gcm=git-commit
 alias gcmp="gcm && gp"
+gacp() {
+  gac "$@" && gp
+}
+compdef _git gacp=git-add
 alias gcma="gcm --amend"
 alias gcme="gcm --amend --no-edit"
 ga() {
@@ -37,7 +41,10 @@ ga() {
 compdef _git ga=git-add
 alias gap="git add -p"
 alias gai="git add -i"
-alias gac="gae && gcm"
+gac() {
+  inf "gae $* && gcm"
+}
+compdef _git gac=git-add
 alias gbd="git branch -d"
 alias gpl="git pull"
 alias gf="git fetch"

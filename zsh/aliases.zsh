@@ -199,11 +199,11 @@ calc() {
 alias p8="ping 8.8.8.8"
 alias we="watchexec"
 
-inf() {
+infi() {
   while; do eval "$@"; done
 }
 
-rep() {
+inf() {
   while eval "$@"; do; done
 }
 
