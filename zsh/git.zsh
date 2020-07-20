@@ -27,7 +27,7 @@ gcm() {
 compdef _git gcm=git-commit
 alias gcmp="gcm && gp"
 gacp() {
-  gac "$@" && gp
+  gac "$@" && git_push
 }
 compdef _git gacp=git-add
 alias gcma="gcm --amend"
