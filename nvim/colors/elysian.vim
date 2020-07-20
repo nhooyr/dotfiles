@@ -47,12 +47,6 @@ hi diffRemoved ctermfg=1     ctermbg=NONE  cterm=NONE
 hi diffFile    ctermfg=54  ctermbg=NONE  cterm=underline
 hi diffLine    ctermfg=61    ctermbg=NONE  cterm=underline
 hi link gitcommitSummary Normal
-hi fugitiveUnstagedHeading  ctermfg=54  ctermbg=NONE  cterm=underline
-hi fugitiveUnstagedSection  ctermfg=54  ctermbg=NONE  cterm=underline
-hi fugitiveUnstagedModifier ctermfg=54  ctermbg=NONE  cterm=underline
-hi fugitiveStagedHeading    ctermfg=54  ctermbg=NONE  cterm=underline
-hi fugitiveStagedSection    ctermfg=54  ctermbg=NONE  cterm=underline
-hi fugitiveStagedModifier   ctermfg=54  ctermbg=NONE  cterm=underline
 
 " Diff mode colors.
 hi DiffAdd    ctermfg=NONE  ctermbg=194  cterm=NONE
