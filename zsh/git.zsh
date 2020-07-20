@@ -232,8 +232,8 @@ git_push() {(
 
   # If there is no remote tracking branch and the arguments are
   # empty, then set upstream.
-  if ! git rev-parse "@{u}" &> /dev/null && [[ "$#" -eq 0 ]]; then
-    git -c push.default=current push -u
+  if ! git rev-parse "@{u}" &> /dev/null && [[ "$#" -eq 0 || "$*" == "-f" ]]; then
+    git -c push.default=current push -u "$@"
     return
   fi
 
