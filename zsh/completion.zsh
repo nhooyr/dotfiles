@@ -29,7 +29,7 @@ zstyle ":completion:*" rehash true
 # I only want to see my bookmarks.
 zstyle ":completion:*" users
 
-autoload -Uz compinit
+autoload -U compinit
 # See https://github.com/zsh-users/zsh-completions/issues/433#issuecomment-346395881 for -i.
 # Allows sharing compinit with root.
 compinit -i
