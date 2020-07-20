@@ -25,7 +25,10 @@ gcm() {
   fi
 }
 compdef _git gcm=git-commit
-alias gcmp="gcm && gp"
+gcmp() {
+  gcm "$@" && git_push
+}
+compdef _git gcmp=git-commit
 gacp() {
   gac "$@" && git_push
 }
