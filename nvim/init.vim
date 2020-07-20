@@ -116,7 +116,8 @@ function! s:maps() abort
   noremap ; :
   noremap , ;
   nnoremap <silent> <nowait> q :quit<CR>
-  nnoremap <nowait> Q q
+  nnoremap <silent> Q q
+  nnoremap <silent> <C-q> @@
   nnoremap <silent> <leader>ee :e $MYVIMRC<CR>
   nnoremap <silent> <leader>ec :e ~/.config/nvim/colors/elysian.vim<CR>
   nnoremap <silent> k gk
