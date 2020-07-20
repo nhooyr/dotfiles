@@ -66,6 +66,9 @@ function! s:settings() abort
   endfunction
 
   function! s:autosave() abort
+    if !&modified
+      return
+    endif
     if expand("%:p") ==# ""
       return
     endif
@@ -166,9 +169,10 @@ function! s:maps() abort
   cnoremap <M-n> <Down>
   cnoremap <M-p> <Up>
 
-  inoremap <M-f> <C-o>w
-  inoremap <M-b> <C-o>b
-  inoremap <M-d> <C-o>dw
+  " Without <C-\> this interacts poorly with my autosave.
+  inoremap <M-f> <C-\><C-o>w
+  inoremap <M-b> <C-\><C-o>b
+  inoremap <M-d> <C-\><C-o>dw
 
   nnoremap <silent> <C-s> :quit<CR>
   inoremap <silent> <C-s> <Esc>:quit<CR>
