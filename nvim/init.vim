@@ -375,9 +375,6 @@ function! s:plugins() abort
   Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-sleuth'
   Plug 'tpope/vim-commentary'
-  Plug 'nhooyr/vim-fugitive', {'branch': 'ftplugin'}
-  Plug 'tpope/vim-dispatch'
-  " Plug 'tpope/vim-fugitive', {'dir': '~/src/tpope/vim-fugitive'}
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
@@ -420,19 +417,5 @@ function! s:plugin_settings() abort
     autocmd!
     autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
   augroup END
-
-  function! s:ftplugin_fugitive() abort
-    normal guk>gg
-    normal gUk>gg
-    normal gsk>gg
-    nnoremap <buffer> <silent> cc :Git commit --quiet<CR>
-    nnoremap <buffer> <silent> ca :Git commit --quiet --amend<CR>
-    nnoremap <buffer> <silent> ce :Git commit --quiet --amend --no-edit<CR>
-  endfunction
-  augroup nhooyr_fugitive
-    autocmd!
-    autocmd FileType fugitive call s:ftplugin_fugitive()
-  augroup END
-  let g:dispatch_no_tmux_make = 1
 endfunction
 call s:plugin_settings()
