@@ -9,10 +9,10 @@ gch() {
   git checkout "$@"
 }
 _gch() {
-  branches=("${(@f)$(git branch | sed 's#^. ##')}")
-  compadd "${branches[@]}"
+  compadd "${(@f)$(git for-each-ref '--format=%(refname:short)')}"
 }
-# The included completion function is too slow for my needs.
+# zsh's git completion is very slow and git's zsh completion is just a wrapper around
+# the bash completion and doesn't define a zsh completion service for git checkout.
 compdef _gch gch
 alias gs="git status --short"
 gcm() {
