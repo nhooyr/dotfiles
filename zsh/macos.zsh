@@ -31,6 +31,11 @@ prepend_PATH /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin
 
 prepend_path FPATH /usr/local/share/zsh-completions
 
+# Use zsh's git completion as it's more rich than the one included by git.
+# Also has proper services for my functions that replace git subcommands.
+# See git.zsh
+ln -sfn "${fpath[-1]}/_git" /usr/local/share/zsh/site-functions/_git
+
 # Has to be loaded after completion.
 post_os_zshrc() {
   source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
