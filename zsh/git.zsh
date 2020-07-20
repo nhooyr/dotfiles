@@ -25,6 +25,7 @@ gcm() {
   fi
 }
 compdef _git gcm=git-commit
+alias gcmp="gcm && gp"
 alias gcma="gcm --amend"
 alias gcme="gcm --amend --no-edit"
 ga() {
