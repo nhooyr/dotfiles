@@ -213,7 +213,7 @@ inf() {
   while eval "$@"; do; done
 }
 
-alias dr="docker run -it --rm"
+alias dr='docker run -it --rm -v "$PWD:/mnt/pwd" -w /mnt/pwd'
 alias db="docker build"
 alias cv="command -v"
 alias tch="touch"
