@@ -127,7 +127,7 @@ noti() {
       set -- false
     fi
   fi
-  "$@"
+  eval "$@"
   last_status="$?"
   echo -ne '\a' >&2
   [[ "$last_status" -eq 0 ]]
