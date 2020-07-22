@@ -40,9 +40,15 @@ alias e.="e ."
 alias l="ls -lh -gG"
 alias ll="ls -lha -gG"
 ls() {
-  if command_exists gls; then
-    command gls --indicator-style=classify --color=auto --group-directories-first "$@"
+  local ls="ls"
+  if hash gls 2> /dev/null; then
+    ls="gls"
+  fi
+  if [[ "$ls" == "gls" || "$OSTYPE" == linux-* ]]; then
+    # GNU ls.
+    command "$ls" --indicator-style=classify --color=auto --group-directories-first "$@"
   else
+    # BSD ls.
     command ls -GF "$@"
   fi
 }
