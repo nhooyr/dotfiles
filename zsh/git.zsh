@@ -33,6 +33,7 @@ gacp() {
   gac "$@" && git_push
 }
 compdef _git gacp=git-add
+alias fcm="ga . && gcme && gpf"
 alias gcma="gcm --amend"
 alias gcme="gcm --amend --no-edit"
 ga() {
@@ -287,3 +288,6 @@ git_add_edit() {(
 
   EDITOR="sh -c 'cp "$patch_file" \$1' -s" git add -e
 )}
+
+alias gsub="git submodule"
+alias gsubi="git submodule update --init"
