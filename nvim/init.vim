@@ -77,7 +77,7 @@ function! s:settings() abort
     call s:write("")
 
     for l:i in range(0, 99)
-      let l:history_path = stdpath("data") . "/history" . expand("%:p") . "-" . system("head -c 8 /dev/urandom | base64")
+      let l:history_path = stdpath("data") . "/history/" . expand("%:p") . "-" . system("head -c 8 /dev/urandom | base64")
       call mkdir(fnamemodify(l:history_path, (":h")), "p")
 
       try
