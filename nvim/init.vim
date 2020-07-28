@@ -9,9 +9,9 @@ function! s:plugins() abort
   endif
 
   call plug#begin(stdpath("data") . "/plugged")
-  " Plug 'peitalin/vim-jsx-typescript'
+  Plug 'peitalin/vim-jsx-typescript'
   " Default syntax does not work well with tsx.
-  " Plug 'leafgarland/typescript-vim'
+  Plug 'leafgarland/typescript-vim'
   Plug 'fatih/vim-go'
 
   Plug 'tpope/vim-vinegar'
