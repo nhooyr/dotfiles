@@ -134,10 +134,13 @@ ghd() {
     return
   fi
 
-  local dst="$HOME/src/$repo_path"
-  if [[ -d "$dst" ]]; then
-    cd "$dst"
-    return
+  local dst="$2"
+  if [[ ! "$dst" ]]; then
+    dst="$HOME/src/$repo_path"
+    if [[ -d "$dst" ]]; then
+      cd "$dst"
+      return
+    fi
   fi
 
   mkdir -p "$(dirname "$dst")"
