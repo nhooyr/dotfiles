@@ -25,7 +25,11 @@ hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Folded       ctermfg=244    ctermbg=255  cterm=NONE
 hi FoldColumn   ctermfg=244    ctermbg=NONE cterm=NONE
 
-hi Directory    ctermfg=17      ctermbg=NONE cterm=NONE
+hi Directory    ctermfg=17     ctermbg=NONE cterm=NONE
+hi SpecialKey   ctermfg=5      ctermbg=NONE cterm=underline
+" Ignore carriage returns.
+match Ignore /\r$/
+
 
 " Language colors.
 hi Comment      ctermfg=244  ctermbg=NONE cterm=NONE
