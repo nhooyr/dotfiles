@@ -99,12 +99,15 @@ alias chx="chmod +x"
 alias md="mkdir -p"
 
 alias y="yarn -s"
-alias ya="yarn -s add"
-alias yad="yarn -s add --dev"
-alias yd="yarn -s dev"
-alias yp="yarn -s prod"
-alias yc="yarn -s ci"
-alias yf="yarn -s fix"
+alias ya="y add"
+alias yad="y add --dev"
+alias yu="y upgrade"
+alias yul="y upgrade --latest"
+alias yd="y dev"
+alias yp="y prod"
+alias yc="y ci"
+alias yf="y fix"
+alias yt="y test"
 
 rg() {
   command rg -S \
