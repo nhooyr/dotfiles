@@ -185,6 +185,9 @@ zle -N fzf-rg
 bindkey "\et" fzf-rg
 
 fzf-commits() {
+  if ! git rev-parse --show-toplevel &> /dev/null; then
+    return
+  fi
   local query="${LBUFFER##* }"
 
   local selected
