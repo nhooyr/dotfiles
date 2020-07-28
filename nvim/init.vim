@@ -1,3 +1,69 @@
+function! s:plugins() abort
+  let s:vim_plug = "~/.local/share/nvim/site/autoload/plug.vim"
+  if empty(glob(s:vim_plug, 1))
+    execute "silent !curl -fLo" s:vim_plug "--create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
+    augroup nhooyr_plug_install
+      autocmd!
+      autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
+    augroup END
+  endif
+
+  call plug#begin(stdpath("data") . "/plugged")
+  " Plug 'peitalin/vim-jsx-typescript'
+  " Default syntax does not work well with tsx.
+  " Plug 'leafgarland/typescript-vim'
+  Plug 'fatih/vim-go'
+
+  Plug 'tpope/vim-vinegar'
+  Plug 'tpope/vim-surround'
+  Plug 'tpope/vim-endwise'
+  Plug 'tpope/vim-sleuth'
+  Plug 'tpope/vim-commentary'
+
+  Plug 'Shougo/neosnippet.vim'
+  Plug 'Shougo/neosnippet-snippets'
+  Plug 'neovim/nvim-lsp'
+
+  Plug 'simnalamburt/vim-mundo'
+  Plug 'mattn/emmet-vim'
+  Plug 'PeterRincker/vim-argumentative'
+  Plug 'godlygeek/tabular'
+  call plug#end()
+
+  command! PU PlugUpgrade | PlugUpdate
+  command! PC PlugClean
+endfunction
+call s:plugins()
+
+function! s:plugin_settings() abort
+  let g:mundo_close_on_revert = 1
+  let g:mundo_verbose_graph = 0
+  let g:mundo_header = 0
+  nnoremap <silent> <Leader>u :MundoToggle<CR>
+
+  let g:surround_no_insert_mappings = 1
+
+  map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
+
+  let g:user_emmet_leader_key = "<M-e>"
+  let g:user_emmet_mode="i"
+
+  let g:go_gopls_enabled = 0
+  let g:go_echo_go_info = 0
+  let g:go_template_autocreate = 0
+
+  nmap <C-_> gcc
+  vmap <C-_> gc
+  nmap <M-c> gcgc`]
+  imap <C-_> <C-o>gcc
+
+  augroup nhooyr_plugin_maps
+    autocmd!
+    autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
+  augroup END
+endfunction
+call s:plugin_settings()
+
 function! s:settings() abort
   set backup
   set backupdir=~/.local/share/nvim/backup//
@@ -363,69 +429,3 @@ EOF
   augroup END
 endfunction
 call s:lsp()
-
-function! s:plugins() abort
-  let s:vim_plug = "~/.local/share/nvim/site/autoload/plug.vim"
-  if empty(glob(s:vim_plug, 1))
-    execute "silent !curl -fLo" s:vim_plug "--create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
-    augroup nhooyr_plug_install
-      autocmd!
-      autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
-    augroup END
-  endif
-
-  call plug#begin(stdpath("data") . "/plugged")
-  Plug 'peitalin/vim-jsx-typescript'
-  " Default syntax does not work well.
-  Plug 'leafgarland/typescript-vim'
-  Plug 'fatih/vim-go'
-
-  Plug 'tpope/vim-vinegar'
-  Plug 'tpope/vim-surround'
-  Plug 'tpope/vim-endwise'
-  Plug 'tpope/vim-sleuth'
-  Plug 'tpope/vim-commentary'
-
-  Plug 'Shougo/neosnippet.vim'
-  Plug 'Shougo/neosnippet-snippets'
-  Plug 'neovim/nvim-lsp'
-
-  Plug 'nhooyr/vim-mundo'
-  Plug 'mattn/emmet-vim'
-  Plug 'PeterRincker/vim-argumentative'
-  Plug 'godlygeek/tabular'
-  call plug#end()
-
-  command! PU PlugUpgrade | PlugUpdate
-  command! PC PlugClean
-endfunction
-call s:plugins()
-
-function! s:plugin_settings() abort
-  let g:mundo_close_on_revert = 1
-  let g:mundo_verbose_graph = 0
-  let g:mundo_header = 0
-  nnoremap <silent> <Leader>u :MundoToggle<CR>
-
-  let g:surround_no_insert_mappings = 1
-
-  map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
-
-  let g:user_emmet_leader_key = "<M-e>"
-  let g:user_emmet_mode="i"
-
-  let g:go_gopls_enabled = 0
-  let g:go_echo_go_info = 0
-  let g:go_template_autocreate = 0
-
-  nmap <C-_> gcc
-  vmap <C-_> gc
-  nmap <M-c> gcgc`]
-  imap <C-_> <C-o>gcc
-
-  augroup nhooyr_plugin_maps
-    autocmd!
-    autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
-  augroup END
-endfunction
-call s:plugin_settings()
