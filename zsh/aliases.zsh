@@ -214,6 +214,10 @@ inf() {
 }
 
 alias dr='docker run -it --rm -v "$PWD:/mnt/pwd" -w /mnt/pwd'
-alias db="docker build"
+db() {
+  docker build "$@" >&2 && \
+    docker build -q "$@"
+}
+compdef _docker db=docker-build
 alias cv="command -v"
 alias tch="touch"
