@@ -1,5 +1,5 @@
 alias r="source ~/.zshrc"
-export GREP_COLOR='1;33'
+export GREP_COLOR='4;33'
 alias grep="grep --color"
 # https://unix.stackexchange.com/q/148545/109885
 alias s="sudo "
