@@ -14,7 +14,7 @@ relative_path() {
   if [[ "$PWD" == ~  || "$PWD" == ~/src ]]; then
     cat
   fi
-  sed "s#$PWD/##g"
+  sed "s#^$PWD/##g"
 }
 
 filter_exists() {
