@@ -27,8 +27,11 @@ hi FoldColumn   ctermfg=244    ctermbg=NONE cterm=NONE
 
 hi Directory    ctermfg=17     ctermbg=NONE cterm=NONE
 hi SpecialKey   ctermfg=5      ctermbg=NONE cterm=underline
-" Ignore carriage returns.
-match Ignore /\r$/
+augroup elysian
+  autocmd!
+  " Ignore carriage returns.
+  autocmd FileType * match Ignore /\r$/
+augroup END
 
 
 " Language colors.
