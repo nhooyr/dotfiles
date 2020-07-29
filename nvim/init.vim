@@ -89,6 +89,9 @@ function! s:settings() abort
   set updatetime=100
   set laststatus=2
 
+  " Neovim's TUI cursor bugs out often enough.
+  set guicursor=
+
   if has("vim_starting")
     set tabstop=2
     let &shiftwidth=&tabstop
@@ -115,7 +118,7 @@ function! s:settings() abort
 
   let g:markdown_fenced_languages = ["bash=sh", "go"]
 
-  let &statusline=" %f"
+  let &statusline=" %f %m"
 
   function! s:write(path) abort
     kx
