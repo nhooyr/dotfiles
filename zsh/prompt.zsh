@@ -33,6 +33,9 @@ prompt() {
   if [[ "$(git status --short 2> /dev/null)" ]]; then
     echo -n "*"
   fi
+  if git rev-parse stash &> /dev/null; then
+    echo -n "="
+  fi
 
   echo
   if [[ $USER == root ]]; then
