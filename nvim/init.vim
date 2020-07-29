@@ -45,7 +45,7 @@ function! s:plugin_settings() abort
 
   map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
 
-  let g:user_emmet_leader_key = "<M-e>"
+  let g:user_emmet_leader_key = "<C-i>"
   let g:user_emmet_mode="i"
 
   let g:go_gopls_enabled = 0
