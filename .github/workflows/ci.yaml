@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Run ./ci/fmt.sh
-        uses: ./ci/image
+        uses: docker://nhooyr/ci:latest
         with:
           args: ./ci/fmt.sh
 
@@ -17,6 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: Run ./ci/lint.sh
-        uses: ./ci/image
+        uses: docker://nhooyr/ci:latest
         with:
           args: ./ci/lint.sh
