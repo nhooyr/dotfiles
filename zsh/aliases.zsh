@@ -96,18 +96,20 @@ mcd() {
 compdef _directories mcd
 
 alias chx="chmod +x"
-alias md="mkdir -p"
+alias mkdir="mkdir -p"
+alias md="mkdir"
 
 alias y="yarn -s"
 alias ya="y add"
 alias yad="y add --dev"
 alias yu="y upgrade"
-alias yul="y upgrade --latest"
+alias yua="y upgrade --latest"
 alias yd="y dev"
 alias yp="y prod"
 alias yc="y ci"
 alias yf="y fix"
 alias yt="y test"
+alias yb="y build"
 
 rg() {
   command rg -S \
