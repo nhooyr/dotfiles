@@ -208,7 +208,13 @@ calc() {
 }
 
 alias p8="ping 8.8.8.8"
-alias we="watchexec"
+oc() {
+  watchexec 'echo change' | \
+  while IFS= read -r line; do
+    eval "$@"
+    print -P "%F{green}=%f%b"
+  done
+}
 
 infi() {
   while; do eval "$@"; done
