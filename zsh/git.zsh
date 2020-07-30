@@ -16,6 +16,7 @@ _gch() {
 compdef _gch gch
 alias gs="git status"
 alias gcm="git commit"
+alias gcmf="git commit --fixup"
 gcmp() {
   gcm "$@" && git_push
 }
