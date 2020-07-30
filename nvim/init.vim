@@ -430,7 +430,7 @@ EOF
 
   augroup nhooyr_lsp
     autocmd!
-    autocmd FileType go,vim,lua,typescript*,c,cpp call s:b_lsp()
+    autocmd FileType go,vim,lua,javascript,typescript*,c,cpp call s:b_lsp()
   augroup END
 endfunction
 call s:lsp()
