@@ -25,7 +25,8 @@ function! s:plugins() abort
   Plug 'neovim/nvim-lsp'
 
   Plug 'simnalamburt/vim-mundo'
-  Plug 'mattn/emmet-vim'
+  " Plug 'mattn/emmet-vim'
+  Plug 'nhooyr/emmet-vim'
   Plug 'PeterRincker/vim-argumentative'
   Plug 'godlygeek/tabular'
   call plug#end()
@@ -45,7 +46,7 @@ function! s:plugin_settings() abort
 
   map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
 
-  let g:user_emmet_leader_key = "<C-i>"
+  let g:user_emmet_leader_key = "<C-y>"
   let g:user_emmet_mode="i"
 
   let g:go_gopls_enabled = 0
