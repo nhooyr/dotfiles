@@ -14,17 +14,8 @@ _gch() {
 # zsh's git completion is very slow and git's zsh completion is just a wrapper around
 # the bash completion and doesn't define a zsh completion service for git checkout.
 compdef _gch gch
-alias gs="git status --short"
-gcm() {
-  if [[ "$#" -gt 0 ]] || git commit --porcelain > /dev/null; then
-    git commit "$@"
-  else
-    # Nothing to commit.
-    gs
-    return 1
-  fi
-}
-compdef _git gcm=git-commit
+alias gs="git status"
+alias gcm="git commit"
 gcmp() {
   gcm "$@" && git_push
 }
