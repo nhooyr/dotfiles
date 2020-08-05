@@ -10,10 +10,18 @@ sudo() {
   fi
 
   local args=""
+  local flags=()
   for a in "$@"; do
+    # While args is empty, if the next argument starts
+    # with - then it is a flag for sudo.
+    if [[ "$args" == "" && "$a" == -*  ]]; then
+      flags+=("$a")
+      continue
+    fi
+
     args+=" ${(q)a}"
   done
-  command sudo -E "$SHELL" -ic "$args"
+  command sudo -E "${flags[@]}" "$SHELL" -ic "$args"
 }
 alias m="make"
 alias pd="prevd"
