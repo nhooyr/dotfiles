@@ -19,6 +19,7 @@ bookmarks=(
   "$HOME/src/nhooyr/lip"
   "$HOME/src/cdr/x11wasm"
   "$HOME/src/cdr/bark"
+  "$HOME/src/cdr/enterprise"
   "$HOME/src/cdr/code-server"
 
   "$HOME/src/neovim/neovim"
