@@ -51,12 +51,12 @@ xcreate() {(
     --daily-schedule \
     --start-time=05:00 \
     --on-source-disk-delete=apply-retention-policy
+
+  sed -i.bak "/^$(remote_instance),/d" ~/.ssh/known_hosts
 )}
 
 xinit() {(
   set -euo pipefail
-
-  sed -i.bak "/^$(remote_instance)[, ]/d" ~/.ssh/known_hosts
 
   xstart
   xssh sh < ~dotfiles/debian/init.sh
