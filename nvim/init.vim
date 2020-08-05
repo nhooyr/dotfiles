@@ -121,22 +121,26 @@ function! s:settings() abort
 
   let &statusline=" %f %m"
 
-  function! s:write(path) abort
-    " We preserve this marks as they're required by the uncomment block binding <Leader>c.
-    kx
-    '[
-    ka
-    ']
-    kb
+  function! s:write(path, preserve_marks) abort
+    if a:preserve_marks
+      " We preserve this marks as they're required by the uncomment block binding <Leader>c.
+      kx
+      '[
+      ka
+      ']
+      kb
+    endif
     execute "write " . a:path
-    'a
-    k[
-    'b
-    k]
-    'x
+    if a:preserve_marks
+      'a
+      k[
+      'b
+      k]
+      'x
+    endif
   endfunction
 
-  function! s:autosave() abort
+  function! s:autosave(opts) abort
     if !&modified
       return
     endif
@@ -145,14 +149,14 @@ function! s:settings() abort
     endif
 
     call mkdir(expand("%:h"), "p")
-    call s:write("")
+    call s:write("", a:opts.preserve_marks)
 
     for l:i in range(0, 99)
       let l:history_path = stdpath("data") . "/history/" . expand("%:p") . "-" . system("head -c 8 /dev/urandom | base64")
       call mkdir(fnamemodify(l:history_path, (":h")), "p")
 
       try
-        call s:write(l:history_path)
+        call s:write(l:history_path, a:opts.preserve_marks)
       catch /E13: File exists/
         continue
       endtry
@@ -170,8 +174,9 @@ function! s:settings() abort
     autocmd FocusLost * wshada
 
     " Autosave from https://github.com/907th/vim-auto-save#events.
-    autocmd TextChanged * silent! call s:autosave()
-    autocmd InsertLeave * silent! call s:autosave()
+    autocmd TextChanged * silent! call s:autosave({'preserve_marks': v:true})
+    " Preserving registers when exiting insert mode causes it to behave oddly.
+    autocmd InsertLeave * silent! call s:autosave({'preserve_marks': v:false})
 
     autocmd BufWinEnter * if &ft !=# "netrw" | setlocal number | endif
     autocmd FileType diff let &commentstring="# %s"
