@@ -408,7 +408,7 @@ EOF
   " https://github.com/vim/vim/issues/3412#issuecomment-642821562
   set complete=.
   set completeopt=menuone,noselect
-  set pumheight=5
+  set pumheight=10
 
   inoremap <C-Space> <C-x><C-o>
   inoremap <C-l> <C-x><C-f>
