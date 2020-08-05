@@ -1,5 +1,10 @@
 xgcloud() {
-  gcloud --configuration=nhooyr-coder "$@" --zone=northamerica-northeast1-a
+  if [[ "$2" == "resource-policies" ]]; then
+    set "$@" --region=northamerica-northeast1
+  else
+    set "$@" --zone=northamerica-northeast1-a
+  fi
+  gcloud --configuration=nhooyr-coder "$@"
 }
 
 remote_instance() {
@@ -40,6 +45,12 @@ xcreate() {(
     --boot-disk-size=128GB \
     --boot-disk-type=pd-ssd \
     "$@"
+
+  xgcloud compute resource-policies create snapshot-schedule "$(remote_instance)" \
+    --max-retention-days=14 \
+    --daily-schedule \
+    --start-time=05:00 \
+    --on-source-disk-delete=apply-retention-policy
 )}
 
 xinit() {(
@@ -52,9 +63,12 @@ xinit() {(
   xsshq
 )}
 
-xdelete() {
+xdelete() {(
+  set -euo pipefail
+
   xgcloud compute instances delete "$(remote_instance)"
-}
+  xgcloud compute resource-policies delete "$(remote_instance)"
+)}
 
 xstart() {(
   set -euo pipefail
