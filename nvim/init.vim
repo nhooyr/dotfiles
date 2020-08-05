@@ -122,6 +122,7 @@ function! s:settings() abort
   let &statusline=" %f %m"
 
   function! s:write(path) abort
+    " We preserve this marks as they're required by the uncomment block binding <Leader>c.
     kx
     '[
     ka
