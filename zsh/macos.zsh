@@ -14,6 +14,7 @@ brew() {
 
 if [[ ! "$REMOTE_HOST" ]]; then
   export REMOTE_HOST="$USER@xayah"
+  # export REMOTE_HOST="$USER@xayah.local"
 fi
 
 alias b="brew"
