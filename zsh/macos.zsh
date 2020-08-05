@@ -18,6 +18,7 @@ if [[ ! "$REMOTE_HOST" ]]; then
 fi
 
 alias b="brew"
+alias bs="brew search"
 alias i="brew install"
 alias u="brew remove"
 alias ua="brew update && brew upgrade && brew cask upgrade"

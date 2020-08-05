@@ -1,4 +1,5 @@
 alias a="sudo apt"
+alias as="sudo apt search"
 alias i="sudo apt install -y"
 alias u="sudo apt remove -y"
 alias ua="sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y"
