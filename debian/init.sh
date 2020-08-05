@@ -90,7 +90,7 @@ install_neovim() {
     unzip
   if [ ! -d ~/src/neovim/neovim ]; then
     mkdir -p ~/src/neovim
-    git clone https://github.com/neovim/neovim ~/src/neovim/neovim
+    git clone -b nhooyr https://github.com/nhooyr/neovim ~/src/neovim/neovim
   fi
   cd ~/src/neovim/neovim
   make CMAKE_BUILD_TYPE=RelWithDebInfo
