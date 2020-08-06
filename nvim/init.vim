@@ -375,7 +375,7 @@ function! s:fzf() abort
     if &buftype !=# "" && &filetype !=# "netrw"
       return
     endif
-    if expand("%") =~ "\M[Plugins]"
+    if expand("%") ==# "[Plugins]"
       return
     endif
     let path = expand("%:p:S")
