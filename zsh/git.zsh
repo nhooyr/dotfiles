@@ -152,7 +152,7 @@ gitsync() {(
 
   sh_c() {
     if [[ "${DRY_RUN-}" ]]; then
-      echo "+ $*"
+      echo "+ $*" >&2
     else
       sh -c "$*"
     fi
@@ -163,6 +163,10 @@ gitsync() {(
   fi
 
   git fetch
+
+  if [[ "$(sh_c git stash)" != "No local changes to save" ]]; then
+    local STASHED=1
+  fi
 
   current_branch="$(git rev-parse --abbrev-ref HEAD)"
   branches=("${(@f)$(git branch | sed 's#^. ##' || true)}")
@@ -187,6 +191,10 @@ gitsync() {(
     sh_c git branch -qD "$b"
     echo "deleted $b"
   done
+
+  if [[ "${STASHED-}" ]]; then
+    sh_c git stash pop --quiet
+  fi
 )}
 
 gh_url() {
