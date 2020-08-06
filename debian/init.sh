@@ -131,6 +131,9 @@ install_gcloud() {
     | sudo -E apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
   sudo -E apt update
   sudo -E apt install -y google-cloud-sdk
+
+  # Install helm.
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3)"
 }
 
 main "$@"
