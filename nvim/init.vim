@@ -44,7 +44,7 @@ function! s:plugin_settings() abort
 
   let g:surround_no_insert_mappings = 1
 
-  map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
+  map! <silent> <M-j> <Plug>(neosnippet_expand_or_jump)
 
   let g:user_emmet_leader_key = "<C-y>"
   let g:user_emmet_mode="i"
@@ -263,6 +263,10 @@ function! s:maps() abort
   nnoremap <silent> <C-l> <C-W>l
   nnoremap <silent> <C-j> <C-W>j
   nnoremap <silent> <C-h> <C-W>h
+  inoremap <silent> <C-k> <Esc><C-W>k
+  inoremap <silent> <C-l> <Esc><C-W>l
+  inoremap <silent> <C-j> <Esc><C-W>j
+  inoremap <silent> <C-h> <Esc><C-W>h
 
   noremap <silent> <C-z> zz
   inoremap <silent> <C-z> <C-o>zz<C-f>
@@ -417,7 +421,7 @@ EOF
   set pumheight=10
 
   inoremap <C-Space> <C-x><C-o>
-  inoremap <C-l> <C-x><C-f>
+  inoremap <M-l> <C-x><C-f>
 
   function! s:b_lsp() abort
     nnoremap <silent> <buffer> gd    <cmd>lua vim.lsp.buf.declaration()<CR>
