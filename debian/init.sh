@@ -4,10 +4,10 @@ set -eu
 main() {
   export DEBIAN_FRONTEND=noninteractive
 
-  sudo -E apt update
-  sudo -E apt full-upgrade -y --purge
-  sudo -E apt autoremove -y --purge
-  sudo -E apt install -y \
+  sudo apt update
+  sudo apt full-upgrade -y --purge
+  sudo apt autoremove -y --purge
+  sudo apt install -y \
     rsync \
     jq \
     build-essential \
@@ -27,7 +27,7 @@ main() {
   install_misc
 
   # Allows searching through the package database.
-  sudo -E apt-file update
+  sudo apt-file update
 }
 
 install_node() {
@@ -44,7 +44,7 @@ install_node() {
 }
 
 install_go() {
-  sudo -E apt install -y golang
+  sudo apt install -y golang
 
   export GOPATH="$HOME/.local/share/gopath"
   export GO111MODULE=on
@@ -58,14 +58,14 @@ install_go() {
 }
 
 install_docker() {
-  sudo -E apt install -y docker.io
+  sudo apt install -y docker.io
   sudo groupadd -f docker
   sudo usermod -aG docker "$USER"
   newgrp docker
 }
 
 install_dotfiles() {
-  sudo -E apt install -y \
+  sudo apt install -y \
     zsh \
     fzf \
     fd-find
@@ -78,9 +78,9 @@ install_dotfiles() {
 }
 
 install_neovim() {
-  sudo -E apt install -y python3-neovim
+  sudo apt install -y python3-neovim
   # https://github.com/neovim/neovim/wiki/Building-Neovim
-  sudo -E apt install -y ninja-build \
+  sudo apt install -y ninja-build \
     gettext \
     libtool \
     libtool-bin \
@@ -101,7 +101,7 @@ install_neovim() {
 }
 
 install_misc() {
-  sudo -E apt install -y \
+  sudo apt install -y \
     shellcheck \
     ripgrep \
     htop \
@@ -110,30 +110,34 @@ install_misc() {
     apparmor-utils \
     kubectl
   # Exits with non-zero if already disabled.
-  sudo -E aa-disable /etc/apparmor.d/usr.bin.man || true
+  sudo aa-disable /etc/apparmor.d/usr.bin.man || true
 }
 
 install_locale() {
-  sudo -E apt install -y locales
-  sudo -E sed -i "s/# en_CA.UTF-8/en_CA.UTF-8/" /etc/locale.gen
-  sudo -E locale-gen
-  sudo -E update-locale LANG=en_CA.UTF-8
+  sudo apt install -y locales
+  sudo sed -i "s/# en_CA.UTF-8/en_CA.UTF-8/" /etc/locale.gen
+  sudo locale-gen
+  sudo update-locale LANG=en_CA.UTF-8
 }
 
 install_gcloud() {
   if [ ! -f /etc/apt/sources.list.d/google-cloud-sdk.list ]; then
     echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg]" \
       " https://packages.cloud.google.com/apt cloud-sdk main" \
-      | sudo -E tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+      | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
   fi
-  sudo -E apt install -y apt-transport-https
+  sudo apt install -y apt-transport-https
   curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
-    | sudo -E apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-  sudo -E apt update
-  sudo -E apt install -y google-cloud-sdk
+    | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+  sudo apt update
+  sudo apt install -y google-cloud-sdk
 
   # Install helm.
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3)"
+}
+
+sudo() {
+  command sudo -E "$@"
 }
 
 main "$@"
