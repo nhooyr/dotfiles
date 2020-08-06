@@ -19,9 +19,9 @@ fi
 
 alias b="brew"
 alias bs="brew search"
-alias i="brew install"
-alias u="brew remove"
-alias ua="brew update && brew upgrade && brew cask upgrade"
+alias bi="brew install"
+alias br="brew remove"
+alias bu="brew update && brew upgrade && brew cask upgrade"
 alias ports="netstat -vanp tcp"
 alias uti="mdls -name kMDItemContentTypeTree"
 alias o="open"
