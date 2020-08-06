@@ -55,6 +55,8 @@ alias gstk="git stash --keep-index"
 alias gl="git log"
 alias gls="git log --pretty=oneline --decorate"
 alias glp="git log --patch"
+# For finding the commit for a merge.
+alias glm="git log --topo-order"
 alias gcl="git clone"
 alias grv="git revert"
 alias gro="git remote"
