@@ -7,6 +7,7 @@ main() {
   ./ln.sh git ~/.config/git
   ./ln.sh nvim ~/.config/nvim
   ./ln.sh zsh/zshrc ~/.zshrc
+  ./ln.sh zsh/zshenv ~/.zshenv
   ./ln.sh fd ~/.config/fd
   ./ln.sh tmux/tmux.conf ~/.tmux.conf
 
