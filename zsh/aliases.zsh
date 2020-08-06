@@ -240,3 +240,5 @@ db() {
 compdef _docker db=docker-build
 alias cv="command -v"
 alias tch="touch"
+
+alias kb="kubectl"
