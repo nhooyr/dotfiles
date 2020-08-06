@@ -14,6 +14,7 @@ main() {
     cmake \
     git \
     curl
+  sudo git config --system credential.helper store
 
   install_dotfiles
 
