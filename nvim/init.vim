@@ -62,6 +62,14 @@ function! s:plugin_settings() abort
     autocmd!
     autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
   augroup END
+
+  " To avoid conflict with my insert mode <C-x> keybind.
+  " From vim-endwise.
+  " https://github.com/tpope/vim-endwise/blob/97180a73ad26e1dcc1eebe8de201f7189eb08344/plugin/endwise.vim#L129
+  augroup nhooyr_endwise_unmap
+    autocmd!
+    autocmd VimEnter * iunmap <C-x><CR>
+  augroup END
 endfunction
 call s:plugin_settings()
 
@@ -174,9 +182,9 @@ function! s:settings() abort
     autocmd FocusLost * wshada
 
     " Autosave from https://github.com/907th/vim-auto-save#events.
-    autocmd TextChanged * silent! call s:autosave({'preserve_marks': v:true})
+    " autocmd TextChanged * silent! call s:autosave({'preserve_marks': v:true})
     " Preserving registers when exiting insert mode causes it to behave oddly.
-    autocmd InsertLeave * silent! call s:autosave({'preserve_marks': v:false})
+    " autocmd InsertLeave * silent! call s:autosave({'preserve_marks': v:false})
 
     autocmd BufWinEnter * if &ft !=# "netrw" | setlocal number | endif
     autocmd FileType diff let &commentstring="# %s"
@@ -193,7 +201,7 @@ function! s:maps() abort
   noremap , ;
   nnoremap <silent> <nowait> q :quit<CR>
   nnoremap <silent> Q q
-  nnoremap <silent> <C-q> @@
+  nnoremap <silent> <M-q> @@
   nnoremap <silent> <leader>ee :e $MYVIMRC<CR>
   nnoremap <silent> <leader>ec :e ~/.config/nvim/colors/elysian.vim<CR>
   nnoremap <silent> k gk
@@ -251,9 +259,15 @@ function! s:maps() abort
   inoremap <M-b> <C-\><C-o>b
   inoremap <M-d> <C-\><C-o>dw
 
-  nnoremap <silent> <C-s> :quit<CR>
-  inoremap <silent> <C-s> <Esc>:quit<CR>
-  cnoremap <silent> <C-s> <C-c>:quit<CR>
+  nnoremap <silent> <C-s> :w<CR>
+  inoremap <silent> <C-s> <Esc>:w<CR>
+  cnoremap <silent> <C-s> <C-c>:w<CR>
+  nnoremap <silent> <C-x> :x<CR>
+  inoremap <silent> <C-x> <Esc>:x<CR>
+  cnoremap <silent> <C-x> <C-c>:x<CR>
+  nnoremap <silent> <C-q> :quit!<CR>
+  inoremap <silent> <C-q> <Esc>:quit!<CR>
+  cnoremap <silent> <C-q> <C-c>:quit!<CR>
 
   nnoremap <silent> <C-e> 2<C-e>
   nnoremap <silent> <C-y> 2<C-y>
