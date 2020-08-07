@@ -25,8 +25,7 @@ function! s:plugins() abort
   Plug 'neovim/nvim-lsp'
 
   Plug 'simnalamburt/vim-mundo'
-  " Plug 'mattn/emmet-vim'
-  Plug 'nhooyr/emmet-vim'
+  Plug 'nhooyr/emmet-vim' " Plug 'mattn/emmet-vim'
   Plug 'PeterRincker/vim-argumentative'
   Plug 'godlygeek/tabular'
   call plug#end()
