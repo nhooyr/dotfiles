@@ -280,7 +280,7 @@ xsi() {(
   xstart
 
   local local_path
-  local_path="$(realpath "${1-$PWD}")"
+  local_path="$(realpath --no-symlinks "${1-$PWD}")"
   local remote_path
   remote_path="${local_path#$HOME/}"
   if xssh [ -f "$remote_path" ]; then
