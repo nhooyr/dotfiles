@@ -51,6 +51,7 @@ function! s:plugin_settings() abort
   let g:go_gopls_enabled = 0
   let g:go_echo_go_info = 0
   let g:go_template_autocreate = 0
+  let g:go_fmt_autosave = 0
 
   nmap <C-_> gcc
   vmap <C-_> gc
