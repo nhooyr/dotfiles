@@ -55,6 +55,7 @@ install_go() {
   go get golang.org/x/lint/golint@latest
   go get github.com/agnivade/wasmbrowsertest@latest
   go get github.com/mikefarah/yq/v3
+  go get github.com/matryer/moq
 }
 
 install_docker() {
