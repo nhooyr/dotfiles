@@ -1,0 +1,66 @@
+{
+  "BTTPresetCreatorNotes" : "",
+  "BTTPresetInfoURL" : "",
+  "BTTPresetName" : "nhooyr",
+  "BTTPresetColor" : "248.370000, 91.896900, 248.370000, 255.000000",
+  "BTTPresetUUID" : "B1685AD6-7CC2-45D6-A872-D4268B435C85",
+  "BTTPresetContent" : [
+    {
+      "BTTAppBundleIdentifier" : "BT.G",
+      "BTTAppName" : "Global",
+      "BTTAppAutoInvertIcon" : 1,
+      "BTTAppSpecificSettings" : {
+        "BTTDisable1FScrolling" : 1
+      },
+      "BTTTriggers" : [
+        {
+          "BTTTriggerType" : 0,
+          "BTTTriggerClass" : "BTTTriggerTypeKeyboardShortcut",
+          "BTTPredefinedActionType" : 253,
+          "BTTPredefinedActionName" : "Run JavaScript for Automation (blocking)",
+          "BTTInlineAppleScript" : "let safari = Application(\"Safari\")\n\nsafari.make({new: \"document\"})\nsafari.activate()",
+          "BTTAdditionalConfiguration" : "1310729",
+          "BTTEnabled2" : 1,
+          "BTTKeyboardShortcutKeyboardType" : 5759,
+          "BTTRepeatDelay" : 0,
+          "BTTUUID" : "D4204CAF-5020-441F-BEF2-2F5F596558E2",
+          "BTTTriggerOnDown" : 1,
+          "BTTNotesInsteadOfDescription" : 0,
+          "BTTLayoutIndependentChar" : "s",
+          "BTTEnabled" : 1,
+          "BTTModifierMode" : 0,
+          "BTTShortcutKeyCode" : 1,
+          "BTTShortcutModifierKeys" : 1310720,
+          "BTTOrder" : 1,
+          "BTTDisplayOrder" : 0,
+          "BTTAutoAdaptToKeyboardLayout" : 0
+        },
+        {
+          "BTTTriggerType" : 0,
+          "BTTTriggerClass" : "BTTTriggerTypeKeyboardShortcut",
+          "BTTPredefinedActionType" : 253,
+          "BTTPredefinedActionName" : "Run JavaScript for Automation (blocking)",
+          "BTTInlineAppleScript" : "let terminal = Application(\"Terminal\")\n\nterminal.doScript(``)\nterminal.activate()",
+          "BTTAdditionalConfiguration" : "1310729",
+          "BTTEnabled2" : 1,
+          "BTTKeyboardShortcutKeyboardType" : 5759,
+          "BTTRepeatDelay" : 0,
+          "BTTUUID" : "D64095E2-A808-4151-8AA8-C59DDFAE0D82",
+          "BTTTriggerOnDown" : 1,
+          "BTTNotesInsteadOfDescription" : 0,
+          "BTTLayoutIndependentChar" : "c",
+          "BTTEnabled" : 1,
+          "BTTModifierMode" : 0,
+          "BTTShortcutKeyCode" : 8,
+          "BTTShortcutModifierKeys" : 1310720,
+          "BTTOrder" : 0,
+          "BTTDisplayOrder" : 0,
+          "BTTAutoAdaptToKeyboardLayout" : 0
+        }
+      ]
+    }
+  ],
+  "BTTPresetSnapAreas" : [
+
+  ]
+}
