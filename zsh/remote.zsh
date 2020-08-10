@@ -289,3 +289,6 @@ xsi() {(
     rs --delete --exclude=.git "$REMOTE_HOST:$remote_path/" "$local_path/"
   fi
 )}
+
+alias nx="n x"
+alias nxs="n xs"
