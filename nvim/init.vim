@@ -210,15 +210,15 @@ function! s:maps() abort
   inoremap <M-b> <C-\><C-o>b
   inoremap <M-d> <C-\><C-o>dw
 
-  nnoremap <silent> <C-s> :w<CR>
-  inoremap <silent> <C-s> <Esc>:w<CR>
-  cnoremap <silent> <C-s> <C-c>:w<CR>
-  nnoremap <silent> <C-x> :x<CR>
-  inoremap <silent> <C-x> <Esc>:x<CR>
-  cnoremap <silent> <C-x> <C-c>:x<CR>
-  nnoremap <silent> <C-q> :quit!<CR>
-  inoremap <silent> <C-q> <Esc>:quit!<CR>
-  cnoremap <silent> <C-q> <C-c>:quit!<CR>
+  nnoremap <silent> <C-s> :silent w<CR>
+  inoremap <silent> <C-s> <Esc>:silent w<CR>
+  cnoremap <silent> <C-s> <C-c>:silent w<CR>
+  nnoremap <silent> <C-x> :silent x<CR>
+  inoremap <silent> <C-x> <Esc>:silent x<CR>
+  cnoremap <silent> <C-x> <C-c>:silent x<CR>
+  nnoremap <silent> <C-q> :silent quit!<CR>
+  inoremap <silent> <C-q> <Esc>:silent quit!<CR>
+  cnoremap <silent> <C-q> <C-c>:silent quit!<CR>
 
   nnoremap <silent> <C-e> 2<C-e>
   nnoremap <silent> <C-y> 2<C-y>
