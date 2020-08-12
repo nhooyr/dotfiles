@@ -219,6 +219,7 @@ alias p8="ping 8.8.8.8"
 oc() {
   watchexec 'echo change' | \
   while IFS= read -r line; do
+    clear
     print -P "%B%F{blue}=%f%b"
     eval "$@"
     print -P "%B%F{green}=%f%b"
