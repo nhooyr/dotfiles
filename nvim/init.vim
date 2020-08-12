@@ -246,8 +246,6 @@ function! s:maps() abort
   " We use mkview to preserve cursor position.
   nnoremap <silent> <Leader>d :mkview<CR>"ayy"ap:loadview<CR>j
 
-  nnoremap <silent> <C-c> cc
-
   nnoremap <silent> ]q :cnext<CR>
   nnoremap <silent> [q :cprev<CR>
   nnoremap <silent> <Leader>q :cclose<CR>
