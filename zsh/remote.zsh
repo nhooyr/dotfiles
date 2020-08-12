@@ -154,7 +154,7 @@ xp() {(
   fi
 
   xstart
-  local success_msg="$(print -P "%F{green}=%f%b")"
+  local success_msg="$(print -P "%B%F{green}=%f%b")"
   xssh \
     -oControlPath=none \
     -L "$local_port:$local_host:$remote_port" \
