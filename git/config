@@ -37,3 +37,8 @@
 	grafted = no-bold
 [color "interactive"]
 	prompt = no-bold
+
+[blame]
+	date = relative
+	blankBoundary = true
+	coloring = repeatedLines
