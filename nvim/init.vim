@@ -43,7 +43,7 @@ function! s:plugin_settings() abort
 
   let g:surround_no_insert_mappings = 1
 
-  map! <silent> <M-j> <Plug>(neosnippet_expand_or_jump)
+  map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
 
   let g:user_emmet_leader_key = "<C-y>"
   let g:user_emmet_mode="i"
@@ -232,7 +232,7 @@ function! s:maps() abort
   nnoremap <silent> <C-h> <C-W>h
   inoremap <silent> <C-k> <Esc><C-W>k
   inoremap <silent> <C-l> <Esc><C-W>l
-  inoremap <silent> <C-j> <Esc><C-W>j
+  " inoremap <silent> <C-j> <Esc><C-W>j
   inoremap <silent> <C-h> <Esc><C-W>h
 
   noremap <silent> <C-z> zz
