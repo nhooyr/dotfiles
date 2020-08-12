@@ -383,9 +383,11 @@ EOF
   set complete=.
   set completeopt=menuone,noselect
   set pumheight=10
+  set dictionary+=/usr/share/dict/words
 
   inoremap <C-Space> <C-x><C-o>
   inoremap <M-l> <C-x><C-f>
+  inoremap <M-k> <C-x><C-k>
 
   function! s:b_lsp() abort
     nnoremap <silent> <buffer> gd    <cmd>lua vim.lsp.buf.declaration()<CR>
