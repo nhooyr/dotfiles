@@ -98,6 +98,9 @@ function! s:settings() abort
   set updatetime=100
   set laststatus=2
 
+  set title
+  set titlestring=%t
+
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
 
