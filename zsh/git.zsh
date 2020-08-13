@@ -2,6 +2,11 @@ alias g="git"
 alias gb="git branch"
 gch() {
   if [[ "$#" -eq 1 ]]; then
+    if [ "$1" = "-" ] || [ -f "$1" ]; then
+      git checkout "$@"
+      return
+    fi
+
     if [ ! "$(git branch --list "$*")" ] && [ ! "$(git branch --list --remote "origin/$*")" ]; then
       set "$*-$(xxd -p -l 2 /dev/urandom)"
       git branch "$@"
