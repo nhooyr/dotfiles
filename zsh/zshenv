@@ -8,3 +8,9 @@
 #  /etc/bash.bashrc: line 8: PS1: unbound variable
 #  + true
 unset SSH_CLIENT
+
+# Never remap newlines to carriage newlines.
+# https://stackoverflow.com/a/21759338/4283659
+if [[ -t 0 ]]; then
+  stty -onlcr
+fi
