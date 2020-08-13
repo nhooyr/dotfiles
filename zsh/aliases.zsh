@@ -64,6 +64,10 @@ alias la="ls -lha"
 
 declare -a prev_dirs
 cd() {
+  if [[ -f "$*" ]]; then
+    set -- "$(dirname "$*")"
+  fi
+
   prev_dirs=()
   # Required to make any change into $CDPATH silent.
   builtin cd $1 > /dev/null
