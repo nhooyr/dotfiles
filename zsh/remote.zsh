@@ -274,6 +274,15 @@ xsr_submodules() {
   done
 }
 
+xsim() {(
+  set -euo pipefail
+
+  changed_files="$(x git ls-files -m)"
+  if [[ "$changed_files" ]]; then
+    xsi "$changed_files"
+  fi
+)}
+
 xsi() {(
   set -euo pipefail
 
