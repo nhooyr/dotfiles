@@ -278,7 +278,9 @@ xsim() {(
   set -euo pipefail
 
   for file in "${(@f)$(x git ls-files -m)}"; do
-    xsi "$file" | catq
+    if [ "$file" ]; then
+      xsi "$file"
+    fi
   done
 )}
 
