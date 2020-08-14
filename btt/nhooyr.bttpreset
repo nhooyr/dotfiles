@@ -3,7 +3,7 @@
   "BTTPresetInfoURL" : "",
   "BTTPresetName" : "nhooyr",
   "BTTPresetColor" : "248.370000, 91.896900, 248.370000, 255.000000",
-  "BTTPresetUUID" : "B1685AD6-7CC2-45D6-A872-D4268B435C85",
+  "BTTPresetUUID" : "968E94CA-F192-4C0F-83E2-8AC0E3775F03",
   "BTTPresetContent" : [
     {
       "BTTAppBundleIdentifier" : "BT.G",
@@ -13,6 +13,30 @@
         "BTTDisable1FScrolling" : 1
       },
       "BTTTriggers" : [
+        {
+          "BTTTriggerType" : 0,
+          "BTTTriggerClass" : "BTTTriggerTypeKeyboardShortcut",
+          "BTTPredefinedActionType" : -1,
+          "BTTPredefinedActionName" : "No Action",
+          "BTTLayoutIndependentActionChar" : "h",
+          "BTTAutoAdaptActionToKeyboardLayout" : true,
+          "BTTShortcutToSend" : "55,4",
+          "BTTAdditionalConfiguration" : "1310729",
+          "BTTEnabled2" : 1,
+          "BTTKeyboardShortcutKeyboardType" : 0,
+          "BTTRepeatDelay" : 0,
+          "BTTUUID" : "AA32E0EA-DDB7-415D-883C-7A0A4EB70004",
+          "BTTTriggerOnDown" : 1,
+          "BTTNotesInsteadOfDescription" : 0,
+          "BTTLayoutIndependentChar" : "w",
+          "BTTEnabled" : 1,
+          "BTTModifierMode" : 0,
+          "BTTShortcutKeyCode" : 13,
+          "BTTShortcutModifierKeys" : 1310720,
+          "BTTOrder" : 2,
+          "BTTDisplayOrder" : 0,
+          "BTTAutoAdaptToKeyboardLayout" : 0
+        },
         {
           "BTTTriggerType" : 0,
           "BTTTriggerClass" : "BTTTriggerTypeKeyboardShortcut",
