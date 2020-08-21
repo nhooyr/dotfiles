@@ -1,6 +1,8 @@
 alias g="git"
 alias gb="git branch"
-gch() {
+gch() {(
+  set -euo pipefail
+
   if [[ "$#" -eq 1 ]]; then
     if [ "$1" = "-" ] || [ -f "$1" ]; then
       git checkout "$@"
@@ -13,7 +15,7 @@ gch() {
     fi
   fi
   git checkout "$@"
-}
+)}
 _gch() {
   compadd "${(@f)$(git for-each-ref '--format=%(refname:short)')}"
 }
