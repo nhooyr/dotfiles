@@ -68,6 +68,10 @@ quote_args() {
           args+=" ("
           continue
           ;;
+        ";")
+          args+=" ;"
+          continue
+          ;;
       esac
     fi
 
