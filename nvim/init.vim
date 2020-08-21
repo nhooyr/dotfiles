@@ -132,7 +132,7 @@ function! s:settings() abort
 
   let g:markdown_fenced_languages = ["bash=sh", "go"]
 
-  let &statusline=" %f %m"
+  let &statusline=" %F %m"
 
   augroup nhooyr_settings
     autocmd!
