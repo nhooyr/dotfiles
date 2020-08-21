@@ -29,7 +29,13 @@ autoload -U edit-command-line
 zle -N edit-command-line
 bindkey "\ee" edit-command-line
 
-append_ampersands() {
+prepend-noti() {
+  LBUFFER="n $LBUFFER"
+}
+zle -N prepend-noti
+bindkey "\el" prepend-noti
+
+append-ampersands() {
   LBUFFER+=" && "
 }
 zle -N append_ampersands
