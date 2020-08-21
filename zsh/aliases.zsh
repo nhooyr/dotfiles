@@ -61,6 +61,8 @@ ls() {
   fi
 }
 alias la="ls -lha"
+alias lt="ll -t"
+alias lS="ll -S"
 
 declare -a prev_dirs
 cd() {
