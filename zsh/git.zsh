@@ -55,7 +55,9 @@ alias gf="git fetch"
 alias gp="git_push"
 alias gpf="git_push -f"
 alias gsh="git show"
-alias gshm="git show --no-patch --format=%b | ghead -n-1"
+gshm() {
+  git show --no-patch --format=%b "$@" | ghead -n-1
+}
 alias gst="git stash"
 alias gstp="git stash pop"
 alias gstk="git stash --keep-index"
