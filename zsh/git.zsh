@@ -61,6 +61,7 @@ gshm() {
 alias gst="git stash"
 alias gstp="git stash pop"
 alias gstk="git stash --keep-index"
+alias gstd="git stash drop"
 alias gstl="git stash list"
 alias gsts="git stash show -p"
 alias gl="git log"
