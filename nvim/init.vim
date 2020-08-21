@@ -58,9 +58,11 @@ function! s:plugin_settings() abort
   nmap <M-c> gcgc`]
   imap <C-_> <C-o>gcc
 
-  augroup nhooyr_plugin_maps
+  augroup nhooyr_plugins
     autocmd!
     autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
+    " https://github.com/fatih/vim-go/blob/bd56f5690807d4a92652fe7a4d10dc08f260564e/ftdetect/gofiletype.vim#L10
+    autocmd BufRead,BufNewFile *.gohtml set filetype=gohtmltmpl
   augroup END
 
   " To avoid conflict with my insert mode <C-x> keybind.
