@@ -124,6 +124,7 @@ alias yc="y ci"
 alias yf="y fix"
 alias yt="y test"
 alias yb="y build"
+alias yl="y link"
 
 rg() {
   command rg -S \
