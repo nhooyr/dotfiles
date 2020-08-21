@@ -113,9 +113,9 @@ x() {(
   fi
   xstart
   if [ -t 1 ]; then
-    local tty="-t"
+    local tty_flag="-t"
   fi
-  xssh "${tty-}" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
+  xssh "${tty_flag-}" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
 )}
 
 xwait() {
