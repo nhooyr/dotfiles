@@ -38,5 +38,5 @@ bindkey "\el" prepend-noti
 append-ampersands() {
   LBUFFER+=" && "
 }
-zle -N append_ampersands
-bindkey "\el" append_ampersands
+zle -N append-ampersands
+bindkey "\ea" append-ampersands
