@@ -44,9 +44,11 @@ quick_paths() {
     fd -d2 . ~/Downloads
   fi
 
-  fd -aH -d6 .
+  fd -aH .
+  gcd fd -aH . 2> /dev/null
   if [[ "${FD_ALL-}" ]]; then
     fd -aI .
+    gcd fd -aI . 2> /dev/null
   fi
 }
 
