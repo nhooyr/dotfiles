@@ -75,7 +75,7 @@ cd() {
   builtin cd $1 > /dev/null
 
   if [[ "$#" -gt 1 ]]; then
-    eval "${@:2}"
+    "${@:2}"
     prevd
   fi
 }
@@ -88,7 +88,7 @@ nextd() {
   builtin cd "${prev_dirs[-1]}"
   prev_dirs[-1]=()
   if [[ "$#" -gt 0 ]]; then
-    eval "$@"
+    run_quoted "$@"
     prevd
   fi
 }
@@ -97,7 +97,7 @@ prevd() {
   if popd; then
     prev_dirs+=("$OLDPWD")
     if [[ "$#" -gt 0 ]]; then
-      eval "$@"
+      run_quoted "$@"
       nextd
     fi
   fi
@@ -136,13 +136,17 @@ rg() {
 }
 alias rgi="rg --no-ignore --hidden"
 alias h="fc -R"
-alias n="t noti "
-set -o ALIAS_FUNC_DEF
-alias t="t "
-t() {
-  time ("$@")
+# We set ESCAPE_ALL_ARGS as we're we want noti
+# to get the escaped version of the args.
+alias n="ESCAPE_ALL_ARGS=1 t noti "
+alias t="timeq"
+timeq() {
+  # We use a sub shell here instead of
+  # run_quoted time "$@"
+  # as sometimes zsh's builtin time does not print anything.
+  # It only prints a measurement always when ran against a subshell.
+  time (run_quoted "$@")
 }
-set +o ALIAS_FUNC_DEF
 
 noti() {
   local last_status="$?"
@@ -153,7 +157,7 @@ noti() {
       set -- false
     fi
   fi
-  eval "$@"
+  run_quoted "$@"
   last_status="$?"
   echo -ne '\a' >&2
   [[ "$last_status" -eq 0 ]]
@@ -228,17 +232,17 @@ oc() {
   while IFS= read -r line; do
     clear
     print -P "%B%F{blue}=%f%b"
-    eval "$@"
+    run_quoted "$@"
     print -P "%B%F{green}=%f%b"
   done
 }
 
-infi() {
-  while; do eval "$@"; done
+whilet() {
+  while run_quoted "$@"; do; done
 }
 
 inf() {
-  while eval "$@"; do; done
+  while; do run_quoted "$@"; done
 }
 
 alias dr='docker run -it --rm -v "$PWD:/mnt/pwd" -w /mnt/pwd'

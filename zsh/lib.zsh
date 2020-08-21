@@ -46,3 +46,44 @@ echoerr() {
 if [[ -f /etc/os-release ]]; then
   DISTRO="$(. /etc/os-release && echo "$ID")"
 fi
+
+quote_args() {
+  local args=""
+  for a in "$@"; do
+    if [ ! "${ESCAPE_ALL_ARGS-}" ]; then
+      case "$a" in
+        "&&")
+          args+=" &&"
+          continue
+          ;;
+        "||")
+          args+=" ||"
+          continue
+          ;;
+        ")")
+          args+=" )"
+          continue
+          ;;
+        "(")
+          args+=" ("
+          continue
+          ;;
+      esac
+    fi
+
+    args+=" ${(q)a}"
+  done
+
+  echo "$args"
+}
+
+run_quoted() {
+  args="$(quote_args "$@")"
+  # ESCAPE_ALL_ARGS is used when there are two nested shells.
+  # e.g. noti and t in aliases.zsh.
+  #
+  # The first shell must escape everything and the second must not
+  # escape certain symbols whitelisted above.
+  unset ESCAPE_ALL_ARGS
+  eval "$args"
+}

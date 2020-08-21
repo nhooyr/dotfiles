@@ -105,10 +105,7 @@ x() {(
   set -euo pipefail
 
   if [[ $# -gt 0 ]]; then
-    local args=""
-    for a in "$@"; do
-      args+=" ${(q)a}"
-    done
+    args="$(quote_args "$@")"
     args="-c '$args'"
   fi
   xstart

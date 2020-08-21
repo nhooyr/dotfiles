@@ -46,7 +46,7 @@ compdef _git ga=git-add
 alias gap="git add -p"
 alias gai="git add -i"
 gac() {
-  inf "gae $* && gcm"
+  whilet gae "$@" '&&' gcm
 }
 compdef _git gac=git-add
 alias gbd="git branch -d"
