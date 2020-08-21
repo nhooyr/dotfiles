@@ -1,14 +1,3 @@
-if [[ ! "$tty_history_path" ]]; then
-  id="$(xxd -p -l 2 /dev/urandom)"
-  tty="$(tty | tr / -)"
-  tty="${tty#-}"
-  tty_history_path="$HOME/.local/share/zsh/$tty-$id.log"
-  mkdir -p "$(dirname "$tty_history_path")"
-  export tty_history_path
-  # script -q -F >(head -c 1048576 > "$tty_history_path"; > /dev/null)
-  # exit "$?"
-fi
-
 source ~/src/nhooyr/dotfiles/zsh/lib.zsh
 source ~/src/nhooyr/dotfiles/zsh/bookmarks.zsh
 
