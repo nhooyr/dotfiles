@@ -144,7 +144,7 @@ bindkey "\ei" fzf-quick-paths-all
 
 fzf-history() {
   local selected
-  selected=("${(@f)$(fc -lnr 1 | fzf --bind=ctrl-r:toggle-sort --expect=ctrl-v --tiebreak=index --query="$LBUFFER")}")
+  selected=("${(@f)$(fc -RI && fc -lnr 1 | fzf --bind=ctrl-r:toggle-sort --expect=ctrl-v --tiebreak=index --query="$LBUFFER")}")
   local key="${selected[1]}"
   local cmd="${selected[2]}"
   if [[ "$cmd" ]]; then
