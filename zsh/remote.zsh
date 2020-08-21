@@ -112,7 +112,10 @@ x() {(
     args="-c '$args'"
   fi
   xstart
-  xssh $(if [ -t 1 ]; then echo -n "-t"; fi) "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
+  if [ -t 1 ]; then
+    local tty="-t"
+  fi
+  xssh "${tty-}" "cd ./${PWD#$HOME} 2> /dev/null; \$SHELL -li ${args-}"
 )}
 
 xwait() {
