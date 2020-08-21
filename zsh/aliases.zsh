@@ -75,7 +75,7 @@ cd() {
   builtin cd $1 > /dev/null
 
   if [[ "$#" -gt 1 ]]; then
-    "${@:2}"
+    run_quoted "${@:2}"
     prevd
   fi
 }
