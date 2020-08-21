@@ -140,7 +140,7 @@ fzf-quick-paths-all() {
   FD_ALL=1 fzf-quick-paths
 }
 zle -N fzf-quick-paths-all
-bindkey "\ea" fzf-quick-paths-all
+bindkey "\ei" fzf-quick-paths-all
 
 fzf-history() {
   local selected
