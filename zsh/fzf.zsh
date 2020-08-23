@@ -36,6 +36,9 @@ quick_paths() {
   echo ~src/dotfiles
   fd -H . ~dotfiles
 
+  echo ~August
+  fd -H . ~August
+
   echo ~/src
   fd -H -d2 . ~/src
 
