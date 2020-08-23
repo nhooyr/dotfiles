@@ -255,3 +255,11 @@ alias cv="command -v"
 alias tch="touch"
 
 alias kb="kubectl"
+
+raw() {(
+  set -euo pipefail
+
+  md jpegs && mv *.JPG jpegs || true
+  md raws && mv *.CR3 raws || true
+  md videos && mv *.mp4 videos || true
+)}
