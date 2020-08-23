@@ -47,29 +47,18 @@ if [[ -f /etc/os-release ]]; then
   DISTRO="$(. /etc/os-release && echo "$ID")"
 fi
 
+# TODO REMOVE THIS, idt a good idea
 quote_args() {
   local args=""
   for a in "$@"; do
     if [ ! "${ESCAPE_ALL_ARGS-}" ]; then
       case "$a" in
-        "&&")
-          args+=" &&"
+        "&&"|"||"|")"|"("|";"|"|")
+          args+=" $a"
           continue
           ;;
-        "||")
-          args+=" ||"
-          continue
-          ;;
-        ")")
-          args+=" )"
-          continue
-          ;;
-        "(")
-          args+=" ("
-          continue
-          ;;
-        ";")
-          args+=" ;"
+        "$"*)
+          args+=" $a"
           continue
           ;;
       esac
