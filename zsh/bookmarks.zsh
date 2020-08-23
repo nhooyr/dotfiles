@@ -23,6 +23,10 @@ bookmarks=(
   "$HOME/src/cdr/code-server"
 
   "$HOME/src/neovim/neovim"
+
+  "$HOME/Pictures"
+  "$HOME/Pictures/2020"
+  "$HOME/Pictures/2020/August"
 )
 
 setup_bookmarks() {
