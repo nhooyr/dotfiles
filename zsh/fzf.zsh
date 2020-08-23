@@ -127,7 +127,11 @@ fzf-quick-paths() {
         if [[ "$key" == "ctrl-x" ]]; then
           execi "$qquick_path"
         else
-          execi e "$qquick_path"
+          if [[ "$equick_path" == *.CR3 ]]; then
+            execi o "$qquick_path"
+          else
+            execi e "$qquick_path"
+          fi
         fi
       fi
     else
