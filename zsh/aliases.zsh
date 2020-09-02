@@ -132,6 +132,7 @@ rg() {
     --colors match:style:nobold \
     --colors line:fg:black \
     --colors path:fg:black \
+    --hidden \
     "$@"
 }
 alias rgi="rg --no-ignore --hidden"
