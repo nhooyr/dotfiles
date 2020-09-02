@@ -302,3 +302,7 @@ xsi() {(
 
 alias nx="n x"
 alias nxs="n xs"
+
+xdot() {
+  n xsr ~dotfiles '&&' xsi ~secrets/zsh/history-xayah '&&' xsr ~secrets
+}
