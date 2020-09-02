@@ -64,7 +64,7 @@ gac() {
 compdef _git gac=git-add
 alias gbd="git branch -d"
 alias gpl="git pull"
-alias gf="git fetch"
+alias gf="git fetch --all"
 alias gp="git_push"
 alias gpf="git_push -f"
 alias gsh="git show"
@@ -73,12 +73,14 @@ gshm() {
 }
 alias gst="git stash"
 alias gstp="git stash pop"
+alias gstpu="git stash push"
 alias gstk="git stash --keep-index"
 alias gstd="git stash drop"
 alias gstl="git stash list"
 alias gsts="git stash show -p"
+alias gstsa="git stash save"
 alias gl="git log"
-alias gls="git log --pretty=oneline --decorate"
+alias gls="git log --pretty=oneline"
 alias glp="git log --patch"
 # For finding the commit for a merge.
 alias glm="git log --topo-order"
@@ -187,7 +189,7 @@ gitsync() {(
     DRY_RUN=1
   fi
 
-  git fetch
+  git fetch --all --force
 
   if [[ "$(sh_c git stash)" != "No local changes to save" ]]; then
     local STASHED=1
@@ -204,7 +206,7 @@ gitsync() {(
     # If the remote branch hasn't been deleted, we just fetch it.
     if git branch -r | grep -qF "$remote/$b"; then
       sh_c git checkout -q "$b"
-      sh_c git pull -q
+      sh_c git pull -q --force
       sh_c git checkout -q -
       echo "pulled $b"
       continue
