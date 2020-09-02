@@ -246,12 +246,25 @@ inf() {
   while; do run_quoted "$@"; done
 }
 
-alias dr='docker run -it --rm -v "$PWD:/mnt/pwd" -w /mnt/pwd'
+dr() {(
+  set -euo pipefail
+
+  if [ -f "${@[-1]}" ]; then
+    local image_id
+    image_id="$(db -f "${@[-1]}" .)"
+    set -- "${@:1:-1}" "$image_id"
+  fi
+
+  docker run -it --rm -v "$PWD:/mnt/pwd" -w /mnt/pwd "$@"
+)}
+compdef _docker dr=docker-run
+
 db() {
   docker build "$@" >&2 && \
     docker build -q "$@"
 }
 compdef _docker db=docker-build
+
 alias cv="command -v"
 alias tch="touch"
 
