@@ -35,6 +35,12 @@ prepend-noti() {
 zle -N prepend-noti
 bindkey "\el" prepend-noti
 
+prepend-sudo() {
+LBUFFER="s $LBUFFER"
+}
+zle -N prepend-sudo
+bindkey "\es" prepend-sudo
+
 append-ampersands() {
   LBUFFER+=" && "
 }
