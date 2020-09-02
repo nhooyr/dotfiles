@@ -24,7 +24,20 @@ _gch() {
 compdef _gch gch
 alias gs="git status"
 alias gcm="git commit"
-alias gcmf="git commit --fixup"
+gcmf() {(
+  set -euo pipefail
+
+  if [ ! "$*" ]; then
+    local last_non_fixup
+    last_non_fixup="$(git log --pretty=oneline -n100 | grep -v fixup | head -n1 | awk '{ print $1}')" || true
+    if [ ! "$last_non_fixup" ]; then
+      last_non_fixup="HEAD"
+    fi
+    set -- "$last_non_fixup"
+  fi
+  git commit --fixup "$@"
+)}
+compdef _git gcmf=_git_recent_commits
 gcmp() {
   gcm "$@" && git_push
 }
