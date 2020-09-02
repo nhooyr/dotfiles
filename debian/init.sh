@@ -25,6 +25,7 @@ main() {
   install_locale
   install_gcloud
   install_misc
+  install_codeserver_deps
 
   # Allows searching through the package database.
   sudo apt-file update
@@ -135,6 +136,15 @@ install_gcloud() {
 
   # Install helm.
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3)"
+}
+
+# Required when building code-server.
+install_codeserver_deps() {
+  sudo apt install -y \
+    libx11-dev \
+    libxkbfile-dev \
+    libsecret-1-dev
+  npm config set python python3
 }
 
 sudo() {
