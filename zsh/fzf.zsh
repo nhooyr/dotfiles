@@ -123,18 +123,14 @@ fzf-quick-paths() {
       local execute=1
     fi
     if [[ ! "$BUFFER" ]]; then
-      if [[ -d "$equick_path" ]]; then
+      if [[ "$equick_path" == *.CR3 || "$equick_path"  == *.pxd ]]; then
+        execi o -a '"Pixelmator Pro"' "$qquick_path"
+      elif [[ -d "$equick_path" ]]; then
         execi cd "$qquick_path "
+      elif [[ "$key" == "ctrl-x" ]]; then
+        execi "$qquick_path"
       else
-        if [[ "$key" == "ctrl-x" ]]; then
-          execi "$qquick_path"
-        else
-          if [[ "$equick_path" == *.CR3 ]]; then
-            execi o "$qquick_path"
-          else
-            execi e "$qquick_path"
-          fi
-        fi
+        execi e "$qquick_path"
       fi
     else
       execi "${LBUFFER%$query}$quick_path"
