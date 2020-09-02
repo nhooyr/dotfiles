@@ -55,8 +55,9 @@ install_go() {
   go get golang.org/x/tools/cmd/stringer@latest
   go get golang.org/x/lint/golint@latest
   go get github.com/agnivade/wasmbrowsertest@latest
-  go get github.com/mikefarah/yq/v3
-  go get github.com/matryer/moq
+  go get github.com/mikefarah/yq/v3@latest
+  go get github.com/matryer/moq@latest
+  go get github.com/goreleaser/nfpm@latest
 }
 
 install_docker() {
@@ -97,6 +98,7 @@ install_neovim() {
     git clone -b nhooyr https://github.com/nhooyr/neovim ~/src/neovim/neovim
   fi
   cd ~/src/neovim/neovim
+  git checkout nhooyr
   make CMAKE_BUILD_TYPE=RelWithDebInfo
   sudo make install
   cd -
