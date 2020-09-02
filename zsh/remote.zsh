@@ -107,6 +107,7 @@ x() {(
   if [[ $# -gt 0 ]]; then
     args="$(quote_args "$@")"
     args="-c '$args'"
+    args="$(echo "$args" | sed "s#$HOME#~#g")"
   fi
   xstart
   if [ -t 1 ]; then
