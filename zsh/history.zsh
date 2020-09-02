@@ -8,7 +8,7 @@ fi
 # Disables the beep on ambigous completion.
 unsetopt LIST_BEEP
 
-HISTFILE=~secrets/zsh/history
+HISTFILE=~secrets/zsh/history-"$(print -P "%m")"
 HISTSIZE=100000
 SAVEHIST=100000
 
