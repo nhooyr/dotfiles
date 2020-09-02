@@ -269,6 +269,7 @@ alias cv="command -v"
 alias tch="touch"
 
 alias kb="kubectl"
+alias mv="mv -i"
 
 raw() {(
   set -euo pipefail
