@@ -274,7 +274,10 @@ alias mv="mv -i"
 raw() {(
   set -euo pipefail
 
-  md jpegs && mv *.JPG jpegs || true
-  md raws && mv *.CR3 raws || true
-  md videos && mv *.mp4 videos || true
+  md jpegs && mv -i *.JPG jpegs || true
+  md raws && mv -i *.CR3 raws || true
+  if ls -1 | grep -q '\.mp4$' ; then
+    md vids && mv -i *.mp4 vids || true
+  fi
+  md out
 )}
