@@ -236,7 +236,7 @@
 	<key>BellBounceCritical</key>
 	<false/>
 	<key>CommandString</key>
-	<string>login -fpql nhooyr /bin/zsh -l</string>
+	<string>login -fpql nhooyr /usr/local/bin/zsh -l</string>
 	<key>Font</key>
 	<data>
 	YnBsaXN0MDDUAQIDBAUGBwpYJHZlcnNpb25ZJGFyY2hpdmVyVCR0b3BYJG9iamVjdHMS
@@ -259,9 +259,9 @@
 	<key>SetLanguageEnvironmentVariables</key>
 	<true/>
 	<key>ShowActiveProcessArgumentsInTabTitle</key>
-	<true/>
+	<false/>
 	<key>ShowActiveProcessArgumentsInTitle</key>
-	<true/>
+	<false/>
 	<key>ShowActiveProcessInTabTitle</key>
 	<true/>
 	<key>ShowActiveProcessInTitle</key>
@@ -299,7 +299,7 @@
 	<key>WindowTitle</key>
 	<string></string>
 	<key>columnCount</key>
-	<integer>85</integer>
+	<integer>114</integer>
 	<key>name</key>
 	<string>elysian</string>
 	<key>noWarnProcesses</key>
@@ -322,7 +322,7 @@
 		</dict>
 	</array>
 	<key>rowCount</key>
-	<integer>24</integer>
+	<integer>22</integer>
 	<key>shellExitAction</key>
 	<integer>2</integer>
 	<key>type</key>
