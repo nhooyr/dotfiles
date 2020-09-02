@@ -36,8 +36,10 @@ quick_paths() {
   echo ~src/dotfiles
   fd -H . ~dotfiles
 
-  echo ~August
-  fd -H . ~August
+  if [ -e ~Pictures ]; then
+    echo ~Pictures
+    fd -H . ~Pictures
+  fi
 
   echo ~/src
   fd -H -d2 . ~/src
