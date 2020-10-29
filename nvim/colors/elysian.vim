@@ -13,9 +13,9 @@ hi ErrorMsg     ctermfg=yellow ctermbg=NONE cterm=NONE
 hi VertSplit    ctermfg=244    ctermbg=NONE cterm=NONE
 hi MatchParen   ctermfg=NONE   ctermbg=225  cterm=NONE
 hi NonText      ctermfg=244    ctermbg=NONE cterm=NONE
-hi IncSearch    ctermfg=NONE  ctermbg=218  cterm=NONE
-hi Search       ctermfg=NONE  ctermbg=153  cterm=NONE
-hi StatusLine   ctermfg=NONE  ctermbg=12   cterm=NONE
+hi IncSearch    ctermfg=NONE   ctermbg=218  cterm=NONE
+hi Search       ctermfg=NONE   ctermbg=153  cterm=NONE
+hi StatusLine   ctermfg=NONE   ctermbg=12   cterm=NONE
 hi StatusLineNC ctermfg=NONE   ctermbg=12   cterm=NONE
 hi Visual       ctermfg=NONE   ctermbg=225  cterm=NONE
 hi TabLine      ctermfg=NONE   ctermbg=NONE cterm=NONE
@@ -51,7 +51,7 @@ hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
 " Git colors.
 hi diffAdded   ctermfg=2     ctermbg=NONE  cterm=NONE
 hi diffRemoved ctermfg=1     ctermbg=NONE  cterm=NONE
-hi diffFile    ctermfg=54  ctermbg=NONE  cterm=underline
+hi diffFile    ctermfg=54    ctermbg=NONE  cterm=underline
 hi diffLine    ctermfg=61    ctermbg=NONE  cterm=underline
 hi link gitcommitSummary Normal
 
