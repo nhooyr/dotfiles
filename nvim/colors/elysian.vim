@@ -47,6 +47,8 @@ hi Special      ctermfg=6    ctermbg=NONE cterm=NONE
 hi Underlined   ctermfg=6    ctermbg=NONE cterm=NONE
 hi Error        ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
+" By default StorageClass links to Type which makes no sense.
+hi link StorageClass Statement
 
 " Git colors.
 hi diffAdded   ctermfg=2     ctermbg=NONE  cterm=NONE
