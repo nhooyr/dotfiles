@@ -1,0 +1,10 @@
+snippet posix
+options head
+  #!/bin/sh
+  set -eu
+
+  main() {
+    $0
+  }
+
+  main "$@"
