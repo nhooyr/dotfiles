@@ -104,6 +104,8 @@ xstart() {(
 x() {(
   set -euo pipefail
 
+  # TODO need to make sure args isn't used anywhere else.
+  args=""
   if [[ $# -gt 0 ]]; then
     args="$(quote_args "$@")"
     args="-c '$args'"
@@ -165,7 +167,7 @@ xp() {(
 xs() {(
   set -euo pipefail
 
-  xsr "$PWD"
+  gcd xsr .
   if [[ "$#" -gt 0 ]]; then
     x "$@"
   fi
