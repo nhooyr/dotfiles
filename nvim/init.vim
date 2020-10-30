@@ -14,11 +14,10 @@ function! s:plugins() abort
   Plug 'leafgarland/typescript-vim'
   Plug 'fatih/vim-go'
 
-  Plug 'tpope/vim-vinegar'
   Plug 'tpope/vim-surround'
-  Plug 'tpope/vim-endwise'
-  Plug 'tpope/vim-sleuth'
+  " Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-commentary'
+  Plug 'Raimondi/delimitMate'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
@@ -28,6 +27,7 @@ function! s:plugins() abort
   Plug 'nhooyr/emmet-vim' " Plug 'mattn/emmet-vim'
   Plug 'PeterRincker/vim-argumentative'
   Plug 'godlygeek/tabular'
+  Plug 'chrisbra/Recover.vim'
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -44,6 +44,7 @@ function! s:plugin_settings() abort
   let g:surround_no_insert_mappings = 1
 
   map! <silent> <C-j> <Plug>(neosnippet_expand_or_jump)
+  map! <silent> <C-k> <Plug>(neosnippet_jump)
 
   let g:user_emmet_leader_key = "<C-y>"
   let g:user_emmet_mode="i"
@@ -53,10 +54,15 @@ function! s:plugin_settings() abort
   let g:go_template_autocreate = 0
   let g:go_fmt_autosave = 0
 
+  let g:delimitMate_expand_cr = 1
+  let g:delimitMate_expand_space = 1
+
   nmap <C-_> gcc
   vmap <C-_> gc
   nmap <M-c> gcgc`]
   imap <C-_> <C-o>gcc
+
+  inoremap <silent> <M-CR> <CR><M-O>
 
   augroup nhooyr_plugins
     autocmd!
@@ -68,14 +74,16 @@ function! s:plugin_settings() abort
   " To avoid conflict with my insert mode <C-x> keybind.
   " From vim-endwise.
   " https://github.com/tpope/vim-endwise/blob/97180a73ad26e1dcc1eebe8de201f7189eb08344/plugin/endwise.vim#L129
+  " Have endwise disabled due to delimitMate for now.
   augroup nhooyr_endwise_unmap
     autocmd!
-    autocmd VimEnter * iunmap <C-x><CR>
+    " autocmd VimEnter * iunmap <C-x><CR>
   augroup END
 endfunction
 call s:plugin_settings()
 
 function! s:settings() abort
+  " set autochdir
   set backup
   set backupdir=~/.local/share/nvim/backup//
   call mkdir(&backupdir, "p")
@@ -94,7 +102,15 @@ function! s:settings() abort
   set inccommand=nosplit
   set gdefault
   colorscheme elysian
-  set shortmess+=aAIcqs
+  set shortmess+=Ic
+  " 1. I often open the same file in multiple vim instances so I don't
+  "    care for the swap file warning.
+  "    And can use :recover for when I know the OS crashed.
+  " 2. Nevermind, disabled this as vim's smart enough to not bother me
+  "    if there are no changes.
+  " 3. Nevermind that nevermind, I often see the warning when using <C-]>
+  "    and neovim doesn't recognize then files are the same.
+  set shortmess+=A
   set mouse=a
   set noruler
   set updatetime=100
@@ -102,6 +118,8 @@ function! s:settings() abort
 
   set title
   set titlestring=%t
+
+  let &listchars.=',space:|'
 
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
@@ -115,7 +133,7 @@ function! s:settings() abort
     set foldnestmax=1
     set foldlevel=1
   endif
-  set textwidth=100
+  set textwidth=90
 
   set formatoptions+=cro
 
@@ -126,13 +144,13 @@ function! s:settings() abort
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 
-  " https://stackoverflow.com/questions/9850360/what-is-netrwhist
-  let g:netrw_dirhistmax = 0
-  let g:netrw_cursor = 0
-
   let g:markdown_fenced_languages = ["bash=sh", "go"]
 
   let &statusline=" %F %m"
+
+  " Fuck netrw.
+  let g:loaded_netrw       = 1
+  let g:loaded_netrwPlugin = 1
 
   augroup nhooyr_settings
     autocmd!
@@ -142,16 +160,35 @@ function! s:settings() abort
     autocmd FocusGained * checktime
     autocmd FocusLost * wshada
 
-    autocmd BufWinEnter * if &ft !=# "netrw" | setlocal number | endif
+    autocmd BufWinEnter * setlocal number
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
+    autocmd FileType make let &tabstop=&shiftwidth
+  augroup END
+
+  function! s:mkdirp(file, buf) abort
+    if !empty(getbufvar(a:buf, "&buftype"))
+      return
+    endif
+
+    let l:dir = fnamemodify(a:file, ":h")
+    if !isdirectory(dir)
+      call mkdir(dir, "p")
+    endif
+  endfunction
+  augroup nhooyr_mkdirp
+    autocmd!
+    autocmd BufWritePre * call s:mkdirp(expand("<afile>"), +expand("<abuf>"))
   augroup END
 endfunction
 call s:settings()
 
 function! s:maps() abort
   nnoremap <silent> <Leader>s :source $MYVIMRC<CR>
-  command! StripWhitespace %s/\s\+$// | nohlsearch
+  nnoremap <silent> <Leader>cd :cd %:h<CR>
+
+  nnoremap <silent> <Leader>ll :set list!<CR>
+  nnoremap <silent> <Leader>ls :%s/\s\+$// \| nohlsearch<CR>
 
   noremap ; :
   noremap , ;
@@ -163,8 +200,10 @@ function! s:maps() abort
   nnoremap <silent> k gk
   nnoremap <silent> j gj
   " https://vim.fandom.com/wiki/Format_pasted_text_automatically
-  nnoremap <silent> p p=`]
-  nnoremap <silent> P P=`]
+  nnoremap <silent> p ]p
+  nnoremap <silent> P ]P
+  nnoremap <silent> ]p p=`]
+  nnoremap <silent> ]P P=`]
 
   nnoremap <silent> Y y$
 
@@ -232,10 +271,10 @@ function! s:maps() abort
   nnoremap <silent> <C-l> <C-W>l
   nnoremap <silent> <C-j> <C-W>j
   nnoremap <silent> <C-h> <C-W>h
-  inoremap <silent> <C-k> <Esc><C-W>k
-  inoremap <silent> <C-l> <Esc><C-W>l
+  " inoremap <silent> <C-k> <Esc><C-W>k
+  " inoremap <silent> <C-l> <Esc><C-W>l
   " inoremap <silent> <C-j> <Esc><C-W>j
-  inoremap <silent> <C-h> <Esc><C-W>h
+  " inoremap <silent> <C-h> <Esc><C-W>h
 
   noremap <silent> <C-z> zz
   inoremap <silent> <C-z> <C-o>zz<C-f>
@@ -291,6 +330,9 @@ function! s:maps() abort
     let &grepprg="rg -S --vimgrep"
     command! -nargs=+ Rg silent grep! <args>
   endif
+
+  " https://stackoverflow.com/a/4313335/4283659
+  nnoremap gp `[v`]
 endfunction
 call s:maps()
 
@@ -339,7 +381,7 @@ function! s:fzf() abort
 
   " Adds all accessed files into my shell history.
   function! s:update_history() abort
-    if &buftype !=# "" && &filetype !=# "netrw"
+    if &buftype !=# ""
       return
     endif
     if expand("%") ==# "[Plugins]"
