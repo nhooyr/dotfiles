@@ -18,6 +18,11 @@ gch() {(
 )}
 _gch() {
   compadd "${(@f)$(git for-each-ref '--format=%(refname:short)')}"
+  # To complete branches that only exist remotely.
+  compadd "${(@f)$(git for-each-ref '--format=%(refname:short)' | \
+    git for-each-ref '--format=%(refname:short)' | \
+    grep origin/ | \
+    sed 's#origin/##')}"
 }
 # zsh's git completion is very slow and git's zsh completion is just a wrapper around
 # the bash completion and doesn't define a zsh completion service for git checkout.
@@ -89,6 +94,7 @@ alias grv="git revert"
 alias gro="git remote"
 alias grm="git rm"
 alias gcp="git cherry-pick"
+alias gcpa="git cherry-pick --abort"
 alias gm="git merge"
 alias gt="git tag"
 alias gbl="git blame"
@@ -138,7 +144,7 @@ scd() {
     return
   fi
 
-  cd "$(git rev-parse --show-superproject-working-tree)"
+  cd "$super"
   if [[ "$#" -gt 0 ]]; then
     eval "$@"
     local exit_code="$?"
@@ -189,7 +195,7 @@ gitsync() {(
     DRY_RUN=1
   fi
 
-  git fetch --all --force
+  git fetch --all --force | tr '[:upper:]' '[:lower:]'
 
   if [[ "$(sh_c git stash)" != "No local changes to save" ]]; then
     local STASHED=1
@@ -270,7 +276,7 @@ gho() {(
 
 alias ghf="gh repo fork --remote"
 ghc() {
-  gh repo create "$@" | cat &&
+  gh repo create -y "$@" | cat &&
   ghd "${@[-1]}"
 }
 
