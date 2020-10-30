@@ -5,6 +5,7 @@ ControlPersist yes
 ServerAliveInterval 5
 TCPKeepAlive no
 ExitOnForwardFailure yes
+# Removes "Shared connection to" messages
 LogLevel=QUIET
 StrictHostKeyChecking accept-new
 ConnectTimeout 5
