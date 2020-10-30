@@ -18,10 +18,10 @@ main() {
 
   now="$(date +%s)"
   last_login="$(stat -c %Y /var/log/wtmp)"
-  one_hour=$((60 * 60))
+  timeout=$((60 * 60 * 2)) # 2 hours
   echo "now       = $(date -d "@$now")"
   echo "last_login = $(date -d "@$last_login")"
-  if [ $((now - last_login)) -lt $one_hour ]; then
+  if [ $((now - last_login)) -lt $timeout ]; then
     echo "keeping system up"
     exit 0
   fi
