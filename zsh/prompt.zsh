@@ -26,15 +26,17 @@ prompt() {
 
   echo -n "%~"
 
-  local branch_name="$(git rev-parse --abbrev-ref HEAD 2> /dev/null)"
-  if [[ "$branch_name" ]]; then
-    echo -n "%F{blue}:$branch_name%f"
-  fi
-  if [[ "$(git status --short 2> /dev/null)" ]]; then
-    echo -n "*"
-  fi
-  if git rev-parse stash &> /dev/null; then
-    echo -n "="
+  if [ "${NO_GIT-}" = "" ] && echo "$PWD" | grep -vq "^$HOME/src/webkit"; then
+    local branch_name="$(git rev-parse --abbrev-ref HEAD 2> /dev/null)"
+    if [[ "$branch_name" ]]; then
+      echo -n "%F{blue}:$branch_name%f"
+    fi
+    if [[ "$(git status --short 2> /dev/null)" ]]; then
+      echo -n "*"
+    fi
+    if git rev-parse stash &> /dev/null; then
+      echo -n "="
+    fi
   fi
 
   echo
