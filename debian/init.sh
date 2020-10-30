@@ -25,6 +25,7 @@ main() {
   install_locale
   install_gcloud
   install_misc
+  install_watchexec
   install_codeserver_deps
 
   # Allows searching through the package database.
@@ -112,7 +113,8 @@ install_misc() {
     tmux \
     apt-file \
     apparmor-utils \
-    kubectl
+    kubectl \
+    clangd
   # Exits with non-zero if already disabled.
   sudo aa-disable /etc/apparmor.d/usr.bin.man || true
 }
@@ -147,6 +149,11 @@ install_codeserver_deps() {
     libxkbfile-dev \
     libsecret-1-dev
   npm config set python python3
+}
+
+install_watchexec() {
+  curl -L 'https://github.com/watchexec/watchexec/releases/download/1.14.0/watchexec-1.14.0-x86_64-unknown-linux-gnu.deb' /tmp/watchexec.deb
+  sudo dpkg -i /tmp/watchexec.deb
 }
 
 sudo() {
