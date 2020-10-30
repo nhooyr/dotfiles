@@ -4,7 +4,6 @@ bookmarks=(
   "/usr/local/Cellar"
   "/usr/local/Homebrew"
   "$HOME/.local/share/gopath"
-  "$HOME/src"
   "$HOME/src/nhooyr"
   "$HOME/src/cdr"
 
@@ -13,6 +12,7 @@ bookmarks=(
   "$HOME/src/nhooyr/dotfiles/zsh"
   "$HOME/src/nhooyr/dotfiles/secrets"
   "$HOME/src/nhooyr/dotfiles/ssh"
+  "$HOME/src/nhooyr/notes"
 
   "$HOME/src/nhooyr/websocket"
   "$HOME/src/nhooyr/blog"
@@ -20,6 +20,7 @@ bookmarks=(
   "$HOME/src/cdr/x11wasm"
   "$HOME/src/cdr/bark"
   "$HOME/src/cdr/enterprise"
+  "$HOME/src/cdr/c"
   "$HOME/src/cdr/code-server"
 
   "$HOME/src/neovim/neovim"
