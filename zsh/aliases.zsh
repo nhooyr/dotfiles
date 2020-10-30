@@ -43,7 +43,6 @@ e() {
     unset NVIM_FZF_TYPE
   fi
 }
-alias e.="e ."
 
 alias l="ls -lh -gG"
 alias ll="ls -lha -gG"
@@ -133,6 +132,7 @@ rg() {
     --colors line:fg:black \
     --colors path:fg:black \
     --hidden \
+    -g '!.git' \
     "$@"
 }
 alias rgi="rg --no-ignore --hidden"
@@ -246,6 +246,7 @@ inf() {
   while; do run_quoted "$@"; done
 }
 
+alias d="docker"
 dr() {(
   set -euo pipefail
 
@@ -281,3 +282,15 @@ raw() {(
   fi
   md out
 )}
+
+dt() {
+  date "+%Y/%m/%d"
+}
+
+note() {
+  if [ "$1" ]; then
+    cd ~notes/"$1" e "$(dt).md"
+    return
+  fi
+  e "$(dt).md"
+}
