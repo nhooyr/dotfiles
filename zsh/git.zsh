@@ -326,3 +326,41 @@ git_add_edit() {(
 
 alias gsub="git submodule"
 alias gsubi="git submodule update --init"
+
+gsub_file() {(
+  set -eu
+
+  git rev-parse --show-toplevel
+
+  submodule_paths=(
+    "${(@f)$(git config --file ./.gitmodules --get-regexp "path" | awk '{ print $2 }')}"
+  )
+  submodule_urls=(
+    "${(@f)$(git config --file ./.gitmodules --get-regexp "url" | awk '{ print $2 }')}"
+  )
+  submodule_branches=(
+    "${(@f)$(git config --file ./.gitmodules --get-regexp "branch" | awk '{ print $2 }')}"
+  )
+
+  sh_c() {
+    echo + "$*"
+    if [ "${DRY_RUN-}" ]; then
+      return
+    fi
+    eval "$@"
+  }
+
+  for (( i=1; i <= ${#submodule_paths[@]}; i++ )) do
+    p="${submodule_paths[$i]}"
+    if [ -d "$p" ]; then
+      continue
+    fi
+
+    url="${submodule_urls[$i]}"
+    unset b
+    if [ "${submodule_branches[$i]-}" ]; then
+      b="-b ${submodule_branches[$i]}"
+    fi
+    sh_c git submodule add "${b-}" "$url" "$p"
+  done
+)}
