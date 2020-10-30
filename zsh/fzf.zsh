@@ -14,7 +14,8 @@ relative_path() {
   if [[ "$PWD" == ~  || "$PWD" == ~/src ]]; then
     cat
   fi
-  sed "s#^$PWD/##g"
+  # One with just the relative path and one with the full path.
+  sed "s#^\($PWD/\)\(.*\)#\2\\"$'\n'"\1\2#g"
 }
 
 filter_exists() {
@@ -30,16 +31,12 @@ quick_paths() {
   # The reason we expand bookmarks is to handle old bookmarks appropriately.
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks | grep -F "$PWD/"
   fd -aH -d3 .
+  scd fd -aH -d3 . 2> /dev/null
 
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks
 
-  echo ~src/dotfiles
+  echo ~/src/dotfiles
   fd -H . ~dotfiles
-
-  if [ -e ~Pictures ]; then
-    echo ~Pictures
-    fd -H . ~Pictures
-  fi
 
   echo ~/src
   fd -H -d2 . ~/src
@@ -49,11 +46,20 @@ quick_paths() {
     fd -d2 . ~/Downloads
   fi
 
-  fd -aH .
-  gcd fd -aH . 2> /dev/null
+  if [ -e ~Pictures ]; then
+    echo ~Pictures/2020
+    fd -H . ~Pictures/2020
+  fi
+
+  local depth=""
+  if ! git rev-parse >/dev/null 2>&1; then
+    depth="-d3"
+  fi
+  fd "$depth" -aH .
+  scd fd "$depth" -aH . 2> /dev/null
   if [[ "${FD_ALL-}" ]]; then
-    fd -aI .
-    gcd fd -aI . 2> /dev/null
+    fd "$depth" -aI .
+    scd fd "$depth" -aI . 2> /dev/null
   fi
 }
 
@@ -107,7 +113,7 @@ fzf-quick-paths() {
   local query="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(fc -R && quick_paths | grep -Fxv "$PWD" | filter_exists | relative_path \
+  selected=("${(@f)$(fc -R && quick_paths | grep -Fv ".pxd/" | grep -Fxv "$PWD" | filter_exists | relative_path \
     | replace_bookmarks | filter_duplicates \
     | fzf --bind=alt-a:toggle-sort --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
@@ -123,7 +129,9 @@ fzf-quick-paths() {
       local execute=1
     fi
     if [[ ! "$BUFFER" ]]; then
-      if [[ "$equick_path" == *.CR3 || "$equick_path"  == *.pxd ]]; then
+      if [[ "$equick_path" == *.CR3 ]]; then
+        execi o "$qquick_path"
+      elif [[ "$equick_path"  == *.pxd ]]; then
         execi o -a '"Pixelmator Pro"' "$qquick_path"
       elif [[ -d "$equick_path" ]]; then
         execi cd "$qquick_path "
