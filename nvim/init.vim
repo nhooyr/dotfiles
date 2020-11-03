@@ -17,7 +17,8 @@ function! s:plugins() abort
   Plug 'tpope/vim-surround'
   " Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-commentary'
-  Plug 'Raimondi/delimitMate'
+  " Plug 'Raimondi/delimitMate'
+  " Plug 'tmsvg/pear-tree'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
@@ -55,7 +56,6 @@ function! s:plugin_settings() abort
   let g:go_fmt_autosave = 0
 
   let g:delimitMate_expand_cr = 1
-  let g:delimitMate_expand_space = 1
 
   nmap <C-_> gcc
   vmap <C-_> gc
@@ -263,8 +263,8 @@ function! s:maps() abort
   inoremap <silent> <C-q> <Esc>:silent quit!<CR>
   cnoremap <silent> <C-q> <C-c>:silent quit!<CR>
 
-  nnoremap <silent> <C-e> 2<C-e>
-  nnoremap <silent> <C-y> 2<C-y>
+  " nnoremap <silent> <C-e> 2<C-e>
+  " nnoremap <silent> <C-y> 2<C-y>
   nnoremap <silent> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 
   nnoremap <silent> <C-k> <C-W>k
@@ -277,6 +277,7 @@ function! s:maps() abort
   " inoremap <silent> <C-h> <Esc><C-W>h
 
   noremap <silent> <C-z> zz
+  " For some reason in markdown files this causes C-f to be inserted as a literal.
   inoremap <silent> <C-z> <C-o>zz<C-f>
 
   " https://stackoverflow.com/a/9464929/4283659
@@ -333,6 +334,14 @@ function! s:maps() abort
 
   " https://stackoverflow.com/a/4313335/4283659
   nnoremap gp `[v`]
+
+  " Don't like the cursor movement.
+  " inoremap (; (<CR>)<Esc>O
+  " inoremap {; {<CR>}<Esc>O
+  " inoremap [; [<CR>]<Esc>O
+  " inoremap "; ""<Left>
+  " inoremap '; ''<Left>
+  " inoremap `; ``<Left>
 endfunction
 call s:maps()
 
