@@ -272,12 +272,12 @@ alias tch="touch"
 alias kb="kubectl"
 alias mv="mv -i"
 
-raw() {(
+raws() {(
   set -euo pipefail
 
   md jpegs && mv -i *.JPG jpegs || true
   md raws && mv -i *.CR3 raws || true
-  if ls -1 | grep -q '\.mp4$' ; then
+  if ls -1 | grep -iq '\.mp4$' ; then
     md vids && mv -i *.mp4 vids || true
   fi
   md out
