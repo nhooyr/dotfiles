@@ -1,3 +1,6 @@
+[core]
+  pager = /usr/local/share/git-core/contrib/diff-highlight/diff-highlight | less
+
 [user]
 	name = Anmol Sethi
 	email = hi@nhooyr.io
