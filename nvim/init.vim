@@ -263,8 +263,8 @@ function! s:maps() abort
   inoremap <silent> <C-q> <Esc>:silent quit!<CR>
   cnoremap <silent> <C-q> <C-c>:silent quit!<CR>
 
-  nnoremap <silent> <C-e> 2<C-e>
-  nnoremap <silent> <C-y> 2<C-y>
+  " nnoremap <silent> <C-e> 2<C-e>
+  " nnoremap <silent> <C-y> 2<C-y>
   nnoremap <silent> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 
   nnoremap <silent> <C-k> <C-W>k
