@@ -10,6 +10,7 @@ main() {
   ./ln.sh zsh/zshenv ~/.zshenv
   ./ln.sh fd ~/.config/fd
   ./ln.sh tmux/tmux.conf ~/.tmux.conf
+  ./ln.sh emacs ~/.emacs.d
 
   # Required for SSH multiplexing.
   mkdir -p ~/.ssh/sockets
