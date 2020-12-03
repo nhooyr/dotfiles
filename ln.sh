@@ -6,7 +6,7 @@ main() {
   to="$2"
 
   if [ -L "$to" ]; then
-    echo "overwriting $to"
+    echo "overwriting symlink $to"
     rm "$to"
   elif [ -e "$to" ]; then
     echo "$to exists and is not a symlink"
