@@ -1,6 +1,10 @@
 (setq inhibit-startup-message t)
 (setq inhibit-startup-echo-area-message t)
 (menu-bar-mode -1)
+(tool-bar-mode -1)
+(blink-cursor-mode -1)
+(scroll-bar-mode -1)
+(setq-default line-spacing 0.3)
 
 (global-display-line-numbers-mode)
 (xterm-mouse-mode)
@@ -28,3 +32,5 @@
 (ido-mode 1)
 (setq ido-enable-flex-matching t)
 (setq ido-everywhere t)
+(load-theme 'manoj-dark t)
+(set-face-attribute 'default nil :family "DejaVu Sans")
