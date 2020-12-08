@@ -4,3 +4,4 @@ vendor
 yarn-error.log
 .npmrc
 .ignore
+.cache
