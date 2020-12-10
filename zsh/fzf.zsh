@@ -74,7 +74,9 @@ replace_bookmarks() {
   done
   sed_expr+="; s#^$HOME#~#g"
 
-  sed "$sed_expr"
+  # Must use gsed here as this expression can get long and BSD sed appears to have a limit
+  # on the expression size.
+  gsed "$sed_expr"
 }
 
 expand_bookmarks() {
