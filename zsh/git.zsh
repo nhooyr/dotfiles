@@ -43,6 +43,10 @@ gcmf() {(
   git commit --fixup "$@"
 )}
 compdef _git gcmf=_git_recent_commits
+gacmp() {
+  ga "$@" && gcm && git_push
+}
+compdef _git gacmp=git-add
 gcmp() {
   gcm "$@" && git_push
 }

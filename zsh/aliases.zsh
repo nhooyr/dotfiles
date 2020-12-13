@@ -294,3 +294,17 @@ note() {
   fi
   e "$(dt).md"
 }
+
+# https://askubuntu.com/a/634655
+# --add-metadata
+#   Adds metadata to the file.
+# -f bestaudio[ext=m4a]
+#   Output the best m4a quality file available.
+#   Without ext, it'll be a webm which doesn't support thumbnails.
+# --embed-thumbnail
+#   Embed the thumbnail into the m4a.
+#
+# I wanted to use opus as the format but youtube doesn't seem to support it! Would have to
+# re-encode the audio. youtube seems to only support m4a, mp4 and webm. Of which m4a is
+# best for obvious reasons. Though perhaps I should look into webm more.
+alias yaudio="youtube-dl --add-metadata -f 'bestaudio[ext=m4a]' --embed-thumbnail"
