@@ -14,6 +14,7 @@ bookmarks=(
   "$HOME/src/nhooyr/dotfiles/ssh"
   "$HOME/src/nhooyr/notes"
   "$HOME/src/nhooyr/notes/thoughts"
+  "$HOME/src/nhooyr/notes/decisions"
 
   "$HOME/src/nhooyr/websocket"
   "$HOME/src/nhooyr/blog"
