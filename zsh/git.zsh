@@ -124,6 +124,8 @@ alias grba="git rebase --abort"
 alias grt="git reset"
 alias grth="git reset --hard"
 
+alias gcherry="git cherry -v --abbrev=8 origin/master"
+
 gcd() {
   local root_dir
   root_dir="$(git rev-parse --show-toplevel)"

@@ -129,8 +129,6 @@ rg() {
   command rg -S \
     --colors match:fg:yellow \
     --colors match:style:nobold \
-    --colors line:fg:black \
-    --colors path:fg:black \
     --hidden \
     -g '!.git' \
     "$@"
