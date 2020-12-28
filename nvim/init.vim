@@ -376,7 +376,7 @@ function! s:fzf() abort
     if !empty($NVIM_FZF_TYPE)
       call system("echo " . a:type . " > " . $NVIM_FZF_TYPE)
     endif
-    quit!
+    quit
   endfunction
 
   nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
