@@ -90,7 +90,8 @@ expand_bookmarks() {
   done
   sed_expr+="; s#^~#$HOME#g"
 
-  sed "$sed_expr"
+  # See above.
+  gsed "$sed_expr"
 }
 
 execi() {
