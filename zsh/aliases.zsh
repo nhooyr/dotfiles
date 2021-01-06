@@ -293,6 +293,15 @@ note() {
   e "$(dt).md"
 }
 
+# Commits my ~notes repository with the current date as the commit message.
+gcn() {(
+  set -euo pipefail
+  cd ~notes
+  git add -A
+  git commit -m "$(dt)"
+  git push
+)}
+
 # https://askubuntu.com/a/634655
 # --add-metadata
 #   Adds metadata to the file.
