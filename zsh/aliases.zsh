@@ -285,6 +285,12 @@ dt() {
   date "+%Y/%m/%d"
 }
 
+# Stolen from neosnippet's _.snip!
+# Thank you Shougo!
+date-full() {
+  date "+%Y-%m-%dT%H:%M:%S"
+}
+
 note() {
   local notes_subdir=""
   if [ "$#" -gt 0 ]; then
@@ -293,12 +299,12 @@ note() {
   cd ~notes"/$notes_subdir" e "$(dt).md"
 }
 
-# Commits my ~notes repository with the current date as the commit message.
+# Commits my ~notes repository with the full date/time as the commit message.
 gcn() {(
   set -euo pipefail
   cd ~notes
   git add -A
-  git commit -m "$(dt)" || true
+  git commit -m "$(date-full)" || true
   git push
 )}
 
