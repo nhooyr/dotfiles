@@ -298,7 +298,7 @@ gcn() {(
   set -euo pipefail
   cd ~notes
   git add -A
-  git commit -m "$(dt)"
+  git commit -m "$(dt)" || true
   git push
 )}
 
