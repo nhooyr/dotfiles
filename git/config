@@ -45,3 +45,8 @@
 	date = relative
 	blankBoundary = true
 	coloring = repeatedLines
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
