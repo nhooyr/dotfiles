@@ -286,11 +286,11 @@ dt() {
 }
 
 note() {
-  if [ "$1" ]; then
-    cd ~notes/"$1" e "$(dt).md"
-    return
+  local notes_subdir=""
+  if [ "$#" -gt 0 ]; then
+    notes_subdir="$1"
   fi
-  e "$(dt).md"
+  cd ~notes"/$notes_subdir" e "$(dt).md"
 }
 
 # Commits my ~notes repository with the current date as the commit message.
