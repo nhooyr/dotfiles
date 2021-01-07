@@ -18,6 +18,23 @@ options word
     $0
   }
 
+# I prefer 12 hour time so that's why these two are duplicated from neosnippet's defaults.
+snippet dt
+options word
+  `strftime("%I:%M:%S%p")`
+
+snippet df
+options word
+  `strftime("%Y-%m-%d,%I:%M:%S%p")`
+
+snippet dt:
+options word
+  `strftime("%I:%M:%S%p")`: ${0}
+
+snippet dd:
+options word
+  `strftime("%Y-%m-%d")`: ${0}
+
 snippet df:
 options word
-  `strftime("%Y-%m-%dT%H:%M:%S")`: ${0}
+  `strftime("%Y-%m-%d,%I:%M:%S%p")`: ${0}

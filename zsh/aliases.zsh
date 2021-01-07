@@ -285,10 +285,9 @@ dt() {
   date "+%Y/%m/%d"
 }
 
-# Stolen from neosnippet's _.snip!
-# Thank you Shougo!
+# See nvim/neosnippets/_.snip
 date-full() {
-  date "+%Y-%m-%dT%H:%M:%S"
+  date "+%Y-%m-%d,%I:%M:%S%p"
 }
 
 note() {
