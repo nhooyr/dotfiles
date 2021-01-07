@@ -38,3 +38,17 @@ options word
 snippet df:
 options word
   `strftime("%Y-%m-%d,%I:%M:%S%p")`: ${0}
+
+# These are honestly mostly for markdown but I can see them being useful elsewhere so I
+# left them global.
+snippet dt-
+options word
+  - `strftime("%I:%M:%S%p")`: ${0}
+
+snippet dd-
+options word
+  - `strftime("%Y-%m-%d")`: ${0}
+
+snippet df-
+options word
+  - `strftime("%Y-%m-%d,%I:%M:%S%p")`: ${0}
