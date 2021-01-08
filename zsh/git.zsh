@@ -376,3 +376,9 @@ gsub_file() {(
     sh_c git submodule add "${b-}" "$url" "$p"
   done
 )}
+
+if [[ "$OSTYPE" == darwin* ]]; then
+  prepend_PATH /usr/local/share/git-core/contrib/diff-highlight
+elif [[ "$DISTRO" == "debian" ]]; then
+  prepend_PATH /usr/share/doc/git/contrib/diff-highlight
+fi
