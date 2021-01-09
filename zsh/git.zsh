@@ -261,16 +261,15 @@ gho() {(
   set -euo pipefail
 
   url="$(gh_url "$@")"
+  # edit: wait hold on, when can this even fail?
   if [[ "$#" -eq 0 ]]; then
     branch="$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)"
     if [[ "$branch" != "HEAD" && "$branch" != "master" ]]; then
-      if true || hub pr list -h "$branch" &> /dev/null; then
-        # Automatically opens either the PR for this branch or shows
-        # the page to open the PR.
-        #
-        # Very neat.
-        url+="/pull/$branch"
-      fi
+      # Automatically opens either the PR for this branch or shows
+      # the page to open the PR.
+      #
+      # Very neat.
+      url+="/pull/$branch"
     fi
   fi
 
