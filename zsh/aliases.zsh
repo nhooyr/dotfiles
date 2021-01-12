@@ -320,3 +320,8 @@ gcn() {(
 # re-encode the audio. youtube seems to only support m4a, mp4 and webm. Of which m4a is
 # best for obvious reasons. Though perhaps I should look into webm more.
 alias yaudio="youtube-dl --add-metadata -f 'bestaudio[ext=m4a]' --embed-thumbnail"
+
+# Should I use grep and xargs instead? more unixy? it's hard to decide. maybe convenience
+# is better than unix philosophy.
+alias rgw="rg '\s+$'"
+alias sw="git grep --cached -Il '' | xargs -n1 gsed -i 's/\s+$//g'"
