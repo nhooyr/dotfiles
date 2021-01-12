@@ -42,6 +42,10 @@ e() {
   if [[ ! -e "$NVIM_FZF_TYPE" ]]; then
     unset NVIM_FZF_TYPE
   fi
+  # love this :)
+  if [[ "$@" == *~notes* ]]; then
+    gcn
+  fi
 }
 
 alias l="ls -lh -gG"
@@ -304,7 +308,8 @@ gcn() {(
   cd ~notes
   git add -A
   git commit -m "$(date-full)" || true
-  git push
+  # Frequent pushes are great, just not when they block everything :(
+  git push &!
 )}
 
 # https://askubuntu.com/a/634655
