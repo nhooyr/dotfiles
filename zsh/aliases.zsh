@@ -324,4 +324,4 @@ alias yaudio="youtube-dl --add-metadata -f 'bestaudio[ext=m4a]' --embed-thumbnai
 # Should I use grep and xargs instead? more unixy? it's hard to decide. maybe convenience
 # is better than unix philosophy.
 alias rgw="rg '\s+$'"
-alias sw="git grep --cached -Il '' | xargs -n1 gsed -i 's/\s+$//g'"
+alias sw="git grep -Il '' | xargs -n1 gsed -i 's/\s+$//g'"
