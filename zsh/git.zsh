@@ -1,5 +1,9 @@
 alias g="git"
 alias gb="git branch"
+# This does not work with upstream tracking branches. So annoying.
+# anything not origin i mean.
+#   gch upstream/my-branch
+# will create a new local branch named the entire thing above with the random suffix.
 gch() {(
   set -euo pipefail
 
