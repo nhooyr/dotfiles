@@ -3,7 +3,7 @@
 # This was causing issues in the past for me as some scripts invoke bash
 # with -u which causes it to error out when reading the system bashrc
 # because it thinks its interactive but $PS1 is of course not set.
-#  $ ssh host 'bash -xcu true'       
+#  $ ssh host 'bash -xcu true'
 #  + set -x
 #  /etc/bash.bashrc: line 8: PS1: unbound variable
 #  + true

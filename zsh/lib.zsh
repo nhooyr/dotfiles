@@ -1,6 +1,6 @@
 source_if_exists() {
   if [[ -f "$1" ]]; then
-    source "$@"  
+    source "$@"
     return 0
   fi
   return 1
