@@ -6,6 +6,14 @@ source_if_exists() {
   return 1
 }
 
+append_PATH() {
+  if [[ "$PATH" != *$1* ]]; then
+    PATH="$PATH:$1"
+  fi
+}
+
+# - 2021-01-09,07:26:24am: edit: so much over engineering dude jesus christ what was I thinking
+# Look at how much simpler it is to specialize instead of deduplicate in append_PATH.
 prepend_path() {
   local var="$1"
   local p="$2"
