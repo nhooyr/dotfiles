@@ -53,7 +53,8 @@ e() {
   #   the args..
   if realpath "$1" | grep -q ~notes; then
     # If I open nvim fast enough again it'll fuck up my terminal
-    gcn &> /dev/null
+    # Frequent pushes are great, just not when they block everything :(
+    gcn &> /dev/null &!
   fi
 }
 
@@ -317,8 +318,7 @@ gcn() {(
   cd ~notes
   git add -A
   git commit -m "$(date-full)" || true
-  # Frequent pushes are great, just not when they block everything :(
-  git push &!
+  git push
 )}
 
 # https://askubuntu.com/a/634655
