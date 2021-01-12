@@ -43,8 +43,17 @@ e() {
     unset NVIM_FZF_TYPE
   fi
   # love this :)
-  if [[ "$@" == *~notes* ]]; then
-    gcn
+  # Could not get ~notes working here correctly for some bizarre reason...
+  # if [[ "$*" == ~notes* ]]; then
+  #   Ah ~ bookmarks only expand if there is no additional text near them?
+  #   Noticed when below regexp had \^~notes
+  #   Must be a way to get append/prepend text hmm, welp it's nbd.
+  #   maybe store in a variable first?
+  # - OH HAHA even grep ~notes wasn't correct, I need to check against realpath, not just
+  #   the args..
+  if realpath "$1" | grep -q ~notes; then
+    # If I open nvim fast enough again it'll fuck up my terminal
+    gcn &> /dev/null
   fi
 }
 
