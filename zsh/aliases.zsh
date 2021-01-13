@@ -42,20 +42,24 @@ e() {
   if [[ ! -e "$NVIM_FZF_TYPE" ]]; then
     unset NVIM_FZF_TYPE
   fi
-  # love this :)
-  # Could not get ~notes working here correctly for some bizarre reason...
-  # if [[ "$*" == ~notes* ]]; then
-  #   Ah ~ bookmarks only expand if there is no additional text near them?
-  #   Noticed when below regexp had \^~notes
-  #   Must be a way to get append/prepend text hmm, welp it's nbd.
-  #   maybe store in a variable first?
-  # - OH HAHA even grep ~notes wasn't correct, I need to check against realpath, not just
-  #   the args..
-  if realpath "$1" | grep -q ~notes; then
-    # If I open nvim fast enough again it'll fuck up my terminal
-    # Frequent pushes are great, just not when they block everything :(
-    ( gcn &> /dev/null &! )
-  fi
+  # Fuck the below, super anxiety inducing not seeing the diff before every push.
+  # It's not so bad anymore with background git pushes.
+  #
+  # # love this :)
+  # # Could not get ~notes working here correctly for some bizarre reason...
+  # # if [[ "$*" == ~notes* ]]; then
+  # #   Ah ~ bookmarks only expand if there is no additional text near them?
+  # #   Noticed when below regexp had \^~notes
+  # #   Must be a way to get append/prepend text hmm, welp it's nbd.
+  # #   maybe store in a variable first?
+  # # - OH HAHA even grep ~notes wasn't correct, I need to check against realpath, not just
+  # #   the args..
+  # if realpath "$1" | grep -q ~notes; then
+  #   # Frequent pushes are great, just not when they block everything :(
+  #   # If I open nvim fast enough again it'll fuck up my terminal so we throw out all
+  #   # output.
+  #   ( gcn &> /dev/null &! )
+  # fi
 }
 
 alias l="ls -lh -gG"
@@ -317,7 +321,8 @@ gcn() {(
   set -euo pipefail
   cd ~notes
   git add -A
-  git commit -m "$(date-full)" || true
+  # We use --edit here so I can see the diff and approve.
+  git commit --edit -m "$(date-full)" || true
   git_push
 )}
 

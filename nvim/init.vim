@@ -349,7 +349,8 @@ function! s:maps() abort
     echom 'gcn ' . strftime("%I:%M:%S%p")
     call jobstart("zsh -ic gcn &!")
   endfunction
-  nnoremap <silent> <leader>n :call <SID>gcn()<CR>
+  " I should be using gcn on the cli instead to approve the diff.
+  " nnoremap <silent> <leader>n :call <SID>gcn()<CR>
 endfunction
 call s:maps()
 
