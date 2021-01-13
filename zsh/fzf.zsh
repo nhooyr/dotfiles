@@ -39,8 +39,10 @@ quick_paths() {
 
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks
 
-  echo ~/src/dotfiles
+  echo ~dotfiles
   fd -H . ~dotfiles
+  echo ~notes
+  fd -H . ~notes
 
   echo ~/src
   fd -H -d2 . ~/src
