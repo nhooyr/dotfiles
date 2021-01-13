@@ -64,4 +64,4 @@ hi DiffChange ctermfg=NONE  ctermbg=12   cterm=NONE
 hi DiffDelete ctermfg=NONE  ctermbg=217  cterm=NONE
 hi link diffIndexLine diffFile
 
-hi markdownItalic ctermfg=NONE ctermbg=NONE cterm=NONE
+hi link markdownItalic NONE 
