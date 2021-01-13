@@ -344,13 +344,6 @@ function! s:maps() abort
   " inoremap "; ""<Left>
   " inoremap '; ''<Left>
   " inoremap `; ``<Left>
-
-  function! s:gcn() abort
-    echom 'gcn ' . strftime("%I:%M:%S%p")
-    call jobstart("zsh -ic gcn &!")
-  endfunction
-  " I should be using gcn on the cli instead to approve the diff.
-  " nnoremap <silent> <leader>n :call <SID>gcn()<CR>
 endfunction
 call s:maps()
 
@@ -381,6 +374,7 @@ endfunction
 call s:restore()
 
 function! s:fzf() abort
+  " This isn't used for just fzf anymore, see gcn usage.
   function! s:exit_fzf(type) abort
     if !empty($NVIM_FZF_TYPE)
       call system("echo " . a:type . " > " . $NVIM_FZF_TYPE)
@@ -393,6 +387,9 @@ function! s:fzf() abort
 
   nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
   inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
+
+  nnoremap <silent> <M-r> :call <SID>exit_fzf("gcn")<CR>
+  inoremap <silent> <M-r> <ESC>:call <SID>exit_fzf("gcn")<CR>
 
   nnoremap <silent> <M-g> :call <SID>exit_fzf("last-file")<CR>
   inoremap <silent> <M-g> <ESC>:call <SID>exit_fzf("last-file")<CR>
