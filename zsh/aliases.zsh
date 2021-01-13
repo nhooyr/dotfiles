@@ -318,7 +318,7 @@ gcn() {(
   cd ~notes
   git add -A
   git commit -m "$(date-full)" || true
-  git push
+  git_push
 )}
 
 # https://askubuntu.com/a/634655
