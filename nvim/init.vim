@@ -344,7 +344,7 @@ function! s:maps() abort
   " inoremap `; ``<Left>
 
   function! s:gcn() abort
-    echom 'gcn '. strftime("%I:%M:%S%p")
+    echom 'gcn ' . strftime("%I:%M:%S%p")
     call jobstart("zsh -ic gcn &!")
   endfunction
   nnoremap <silent> <leader>n :call <SID>gcn()<CR>
