@@ -116,6 +116,10 @@ alias grb="git rebase"
 grbi() {
   if [[ ! "$@" ]]; then
     set -- origin/master
+  else
+    # Include the passed commit.
+    # See git.txt
+    set -- "${@:1:-1}" "${@:-1}~1"
   fi
   git rebase --interactive "$@"
 }
