@@ -335,5 +335,5 @@ gcn() {(
 # best for obvious reasons. Though perhaps I should look into webm more.
 alias yaudio="youtube-dl --add-metadata -f 'bestaudio[ext=m4a]' --embed-thumbnail"
 
-alias rgw='git grep -I "\\s\+\$"'
-alias sw='git grep -Il "" | xargs -n1 gsed -i "s/\\s\\+\$//g"'
+alias grepw='git grep -I "\\s\+\$"'
+alias sedw='git grep -Il "" | xargs -n1 gsed -i "s/\\s\\+\$//g"'
