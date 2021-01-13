@@ -44,6 +44,8 @@ e() {
   fi
   # Fuck the below, super anxiety inducing not seeing the diff before every push.
   # It's not so bad anymore with background git pushes.
+  # Might be a good idea to run gcn here in foreground after and then I can approve diff
+  # after editing each individual file! Will try that at some point.
   #
   # # love this :)
   # # Could not get ~notes working here correctly for some bizarre reason...
