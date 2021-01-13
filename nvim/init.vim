@@ -280,6 +280,8 @@ function! s:maps() abort
   " For some reason in markdown files this causes C-f to be inserted as a literal.
   inoremap <silent> <C-z> <C-o>zz<C-f>
 
+  " highlight group syntax
+  " ^ since I keep forgetting the mapping and then can't find it in here lol.
   " https://stackoverflow.com/a/9464929/4283659
   nnoremap <silent> <Leader>p :echo map(synstack(line("."), col(".")), "synIDattr(v:val, 'name')")<CR>
 
