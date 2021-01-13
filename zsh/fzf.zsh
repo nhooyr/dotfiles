@@ -258,6 +258,10 @@ zle-line-init() {
       rg)
         fzf-rg
         ;;
+      gcn)
+        execute=1 gcn
+        fzf-quick-paths
+        ;;
     esac
   fi
 }
