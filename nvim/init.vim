@@ -342,6 +342,11 @@ function! s:maps() abort
   " inoremap "; ""<Left>
   " inoremap '; ''<Left>
   " inoremap `; ``<Left>
+
+  function! s:gcn() abort
+    call jobstart("zsh -ic gcn &!")
+  endfunction
+  nnoremap <silent> <leader>n :call <SID>gcn()<CR>
 endfunction
 call s:maps()
 
