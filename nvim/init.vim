@@ -382,6 +382,9 @@ function! s:fzf() abort
     if !empty($NVIM_FZF_TYPE)
       call system("echo " . a:type . " > " . $NVIM_FZF_TYPE)
     endif
+    " Makes it far more efficient to switch between notes and files quickly after making
+    " small editions.
+    silent! write
     quit
   endfunction
 
