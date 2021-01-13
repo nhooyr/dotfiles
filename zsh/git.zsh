@@ -297,14 +297,14 @@ git_push() {(
   set -euo pipefail
 
   # If there is no remote tracking branch and the arguments are
-  # empty, then set upstream.
+  # empty, then set upstream first.
   if ! git rev-parse "@{u}" &> /dev/null && [[ "$#" -eq 0 || "$*" == "-f" ]]; then
-    git -c push.default=current push -u "$@"
-    return
+    git branch -u "$(git rev-parse --abbrev-ref HEAD)"
   fi
 
-  git push "$@"
-) &!}
+  # It gives status info on stderr so we have to redirect both.
+  git push "$@" &> /dev/null &!
+)}
 _git_push() {
   compadd "${(@f)$(git remote)}"
 }
