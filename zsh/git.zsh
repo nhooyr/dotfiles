@@ -73,6 +73,7 @@ alias gap="git add -p"
 alias gai="git add -i"
 gac() {
   whilet gae "$@" '&&' gcm
+  git_push
 }
 compdef _git gac=git-add
 alias gbd="git branch -d"
