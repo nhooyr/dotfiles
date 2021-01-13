@@ -4,6 +4,10 @@ bookmarks=(
   "/usr/local/Cellar"
   "/usr/local/Homebrew"
   "$HOME/.local/share/gopath"
+  # This one is a little weird I agree but really helps when writing something with ~ and
+  # then realizing its not bookmarked, way more "consistent" to just replace with src and
+  # keep going.
+  "$HOME/src"
   "$HOME/src/nhooyr"
   "$HOME/src/cdr"
 
