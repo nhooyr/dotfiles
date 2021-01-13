@@ -12,10 +12,14 @@ export FZF_DEFAULT_OPTS="${fzf_default_opts[*]}"
 
 relative_path() {
   if [[ "$PWD" == ~  || "$PWD" == ~/src ]]; then
+    # From a performance perspective this is very unfortunate.
     cat
   fi
-  # One with just the relative path and one with the full path.
-  sed "s#^\($PWD/\)\(.*\)#\2\\"$'\n'"\1\2#g"
+  sed "s#^$PWD/\(.*\)#\1#g"
+
+  # this is old
+  # # One with just the relative path and one with the full path.
+  # sed "s#^\($PWD/\)\(.*\)#\2\\"$'\n'"\1\2#g"
 }
 
 filter_exists() {
@@ -116,8 +120,7 @@ fzf-quick-paths() {
   local query="${LBUFFER##* }"
 
   local selected
-  # how the fuck does this syntax to prevent relative_path work..
-  selected=("${(@f)$(fc -R && quick_paths | grep -Fv ".pxd/" | grep -Fxv "$PWD" | filter_exists \ \# | relative_path \
+  selected=("${(@f)$(fc -R && quick_paths | grep -Fv ".pxd/" | grep -Fxv "$PWD" | filter_exists | relative_path \
     | replace_bookmarks | filter_duplicates \
     | fzf --bind=alt-a:toggle-sort --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
