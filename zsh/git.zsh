@@ -299,7 +299,9 @@ git_push() {(
   # If there is no remote tracking branch and the arguments are
   # empty, then set upstream first.
   if ! git rev-parse "@{u}" &> /dev/null && [[ "$#" -eq 0 || "$*" == "-f" ]]; then
-    git branch -u "$(git rev-parse --abbrev-ref HEAD)"
+    local branch
+    branch="$(git rev-parse --abbrev-ref HEAD)"
+    set -- -u "$@" origin "+$branch:$branch"
   fi
 
   # It gives status info on stderr so we have to redirect both.
