@@ -309,7 +309,7 @@ note() {
   if [ "$#" -gt 0 ]; then
     notes_subdir="$1"
   fi
-  cd ~notes"/$notes_subdir" e "$(dt).md"
+  cd ~notes"/$notes_subdir" e "$(dt).txt"
 }
 
 # Commits my ~notes repository with the full date/time as the commit message.
