@@ -237,6 +237,9 @@ get-last-file() {
 }
 
 zle-line-init() {
+  # Why does the below line cause zsh to complain:
+  # zle-line-init:local:11: not valid in this context: last-file
+  # local last-file="$(get-last-file)"
   unset EDITOR_LINE
   if [[ -e "$NVIM_FZF_TYPE" ]]; then
     local fzf_type
