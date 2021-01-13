@@ -300,7 +300,7 @@ git_push() {(
   fi
 
   git push "$@"
-)}
+) &!}
 _git_push() {
   compadd "${(@f)$(git remote)}"
 }
