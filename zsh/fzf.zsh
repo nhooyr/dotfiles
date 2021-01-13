@@ -230,6 +230,10 @@ if command_exists fzf; then
   bindkey "^g" fzf-commits
 fi
 
+get-last-file() {
+  quick_paths | filter_duplicates | sed '2!d'
+}
+
 zle-line-init() {
   unset EDITOR_LINE
   if [[ -e "$NVIM_FZF_TYPE" ]]; then
@@ -239,6 +243,9 @@ zle-line-init() {
     case "$fzf_type" in
       paths)
         fzf-quick-paths
+        ;;
+      last-file)
+        execute=1 execi e "$(get-last-file)"
         ;;
       paths-all)
         fzf-quick-paths-all
