@@ -160,6 +160,10 @@ function! s:settings() abort
     autocmd FocusGained * checktime
     autocmd FocusLost * wshada
 
+    " zsh.txt is not a zshell script...
+    " See runtime/scripts.vim
+    autocmd BufWinEnter *.txt set ft=text
+
     autocmd BufWinEnter * setlocal number
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
