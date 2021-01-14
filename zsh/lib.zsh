@@ -61,7 +61,7 @@ quote_args() {
   for a in "$@"; do
     if [ ! "${ESCAPE_ALL_ARGS-}" ]; then
       case "$a" in
-        "&&"|"||"|")"|"("|";"|"|")
+        "&&"|"||"|")"|"("|";"|"|"|"!")
           args+=" $a"
           continue
           ;;
