@@ -314,6 +314,10 @@ _git_push() {
 # The default git push completion includes directories for some reason...
 compdef _git_push git_push
 
+wait-push() {
+  whilet '!' git status '|' grep -q 'Your branch is up to date'
+}
+
 alias gae="git_add_edit"
 git_add_edit() {(
   set -euo pipefail
