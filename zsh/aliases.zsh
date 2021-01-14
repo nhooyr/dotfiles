@@ -327,6 +327,11 @@ gcn() {(
   git commit --edit -m "$(date-full)" || true
   git_push
 )}
+bindkey-gcn() {
+  execute=1 execi gcn
+}
+zle -N bindkey-gcn
+bindkey "\er" bindkey-gcn
 
 # https://askubuntu.com/a/634655
 # --add-metadata
