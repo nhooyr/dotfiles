@@ -382,7 +382,8 @@ call s:restore()
 function! s:fzf() abort
   function! s:gcn() abort
     silent! write
-    call system("zsh -ic \"cd ~notes && git diff --cached --stat | grep -q 'deletions\\\?(-)'\"")
+    call system("zsh -ic \"cd ~notes && git add -A && git diff --cached --stat | grep -q " .
+          \ "'deletions\\\?(-)'\"")
     if v:shell_error == 0
       " Needs approval.
       call s:exit_fzf("gcn")
