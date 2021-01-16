@@ -3,7 +3,6 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-
 - [1. Fresh macOS install](#1-fresh-macos-install)
 - [2. Adjust system preferences](#2-adjust-system-preferences)
 - [3. Notification Center](#3-notification-center)
