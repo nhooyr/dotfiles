@@ -380,6 +380,7 @@ call s:restore()
 
 function! s:fzf() abort
   function! s:gcn() abort
+    silent! write
     call system("git diff --cached --stat | grep -q 'deletions\?(-)'")
     if v:shell_error == 0
       " Needs approval.
