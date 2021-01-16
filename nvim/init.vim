@@ -380,8 +380,8 @@ call s:restore()
 
 function! s:fzf() abort
   function! s:gcn() abort
-    call system("git diff --cached --stat | grep -q 'deletion(-)'")
-    if !v:shell_error
+    call system("git diff --cached --stat | grep -q 'deletions\?(-)'")
+    if v:shell_error == 0
       " Needs approval.
       call s:exit_fzf("gcn")
       return
