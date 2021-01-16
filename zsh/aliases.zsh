@@ -323,8 +323,12 @@ gcn() {(
   set -euo pipefail
   cd ~notes
   git add -A
-  # We use --edit here so I can see the diff and approve.
-  git commit --edit -m "$(date-full)" || true
+  if git diff --cached --stat | grep -q 'deletion(-)'; then
+    # We use --edit here so I can see the diff and approve.
+    git commit --edit -m "$(date-full)" || true
+  else
+    git commit -m "$(date-full)" || true
+  fi
   git_push
 )}
 bindkey-gcn() {
