@@ -379,22 +379,35 @@ endfunction
 call s:restore()
 
 function! s:fzf() abort
+  function! s:gcn() abort
+    call system("git diff --cached --stat | grep -q 'deletion(-)'")
+    if !v:shell_error
+      " Needs approval.
+      call s:exit_fzf("gcn")
+      return
+    endif
+    " No deletions so no approval needed.
+    echom 'gcn ' . strftime("%I:%M:%S%p")
+    call jobstart("zsh -ic gcn &!")
+  endfunction
+
   " This isn't used for just fzf anymore, see gcn usage.
   function! s:exit_fzf(type) abort
     if !empty($NVIM_FZF_TYPE)
       call system("echo " . a:type . " > " . $NVIM_FZF_TYPE)
     endif
     " Makes it far more efficient to switch between notes and files quickly after making
-    " small editions.
-    silent! write
-    quit
+    " small editions. To also save I mean to avoid the extra keystroke.
+    " Also more efficient than :write and :quit as :exit only writes if changes have been
+    " made!
+    exit
   endfunction
 
   nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
   inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
 
-  nnoremap <silent> <M-r> :call <SID>exit_fzf("gcn")<CR>
-  inoremap <silent> <M-r> <ESC>:call <SID>exit_fzf("gcn")<CR>
+  nnoremap <silent> <M-r> :call <SID>gcn()<CR>
+  inoremap <silent> <M-r> <ESC>:call <SID>gcn()<CR>
 
   nnoremap <silent> <M-g> :call <SID>exit_fzf("last-file")<CR>
   inoremap <silent> <M-g> <ESC>:call <SID>exit_fzf("last-file")<CR>
