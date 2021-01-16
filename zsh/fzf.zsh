@@ -260,7 +260,7 @@ zle-line-init() {
         ;;
       gcn)
         execute=1 gcn
-        fzf-quick-paths
+        execute=1 execi e "$(get-last-file)"
         ;;
     esac
   fi
