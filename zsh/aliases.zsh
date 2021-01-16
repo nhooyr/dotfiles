@@ -323,7 +323,7 @@ gcn() {(
   set -euo pipefail
   cd ~notes
   git add -A
-  if git diff --cached --stat | grep -q 'deletion(-)'; then
+  if git diff --cached --stat | grep -q 'deletions\?(-)'; then
     # We use --edit here so I can see the diff and approve.
     git commit --edit -m "$(date-full)" || true
   else
