@@ -43,3 +43,9 @@ rm -f /usr/local/share/zsh/site-functions/_git
 post_os_zshrc() {
   source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
 }
+
+# I didn't name this chromium as a show of respect towards the author.
+eloston() {
+  sh -c "/Applications/Chromium.app/Contents/MacOS/Chromium \
+  --disable-features=ExtensionsToolbarMenu $@" &>/dev/null &!
+}
