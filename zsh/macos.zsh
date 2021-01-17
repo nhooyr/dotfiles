@@ -44,8 +44,11 @@ post_os_zshrc() {
   source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
 }
 
-# I didn't name this chromium as a show of respect towards the author.
+# I didn't name this chromium as a show of respect towards the author of
+# ungoogled-chromium.
 eloston() {
-  zsh -c "/Applications/Chromium.app/Contents/MacOS/Chromium \
-  --disable-features=ExtensionsToolbarMenu $@ &>/dev/null &!"
+  (
+    /Applications/Chromium.app/Contents/MacOS/Chromium \
+    --disable-features=ExtensionsToolbarMenu $@ &>/dev/null &!
+  )
 }
