@@ -46,6 +46,6 @@ post_os_zshrc() {
 
 # I didn't name this chromium as a show of respect towards the author.
 eloston() {
-  sh -c "/Applications/Chromium.app/Contents/MacOS/Chromium \
-  --disable-features=ExtensionsToolbarMenu $@" &>/dev/null &!
+  zsh -c "/Applications/Chromium.app/Contents/MacOS/Chromium \
+  --disable-features=ExtensionsToolbarMenu $@ &>/dev/null &!"
 }
