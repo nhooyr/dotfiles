@@ -30,6 +30,15 @@ filter_exists() {
   done
 }
 
+filter_file() {
+  while IFS= read -r line; do
+    if [[ -f "$line" ]]; then
+      echo "$line"
+      return
+    fi
+  done
+}
+
 quick_paths() {
   # Ensures only absolute paths and the first argument are printed.
   # The reason we expand bookmarks is to handle old bookmarks appropriately.
@@ -233,7 +242,7 @@ if command_exists fzf; then
 fi
 
 get-last-file() {
-  quick_paths | filter_duplicates | sed '2!d'
+  quick_paths | filter_file | relative_path | replace_bookmarks
 }
 
 zle-line-init() {
