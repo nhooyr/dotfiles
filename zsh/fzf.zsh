@@ -39,7 +39,10 @@ filter_file() {
   done
 }
 
-quick_paths() {
+quick_paths() {(
+  # We run in a subshell to avoid modifying parent history.
+  fc -R
+
   # Ensures only absolute paths and the first argument are printed.
   # The reason we expand bookmarks is to handle old bookmarks appropriately.
   fc -lnr 1 | grep "^\(e\|cd\) [/~]" | sed -E "s#^(e|cd) ([^[:space:]]*).*#\2#g" | expand_bookmarks | grep -F "$PWD/"
@@ -76,7 +79,7 @@ quick_paths() {
     fd "$depth" -aI .
     scd fd "$depth" -aI . 2> /dev/null
   fi
-}
+)}
 
 replace_bookmarks() {
   local sed_expr=""
@@ -131,7 +134,7 @@ fzf-quick-paths() {
   local query="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(fc -R && quick_paths | grep -Fv ".pxd/" | grep -Fxv "$PWD" | filter_exists | relative_path \
+  selected=("${(@f)$(quick_paths | grep -Fv ".pxd/" | grep -Fxv "$PWD" | filter_exists | relative_path \
     | replace_bookmarks | filter_duplicates \
     | fzf --bind=alt-a:toggle-sort --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
