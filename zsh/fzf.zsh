@@ -245,6 +245,7 @@ if command_exists fzf; then
 fi
 
 get-last-file() {
+  # This needs to be kept in sync with the pipeline in fzf-quick-paths!
   quick_paths | filter_file | relative_path | replace_bookmarks
 }
 
