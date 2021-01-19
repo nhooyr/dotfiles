@@ -31,11 +31,13 @@ filter_exists() {
 }
 
 filter_file() {
-  while IFS= read -r line; do
-    if [[ -f "$line" ]]; then
-      echo "$line"
-      return
-    fi
+  for i in {1..2}; do
+    while IFS= read -r line; do
+      if [[ -f "$line" ]]; then
+        echo "$line"
+        break
+      fi
+    done
   done
 }
 
@@ -246,7 +248,7 @@ fi
 
 get-last-file() {
   # This needs to be kept in sync with the pipeline in fzf-quick-paths!
-  quick_paths | filter_file | relative_path | replace_bookmarks
+  quick_paths | filter_file | relative_path | replace_bookmarks | sed '2!d'
 }
 
 zle-line-init() {
