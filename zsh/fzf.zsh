@@ -246,9 +246,9 @@ if command_exists fzf; then
   bindkey "^g" fzf-commits
 fi
 
-get-last-file() {
+get-last-files() {
   # This needs to be kept in sync with the pipeline in fzf-quick-paths!
-  quick_paths | filter_file | relative_path | replace_bookmarks | sed '2!d'
+  quick_paths | filter_file | relative_path | replace_bookmarks
 }
 
 zle-line-init() {
@@ -265,7 +265,8 @@ zle-line-init() {
         fzf-quick-paths
         ;;
       last-file)
-        execute=1 execi e "$(get-last-file)"
+        # sed '2!d' grabs the second last file.
+        execute=1 execi e "$(get-last-files | sed '2!d')"
         ;;
       paths-all)
         fzf-quick-paths-all
@@ -275,7 +276,7 @@ zle-line-init() {
         ;;
       gcn)
         execute=1 gcn
-        execute=1 execi e "$(get-last-file)"
+        execute=1 execi e "$(get-last-files)"
         ;;
     esac
   fi
