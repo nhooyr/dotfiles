@@ -276,7 +276,7 @@ zle-line-init() {
         ;;
       gcn)
         execute=1 gcn
-        execute=1 execi e "$(get-last-files)"
+        execute=1 execi e "$(get-last-files | head -n1)"
         ;;
     esac
   fi
