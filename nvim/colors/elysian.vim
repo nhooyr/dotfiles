@@ -51,10 +51,10 @@ hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
 hi link StorageClass Statement
 
 " Git colors.
-hi diffAdded   ctermfg=2     ctermbg=NONE  cterm=NONE
-hi diffRemoved ctermfg=1     ctermbg=NONE  cterm=NONE
-hi diffFile    ctermfg=54    ctermbg=NONE  cterm=underline
-hi diffLine    ctermfg=61    ctermbg=NONE  cterm=underline
+hi diffAdded   ctermfg=2   ctermbg=NONE  cterm=NONE
+hi diffRemoved ctermfg=1   ctermbg=NONE  cterm=NONE
+hi diffFile    ctermfg=5   ctermbg=NONE  cterm=underline
+hi diffLine    ctermfg=5   ctermbg=NONE  cterm=underline
 hi link gitcommitSummary Normal
 
 " Diff mode colors.
