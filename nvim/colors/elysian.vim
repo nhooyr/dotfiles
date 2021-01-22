@@ -39,8 +39,8 @@ hi Comment      ctermfg=244  ctermbg=NONE cterm=NONE
 hi Constant     ctermfg=168  ctermbg=NONE cterm=NONE
 hi String       ctermfg=2    ctermbg=NONE cterm=NONE
 hi Identifier   ctermfg=61   ctermbg=NONE cterm=NONE
-hi Statement    ctermfg=54   ctermbg=NONE cterm=NONE
-hi Title        ctermfg=54   ctermbg=NONE cterm=NONE
+hi Statement    ctermfg=5    ctermbg=NONE cterm=NONE
+hi Title        ctermfg=5    ctermbg=NONE cterm=NONE
 hi PreProc      ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Type         ctermfg=NONE ctermbg=NONE cterm=NONE
 hi Special      ctermfg=6    ctermbg=NONE cterm=NONE
