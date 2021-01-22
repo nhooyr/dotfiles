@@ -6,21 +6,21 @@ let g:colors_name = "elysian"
 
 " Vim UI colors.
 hi Normal       ctermfg=NONE   ctermbg=NONE cterm=NONE
-hi CursorLine   ctermfg=NONE   ctermbg=12   cterm=NONE
-hi CursorLineNr ctermfg=244    ctermbg=12   cterm=NONE
+hi CursorLine   ctermfg=0      ctermbg=12   cterm=NONE
+hi CursorLineNr ctermfg=0      ctermbg=12   cterm=NONE
 hi LineNr       ctermfg=244    ctermbg=NONE cterm=NONE
 hi ErrorMsg     ctermfg=yellow ctermbg=NONE cterm=NONE
 hi VertSplit    ctermfg=244    ctermbg=NONE cterm=NONE
-hi MatchParen   ctermfg=NONE   ctermbg=225  cterm=NONE
+hi MatchParen   ctermfg=0      ctermbg=225  cterm=NONE
 hi NonText      ctermfg=244    ctermbg=NONE cterm=NONE
-hi IncSearch    ctermfg=NONE   ctermbg=218  cterm=NONE
-hi Search       ctermfg=NONE   ctermbg=153  cterm=NONE
-hi StatusLine   ctermfg=NONE   ctermbg=12   cterm=NONE
-hi StatusLineNC ctermfg=NONE   ctermbg=12   cterm=NONE
-hi Visual       ctermfg=NONE   ctermbg=225  cterm=NONE
+hi IncSearch    ctermfg=0      ctermbg=218  cterm=NONE
+hi Search       ctermfg=0      ctermbg=153  cterm=NONE
+hi StatusLine   ctermfg=0      ctermbg=12   cterm=NONE
+hi StatusLineNC ctermfg=0      ctermbg=12   cterm=NONE
+hi Visual       ctermfg=0      ctermbg=225  cterm=NONE
 hi TabLine      ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi TabLineFill  ctermfg=NONE   ctermbg=NONE cterm=NONE
-hi TabLineSel   ctermfg=NONE   ctermbg=218  cterm=NONE
+hi TabLineSel   ctermfg=0      ctermbg=218  cterm=NONE
 hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Folded       ctermfg=244    ctermbg=255  cterm=NONE
 hi FoldColumn   ctermfg=244    ctermbg=NONE cterm=NONE
@@ -58,10 +58,10 @@ hi diffLine    ctermfg=61    ctermbg=NONE  cterm=underline
 hi link gitcommitSummary Normal
 
 " Diff mode colors.
-hi DiffAdd    ctermfg=NONE  ctermbg=194  cterm=NONE
-hi DiffText   ctermfg=NONE  ctermbg=12   cterm=underline
-hi DiffChange ctermfg=NONE  ctermbg=12   cterm=NONE
-hi DiffDelete ctermfg=NONE  ctermbg=217  cterm=NONE
+hi DiffAdd    ctermfg=0  ctermbg=194  cterm=NONE
+hi DiffText   ctermfg=0  ctermbg=12   cterm=underline
+hi DiffChange ctermfg=0  ctermbg=12   cterm=NONE
+hi DiffDelete ctermfg=0  ctermbg=217  cterm=NONE
 hi link diffIndexLine diffFile
 
 hi link markdownItalic NONE 
