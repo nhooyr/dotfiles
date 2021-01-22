@@ -29,8 +29,8 @@
 	prompt = false
 
 [color "diff"]
-	meta = ul 54
-	frag = ul 61
+	meta = ul 5
+	frag = ul 5
 [color "decorate"]
 	branch = no-bold
 	remoteBranch = no-bold
