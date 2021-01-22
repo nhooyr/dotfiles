@@ -148,7 +148,20 @@ function! s:settings() abort
 
   let g:markdown_fenced_languages = ["bash=sh", "go"]
 
-  let &statusline=" %F %m"
+
+  let s:status_filename = ""
+  let s:status_f = ""
+  function! NhooyrStatus() abort
+    let l:status_filename = expand("%:p")
+    if l:status_filename !=# s:status_filename
+      let s:status_filename = l:status_filename
+      let s:status_f = system("zsh -c 'source ~/src/nhooyr/dotfiles/zsh/zshrc && " .
+            \ "echo -n " . s:status_filename . " | replace_bookmarks'")
+    endif
+
+    return s:status_f . " %m"
+  endfunction
+  let &statusline="%!NhooyrStatus()"
 
   " Fuck netrw.
   let g:loaded_netrw       = 1
