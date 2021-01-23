@@ -163,7 +163,8 @@ function! s:settings() abort
   "   return " " . s:status_f . " %m"
   " endfunction
   " let &statusline="%!NhooyrStatus()"
-  let &statusline=" %F %m"
+  " %p shows percentage of *current* line but %P shows percentage of last line visible.
+  let &statusline=" %F %m %= %l    %P "
 
   " Fuck netrw.
   let g:loaded_netrw       = 1
@@ -181,7 +182,7 @@ function! s:settings() abort
     " See runtime/scripts.vim
     autocmd BufWinEnter *.txt set ft=text
 
-    autocmd BufWinEnter * setlocal number
+    " autocmd BufWinEnter * setlocal number
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
