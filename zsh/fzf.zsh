@@ -1,6 +1,6 @@
 fzf_default_opts=(
   "--color dark"
-  "--color bg+:7,fg+:0,pointer:0,prompt:-1"
+  "--color bg+:236,pointer:7,prompt:-1"
   "--color hl:3:underline,hl+:3:underline,info:-1,spinner:-1"
   "--tabstop=4"
   "--layout=reverse"
