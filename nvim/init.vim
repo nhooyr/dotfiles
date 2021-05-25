@@ -22,7 +22,7 @@ function! s:plugins() abort
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
-  Plug 'neovim/nvim-lsp'
+  Plug 'neovim/nvim-lspconfig'
 
   Plug 'simnalamburt/vim-mundo'
   Plug 'nhooyr/emmet-vim' " Plug 'mattn/emmet-vim'
@@ -473,13 +473,13 @@ function! s:lsp() abort
   if !exists("g:nhooyr_lsp")
     let g:nhooyr_lsp = 1
     lua << EOF
-    local lsp_loaded, lsp = pcall(require, "nvim_lsp")
+    local lsp_loaded, lsp = pcall(require, "lspconfig")
     if not lsp_loaded then
       return
     end
 
     -- Disable diagnostics globally.
-    vim.lsp.callbacks["textDocument/publishDiagnostics"] = function() end
+    vim.lsp.handlers["textDocument/publishDiagnostics"] = function() end
 
     lsp.gopls.setup{}
     lsp.tsserver.setup{}
