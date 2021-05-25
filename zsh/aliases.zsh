@@ -313,9 +313,10 @@ date-full() {
 note() {
   local notes_subdir=""
   if [ "$#" -gt 0 ]; then
-    notes_subdir="$1"
+    notes_subdir="/$1"
   fi
-  cd ~notes"/$notes_subdir" e "$(dt).txt"
+  md ~notes"$notes_subdir"
+  e ~notes"$notes_subdir/$(dt).txt"
 }
 
 # Commits my ~notes repository with the full date/time as the commit message.
