@@ -290,7 +290,7 @@ gho() {(
 
 alias ghf="gh repo fork --remote"
 ghc() {
-  gh repo create -y "$@" | cat &&
+  gh repo create -y "$@" &&
   ghd "${@[-1]}"
 }
 
