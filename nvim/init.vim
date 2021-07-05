@@ -126,10 +126,11 @@ function! s:settings() abort
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
 
-  " It gets really confusing when line numbers are disabled as you can't tell what's a
-  " continuation and usually I don't care for text beyond 120 char as it's probably a
-  " link.
-  set nowrap
+  " I ended up enabling line numbers for this reason.
+  " " It gets really confusing when line numbers are disabled as you can't tell what's a
+  " " continuation and usually I don't care for text beyond 120 char as it's probably a
+  " " link.
+  " set nowrap
 
   if has("vim_starting")
     set tabstop=2
@@ -143,6 +144,7 @@ function! s:settings() abort
   set textwidth=90
 
   set formatoptions+=cro
+  set formatoptions-=t
 
   " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
   set foldopen=
@@ -187,7 +189,7 @@ function! s:settings() abort
     " See runtime/scripts.vim
     autocmd BufWinEnter *.txt set ft=text
 
-    " autocmd BufWinEnter * setlocal number
+    autocmd BufWinEnter * setlocal number
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
