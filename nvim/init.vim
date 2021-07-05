@@ -143,7 +143,7 @@ function! s:settings() abort
   endif
   set textwidth=90
 
-  set formatoptions+=cro
+  set formatoptions+=ro
   set formatoptions-=t
 
   " https://vim.fandom.com/wiki/Search_only_in_unfolded_text
