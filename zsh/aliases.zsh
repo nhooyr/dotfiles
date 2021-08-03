@@ -356,13 +356,22 @@ alias grepw='git grep -I "\\s\+\$"'
 alias sedw='git grep -Il "" | xargs -n1 gsed -i "s/\\s\\+\$//g"'
 
 lotto() {
+  local output=""
   for (( i = 1; i <= $numbers; i++)); do
-    if [[ $i > 1 ]]; then
-      printf " "
+    local r="$RANDOM"
+    local n="$(printf "%02d" "$(( $range_start + $r % $range_end ))")"
+
+    if grep -q "$n" <<< "$output"; then
+      i=$(($i - 1))
+      continue
     fi
-    printf "%02d" "$(( $range_start + $RANDOM % $range_end ))"
+
+    if [[ $i > 1 ]]; then
+      output+=" "
+    fi
+    output+="$n"
   done
-  printf "\n"
+  printf "$output\n"
 }
 
 lottomax() {
