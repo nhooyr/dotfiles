@@ -355,12 +355,26 @@ alias yaudio="youtube-dl --add-metadata -f 'bestaudio[ext=m4a]' --embed-thumbnai
 alias grepw='git grep -I "\\s\+\$"'
 alias sedw='git grep -Il "" | xargs -n1 gsed -i "s/\\s\\+\$//g"'
 
-lottomax() {
-  for (( i = 1; i <= 7; i++)); do
+lotto() {
+  for (( i = 1; i <= $numbers; i++)); do
     if [[ $i > 1 ]]; then
       printf " "
     fi
-    printf $(( $RANDOM % 50 + 1 ))
+    printf "%02d" "$(( $range_start + $RANDOM % $range_end ))"
   done
   printf "\n"
+}
+
+lottomax() {
+  local numbers=7
+  local range_start=1
+  local range_end=50
+  lotto
+}
+
+lotto649() {
+  local numbers=6
+  local range_start=1
+  local range_end=49
+  lotto
 }
