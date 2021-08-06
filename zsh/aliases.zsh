@@ -386,3 +386,10 @@ lotto649() {
   local range_end=49
   lotto
 }
+
+mansects() {
+  for dir in "${(@s.:.)$(man -w)}"; do
+    echo "$dir"
+    l -H "$dir"
+  done
+}
