@@ -357,7 +357,7 @@ alias sedw='git grep -Il "" | xargs -n1 gsed -i "s/\\s\\+\$//g"'
 
 lotto() {
   local output=""
-  for (( i = 1; i <= $numbers; i++)); do
+  for (( i = 1; i <= $count; i++)); do
     # See the following:
     # https://stackoverflow.com/questions/63544826/unix-shell-why-are-the-same-random-numbers-repeated
     local r="$RANDOM"
@@ -368,20 +368,23 @@ lotto() {
       continue
     fi
 
-    output+=" $n"
+    output+="$n
+"
   done
-  printf "${output:1}\n"
+
+  output="$(printf "$output" | sort -n | tr "\n" " ")"
+  printf "${output:0:-1}\n"
 }
 
 lottomax() {
-  local numbers=7
+  local count=7
   local range_start=1
   local range_end=50
   lotto
 }
 
 lotto649() {
-  local numbers=6
+  local count=6
   local range_start=1
   local range_end=49
   lotto
