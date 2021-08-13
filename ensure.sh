@@ -30,6 +30,8 @@ main() {
   if [ -f ./secrets/ensure.sh ]; then
     ./secrets/ensure.sh
   fi
+  
+  echo "Would you like to play Rocket League w vapurrmaid sometime? <3"
 }
 
 main "$@"
