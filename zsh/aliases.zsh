@@ -351,6 +351,9 @@ bindkey "\er" bindkey-gcn
 # re-encode the audio. youtube seems to only support m4a, mp4 and webm. Of which m4a is
 # best for obvious reasons. Though perhaps I should look into webm more.
 alias yaudio="youtube-dl --add-metadata -f 'bestaudio[ext=m4a]' --embed-thumbnail"
+ytitle() {
+  curl -fsSL "$1" | sed -n 's;.*<title>\(.*\)</title>.*;\1;p'
+}
 
 alias grepw='git grep -I "\\s\+\$"'
 alias sedw='git grep -Il "" | xargs -n1 gsed -i "s/\\s\\+\$//g"'
