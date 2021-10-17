@@ -46,3 +46,7 @@ append-ampersands() {
 }
 zle -N append-ampersands
 bindkey "\ea" append-ampersands
+
+# By default ^U deletes the entire line in zsh.
+# Why they deviate from bash here I will never know.
+bindkey "^U" backward-kill-line
