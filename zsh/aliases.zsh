@@ -406,7 +406,7 @@ tire-diameter() {
   local wheel_diameter="$(echo "$1" | sed -n 's;.*R\([0-9]+\);\1;p')"
   if [ ! "$width_mm" -o ! "$sidewall_ratio_pct" -o ! "$wheel_diameter" ]; then
     echo "usage: tire-diameter <tire-size>
-Where tire-size is standard format XXX/YYRZZ."
+Where tire-size is metric size like XXX/YYRZZ."
     return 1
   fi
 
