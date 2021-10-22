@@ -242,7 +242,7 @@ up_d() {
 }
 
 calc() {
-  command bc <<< "$*"
+  command bc -l <<< "$*"
 }
 
 alias p8="ping 8.8.8.8"
