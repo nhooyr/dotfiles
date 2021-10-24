@@ -23,6 +23,7 @@
 [diff]
 	algorithm = histogram
 	tool = nvimdiff
+	wsErrorHighlight = all
 [difftool "nvimdiff"]
 	cmd = "nvim -d \"$LOCAL\" \"$REMOTE\""
 [difftool]
@@ -31,6 +32,7 @@
 [color "diff"]
 	meta = ul 5
 	frag = ul 5
+	whitespace = "yellow reverse"
 [color "decorate"]
 	branch = no-bold
 	remoteBranch = no-bold
