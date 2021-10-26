@@ -402,7 +402,7 @@ mansects() {
 
 tire-diameter() {
   local width_mm="$(echo "$1" | sed -n 's;[^0-9]*\([0-9]*\)/.*;\1;p')"
-  local sidewall_ratio_pct="$(echo "$1" | sed -n 's;.*/\([0-9]*\)R.*;\1;p')"
+  local sidewall_ratio_pct="$(echo "$1" | sed -n 's;.*/\([0-9]*\)[^0-9].*;\1;p')"
   local wheel_diameter="$(echo "$1" | sed -n 's;.*R\([0-9]*\).*;\1;p')"
   if [ ! "$width_mm" -o ! "$sidewall_ratio_pct" -o ! "$wheel_diameter" ]; then
     echo "usage: tire-diameter <tire-size>
