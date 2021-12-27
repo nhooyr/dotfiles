@@ -65,3 +65,5 @@ hi DiffDelete ctermfg=0  ctermbg=217  cterm=NONE
 hi link diffIndexLine diffFile
 
 hi link markdownItalic NONE
+
+hi link qfFileName Identifier
