@@ -4,7 +4,7 @@ bindkey "^v" autosuggest-execute
 
 # Color 153 from https://jonasjacek.github.io/colors/.
 # https://stackoverflow.com/a/62008734/4283659
-zstyle ":completion:*:default" list-colors ${(s.:.)NHOOYR_LS_COLORS} "ma=48;5;153;1"
+zstyle ":completion:*:default" list-colors ${(s.:.)NHOOYR_LS_COLORS} "ma=48;5;153;30"
 # Binds Shift + Tab reverse completion.
 # https://stackoverflow.com/a/842370/4283659
 bindkey "^[[Z" reverse-menu-complete
