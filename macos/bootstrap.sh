@@ -23,7 +23,6 @@ EOF
     yarn \
     shellcheck \
     shfmt \
-    neovim \
     duti \
     coreutils
 
@@ -35,8 +34,7 @@ EOF
     parallels \
     google-chrome \
     firefox \
-    slack \
-    discord
+    slack
 }
 
 main "$@"
