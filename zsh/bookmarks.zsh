@@ -34,6 +34,10 @@ bookmarks=(
   "$HOME/src/neovim/neovim"
 
   "$HOME/Pictures"
+
+  "$HOME/src/terrastruct"
+  "$HOME/src/terrastruct/wiki"
+  "$HOME/src/terrastruct/noti"
 )
 
 setup_bookmarks() {
