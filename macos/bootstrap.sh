@@ -7,6 +7,7 @@ main() {
   git submodule update --init
 
   # Install homebrew.
+  PATH="$PATH:/opt/homebrew/bin"
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 
   # Enable touchid sudo.
@@ -24,9 +25,10 @@ EOF
     shellcheck \
     shfmt \
     duti \
-    coreutils
+    coreutils \
+    google-cloud-sdk
 
-  brew cask install \
+  brew install \
     alfred \
     spotify \
     bettertouchtool \
