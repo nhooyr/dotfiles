@@ -12,7 +12,7 @@ prompt() {
     echo -n "%n%f"
   fi
 
-  if [[ $HOST != ien* ]]; then
+  if [[ $HOST != ien* && $HOST != sfto* ]]; then
     local host=1
     if [[ $user ]]; then
       echo -n "@"

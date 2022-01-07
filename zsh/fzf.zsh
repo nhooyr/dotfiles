@@ -66,7 +66,7 @@ quick_paths() {(
     fd -d2 . ~/Downloads
   fi
 
-  if [ -e ~Pictures ]; then
+  if [ -e ~Pictures/2020 ]; then
     echo ~Pictures/2020
     fd -H . ~Pictures/2020
   fi
