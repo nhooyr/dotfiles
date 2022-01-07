@@ -4,7 +4,6 @@
 [user]
 	name = Anmol Sethi
 	email = hi@nhooyr.io
-	signingKey = 8CEF1878FF10ADEB
 
 [commit]
 	gpgSign = true
