@@ -42,7 +42,8 @@ prepend_PATH /opt/homebrew/bin
 
 # Has to be loaded after completion.
 post_os_zshrc() {
-  source "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc"
+  source_if_exists "/usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc" || true
+  source_if_exists "/opt/homebrew/bin/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc" || true
 }
 
 # I didn't name this chromium as a show of respect towards the author of
