@@ -187,6 +187,7 @@ function! s:settings() abort
     autocmd BufWinEnter *.txt set ft=text
 
     autocmd BufWinEnter * setlocal number
+    autocmd BufWinEnter * setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
