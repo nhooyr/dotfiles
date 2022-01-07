@@ -27,5 +27,5 @@ if command_exists post_os_zshrc; then
 fi
 
 if [ "$PWD" = "$HOME" ]; then
-  cd ~notes
+  mcd ~notes
 fi
