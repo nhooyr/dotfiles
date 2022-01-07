@@ -18,6 +18,7 @@ EOF
 
   brew install neovim --HEAD
   brew install \
+    zsh \
     gnupg \
     go \
     node \
