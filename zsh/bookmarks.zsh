@@ -36,8 +36,9 @@ bookmarks=(
   "$HOME/Pictures"
 
   "$HOME/src/terrastruct"
+  "$HOME/src/terrastruct/terrastruct-backend"
+  "$HOME/src/terrastruct/terrastruct-frontend"
   "$HOME/src/terrastruct/wiki"
-  "$HOME/src/terrastruct/noti"
 )
 
 setup_bookmarks() {
