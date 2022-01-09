@@ -1,5 +1,6 @@
 export GOPATH=~gopath
 prepend_PATH ~gopath/bin
+prepend_PATH ~/.cargo/bin
 
 if command_exists nvim; then
   export EDITOR=nvim
@@ -21,3 +22,6 @@ NHOOYR_LS_COLORS="di=38;5;18:ln=35:so=32:pi=32:ex=31;01"
 export LS_COLORS="$RESET_LS_COLORS:$NHOOYR_LS_COLORS"
 
 export HUSKY_SKIP_HOOKS=1
+
+# Python on M1 macs is shit.
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES

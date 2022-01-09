@@ -18,11 +18,6 @@ prepend_path() {
   local var="$1"
   local p="$2"
 
-  if [[ "$p" == /usr/local/* ]]; then
-    # For ARM macOS
-    prepend_path "$1" "${p/#\/usr\/local//opt/homebrew}"
-  fi
-
   if [[ ! "${(P)var}" ]]; then
     eval "$var=$p"
     return
@@ -30,6 +25,12 @@ prepend_path() {
 
   if [[ "${(P)var}" != *$p* ]]; then
     eval "$var=$p:${(P)var}"
+  fi
+
+
+  if [[ "$p" == /usr/local/* ]]; then
+    # For ARM macOS
+    prepend_path "$var" "${p/#\/usr\/local//opt/homebrew}"
   fi
 }
 

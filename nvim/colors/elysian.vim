@@ -67,3 +67,5 @@ hi link diffIndexLine diffFile
 hi link markdownItalic NONE
 
 hi link qfFileName Identifier
+
+hi link zshVariable Identifier
