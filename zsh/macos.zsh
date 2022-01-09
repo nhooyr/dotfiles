@@ -38,6 +38,7 @@ prepend_PATH /usr/local/opt/node@12/bin
 prepend_path FPATH /usr/local/share/zsh-completions
 # Always use zsh's _git completion instead of the one bundled with git.
 rm -f /usr/local/share/zsh/site-functions/_git
+rm -f /opt/homebrew/share/zsh/site-functions/_git
 prepend_PATH /opt/homebrew/bin
 
 # Has to be loaded after completion.
