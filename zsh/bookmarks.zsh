@@ -39,6 +39,8 @@ bookmarks=(
   "$HOME/src/terrastruct/terrastruct-backend"
   "$HOME/src/terrastruct/terrastruct-frontend"
   "$HOME/src/terrastruct/wiki"
+  "$HOME/src/terrastruct/ansible"
+  "$HOME/src/terrastruct/envs"
 )
 
 setup_bookmarks() {
