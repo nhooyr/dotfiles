@@ -82,6 +82,9 @@ alias gf="git fetch --all"
 alias gp="git_push"
 alias gpf="git_push -f"
 alias gsh="git show"
+gshh() {
+  git show --no-patch --format=%B "$@" | ghead -n-1
+}
 gshm() {
   git show --no-patch --format=%b "$@" | ghead -n-1
 }

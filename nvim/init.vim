@@ -285,9 +285,6 @@ function! s:maps() abort
   nnoremap <silent> <C-s> :silent w<CR>
   inoremap <silent> <C-s> <Esc>:silent w<CR>
   cnoremap <silent> <C-s> <C-c>:silent w<CR>
-  nnoremap <silent> <C-x> :silent x<CR>
-  inoremap <silent> <C-x> <Esc>:silent x<CR>
-  cnoremap <silent> <C-x> <C-c>:silent x<CR>
   nnoremap <silent> <C-q> :silent quit!<CR>
   inoremap <silent> <C-q> <Esc>:silent quit!<CR>
   cnoremap <silent> <C-q> <C-c>:silent quit!<CR>
@@ -356,6 +353,10 @@ function! s:maps() abort
 
     " q should always quit.
     autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+    " C-x should always do :x.
+    autocmd FileType * nnoremap <buffer> <nowait> <silent> <C-x> :silent x<CR>
+    autocmd FileType * inoremap <buffer> <nowait> <silent> <C-x> <Esc>:silent x<CR>
+    autocmd FileType * cnoremap <buffer> <nowait> <silent> <C-x> <C-c>:silent x<CR>
   augroup END
 
   if executable("rg")
@@ -516,7 +517,7 @@ EOF
 
   augroup nhooyr_lsp
     autocmd!
-    autocmd FileType go,vim,lua,javascript,typescript*,c,cpp call s:b_lsp()
+    autocmd FileType go,vim,lua,javascript*,typescript*,c,cpp call s:b_lsp()
   augroup END
 endfunction
 call s:lsp()
