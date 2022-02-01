@@ -12,13 +12,9 @@ function! s:plugins() abort
   Plug 'fatih/vim-go'
 
   Plug 'tpope/vim-surround'
-  " Plug 'tpope/vim-endwise'
   Plug 'tpope/vim-commentary'
-  " Plug 'Raimondi/delimitMate'
-  " Plug 'tmsvg/pear-tree'
 
   Plug 'Shougo/neosnippet.vim'
-  Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lspconfig'
 
   Plug 'simnalamburt/vim-mundo'
@@ -517,7 +513,7 @@ EOF
 
   augroup nhooyr_lsp
     autocmd!
-    autocmd FileType go,vim,lua,javascript*,typescript*,c,cpp call s:b_lsp()
+    autocmd FileType go,lua,javascript*,typescript*,c,cpp call s:b_lsp()
   augroup END
 endfunction
 call s:lsp()

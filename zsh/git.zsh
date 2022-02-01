@@ -83,7 +83,7 @@ alias gp="git_push"
 alias gpf="git_push -f"
 alias gsh="git show"
 gshh() {
-  git show --no-patch --format=%B "$@" | ghead -n-1
+  git show --no-patch --format=%B "$@" | ghead -n1
 }
 gshm() {
   git show --no-patch --format=%b "$@" | ghead -n-1
