@@ -80,6 +80,7 @@ alias gbd="git branch -d"
 alias gpl="git pull"
 alias gf="git fetch --all"
 alias gp="git_push"
+alias sgp="git push"
 alias gpf="git_push -f"
 alias gsh="git show"
 gshh() {

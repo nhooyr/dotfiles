@@ -38,6 +38,10 @@ ses() {
 
 e() {
   export NVIM_FZF_TYPE="$(mktemp -d)/nvim_fzf_type"
+  if [ -d "$@" ] && [ "$#" -gt 0 ] ; then
+    cd "$@"
+    return
+  fi
   command "$EDITOR" "$@"
   if [[ ! -e "$NVIM_FZF_TYPE" ]]; then
     unset NVIM_FZF_TYPE
