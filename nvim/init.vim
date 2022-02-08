@@ -15,6 +15,7 @@ function! s:plugins() abort
   Plug 'tpope/vim-commentary'
 
   Plug 'Shougo/neosnippet.vim'
+  Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lspconfig'
 
   Plug 'simnalamburt/vim-mundo'

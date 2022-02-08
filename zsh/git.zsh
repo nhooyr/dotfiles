@@ -118,7 +118,7 @@ alias gddc="git difftool --cached"
 
 alias grb="git rebase"
 grbi() {
-  if [[ ! "$@" ]]; then
+  if [ "$*" = "" ]; then
     set -- origin/master
   else
     # Include the passed commit.
