@@ -62,6 +62,7 @@ compdef _git gacp=git-add
 alias fcm="ga . && gcme && gpf"
 alias gcma="gcm --amend"
 alias gcme="gcm --amend --no-edit"
+alias gcmd='gcm --message "$(date-full)"'
 ga() {
   if [[ ! "$@" ]]; then
     set -- -A
