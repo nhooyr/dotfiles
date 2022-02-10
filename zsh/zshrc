@@ -25,6 +25,9 @@ source_if_exists ~zsh/local.zsh
 if command_exists post_os_zshrc; then
   post_os_zshrc
 fi
+if command_exists post_secrets_zshrc; then
+  post_secrets_zshrc
+fi
 
 if [ "$PWD" = "$HOME" ]; then
   mcd ~notes
