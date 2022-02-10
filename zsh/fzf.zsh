@@ -144,7 +144,7 @@ fzf-quick-paths() {
   local query="${LBUFFER##* }"
 
   local selected
-  selected=("${(@f)$(quick_paths | grep -Fv ".pxd/" | grep -Fxv "$PWD" | filter_exists | relative_path \
+  selected=("${(@f)$(quick_paths | grep -Fv ".pxd/" | grep -Fxv "$PWD/" | filter_exists | relative_path \
     | replace_bookmarks | filter_duplicates \
     | fzf --bind=alt-a:toggle-sort --bind=alt-v:toggle-sort --expect=ctrl-v,ctrl-x --query="$query")}")
   local key="${selected[1]}"
