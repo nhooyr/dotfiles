@@ -205,8 +205,8 @@ rs() {
   rsync -ah --partial "$@" >&2
 }
 
-# https://stackoverflow.com/questions/3482289/easiest-way-to-strip-newline-character-from-input-string-in-pasteboard#comment63851141_3482322
-alias pc="xargs echo -n | pbcopy"
+# https://unix.stackexchange.com/a/541415
+alias pc="perl -pe 'chomp if eof' | pbcopy"
 alias pp="pbpaste"
 alias catq="jq -R"
 
