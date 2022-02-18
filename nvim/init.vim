@@ -10,6 +10,7 @@ function! s:plugins() abort
 
   call plug#begin(stdpath("data") . "/plugged")
   Plug 'fatih/vim-go'
+  Plug 'mracos/mermaid.vim'
 
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-commentary'
@@ -481,9 +482,7 @@ function! s:lsp() abort
 
     lsp.gopls.setup{}
     lsp.tsserver.setup{}
-    lsp.vimls.setup{}
     lsp.clangd.setup{}
-    lsp.sumneko_lua.setup{}
 EOF
   endif
 
