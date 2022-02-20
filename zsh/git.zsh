@@ -84,11 +84,11 @@ alias gp="git_push"
 alias sgp="git push"
 alias gpf="git_push -f"
 alias gsh="git show"
-gshh() {
-  git show --no-patch --format=%B "$@" | ghead -n1
+gshs() {
+  git show --no-patch --format=%s "$@"
 }
-gshm() {
-  git show --no-patch --format=%b "$@" | ghead -n-1
+gshb() {
+  git show --no-patch --format=%b "$@"
 }
 alias gst="git stash"
 alias gstp="git stash pop"
