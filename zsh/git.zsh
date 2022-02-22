@@ -81,7 +81,7 @@ alias gbd="git branch -d"
 alias gpl="git pull"
 alias gf="git fetch --all"
 alias gp="git_push"
-alias sgp="git push"
+alias gps="git push"
 alias gpf="git_push -f"
 alias gsh="git show"
 gshs() {
@@ -122,9 +122,12 @@ alias grb="git rebase"
 grbi() {
   if [ "$*" = "" ]; then
     set -- origin/master
-  else
+  fi
+  git rebase --interactive "$@"
+}
+grbif() {
+  if [ -n "$*" ]; then
     # Include the passed commit.
-    # See git.txt
     set -- "${@:1:-1}" "${@:-1}~1"
   fi
   git rebase --interactive "$@"
