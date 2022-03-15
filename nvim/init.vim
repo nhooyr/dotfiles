@@ -10,7 +10,6 @@ function! s:plugins() abort
 
   call plug#begin(stdpath("data") . "/plugged")
   Plug 'fatih/vim-go'
-  Plug 'mracos/mermaid.vim'
 
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-commentary'
@@ -24,6 +23,7 @@ function! s:plugins() abort
   Plug 'PeterRincker/vim-argumentative'
   Plug 'godlygeek/tabular'
   Plug 'chrisbra/Recover.vim'
+  Plug expand('~/src/terrastruct/tdia-vim')
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -372,6 +372,13 @@ function! s:maps() abort
   " inoremap "; ""<Left>
   " inoremap '; ''<Left>
   " inoremap `; ``<Left>
+
+
+  function! s:lvimgrep(pattern) abort
+    call feedkeys("/".a:pattern."/\<CR>")
+    call feedkeys(":lvimgrep /".a:pattern."/j %\<CR>")
+  endfunction
+  command! -nargs=+ S call <SID>lvimgrep(<q-args>)
 endfunction
 call s:maps()
 

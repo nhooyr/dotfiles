@@ -1,5 +1,6 @@
 alias g="git"
 alias gb="git branch"
+alias gbr="git branch -rv"
 # This does not work with upstream tracking branches. So annoying.
 # anything not origin i mean.
 #   gch upstream/my-branch
