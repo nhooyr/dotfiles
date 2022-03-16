@@ -373,12 +373,15 @@ function! s:maps() abort
   " inoremap '; ''<Left>
   " inoremap `; ``<Left>
 
-
   function! s:lvimgrep(pattern) abort
     call feedkeys("/".a:pattern."/\<CR>")
     call feedkeys(":lvimgrep /".a:pattern."/j %\<CR>")
   endfunction
   command! -nargs=+ S call <SID>lvimgrep(<q-args>)
+
+  " Life saver alignment mapping.
+  " https://unix.stackexchange.com/a/179319
+  vnoremap <silent> <C-l> :!column -t \| sed 's/\( *\) /\1/g'<CR>
 endfunction
 call s:maps()
 

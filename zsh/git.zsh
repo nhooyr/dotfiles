@@ -14,6 +14,12 @@ gch() {(
       return
     fi
 
+    # Check if the passed argument is just a commit.
+    if [ "$1" == "$(git rev-parse "$1" 2>&1)" ]; then
+      git checkout "$@"
+      return
+    fi
+
     if [ ! "$(git branch --list "$*")" ] && [ ! "$(git branch --list --remote "origin/$*")" ]; then
       set "$*-$(xxd -p -l 2 /dev/urandom)"
       git branch "$@"
