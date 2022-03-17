@@ -35,18 +35,18 @@ augroup END
 
 
 " Language colors.
-hi Comment      ctermfg=244  ctermbg=NONE cterm=NONE
-hi Constant     ctermfg=168  ctermbg=NONE cterm=NONE
-hi String       ctermfg=2    ctermbg=NONE cterm=NONE
-hi Identifier   ctermfg=61   ctermbg=NONE cterm=NONE
-hi Statement    ctermfg=5    ctermbg=NONE cterm=NONE
-hi Title        ctermfg=5    ctermbg=NONE cterm=NONE
-hi PreProc      ctermfg=NONE ctermbg=NONE cterm=NONE
-hi Type         ctermfg=NONE ctermbg=NONE cterm=NONE
-hi Special      ctermfg=6    ctermbg=NONE cterm=NONE
-hi Underlined   ctermfg=6    ctermbg=NONE cterm=NONE
-hi Error        ctermfg=NONE ctermbg=NONE cterm=NONE
-hi Todo         ctermfg=NONE ctermbg=NONE cterm=bold
+hi Comment    ctermfg=244    ctermbg=NONE cterm=NONE
+hi Constant   ctermfg=168    ctermbg=NONE cterm=NONE
+hi String     ctermfg=2      ctermbg=NONE cterm=NONE
+hi Identifier ctermfg=61     ctermbg=NONE cterm=NONE
+hi Statement  ctermfg=5      ctermbg=NONE cterm=NONE
+hi Title      ctermfg=5      ctermbg=NONE cterm=NONE
+hi PreProc    ctermfg=NONE   ctermbg=NONE cterm=NONE
+hi Type       ctermfg=NONE   ctermbg=NONE cterm=NONE
+hi Special    ctermfg=6      ctermbg=NONE cterm=NONE
+hi Underlined ctermfg=6      ctermbg=NONE cterm=NONE
+hi Error      ctermfg=yellow ctermbg=NONE cterm=NONE
+hi Todo       ctermfg=NONE   ctermbg=NONE cterm=bold
 " By default StorageClass links to Type which makes no sense.
 hi link StorageClass Statement
 
