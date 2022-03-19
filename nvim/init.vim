@@ -150,7 +150,6 @@ function! s:settings() abort
 
   let g:markdown_fenced_languages = ["bash=sh", "go"]
 
-
   " Too slow for now, maybe use jobstart later in future but iris.
   " let s:status_filename = ""
   " let s:status_f = ""
@@ -179,10 +178,6 @@ function! s:settings() abort
     " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
     autocmd FocusGained * checktime
     autocmd FocusLost * wshada
-
-    " zsh.txt is not a zshell script...
-    " See runtime/scripts.vim
-    autocmd BufWinEnter *.txt set ft=text
 
     autocmd BufWinEnter * setlocal number
     autocmd BufWinEnter * setlocal nocursorline
@@ -342,8 +337,8 @@ function! s:maps() abort
     autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
 
     autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<CR>:nohlsearch<CR><C-o>
-    autocmd FileType diff nnoremap <buffer> <silent> <M-p> :call <SID>diff_next("?")<CR>
-    autocmd FileType diff nnoremap <buffer> <silent> <M-n> :call <SID>diff_next("/")<CR>
+    autocmd FileType diff nnoremap <buffer> <silent> <M-p>     :call  <SID>diff_next("?")<CR>
+    autocmd FileType diff nnoremap <buffer> <silent> <M-n>     :call  <SID>diff_next("/")<CR>
 
     " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
     autocmd QuickFixCmdPost [^l]* cwindow
