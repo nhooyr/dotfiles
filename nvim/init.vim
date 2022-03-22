@@ -200,6 +200,8 @@ function! s:settings() abort
     autocmd!
     autocmd BufWritePre * call s:mkdirp(expand("<afile>"), +expand("<abuf>"))
   augroup END
+
+  set digraph
 endfunction
 call s:settings()
 
