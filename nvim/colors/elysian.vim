@@ -25,8 +25,8 @@ hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Folded       ctermfg=244    ctermbg=255  cterm=NONE
 hi FoldColumn   ctermfg=244    ctermbg=NONE cterm=NONE
 
-hi Directory    ctermfg=17     ctermbg=NONE cterm=NONE
-hi SpecialKey   ctermfg=5      ctermbg=NONE cterm=underline
+hi Directory  ctermfg=18 ctermbg=NONE cterm=NONE
+hi SpecialKey ctermfg=5 ctermbg=NONE cterm=underline
 augroup elysian
   autocmd!
   " Ignore carriage returns.
@@ -42,7 +42,7 @@ hi Identifier ctermfg=61     ctermbg=NONE cterm=NONE
 hi Statement  ctermfg=5      ctermbg=NONE cterm=NONE
 hi Title      ctermfg=5      ctermbg=NONE cterm=NONE
 hi PreProc    ctermfg=NONE   ctermbg=NONE cterm=NONE
-hi Type       ctermfg=NONE   ctermbg=NONE cterm=NONE
+hi Type       ctermfg=4      ctermbg=NONE cterm=NONE
 hi Special    ctermfg=6      ctermbg=NONE cterm=NONE
 hi Underlined ctermfg=6      ctermbg=NONE cterm=NONE
 hi Error      ctermfg=yellow ctermbg=NONE cterm=NONE
@@ -69,3 +69,5 @@ hi link markdownItalic NONE
 hi link qfFileName Identifier
 
 hi link zshVariable Identifier
+
+hi link diaKeyReserved Type

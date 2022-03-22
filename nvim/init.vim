@@ -23,7 +23,7 @@ function! s:plugins() abort
   Plug 'PeterRincker/vim-argumentative'
   Plug 'godlygeek/tabular'
   Plug 'chrisbra/Recover.vim'
-  Plug expand('~/src/terrastruct/tdia-vim')
+  Plug expand('~/src/terrastruct/dia-vim')
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
