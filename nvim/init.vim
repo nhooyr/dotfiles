@@ -24,6 +24,7 @@ function! s:plugins() abort
   Plug 'godlygeek/tabular'
   Plug 'chrisbra/Recover.vim'
   Plug expand('~/src/terrastruct/dia-vim')
+  " Plug 'terrastruct/dia-vim'
   call plug#end()
 
   command! PU PlugUpgrade | PlugUpdate
@@ -148,7 +149,7 @@ function! s:settings() abort
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 
-  let g:markdown_fenced_languages = ["bash=sh", "go"]
+  let g:markdown_fenced_languages = ["bash=sh", "go", 'dia']
 
   " Too slow for now, maybe use jobstart later in future but iris.
   " let s:status_filename = ""
@@ -181,6 +182,7 @@ function! s:settings() abort
 
     autocmd BufWinEnter * setlocal number
     autocmd BufWinEnter * setlocal nocursorline
+    autocmd FileType vim-plug setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth

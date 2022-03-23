@@ -40,9 +40,10 @@ hi Constant   ctermfg=168    ctermbg=NONE cterm=NONE
 hi String     ctermfg=2      ctermbg=NONE cterm=NONE
 hi Identifier ctermfg=61     ctermbg=NONE cterm=NONE
 hi Statement  ctermfg=5      ctermbg=NONE cterm=NONE
+hi Operator   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Title      ctermfg=5      ctermbg=NONE cterm=NONE
 hi PreProc    ctermfg=NONE   ctermbg=NONE cterm=NONE
-hi Type       ctermfg=4      ctermbg=NONE cterm=NONE
+hi Type       ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Special    ctermfg=6      ctermbg=NONE cterm=NONE
 hi Underlined ctermfg=6      ctermbg=NONE cterm=NONE
 hi Error      ctermfg=yellow ctermbg=NONE cterm=NONE
@@ -69,5 +70,3 @@ hi link markdownItalic NONE
 hi link qfFileName Identifier
 
 hi link zshVariable Identifier
-
-hi link diaKeyReserved Type
