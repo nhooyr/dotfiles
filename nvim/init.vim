@@ -14,6 +14,8 @@ function! s:plugins() abort
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-commentary'
 
+  Plug 'tpope/vim-fugitive'
+
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
   Plug 'neovim/nvim-lspconfig'
@@ -40,8 +42,8 @@ function! s:plugin_settings() abort
 
   let g:surround_no_insert_mappings = 1
 
-  map! <silent> <C-k> <Plug>(neosnippet_expand)
-  map! <silent> <C-j> <Plug>(neosnippet_jump)
+  imap <silent> <C-i> <Plug>(neosnippet_expand)
+  imap <silent> <C-j> <Plug>(neosnippet_jump)
   imap <silent><expr> <C-l> '- '.strftime("%I:%M:%S%p").': '
   nmap <silent> <M-o> o<C-o>"_d0<C-l>
 
@@ -169,8 +171,12 @@ function! s:settings() abort
   let &statusline=" %F %m %= %l    %P "
 
   " Fuck netrw.
-  let g:loaded_netrw       = 1
-  let g:loaded_netrwPlugin = 1
+  " let g:loaded_netrw       = 1
+  " let g:loaded_netrwPlugin = 1
+  let g:netrw_banner=0
+  let g:netrw_cursor = 0
+
+  set autochdir
 
   augroup nhooyr_settings
     autocmd!
@@ -202,8 +208,6 @@ function! s:settings() abort
     autocmd!
     autocmd BufWritePre * call s:mkdirp(expand("<afile>"), +expand("<abuf>"))
   augroup END
-
-  set digraph
 endfunction
 call s:settings()
 
