@@ -35,6 +35,8 @@ endfunction
 call s:plugins()
 
 function! s:plugin_settings() abort
+  let g:dia_block_string_syntaxes = {'zsh': ['zsh'], 'rust': ['rust'], 'typescript': ['typescript', 'ts']}
+
   let g:mundo_close_on_revert = 1
   let g:mundo_verbose_graph = 0
   let g:mundo_header = 0
@@ -151,8 +153,6 @@ function! s:settings() abort
 
   set diffopt+=foldcolumn:0,algorithm:histogram
 
-  let g:markdown_fenced_languages = ["bash=sh", "go", 'dia']
-
   " Too slow for now, maybe use jobstart later in future but iris.
   " let s:status_filename = ""
   " let s:status_f = ""
@@ -192,6 +192,7 @@ function! s:settings() abort
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
+    autocmd FileType help setlocal fo-=t
   augroup END
 
   function! s:mkdirp(file, buf) abort
@@ -328,6 +329,8 @@ function! s:maps() abort
 
   nnoremap <Leader>r :%s##
   vnoremap <Leader>r :s##
+  " https://vim.fandom.com/wiki/Search_for_visually_selected_text
+  vnoremap // y/\V<C-R>=escape(@",'/\')<CR><CR>
 
   function! s:diff_next(direction) abort
     " Jumps to the next comment block.
