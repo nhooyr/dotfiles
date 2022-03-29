@@ -85,7 +85,7 @@ endfunction
 call s:plugin_settings()
 
 function! s:settings() abort
-  " set autochdir
+  set autochdir
   set backup
   set backupdir=~/.local/share/nvim/backup//
   call mkdir(&backupdir, "p")
@@ -176,8 +176,6 @@ function! s:settings() abort
   let g:netrw_banner=0
   let g:netrw_cursor = 0
 
-  set autochdir
-
   augroup nhooyr_settings
     autocmd!
     autocmd TextYankPost * silent! lua require'vim.highlight'.on_yank(nil, 150)
@@ -209,6 +207,8 @@ function! s:settings() abort
     autocmd!
     autocmd BufWritePre * call s:mkdirp(expand("<afile>"), +expand("<abuf>"))
   augroup END
+
+  let g:is_posix = 1
 endfunction
 call s:settings()
 
