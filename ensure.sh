@@ -6,7 +6,7 @@ main() {
 
   ./ln.sh git ~/.config/git
   ./ln.sh nvim ~/.config/nvim
-  ./ln.sh vimrc ~/.vimrc
+  ./ln.sh nvim/vimrc ~/.vimrc
   ./ln.sh zsh/zshrc ~/.zshrc
   ./ln.sh zsh/zshenv ~/.zshenv
   ./ln.sh fd ~/.config/fd
