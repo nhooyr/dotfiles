@@ -1,0 +1,4 @@
+" Used for debugging vim.
+set rtp+=$HOME/src/terrastruct/dia-vim
+filetype plugin indent on
+syntax on
