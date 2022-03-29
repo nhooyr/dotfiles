@@ -46,7 +46,7 @@ hi PreProc    ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Type       ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Special    ctermfg=6      ctermbg=NONE cterm=NONE
 hi Underlined ctermfg=6      ctermbg=NONE cterm=NONE
-hi Error      ctermfg=yellow ctermbg=NONE cterm=bold,underline
+hi Error      ctermfg=yellow ctermbg=NONE cterm=bold,underline,reverse
 hi Todo       ctermfg=NONE   ctermbg=NONE cterm=bold
 " By default StorageClass links to Type which makes no sense.
 hi link StorageClass Statement
