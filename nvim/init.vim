@@ -193,6 +193,10 @@ function! s:settings() abort
     autocmd FileType help setlocal fo-=t
   augroup END
 
+  set breakindent
+  set breakindentopt=shift:2
+  set showbreak=>>
+
   function! s:mkdirp(file, buf) abort
     if !empty(getbufvar(a:buf, "&buftype"))
       return
