@@ -77,7 +77,7 @@ ls() {
   fi
   if [[ "$ls" == "gls" || "$OSTYPE" == linux-* ]]; then
     # GNU ls.
-    command "$ls" --indicator-style=classify --color=auto --group-directories-first "$@"
+    command "$ls" -v --indicator-style=classify --color=auto --group-directories-first "$@"
   else
     # BSD ls.
     command ls -GF "$@"
