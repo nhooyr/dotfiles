@@ -420,3 +420,5 @@ Where tire-size is metric size like XXX/YYRZZ."
 
   echo "$diameter"
 }
+
+alias psqlc="PSQL_PAGER= psql -XAtc"

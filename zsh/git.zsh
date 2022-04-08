@@ -323,11 +323,10 @@ git_push() {(
   if [ ${GIT_PUSH_SYNC-} ]; then
     unset GIT_PUSH_SYNC
     git push "$@"
-    return
+  else
+    # It gives status info on stderr so we have to redirect both.
+    git push "$@" &> /dev/null &!
   fi
-
-  # It gives status info on stderr so we have to redirect both.
-  git push "$@" &> /dev/null &!
 )}
 _git_push() {
   compadd "${(@f)$(git remote)}"
