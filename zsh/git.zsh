@@ -88,7 +88,7 @@ alias gbd="git branch -d"
 alias gpl="git pull"
 alias gf="git fetch --all"
 alias gp="git_push"
-alias gps="git push"
+alias gps="GIT_PUSH_SYNC=1 git_push"
 alias gpf="git_push -f"
 alias gsh="git show"
 gshs() {
@@ -318,6 +318,12 @@ git_push() {(
     local branch
     branch="$(git rev-parse --abbrev-ref HEAD)"
     set -- -u "$@" origin "+$branch:$branch"
+  fi
+
+  if [ ${GIT_PUSH_SYNC-} ]; then
+    unset GIT_PUSH_SYNC
+    git push "$@"
+    return
   fi
 
   # It gives status info on stderr so we have to redirect both.

@@ -12,6 +12,7 @@ main() {
   ./ln.sh fd ~/.config/fd
   ./ln.sh tmux/tmux.conf ~/.tmux.conf
   ./ln.sh emacs ~/.emacs.d
+  ./ln.sh psql/psqlrc ~/.psqlrc
 
   # Required for SSH multiplexing.
   mkdir -p ~/.ssh/sockets
