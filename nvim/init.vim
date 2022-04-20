@@ -25,7 +25,7 @@ function! s:plugins() abort
   Plug 'PeterRincker/vim-argumentative'
   Plug 'godlygeek/tabular'
   Plug 'chrisbra/Recover.vim'
-  Plug expand('~/src/terrastruct/dia-vim')
+  Plug expand('~/src/terrastruct/d2-vim')
   " Plug 'terrastruct/dia-vim'
   call plug#end()
 
@@ -36,6 +36,14 @@ call s:plugins()
 
 function! s:plugin_settings() abort
   let g:dia_block_string_syntaxes = {'zsh': ['zsh'], 'rust': ['rust'], 'typescript': ['typescript', 'ts']}
+
+  augroup nhooyr_dia_go
+    autocmd!
+    autocmd Syntax go unlet b:current_syntax | syn include @goRawStringD2 syntax/dia.vim | let b:current_syntax = 'go'
+    autocmd Syntax go unlet b:current_syntax | syn include @goRawStringJSON syntax/json.vim | let b:current_syntax = 'go'
+    autocmd Syntax go syn region goRawStringD2 matchgroup=goRawString start=/\/\/raw:embed d2\n.\{-}`/ end=/`/ contains=@goRawStringD2
+    autocmd Syntax go syn region goRawStringJSON matchgroup=goRawString start=/\/\/raw:embed json\n.\{-}`/ end=/`/ contains=@goRawStringJSON
+  augroup END
 
   let g:mundo_close_on_revert = 1
   let g:mundo_verbose_graph = 0

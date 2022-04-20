@@ -16,7 +16,7 @@
 	pruneTags = true
 
 [merge]
- 	conflictstyle = diff3
+ 	conflictstyle = zdiff3
 [diff]
 	algorithm = histogram
 	tool = nvimdiff
