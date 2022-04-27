@@ -39,10 +39,10 @@ function! s:plugin_settings() abort
 
   augroup nhooyr_dia_go
     autocmd!
-    autocmd Syntax go unlet b:current_syntax | syn include @goRawStringD2 syntax/dia.vim | let b:current_syntax = 'go'
-    autocmd Syntax go unlet b:current_syntax | syn include @goRawStringJSON syntax/json.vim | let b:current_syntax = 'go'
+    " autocmd Syntax go unlet b:current_syntax | syn include @goRawStringD2 syntax/dia.vim | let b:current_syntax = 'go'
+    " autocmd Syntax go unlet b:current_syntax | syn include @goRawStringJSON syntax/json.vim | let b:current_syntax = 'go'
     " autocmd Syntax go syn region goRawStringD2 matchgroup=goRawString start=/\/\/raw:embed d2\n.\{-}`/ end=/`/ contains=@goRawStringD2
-    autocmd Syntax go syn region goRawStringJSON matchgroup=goRawString start=/\/\/raw:embed json\n.\{-}`/ end=/`/ contains=@goRawStringJSON
+    " autocmd Syntax go syn region goRawStringJSON matchgroup=goRawString start=/\/\/raw:embed json\n.\{-}`/ end=/`/ contains=@goRawStringJSON
   augroup END
 
   let g:mundo_close_on_revert = 1
