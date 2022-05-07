@@ -232,7 +232,7 @@ up_d() {
   while true; do;
     local head="$(basename "$dir")"
 
-    if rg -q "$pattern" <<< "$head"; then
+    if rg -q "^$pattern$" <<< "$head"; then
       cd "$dir"
       return
     fi
