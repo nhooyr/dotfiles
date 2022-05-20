@@ -305,7 +305,7 @@ function! s:maps() abort
 
   " nnoremap <silent> <C-e> 2<C-e>
   " nnoremap <silent> <C-y> 2<C-y>
-  nnoremap <silent> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
+  nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>:echo v:hlsearch<CR>
 
   nnoremap <silent> <C-k> <C-W>k
   nnoremap <silent> <C-l> <C-W>l

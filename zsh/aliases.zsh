@@ -36,9 +36,11 @@ ses() {
   tmux new -A -s "${1-default}"
 }
 
+alias er="e -R"
+
 e() {
   export NVIM_FZF_TYPE="$(mktemp -d)/nvim_fzf_type"
-  if [ -d "$@" ] && [ "$#" -gt 0 ] ; then
+  if [ -d "$*" ] && [ "$#" -gt 0 ] ; then
     cd "$@"
     return
   fi
