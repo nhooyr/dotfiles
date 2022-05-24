@@ -8,3 +8,6 @@
 #  /etc/bash.bashrc: line 8: PS1: unbound variable
 #  + true
 unset SSH_CLIENT
+
+# See /etc/zshrc_Apple_Terminal
+export SHELL_SESSIONS_DISABLE=1
