@@ -197,6 +197,8 @@ function! s:settings() abort
     autocmd!
     autocmd TextYankPost * silent! lua require'vim.highlight'.on_yank(nil, 150)
 
+    " https://superuser.com/a/1090762
+    autocmd CursorHold * checktime
     " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
     autocmd FocusGained * checktime
     autocmd FocusLost * wshada
