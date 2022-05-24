@@ -458,6 +458,11 @@ function! s:maps() abort
   " Life saver alignment mapping.
   " https://unix.stackexchange.com/a/179319
   vnoremap <silent> <C-l> :!column -t \| sed 's/\( *\) /\1/g'<CR>
+
+  function! s:note() abort
+    execute 'edit $HOME/src/notes/'.strftime("%Y/%m/%d").'.txt'
+  endfunction
+  nnoremap <silent> <M-n> :call <SID>note()<CR>
 endfunction
 call s:maps()
 
