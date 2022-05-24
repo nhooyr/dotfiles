@@ -348,8 +348,8 @@ function! s:maps() abort
   cnoremap <silent> <C-q> <C-c>:silent quit!<CR>
   " tnoremap <silent> <C-q> <C-\><C-n>:silent quit!<CR>
 
-  " nnoremap <silent> <C-e> 2<C-e>
-  " nnoremap <silent> <C-y> 2<C-y>
+  nnoremap <silent> <C-e> 2<C-e>
+  nnoremap <silent> <C-y> 2<C-y>
   nnoremap <silent> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 
   nnoremap <silent> <M-l> :tabnext<CR>
