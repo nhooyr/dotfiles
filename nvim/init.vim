@@ -524,7 +524,15 @@ function! s:fzf() abort
 
   command! -nargs=1 Term file term://<args>
 
-  nnoremap <silent> <M-t> :term<CR>:execute 'Term '.g:TabooTabName(tabpagenr()).'-'.bufnr("%")<CR>
+  function! s:term() abort
+    term
+    let l:tabname = g:TabooTabName(tabpagenr())
+    if empty(l:tabname)
+      let l:tabname = "scratch"
+    endif
+    execute 'Term '.l:tabname.'-'.bufnr("%")
+  endfunction
+  nnoremap <silent> <M-t> :call <SID>term()<CR>
   tnoremap <silent> <ESC> <C-\><C-n>
   " tnoremap <silent> <C-l> clear<CR>
 
