@@ -347,7 +347,7 @@
 	<key>BellBounceCritical</key>
 	<false/>
 	<key>CommandString</key>
-	<string>login -fpql nhooyr /opt/homebrew/bin/zsh -l</string>
+	<string></string>
 	<key>CursorBlink</key>
 	<false/>
 	<key>CursorColor</key>
@@ -426,7 +426,7 @@
 	<key>ShowActiveProcessInTabTitle</key>
 	<true/>
 	<key>ShowActiveProcessInTitle</key>
-	<true/>
+	<false/>
 	<key>ShowActivityIndicatorInTab</key>
 	<true/>
 	<key>ShowCommandKeyInTitle</key>
@@ -438,7 +438,7 @@
 	<key>ShowRepresentedURLInTabTitle</key>
 	<true/>
 	<key>ShowRepresentedURLInTitle</key>
-	<true/>
+	<false/>
 	<key>ShowRepresentedURLPathInTabTitle</key>
 	<false/>
 	<key>ShowRepresentedURLPathInTitle</key>

@@ -1,3 +1,9 @@
+if command_exists /opt/homebrew/bin/zsh; then
+  SHELL=/opt/homebrew/bin/zsh
+elif command_exists /usr/local/bin/zsh; then
+  SHELL=/usr/local/bin/zsh
+fi
+
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 export HOMEBREW_NO_EMOJI=1
@@ -58,3 +64,5 @@ eloston() {
 
 # Python on M1 macs is shit.
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+
+touch ~/.bash_sessions_disable

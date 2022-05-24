@@ -434,7 +434,6 @@ ses() {
   touch "$XDG_DATA_HOME/nvim/sessions/$NVIM_SESSION.vim"
   NVIM_SESSION="$NVIM_SESSION" \
     EDITOR=nvim_terminal_editor \
-    SHELL=/opt/homebrew/bin/zsh \
     nvim \
     --listen "/tmp/nvim-$NVIM_SESSION" \
     -S "$XDG_DATA_HOME/nvim/sessions/$NVIM_SESSION.vim"

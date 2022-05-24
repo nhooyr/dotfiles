@@ -36,6 +36,8 @@ endfunction
 call s:plugins()
 
 function! s:plugin_settings() abort
+  set sessionoptions+=tabpages,globals
+
   let g:dia_block_string_syntaxes = {'zsh': ['zsh'], 'rust': ['rust'], 'typescript': ['typescript', 'ts']}
 
   augroup nhooyr_dia_go
@@ -93,6 +95,7 @@ endfunction
 call s:plugin_settings()
 
 function! s:settings() abort
+  set nohidden
   " set autochdir
   set backup
   set backupdir=~/.local/share/nvim/backup//
@@ -204,8 +207,6 @@ function! s:settings() abort
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
     autocmd FileType help setlocal fo-=t
-
-    autocmd BufEnter term://* startinsert
   augroup END
 
   set breakindent
@@ -275,7 +276,10 @@ function! s:maps() abort
   noremap ; :
   noremap , ;
   nnoremap <silent> <nowait> q :quit<CR>
-  nnoremap <silent> Q q
+  nnoremap <silent> Qm q
+  nnoremap <silent> Q: q:
+  nnoremap <silent> Q/ q/
+  nnoremap <silent> Q? q?
   nnoremap <silent> <M-q> @@
   nnoremap <silent> <leader>ee :e $MYVIMRC<CR>
   nnoremap <silent> <leader>ec :e ~/.config/nvim/colors/elysian.vim<CR>
@@ -315,11 +319,12 @@ function! s:maps() abort
 
   " Emacs style insert and command line keybindings
   " https://github.com/maxbrunsfeld/vim-emacs-bindings/blob/master/plugin/emacs-bindings.vim
-  noremap! <C-f> <Right>
+  inoremap <C-f> <Right>
   noremap! <C-b> <Left>
   noremap! <C-e> <End>
   inoremap <nowait> <C-g> <C-e>
   cnoremap <C-a> <Home>
+  cnoremap <C-X><C-A> <C-A>
   inoremap <C-a> <C-o>^
   noremap! <C-d> <Del>
 
@@ -347,6 +352,9 @@ function! s:maps() abort
   " nnoremap <silent> <C-y> 2<C-y>
   nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>:echo v:hlsearch<CR>
 
+  nnoremap <silent> <M-l> :tabnext<CR>
+  nnoremap <silent> <M-h> :tabprev<CR>
+
   nnoremap <silent> <C-k> <C-W>k
   nnoremap <silent> <C-l> <C-W>l
   nnoremap <silent> <C-j> <C-W>j
@@ -355,7 +363,8 @@ function! s:maps() abort
   tnoremap <silent> <C-l> <C-\><C-n><C-W>l
   tnoremap <silent> <C-j> <C-\><C-n><C-W>j
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
-  nnoremap <silent> <C-w>d :bdelete<CR>
+  " nnoremap <silent> <C-w>d :bdelete<CR>
+  nnoremap <silent> <M-d> :buf<Bar>bdelete#<CR>
   " inoremap <silent> <C-k> <Esc><C-W>k
   " inoremap <silent> <C-l> <Esc><C-W>l
   " inoremap <silent> <C-j> <Esc><C-W>j
@@ -417,7 +426,7 @@ function! s:maps() abort
     " C-x should always do :x.
     autocmd FileType * nnoremap <buffer> <nowait> <silent> <C-x> :silent x<CR>
     autocmd FileType * inoremap <buffer> <nowait> <silent> <C-x> <Esc>:silent x<CR>
-    autocmd FileType * cnoremap <buffer> <nowait> <silent> <C-x> <C-c>:silent x<CR>
+    " autocmd FileType * cnoremap <buffer> <nowait> <silent> <C-x> <C-c>:silent x<CR>
   augroup END
 
   if executable("rg")
@@ -504,8 +513,11 @@ function! s:fzf() abort
     exit
   endfunction
 
-  nnoremap <silent> <M-t> :term<CR>:startinsert<CR>
+  command! -nargs=1 Term file term://<args>
+
+  nnoremap <silent> <M-t> :term<CR>:execute 'Term '.g:TabooTabName(tabpagenr()).'-'.bufnr("%")<CR>
   tnoremap <silent> <ESC> <C-\><C-n>
+  tnoremap <silent> <C-l> clear<CR>
 
   nnoremap <silent> <M-g> :GitFiles<CR>
   nnoremap <silent> <M-v> :GitFiles?<CR>
@@ -523,7 +535,7 @@ function! s:fzf() abort
   " function! s:quickPathsSink(path) abort
   "   let l:system("zsh -c 'source ~/.zshrc && eval \"echo $1\"' -- ".shellescape('~notes'))
   " endfunction
-  command! QuickPaths call fzf#run(fzf#wrap({'source': 'source $HOME/.zshrc && processed_quick_paths | expand_bookmarks'}))
+  command! QuickPaths call fzf#run(fzf#wrap({'source': 'source ~/.zshrc && processed_quick_paths | expand_bookmarks'}))
   nnoremap <silent> <M-p> :QuickPaths<CR>
   inoremap <silent> <M-p> <ESC>:QuickPaths<CR>
 
