@@ -354,6 +354,10 @@ function! s:maps() abort
 
   nnoremap <silent> <M-l> :tabnext<CR>
   nnoremap <silent> <M-h> :tabprev<CR>
+  inoremap <silent> <M-l> <ESC>:tabnext<CR>
+  inoremap <silent> <M-h> <ESC>:tabprev<CR>
+  tnoremap <silent> <M-l> <C-\><C-n>:tabnext<CR>
+  tnoremap <silent> <M-h> <C-\><C-n>:tabprev<CR>
 
   nnoremap <silent> <C-k> <C-W>k
   nnoremap <silent> <C-l> <C-W>l
@@ -517,7 +521,7 @@ function! s:fzf() abort
 
   nnoremap <silent> <M-t> :term<CR>:execute 'Term '.g:TabooTabName(tabpagenr()).'-'.bufnr("%")<CR>
   tnoremap <silent> <ESC> <C-\><C-n>
-  tnoremap <silent> <C-l> clear<CR>
+  " tnoremap <silent> <C-l> clear<CR>
 
   nnoremap <silent> <M-g> :GitFiles<CR>
   nnoremap <silent> <M-v> :GitFiles?<CR>
@@ -528,8 +532,8 @@ function! s:fzf() abort
   inoremap <silent> <M-v> <ESC>:GitFiles?<CR>
   inoremap <silent> <M-w> <ESC>:Windows<CR>
 
-  tnoremap <silent> <M-g> <C-\><C-n>:GitFiles<CR>
-  tnoremap <silent> <M-v> <C-\><C-n>:GitFiles?<CR>
+  " tnoremap <silent> <M-g> <C-\><C-n>:GitFiles<CR>
+  " tnoremap <silent> <M-v> <C-\><C-n>:GitFiles?<CR>
   tnoremap <silent> <M-w> <C-\><C-n>:Windows<CR>
 
   " function! s:quickPathsSink(path) abort
