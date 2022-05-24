@@ -24,6 +24,7 @@ function! s:plugins() abort
   Plug 'junegunn/fzf.vim'
 
   Plug 'gcmt/taboo.vim'
+  Plug 'justinmk/vim-dirvish'
 
   Plug expand('~/src/terrastruct/d2-vim')
   " Plug 'terrastruct/dia-vim'
@@ -92,7 +93,7 @@ endfunction
 call s:plugin_settings()
 
 function! s:settings() abort
-  set autochdir
+  " set autochdir
   set backup
   set backupdir=~/.local/share/nvim/backup//
   call mkdir(&backupdir, "p")
@@ -178,10 +179,13 @@ function! s:settings() abort
   let &statusline=" %F %m %= %l    %P "
 
   " Fuck netrw.
-  " let g:loaded_netrw       = 1
-  " let g:loaded_netrwPlugin = 1
+  let g:loaded_netrw       = 1
+  let g:loaded_netrwPlugin = 1
   let g:netrw_banner=0
   let g:netrw_cursor = 0
+  " netrw needs an explicit nu here for line numbers otherwise they don't always come up
+  " even with FileType and BufWinEnter set.
+  " let g:netrw_bufsettings = 'noma nomod nonu nowrap ro nobl nu'
 
   augroup nhooyr_settings
     autocmd!
@@ -191,9 +195,11 @@ function! s:settings() abort
     autocmd FocusGained * checktime
     autocmd FocusLost * wshada
 
+    autocmd FileType * setlocal number
+    autocmd FileType * setlocal nocursorline
     autocmd BufWinEnter * setlocal number
     autocmd BufWinEnter * setlocal nocursorline
-    autocmd FileType vim-plug setlocal nocursorline
+    autocmd BufEnter * setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
@@ -220,6 +226,24 @@ function! s:settings() abort
   augroup END
 
   let g:is_posix = 1
+
+  augroup nhooyr_autocd
+    autocmd!
+    autocmd FileType * silent! lcd %:p:h
+    autocmd BufEnter * silent! lcd %:p:h
+  augroup END
+
+  augroup nhooyr_session
+    autocmd!
+    autocmd BufRead session.vim so %
+    autocmd VimLeave * call <SID>save_current_session()
+    function! s:save_current_session() abort
+      if v:this_session == ""
+        return
+      endif
+      execute 'mksession! ' . v:this_session
+    endfunction
+  augroup END
 endfunction
 call s:settings()
 
@@ -416,6 +440,9 @@ function! s:restore() abort
     if &diff
       return
     endif
+    if &buftype ==# "terminal"
+      return
+    endif
     if $EDITOR_LINE !=# ""
       execute 'normal! ' . $EDITOR_LINE.'G^zz'
       unlet $EDITOR_LINE
@@ -459,12 +486,22 @@ function! s:fzf() abort
     exit
   endfunction
 
+  nnoremap <silent> <M-t> :term<CR>:startinsert<CR>
+  tnoremap <silent> <ESC> <C-\><C-n>
+
   nnoremap <silent> <M-g> :GitFiles<CR>
   inoremap <silent> <M-g> <ESC>:GitFiles<CR>
   nnoremap <silent> <M-b> :Buffers<CR>
   inoremap <silent> <M-b> <ESC>:Buffers<CR>
   nnoremap <silent> <M-w> :Windows<CR>
   inoremap <silent> <M-w> <ESC>:Windows<CR>
+
+  " function! s:quickPathsSink(path) abort
+  "   let l:system("zsh -c 'source ~/.zshrc && eval \"echo $1\"' -- ".shellescape('~notes'))
+  " endfunction
+  command! QuickPaths call fzf#run(fzf#wrap({'source': 'source $HOME/.zshrc && processed_quick_paths | expand_bookmarks'}))
+  nnoremap <silent> <M-p> :QuickPaths<CR>
+  inoremap <silent> <M-p> <ESC>:QuickPaths<CR>
 
   " nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
   " inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>

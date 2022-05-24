@@ -23,5 +23,4 @@ export LS_COLORS="$RESET_LS_COLORS:$NHOOYR_LS_COLORS"
 
 export HUSKY_SKIP_HOOKS=1
 
-# Python on M1 macs is shit.
-export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+export XDG_DATA_HOME=~/.local/share

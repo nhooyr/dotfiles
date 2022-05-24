@@ -55,3 +55,6 @@ eloston() {
     --disable-features=ExtensionsToolbarMenu $@ &>/dev/null &!
   )
 }
+
+# Python on M1 macs is shit.
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
