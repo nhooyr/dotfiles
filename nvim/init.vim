@@ -9,22 +9,22 @@ function! s:plugins() abort
   endif
 
   call plug#begin(stdpath("data") . "/plugged")
-  Plug 'fatih/vim-go'
+  Plug 'neovim/nvim-lspconfig'
+  Plug 'PeterRincker/vim-argumentative'
+  Plug 'simnalamburt/vim-mundo'
 
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-commentary'
-
   Plug 'tpope/vim-fugitive'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
-  Plug 'neovim/nvim-lspconfig'
 
-  Plug 'simnalamburt/vim-mundo'
-  Plug 'nhooyr/emmet-vim' " Plug 'mattn/emmet-vim'
-  Plug 'PeterRincker/vim-argumentative'
-  Plug 'godlygeek/tabular'
-  Plug 'chrisbra/Recover.vim'
+  Plug 'junegunn/fzf'
+  Plug 'junegunn/fzf.vim'
+
+  Plug 'gcmt/taboo.vim'
+
   Plug expand('~/src/terrastruct/d2-vim')
   " Plug 'terrastruct/dia-vim'
   call plug#end()
@@ -57,15 +57,15 @@ function! s:plugin_settings() abort
   imap <silent><expr> <C-l> '- '.strftime("%I:%M:%S%p").': '
   nmap <silent> <M-o> o<C-o>"_d0<C-l>
 
-  let g:user_emmet_leader_key = "<C-y>"
-  let g:user_emmet_mode="i"
+  " let g:user_emmet_leader_key = "<C-y>"
+  " let g:user_emmet_mode="i"
 
-  let g:go_gopls_enabled = 0
-  let g:go_echo_go_info = 0
-  let g:go_template_autocreate = 0
-  let g:go_fmt_autosave = 0
+  " let g:go_gopls_enabled = 0
+  " let g:go_echo_go_info = 0
+  " let g:go_template_autocreate = 0
+  " let g:go_fmt_autosave = 0
 
-  let g:delimitMate_expand_cr = 1
+  " let g:delimitMate_expand_cr = 1
 
   nmap <C-_> gcc
   vmap <C-_> gc
@@ -74,12 +74,11 @@ function! s:plugin_settings() abort
 
   inoremap <silent> <M-CR> <CR><M-O>
 
-  augroup nhooyr_plugins
-    autocmd!
-    autocmd FileType markdown noremap <buffer> <silent> <C-t> :Tabularize /\|<CR>
-    " https://github.com/fatih/vim-go/blob/bd56f5690807d4a92652fe7a4d10dc08f260564e/ftdetect/gofiletype.vim#L10
-    autocmd BufRead,BufNewFile *.gohtml set filetype=gohtmltmpl
-  augroup END
+  " augroup nhooyr_plugins
+  "   autocmd!
+  "   " https://github.com/fatih/vim-go/blob/bd56f5690807d4a92652fe7a4d10dc08f260564e/ftdetect/gofiletype.vim#L10
+  "   autocmd BufRead,BufNewFile *.gohtml set filetype=gohtmltmpl
+  " augroup END
 
   " To avoid conflict with my insert mode <C-x> keybind.
   " From vim-endwise.
@@ -225,6 +224,10 @@ endfunction
 call s:settings()
 
 function! s:maps() abort
+  nnoremap <silent> t zt
+  nnoremap <silent> s zz
+  nnoremap <nowait> z zb
+
   nnoremap <silent> <Leader>s :source $MYVIMRC<CR>
   nnoremap <silent> <Leader>cd :cd %:h<CR>
 
@@ -266,10 +269,10 @@ function! s:maps() abort
   vnoremap <silent> c "_c
   nnoremap <silent> C "_C
   vnoremap <silent> C "_C
-  nnoremap <silent> s "_s
-  vnoremap <silent> s "_s
-  nnoremap <silent> S "_S
-  noremap <silent> S "_S
+  " nnoremap <silent> s "_s
+  " vnoremap <silent> s "_s
+  " nnoremap <silent> S "_S
+  " noremap <silent> S "_S
 
   vnoremap <silent> > >gv
   vnoremap <silent> < <gv
@@ -336,8 +339,8 @@ function! s:maps() abort
   nnoremap <silent> ]t :tabn<CR>
   nnoremap <silent> [t :tabp<CR>
 
-  nnoremap <silent> z] zo]z
-  nnoremap <silent> z[ zo[z
+  " nnoremap <silent> z] zo]z
+  " nnoremap <silent> z[ zo[z
 
   nnoremap <Leader>r :%s##
   vnoremap <Leader>r :s##
@@ -456,20 +459,27 @@ function! s:fzf() abort
     exit
   endfunction
 
-  nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
-  inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
+  nnoremap <silent> <M-g> :GitFiles<CR>
+  inoremap <silent> <M-g> <ESC>:GitFiles<CR>
+  nnoremap <silent> <M-b> :Buffers<CR>
+  inoremap <silent> <M-b> <ESC>:Buffers<CR>
+  nnoremap <silent> <M-w> :Windows<CR>
+  inoremap <silent> <M-w> <ESC>:Windows<CR>
+
+  " nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
+  " inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
 
   nnoremap <silent> <M-r> :call <SID>gcn()<CR>
   inoremap <silent> <M-r> <ESC>:call <SID>gcn()<CR>
 
-  nnoremap <silent> <M-g> :call <SID>exit_fzf("last-file")<CR>
-  inoremap <silent> <M-g> <ESC>:call <SID>exit_fzf("last-file")<CR>
+  " nnoremap <silent> <M-g> :call <SID>exit_fzf("last-file")<CR>
+  " inoremap <silent> <M-g> <ESC>:call <SID>exit_fzf("last-file")<CR>
 
-  nnoremap <silent> <M-a> :call <SID>exit_fzf("paths-all")<CR>
-  inoremap <silent> <M-a> <ESC>:call <SID>exit_fzf("paths-all")<CR>
+  " nnoremap <silent> <M-a> :call <SID>exit_fzf("paths-all")<CR>
+  " inoremap <silent> <M-a> <ESC>:call <SID>exit_fzf("paths-all")<CR>
 
-  nnoremap <silent> <M-t> :call <SID>exit_fzf("rg")<CR>
-  inoremap <silent> <M-t> <ESC>:call <SID>exit_fzf("rg")<CR>
+  " nnoremap <silent> <M-t> :call <SID>exit_fzf("rg")<CR>
+  " inoremap <silent> <M-t> <ESC>:call <SID>exit_fzf("rg")<CR>
 
   " Adds all accessed files into my shell history.
   function! s:update_history() abort

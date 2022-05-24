@@ -317,13 +317,16 @@ date-full() {
   date "+%Y-%m-%d %I:%M:%S%p"
 }
 
-note() {
+notepath() {
   local notes_subdir=""
   if [ "$#" -gt 0 ]; then
     notes_subdir="/$1"
   fi
   md ~notes"$notes_subdir"
-  e ~notes"$notes_subdir/$(dt).txt"
+  echo ~notes"$notes_subdir/$(dt).txt"
+}
+note() {
+  e "$(notepath)"
 }
 
 # Commits my ~notes repository with the full date/time as the commit message.
