@@ -32,7 +32,7 @@ alias rb="s reboot"
 alias po="s poweroff"
 alias tmux="tmux -S /tmp/tmux"
 
-ses() {
+tses() {
   tmux new -A -s "${1-default}"
 }
 
@@ -427,3 +427,15 @@ Where tire-size is metric size like XXX/YYRZZ."
 }
 
 alias psqlc="PSQL_PAGER= psql -XAtc"
+
+ses() {
+  NVIM_SESSION="$1" 
+
+  touch "$XDG_DATA_HOME/nvim/sessions/$NVIM_SESSION.vim"
+  NVIM_SESSION="$NVIM_SESSION" \
+    EDITOR=nvim_terminal_editor \
+    SHELL=/opt/homebrew/bin/zsh \
+    nvim \
+    --listen "/tmp/nvim-$NVIM_SESSION" \
+    -S "$XDG_DATA_HOME/nvim/sessions/$NVIM_SESSION.vim"
+}

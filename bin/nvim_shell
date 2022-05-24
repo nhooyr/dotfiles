@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+printf %s "$*"
+if [ $# -eq 0 ]; then
+  login -fpql nhooyr /opt/homebrew/bin/zsh -l
+  exit 0
+fi
+
+/bin/zsh "$@"

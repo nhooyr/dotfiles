@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+nvr --servername "/tmp/nvim-$NVIM_SESSION" --remote-wait "$@"
+# Once neovim supports:
+# nvim --server "/tmp/nvim-$NVIM_SESSION" --remote-wait "$@"

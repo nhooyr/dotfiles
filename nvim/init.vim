@@ -204,6 +204,8 @@ function! s:settings() abort
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
     autocmd FileType help setlocal fo-=t
+
+    autocmd BufEnter term://* startinsert
   augroup END
 
   set breakindent
@@ -233,9 +235,19 @@ function! s:settings() abort
     autocmd BufEnter * silent! lcd %:p:h
   augroup END
 
+  function! s:make_session(name) abort
+    let l:sessions_file = stdpath('data').'/sessions/'.a:name.'.vim'
+    if !filereadable(l:sessions_file)
+      return
+    endif
+    silent !mkdir -p $XDG_DATA_HOME/nvim/sessions
+    execute 'silent mksession! '.l:sessions_file
+  endfunction
+  command! -nargs=1 MakeSession call <SID>make_session(<q-args>)
+
   augroup nhooyr_session
     autocmd!
-    autocmd BufRead session.vim so %
+    execute 'autocmd BufRead '.fnameescape(stdpath('data')).'/sessions/*.vim silent source %'
     autocmd VimLeave * call <SID>save_current_session()
     function! s:save_current_session() abort
       if v:this_session == ""
@@ -329,6 +341,7 @@ function! s:maps() abort
   nnoremap <silent> <C-q> :silent quit!<CR>
   inoremap <silent> <C-q> <Esc>:silent quit!<CR>
   cnoremap <silent> <C-q> <C-c>:silent quit!<CR>
+  tnoremap <silent> <C-q> <C-\><C-n>:silent quit!<CR>
 
   " nnoremap <silent> <C-e> 2<C-e>
   " nnoremap <silent> <C-y> 2<C-y>
@@ -338,6 +351,11 @@ function! s:maps() abort
   nnoremap <silent> <C-l> <C-W>l
   nnoremap <silent> <C-j> <C-W>j
   nnoremap <silent> <C-h> <C-W>h
+  tnoremap <silent> <C-k> <C-\><C-n><C-W>k
+  tnoremap <silent> <C-l> <C-\><C-n><C-W>l
+  tnoremap <silent> <C-j> <C-\><C-n><C-W>j
+  tnoremap <silent> <C-h> <C-\><C-n><C-W>h
+  nnoremap <silent> <C-w>d :bdelete<CR>
   " inoremap <silent> <C-k> <Esc><C-W>k
   " inoremap <silent> <C-l> <Esc><C-W>l
   " inoremap <silent> <C-j> <Esc><C-W>j
@@ -394,8 +412,8 @@ function! s:maps() abort
     autocmd QuickFixCmdPost [^l]* cwindow
     autocmd QuickFixCmdPost l*    lwindow
 
-    " q should always quit.
-    autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+    " q should always close.
+    autocmd FileType * nnoremap <buffer> <nowait> <silent> q :close<CR>
     " C-x should always do :x.
     autocmd FileType * nnoremap <buffer> <nowait> <silent> <C-x> :silent x<CR>
     autocmd FileType * inoremap <buffer> <nowait> <silent> <C-x> <Esc>:silent x<CR>
@@ -490,11 +508,17 @@ function! s:fzf() abort
   tnoremap <silent> <ESC> <C-\><C-n>
 
   nnoremap <silent> <M-g> :GitFiles<CR>
-  inoremap <silent> <M-g> <ESC>:GitFiles<CR>
-  nnoremap <silent> <M-b> :Buffers<CR>
-  inoremap <silent> <M-b> <ESC>:Buffers<CR>
+  nnoremap <silent> <M-v> :GitFiles?<CR>
   nnoremap <silent> <M-w> :Windows<CR>
+  nnoremap <silent> <M-b> :Buffers<CR>
+
+  inoremap <silent> <M-g> <ESC>:GitFiles<CR>
+  inoremap <silent> <M-v> <ESC>:GitFiles?<CR>
   inoremap <silent> <M-w> <ESC>:Windows<CR>
+
+  tnoremap <silent> <M-g> <C-\><C-n>:GitFiles<CR>
+  tnoremap <silent> <M-v> <C-\><C-n>:GitFiles?<CR>
+  tnoremap <silent> <M-w> <C-\><C-n>:Windows<CR>
 
   " function! s:quickPathsSink(path) abort
   "   let l:system("zsh -c 'source ~/.zshrc && eval \"echo $1\"' -- ".shellescape('~notes'))
@@ -506,8 +530,8 @@ function! s:fzf() abort
   " nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
   " inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
 
-  nnoremap <silent> <M-r> :call <SID>gcn()<CR>
-  inoremap <silent> <M-r> <ESC>:call <SID>gcn()<CR>
+  " nnoremap <silent> <M-r> :call <SID>gcn()<CR>
+  " inoremap <silent> <M-r> <ESC>:call <SID>gcn()<CR>
 
   " nnoremap <silent> <M-g> :call <SID>exit_fzf("last-file")<CR>
   " inoremap <silent> <M-g> <ESC>:call <SID>exit_fzf("last-file")<CR>

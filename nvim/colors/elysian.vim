@@ -35,6 +35,7 @@ augroup elysian
   autocmd FileType dirvish hi link DirvishArg Normal
 augroup END
 
+hi TermCursor ctermfg=246 ctermbg=NONE cterm=reverse
 
 " Language colors.
 hi Comment    ctermfg=249    ctermbg=NONE cterm=italic
