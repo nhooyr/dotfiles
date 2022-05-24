@@ -91,6 +91,9 @@ function! s:plugin_settings() abort
     autocmd!
     " autocmd VimEnter * iunmap <C-x><CR>
   augroup END
+
+  let g:taboo_tab_format = " %f%m[%N] "
+  let g:taboo_renamed_tab_format = " %l%m[%N] "
 endfunction
 call s:plugin_settings()
 
