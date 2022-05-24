@@ -257,6 +257,18 @@ function! s:settings() abort
       execute 'mksession! ' . v:this_session
     endfunction
   augroup END
+
+  if !exists('g:nhooyr_last_tab')
+    let g:nhooyr_last_tab = 1
+    let g:nhooyr_last_tab_backup = 1
+  endif
+  augroup nhooyr_last_tab
+    autocmd!
+    autocmd! TabLeave * let g:nhooyr_last_tab_backup = g:nhooyr_last_tab
+    autocmd! TabLeave * let g:nhooyr_last_tab = tabpagenr()
+    autocmd! TabClosed * let g:nhooyr_last_tab = g:nhooyr_last_tab_backup
+  augroup END
+  nnoremap <silent> <C-w>t :execute 'tabn '.g:nhooyr_last_tab<CR>
 endfunction
 call s:settings()
 
