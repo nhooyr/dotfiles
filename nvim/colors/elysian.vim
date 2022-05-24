@@ -22,8 +22,7 @@ hi TabLine      ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi TabLineFill  ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi TabLineSel   ctermfg=0      ctermbg=218  cterm=NONE
 hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
-hi Folded       ctermfg=244    ctermbg=255  cterm=NONE
-hi FoldColumn   ctermfg=244    ctermbg=NONE cterm=NONE
+hi Folded       ctermfg=black   ctermbg=250  cterm=NONE
 
 hi Directory  ctermfg=18 ctermbg=NONE cterm=NONE
 hi SpecialKey ctermfg=5 ctermbg=NONE cterm=underline
