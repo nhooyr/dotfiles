@@ -355,7 +355,7 @@ function! s:maps() abort
 
   inoremap <M-f> <C-\><C-o>w
   inoremap <M-b> <C-\><C-o>b
-  inoremap <M-d> <C-\><C-o>dw
+  " inoremap <M-d> <C-\><C-o>dw
 
   nnoremap <silent> <C-s> :silent w<CR>
   inoremap <silent> <C-s> <Esc>:silent w<CR>
@@ -386,6 +386,7 @@ function! s:maps() abort
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
   nnoremap <silent> <C-w>d :bdelete<CR>
   nnoremap <silent> <M-d> :w<CR>:buf#<CR>:bdelete#<CR>:startinsert<CR>
+  inoremap <silent> <M-d> <Esc>:w<CR>:buf#<CR>:bdelete#<CR>:startinsert<CR>
   inoremap <silent> <C-k> <Esc><C-W>k
   inoremap <silent> <C-l> <Esc><C-W>l
   inoremap <silent> <C-j> <Esc><C-W>j
