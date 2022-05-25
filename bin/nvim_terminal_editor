@@ -5,7 +5,7 @@ if [ "$#" -eq 0 ]; then
   set -- -
 fi
 
-if [ -d "$*" ]; then
+if [ -d "$*" ] || [ ${NVR_NO_WAIT:-} ]; then
   nvr --servername "/tmp/nvim-$NVIM_SESSION" ${NVR_FLAGS:-} --remote "$@"
   exit 0
 fi

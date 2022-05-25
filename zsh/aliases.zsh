@@ -42,7 +42,7 @@ ev() {
 }
 
 et() {
-  NVR_FLAGS="-cc tabnew" nvim_terminal_editor "$@"
+  NVR_NO_WAIT=1 NVR_FLAGS="-cc tabnew" nvim_terminal_editor "$@"
 }
 
 e() {
