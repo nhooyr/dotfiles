@@ -516,7 +516,7 @@ function! s:maps() abort
     let l:git_dir = system('git rev-parse --show-toplevel')
     execute 'lcd '.l:git_dir
   endfunction
-  command! Gcd call <SID>gcd()
+  command! -bar Gcd call s:gcd()
 endfunction
 call s:maps()
 
