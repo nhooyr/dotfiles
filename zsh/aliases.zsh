@@ -35,7 +35,7 @@ alias er="e -R"
 
 e() {
   export NVIM_FZF_TYPE="$(mktemp -d)/nvim_fzf_type"
-  if [ -d "$*" ] && [ "$#" -gt 0 ] ; then
+  if [ ! "$NVIM" -a "$NVIM_SESSION" ] && [ -d "$*" ]; then
     cd "$@"
     return
   fi
