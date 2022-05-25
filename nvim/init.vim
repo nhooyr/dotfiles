@@ -98,7 +98,6 @@ endfunction
 call s:plugin_settings()
 
 function! s:settings() abort
-  set nohidden
   " set autochdir
   set backup
   set backupdir=~/.local/share/nvim/backup//
