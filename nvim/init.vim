@@ -590,7 +590,7 @@ function! s:fzf() abort
   command! -nargs=? Term call s:term(<q-args>)
   nnoremap <silent> <M-t> :call <SID>term('')<CR>
   tnoremap <silent> <ESC> <C-\><C-n>
-  " tnoremap <silent> <C-l> clear<CR>
+  tnoremap <silent> <M-l> <C-l>
 
   nnoremap <silent> <M-g> :GitFiles<CR>
   nnoremap <silent> <M-v> :GitFiles?<CR>
