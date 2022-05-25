@@ -492,9 +492,10 @@ function! s:maps() abort
 
   function! s:ggrep(pat) abort
     call s:gcd()
-    silent execute 'lgrep! '.a:pat
+    execute 'Lgrep '.a:pat
     silent! lcd %:p:h
   endfunction
+  command! -nargs=1 Lgrep silent lgrep! <args>
   command! -nargs=1 Ggrep call <SID>ggrep(<q-args>)
 
   function! s:gcd() abort
