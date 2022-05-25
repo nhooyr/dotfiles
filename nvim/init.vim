@@ -192,8 +192,7 @@ function! s:settings() abort
 
     autocmd FileType * setlocal number
     autocmd FileType * setlocal nocursorline
-    autocmd BufWinEnter * setlocal number
-    autocmd BufWinEnter * setlocal nocursorline
+    autocmd BufEnter * setlocal number
     autocmd BufEnter * setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
