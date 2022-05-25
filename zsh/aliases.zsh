@@ -423,7 +423,7 @@ Where tire-size is metric size like XXX/YYRZZ."
 
 alias psqlc="PSQL_PAGER= psql -XAtc"
 
-ses() {
+nses() {
   NVIM_SESSION="$1"
 
   touch "$XDG_DATA_HOME/nvim/sessions/$NVIM_SESSION.vim"
