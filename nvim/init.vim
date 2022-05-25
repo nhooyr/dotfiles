@@ -35,7 +35,7 @@ endfunction
 call s:plugins()
 
 function! s:plugin_settings() abort
-  set sessionoptions+=tabpages,globals
+  set sessionoptions+=globals,terminal
 
   let g:dia_block_string_syntaxes = {'zsh': ['zsh'], 'rust': ['rust'], 'typescript': ['typescript', 'ts']}
 
@@ -563,7 +563,7 @@ function! s:fzf() abort
     exit
   endfunction
 
-  command! -nargs=1 Term file term://<args>
+  command! -nargs=1 Term file %;\#<args>
 
   function! s:term() abort
     term
@@ -571,7 +571,7 @@ function! s:fzf() abort
     if empty(l:tabname)
       let l:tabname = "scratch"
     endif
-    execute 'Term '.l:tabname.'-'.bufnr("%")
+    execute 'Term '.l:tabname
   endfunction
   nnoremap <silent> <M-t> :call <SID>term()<CR>
   tnoremap <silent> <ESC> <C-\><C-n>
