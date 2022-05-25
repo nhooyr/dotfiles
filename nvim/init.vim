@@ -283,6 +283,8 @@ function! s:maps() abort
   nnoremap <nowait> z zb
   nnoremap <silent> Z z
 
+  nnoremap <silent> <Leader>t :tabnew<CR>
+
   nnoremap <silent> <Leader>s :source $MYVIMRC<CR>
   nnoremap <silent> <Leader>cd :cd %:h<CR>
 
