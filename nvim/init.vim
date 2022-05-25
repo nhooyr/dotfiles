@@ -383,12 +383,12 @@ function! s:maps() abort
   nnoremap <silent> <C-y> 2<C-y>
   nnoremap <silent> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 
-  nnoremap <silent> <M-l> :tabnext<CR>
-  nnoremap <silent> <M-h> :tabprev<CR>
-  inoremap <silent> <M-l> <ESC>:tabnext<CR>
-  inoremap <silent> <M-h> <ESC>:tabprev<CR>
-  tnoremap <silent> <M-l> <C-\><C-n>:tabnext<CR>
-  tnoremap <silent> <M-h> <C-\><C-n>:tabprev<CR>
+  nnoremap <silent> <M-]> :tabnext<CR>
+  nnoremap <silent> <M-[> :tabprev<CR>
+  inoremap <silent> <M-]> <ESC>:tabnext<CR>
+  inoremap <silent> <M-[> <ESC>:tabprev<CR>
+  tnoremap <silent> <M-]> <C-\><C-n>:tabnext<CR>
+  tnoremap <silent> <M-[> <C-\><C-n>:tabprev<CR>
 
   nnoremap <silent> <C-k> <C-W>k
   nnoremap <silent> <C-l> <C-W>l
