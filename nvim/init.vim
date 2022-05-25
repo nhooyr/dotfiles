@@ -243,24 +243,23 @@ function! s:settings() abort
 
   function! s:make_session(name) abort
     let l:sessions_file = stdpath('data').'/sessions/'.a:name.'.vim'
-    if !filereadable(l:sessions_file)
-      return
-    endif
     silent !mkdir -p $XDG_DATA_HOME/nvim/sessions
     execute 'silent mksession! '.l:sessions_file
   endfunction
   command! -nargs=1 MakeSession call <SID>make_session(<q-args>)
 
+  function! s:save_this_session() abort
+    if $NVIM_SESSION != ''
+      call s:make_session($NVIM_SESSION)
+    elseif v:this_session != ''
+      execute 'mksession! ' . v:this_session
+    endif
+  endfunction
+
   augroup nhooyr_session
     autocmd!
     execute 'autocmd BufRead '.fnameescape(stdpath('data')).'/sessions/*.vim silent source %'
-    autocmd VimLeave * call <SID>save_current_session()
-    function! s:save_current_session() abort
-      if v:this_session == ""
-        return
-      endif
-      execute 'mksession! ' . v:this_session
-    endfunction
+    autocmd VimLeave * call <SID>save_this_session()
   augroup END
 
   if !exists('g:nhooyr_last_tab')
