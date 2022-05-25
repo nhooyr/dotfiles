@@ -585,8 +585,8 @@ function! s:fzf() abort
     endif
     execute 'TermFile '.l:tabname
   endfunction
-  command! -nargs=? Term call s:term(<f-args>)
-  nnoremap <silent> <M-t> :call <SID>term()<CR>
+  command! -nargs=? Term call s:term(<q-args>)
+  nnoremap <silent> <M-t> :call <SID>term('')<CR>
   tnoremap <silent> <ESC> <C-\><C-n>
   " tnoremap <silent> <C-l> clear<CR>
 
