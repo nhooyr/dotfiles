@@ -198,9 +198,6 @@ function! s:settings() abort
 
     " https://superuser.com/a/1090762
     autocmd CursorHold * if getcmdwintype() == '' | checktime | endif
-    " https://github.com/neovim/neovim/issues/1936#issuecomment-309311829
-    autocmd FocusGained * if getcmdwintype() == '' | checktime | endif
-    autocmd FocusLost * wshada
 
     autocmd FileType * setlocal number
     autocmd FileType * setlocal nocursorline
