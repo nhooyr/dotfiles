@@ -616,8 +616,8 @@ function! s:fzf() abort
   " nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
   " inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
 
-  " nnoremap <silent> <M-r> :call <SID>gcn()<CR>
-  " inoremap <silent> <M-r> <ESC>:call <SID>gcn()<CR>
+  nnoremap <silent> <M-r> :call <SID>gcn()<CR>
+  inoremap <silent> <M-r> <ESC>:call <SID>gcn()<CR>
 
   " nnoremap <silent> <M-g> :call <SID>exit_fzf("last-file")<CR>
   " inoremap <silent> <M-g> <ESC>:call <SID>exit_fzf("last-file")<CR>
