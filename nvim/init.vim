@@ -398,10 +398,10 @@ function! s:maps() abort
   tnoremap <silent> <C-j> <C-\><C-n><C-W>j
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
   nnoremap <silent> <C-w>d :bdelete<CR>
-  nnoremap <silent> <M-q> :buf#<CR>:bdelete#<CR>:startinsert<CR>
-  inoremap <silent> <M-q> <Esc>:buf#<CR>:bdelete#<CR>:startinsert<CR>
-  nnoremap <silent> <M-x> :silent write<CR>:buf#<CR>:bdelete#<CR>:startinsert<CR>
-  inoremap <silent> <M-x> <Esc>:silent write<CR>:buf#<CR>:bdelete#<CR>:startinsert<CR>
+  nnoremap <silent> <M-q> :buf#<Bar>bdelete#<Bar>startinsert<CR>
+  inoremap <silent> <M-q> <Esc>:buf#<Bar>bdelete#<Bar>startinsert<CR>
+  nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
+  inoremap <silent> <M-x> <Esc>:silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
   inoremap <silent> <C-k> <Esc><C-W>k
   inoremap <silent> <C-l> <Esc><C-W>l
   inoremap <silent> <C-j> <Esc><C-W>j
@@ -451,9 +451,9 @@ function! s:maps() abort
     autocmd!
 
     autocmd FileType qf setlocal statusline=%f
-    autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<CR>:lclose<CR>
+    autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<Bar>lclose<CR>
 
-    autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<CR>:nohlsearch<CR><C-o>
+    autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<Bar>nohlsearch<CR><C-o>
     autocmd FileType diff nnoremap <buffer> <silent> <M-p>     :call  <SID>diff_next("?")<CR>
     autocmd FileType diff nnoremap <buffer> <silent> <M-n>     :call  <SID>diff_next("/")<CR>
 
