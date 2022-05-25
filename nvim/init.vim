@@ -242,6 +242,18 @@ function! s:settings() abort
   augroup END
   command! -bar Lcd silent! lcd %:p:h
 
+  function! s:rdiff(args) abort
+    enew
+    setlocal noreadonly
+    execute 'read !git diff '.a:args
+    normal gg"_dd
+    setlocal filetype=diff
+    setlocal noswapfile buftype=nofile bufhidden=hide
+    setlocal nomodified readonly nomodifiable
+    execute 'file git-diff-'.bufnr()
+  endfunction
+  command! -nargs=* Rdiff call s:rdiff(<q-args>)
+
   function! s:make_session(name) abort
     let l:sessions_file = stdpath('data').'/sessions/'.a:name.'.vim'
     if !filereadable(l:sessions_file)
