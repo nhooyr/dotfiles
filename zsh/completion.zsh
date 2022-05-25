@@ -30,6 +30,8 @@ zstyle ":completion:*" rehash true
 zstyle ":completion:*" users
 
 autoload -U compinit
-# See https://github.com/zsh-users/zsh-completions/issues/433#issuecomment-346395881 for -i.
-# Allows sharing compinit with root.
-compinit -i
+# See documentation on compinit. -u allows sharing $FPATH with root but owned by nhooyr.
+#
+# -i also works but requires everything be owned by root which isn't feasible with
+# macOS and Homebrew.
+compinit -u
