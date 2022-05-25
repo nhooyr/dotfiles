@@ -490,6 +490,13 @@ function! s:maps() abort
   endfunction
   command! -nargs=1 Find call <SID>find(<q-args>)
 
+  function! s:ggrep(pat) abort
+    call s:gcd()
+    silent execute 'lgrep! '.a:pat
+    silent! lcd %:p:h
+  endfunction
+  command! -nargs=1 Ggrep call <SID>ggrep(<q-args>)
+
   function! s:gcd() abort
     let l:git_dir = system('git rev-parse --show-toplevel')
     execute 'lcd '.l:git_dir
