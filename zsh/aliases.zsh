@@ -30,11 +30,6 @@ alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
 alias rb="s reboot"
 alias po="s poweroff"
-alias tmux="tmux -S /tmp/tmux"
-
-tses() {
-  tmux new -A -s "${1-default}"
-}
 
 alias er="e -R"
 

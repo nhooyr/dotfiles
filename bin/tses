@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+tmux new -A -s "${1-default}"
