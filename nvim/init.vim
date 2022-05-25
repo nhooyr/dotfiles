@@ -398,8 +398,8 @@ function! s:maps() abort
   tnoremap <silent> <C-j> <C-\><C-n><C-W>j
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
   nnoremap <silent> <C-w>d :bdelete<CR>
-  nnoremap <silent> <M-q> :buf#<Bar>bdelete#<Bar>startinsert<CR>
-  inoremap <silent> <M-q> <Esc>:buf#<Bar>bdelete#<Bar>startinsert<CR>
+  nnoremap <silent> <M-q> :buf#<Bar>bdelete!#<Bar>startinsert<CR>
+  inoremap <silent> <M-q> <Esc>:buf#<Bar>bdelete!#<Bar>startinsert<CR>
   nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
   inoremap <silent> <M-x> <Esc>:silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
   inoremap <silent> <C-k> <Esc><C-W>k
