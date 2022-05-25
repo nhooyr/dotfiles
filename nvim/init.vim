@@ -136,9 +136,6 @@ function! s:settings() abort
 
   let &listchars.=',space:|'
 
-  " Neovim's TUI cursor bugs out often enough.
-  set guicursor=
-
   if has("vim_starting")
     set tabstop=2
     let &shiftwidth=&tabstop
