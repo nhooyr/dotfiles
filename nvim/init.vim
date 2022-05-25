@@ -15,7 +15,6 @@ function! s:plugins() abort
 
   Plug 'tpope/vim-surround'
   Plug 'tpope/vim-commentary'
-  Plug 'tpope/vim-fugitive'
 
   Plug 'Shougo/neosnippet.vim'
   Plug 'Shougo/neosnippet-snippets'
@@ -481,6 +480,12 @@ function! s:maps() abort
     execute 'edit $HOME/src/notes/'.strftime("%Y/%m/%d").'.txt'
   endfunction
   nnoremap <silent> <M-n> :call <SID>note()<CR>
+
+  function! s:gcd() abort
+    let l:git_dir = system('git rev-parse --show-toplevel')
+    execute 'lcd '.l:git_dir
+  endfunction
+  command! Gcd call <SID>gcd()
 endfunction
 call s:maps()
 
