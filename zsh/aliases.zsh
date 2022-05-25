@@ -33,6 +33,14 @@ alias po="s poweroff"
 
 alias er="e -R"
 
+es() {
+  NVR_FLAGS="-cc split" nvim_terminal_editor "$@"
+}
+
+ev() {
+  NVR_FLAGS="-cc vsplit" nvim_terminal_editor "$@"
+}
+
 e() {
   export NVIM_FZF_TYPE="$(mktemp -d)/nvim_fzf_type"
   if [ ! "$NVIM" -a "$NVIM_SESSION" ] && [ -d "$*" ]; then
