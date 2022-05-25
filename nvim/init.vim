@@ -591,6 +591,7 @@ function! s:fzf() abort
   nnoremap <silent> <M-t> :call <SID>term('')<CR>
   tnoremap <silent> <ESC> <C-\><C-n>
   tnoremap <silent> <M-l> <C-l>
+  nnoremap <silent> <M-l> i<C-l><C-\><C-n>
 
   nnoremap <silent> <M-g> :GitFiles<CR>
   nnoremap <silent> <M-v> :GitFiles?<CR>
