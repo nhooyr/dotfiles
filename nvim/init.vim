@@ -139,12 +139,6 @@ function! s:settings() abort
   " Neovim's TUI cursor bugs out often enough.
   set guicursor=
 
-  " I ended up enabling line numbers for this reason.
-  " " It gets really confusing when line numbers are disabled as you can't tell what's a
-  " " continuation and usually I don't care for text beyond 120 char as it's probably a
-  " " link.
-  " set nowrap
-
   if has("vim_starting")
     set tabstop=2
     let &shiftwidth=&tabstop
