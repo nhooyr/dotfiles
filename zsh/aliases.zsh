@@ -438,6 +438,7 @@ alias psqlc="PSQL_PAGER= psql -XAtc"
 nses() {
   NVIM_SESSION="$1"
 
+  mkdir -p "$XDG_DATA_HOME/nvim/sessions"
   touch "$XDG_DATA_HOME/nvim/sessions/$NVIM_SESSION.vim"
   NVIM_SESSION="$NVIM_SESSION" \
     EDITOR=nvim_terminal_editor \
