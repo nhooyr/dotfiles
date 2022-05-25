@@ -473,7 +473,7 @@ function! s:maps() abort
     call feedkeys("/".a:pattern."/\<CR>")
     call feedkeys(":lvimgrep /".a:pattern."/j %\<CR>")
   endfunction
-  command! -nargs=+ S call <SID>lvimgrep(<q-args>)
+  command! -nargs=+ Search call <SID>lvimgrep(<q-args>)
 
   " Life saver alignment mapping.
   " https://unix.stackexchange.com/a/179319
