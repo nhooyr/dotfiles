@@ -484,6 +484,12 @@ function! s:maps() abort
   endfunction
   nnoremap <silent> <M-n> :call <SID>note()<CR>
 
+  function! s:find(pat) abort
+    lgetexpr system('find . -path '.shellescape(a:pat)
+          \.' | xargs file | sed "s/:/:1:/"')
+  endfunction
+  command! -nargs=1 Find call <SID>find(<q-args>)
+
   function! s:gcd() abort
     let l:git_dir = system('git rev-parse --show-toplevel')
     execute 'lcd '.l:git_dir
