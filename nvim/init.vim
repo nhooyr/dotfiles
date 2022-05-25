@@ -237,9 +237,10 @@ function! s:settings() abort
 
   augroup nhooyr_autocd
     autocmd!
-    autocmd FileType * silent! lcd %:p:h
-    autocmd BufEnter * silent! lcd %:p:h
+    autocmd FileType * Lcd
+    autocmd BufEnter * Lcd
   augroup END
+  command! -bar Lcd silent! lcd %:p:h
 
   function! s:make_session(name) abort
     let l:sessions_file = stdpath('data').'/sessions/'.a:name.'.vim'
