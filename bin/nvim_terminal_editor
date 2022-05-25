@@ -6,10 +6,10 @@ if [ "$#" -eq 0 ]; then
 fi
 
 if [ -d "$*" ]; then
-  nvr --servername "/tmp/nvim-$NVIM_SESSION" --remote "$@"
+  nvr --servername "/tmp/nvim-$NVIM_SESSION" ${NVR_FLAGS:-} --remote "$@"
   exit 0
 fi
 
-nvr --servername "/tmp/nvim-$NVIM_SESSION" --remote-wait "$@"
+nvr --servername "/tmp/nvim-$NVIM_SESSION" ${NVR_FLAGS:-} --remote-wait "$@"
 # Once neovim supports:
 # nvim --server "/tmp/nvim-$NVIM_SESSION" --remote-wait "$@"
