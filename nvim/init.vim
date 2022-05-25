@@ -576,16 +576,16 @@ function! s:fzf() abort
     exit
   endfunction
 
-  command! -nargs=1 Term file %;\#<args>
-
-  function! s:term() abort
-    term
+  command! -nargs=1 TermFile file %;\#<args>
+  function! s:term(cmd) abort
+    execute 'term '.a:cmd
     let l:tabname = g:TabooTabName(tabpagenr())
     if empty(l:tabname)
       let l:tabname = "scratch"
     endif
-    execute 'Term '.l:tabname
+    execute 'TermFile '.l:tabname
   endfunction
+  command! -nargs=? Term call s:term(<f-args>)
   nnoremap <silent> <M-t> :call <SID>term()<CR>
   tnoremap <silent> <ESC> <C-\><C-n>
   " tnoremap <silent> <C-l> clear<CR>
