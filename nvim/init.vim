@@ -510,6 +510,7 @@ function! s:maps() abort
     execute 'lcd '.l:git_dir
   endfunction
   command! -bar Gcd call s:gcd()
+  nnoremap <silent> <Leader>g :Gcd<CR>
 endfunction
 call s:maps()
 
