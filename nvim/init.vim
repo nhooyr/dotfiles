@@ -407,7 +407,10 @@ function! s:maps() abort
 
   nnoremap <silent> ]q :cnext<CR>
   nnoremap <silent> [q :cprev<CR>
+  nnoremap <silent> ]l :lnext<CR>
+  nnoremap <silent> [l :lprev<CR>
   nnoremap <silent> <Leader>q :cclose<CR>
+  nnoremap <silent> <Leader>lc :lclose<CR>
   nnoremap <silent> ]t :tabn<CR>
   nnoremap <silent> [t :tabp<CR>
 
