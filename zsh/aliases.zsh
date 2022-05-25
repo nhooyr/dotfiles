@@ -34,11 +34,11 @@ alias po="s poweroff"
 alias er="e -R"
 
 es() {
-  NVR_FLAGS="-cc split" nvim_terminal_editor "$@"
+  NVR_FLAGS="-cc new" nvim_terminal_editor "$@"
 }
 
 ev() {
-  NVR_FLAGS="-cc vsplit" nvim_terminal_editor "$@"
+  NVR_FLAGS="-cc vnew" nvim_terminal_editor "$@"
 }
 
 et() {
