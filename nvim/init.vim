@@ -444,8 +444,8 @@ function! s:maps() abort
     autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<Bar>lclose<CR>
 
     autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<Bar>nohlsearch<CR><C-o>
-    autocmd FileType diff nnoremap <buffer> <silent> <M-p>     :call  <SID>diff_next("?")<CR>
-    autocmd FileType diff nnoremap <buffer> <silent> <M-n>     :call  <SID>diff_next("/")<CR>
+    " autocmd FileType diff nnoremap <buffer> <silent> <M-p>     :call  <SID>diff_next("?")<CR>
+    " autocmd FileType diff nnoremap <buffer> <silent> <M-n>     :call  <SID>diff_next("/")<CR>
 
     " https://stackoverflow.com/questions/39009792/vimgrep-pattern-and-immediately-open-quickfix-in-split-mode
     autocmd QuickFixCmdPost [^l]* cwindow
@@ -585,24 +585,21 @@ function! s:fzf() abort
   nnoremap <silent> <M-l> i<C-l><C-\><C-n>
 
   nnoremap <silent> <M-g> :GitFiles<CR>
-  nnoremap <silent> <M-v> :GitFiles?<CR>
   nnoremap <silent> <M-w> :Windows<CR>
   nnoremap <silent> <M-b> :Buffers<CR>
 
   inoremap <silent> <M-g> <ESC>:GitFiles<CR>
-  inoremap <silent> <M-v> <ESC>:GitFiles?<CR>
   inoremap <silent> <M-w> <ESC>:Windows<CR>
 
-  " tnoremap <silent> <M-g> <C-\><C-n>:GitFiles<CR>
-  " tnoremap <silent> <M-v> <C-\><C-n>:GitFiles?<CR>
+  tnoremap <silent> <M-g> <C-\><C-n>:GitFiles<CR>
   tnoremap <silent> <M-w> <C-\><C-n>:Windows<CR>
 
   " function! s:quickPathsSink(path) abort
   "   let l:system("zsh -c 'source ~/.zshrc && eval \"echo $1\"' -- ".shellescape('~notes'))
   " endfunction
   command! QuickPaths call fzf#run(fzf#wrap({'source': 'source ~/.zshrc && processed_quick_paths | expand_bookmarks'}))
-  nnoremap <silent> <M-p> :QuickPaths<CR>
-  inoremap <silent> <M-p> <ESC>:QuickPaths<CR>
+  nnoremap <silent> <M-v> :QuickPaths<CR>
+  inoremap <silent> <M-v> <ESC>:QuickPaths<CR>
 
   " nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
   " inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
