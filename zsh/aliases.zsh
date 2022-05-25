@@ -41,6 +41,10 @@ ev() {
   NVR_FLAGS="-cc vsplit" nvim_terminal_editor "$@"
 }
 
+et() {
+  NVR_FLAGS="-cc tabnew" nvim_terminal_editor "$@"
+}
+
 e() {
   export NVIM_FZF_TYPE="$(mktemp -d)/nvim_fzf_type"
   if [ ! "$NVIM" -a "$NVIM_SESSION" ] && [ -d "$*" ]; then
