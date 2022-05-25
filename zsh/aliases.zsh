@@ -433,3 +433,8 @@ nses() {
     --listen "/tmp/nvim-$NVIM_SESSION" \
     -S "$XDG_DATA_HOME/nvim/sessions/$NVIM_SESSION.vim"
 }
+
+trash() {
+  md /tmp/trash
+  mv "$@" /tmp/trash
+}
