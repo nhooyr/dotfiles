@@ -61,23 +61,23 @@ quick_paths() {(
   echo ~/src
   fd -H -d2 . ~/src
 
-  if [[ -d ~/Downloads ]]; then
-    echo ~/Downloads
-    fd -d2 . ~/Downloads
-  fi
+  # if [[ -d ~/Downloads ]]; then
+  #   echo ~/Downloads
+  #   fd -d2 . ~/Downloads
+  # fi
 
-  if [ -e ~Pictures/2020 ]; then
-    echo ~Pictures/2020
-    fd -H . ~Pictures/2020
-  fi
-  if [ -e ~Pictures/2021 ]; then
-    echo ~Pictures/2021
-    fd -H . ~Pictures/2021
-  fi
-  if [ -e ~Pictures/2022 ]; then
-    echo ~Pictures/2022
-    fd -H . ~Pictures/2022
-  fi
+  # if [ -e ~Pictures/2020 ]; then
+  #   echo ~Pictures/2020
+  #   fd -H . ~Pictures/2020
+  # fi
+  # if [ -e ~Pictures/2021 ]; then
+  #   echo ~Pictures/2021
+  #   fd -H . ~Pictures/2021
+  # fi
+  # if [ -e ~Pictures/2022 ]; then
+  #   echo ~Pictures/2022
+  #   fd -H . ~Pictures/2022
+  # fi
 
   local depth=""
   if ! git rev-parse >/dev/null 2>&1; then
