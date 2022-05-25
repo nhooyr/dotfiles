@@ -56,7 +56,7 @@ function! s:plugin_settings() abort
 
   imap <silent> <M-i> <Plug>(neosnippet_expand)
   imap <silent> <C-j> <Plug>(neosnippet_jump)
-  imap <silent><expr> <C-l> '- '.strftime("%I:%M:%S%p").': '
+  " imap <silent><expr> <C-l> '- '.strftime("%I:%M:%S%p").': '
   nmap <silent> <M-o> o<C-o>"_d0<C-l>
 
   " let g:user_emmet_leader_key = "<C-y>"
@@ -386,10 +386,10 @@ function! s:maps() abort
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
   nnoremap <silent> <C-w>d :bdelete<CR>
   nnoremap <silent> <M-d> :w<CR>:buf#<CR>:bdelete#<CR>:startinsert<CR>
-  " inoremap <silent> <C-k> <Esc><C-W>k
-  " inoremap <silent> <C-l> <Esc><C-W>l
-  " inoremap <silent> <C-j> <Esc><C-W>j
-  " inoremap <silent> <C-h> <Esc><C-W>h
+  inoremap <silent> <C-k> <Esc><C-W>k
+  inoremap <silent> <C-l> <Esc><C-W>l
+  inoremap <silent> <C-j> <Esc><C-W>j
+  inoremap <silent> <C-h> <Esc><C-W>h
 
   noremap <silent> <C-z> zz
   " For some reason in markdown files this causes C-f to be inserted as a literal.
