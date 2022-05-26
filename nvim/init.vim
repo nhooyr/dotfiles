@@ -522,6 +522,10 @@ function! s:maps() abort
   command! -nargs=1 Ggrep call <SID>ggrep(<q-args>)
 
   function! s:gcd() abort
+    if match(getcwd(), '/.git$') != -1
+      lcd ..
+      return
+    endif
     let l:git_dir = system('git rev-parse --show-toplevel')
     execute 'lcd '.l:git_dir
   endfunction
