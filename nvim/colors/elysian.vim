@@ -15,11 +15,11 @@ hi MatchParen   ctermfg=0      ctermbg=225  cterm=NONE
 hi NonText      ctermfg=244    ctermbg=NONE cterm=NONE
 hi IncSearch    ctermfg=0      ctermbg=218  cterm=NONE
 hi Search       ctermfg=0      ctermbg=153  cterm=NONE
-hi StatusLine   ctermfg=NONE   ctermbg=236  cterm=NONE
-hi StatusLineNC ctermfg=NONE   ctermbg=236  cterm=NONE
+hi StatusLine   ctermfg=NONE   ctermbg=234  cterm=NONE
+hi StatusLineNC ctermfg=NONE   ctermbg=234  cterm=NONE
 hi Visual       ctermfg=0      ctermbg=225  cterm=NONE
-hi TabLine      ctermfg=NONE   ctermbg=NONE cterm=NONE
-hi TabLineFill  ctermfg=NONE   ctermbg=NONE cterm=NONE
+hi TabLine      ctermfg=NONE   ctermbg=234 cterm=NONE
+hi TabLineFill  ctermfg=NONE   ctermbg=234 cterm=NONE
 hi TabLineSel   ctermfg=0      ctermbg=218  cterm=NONE
 hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Folded       ctermfg=black   ctermbg=250  cterm=NONE
