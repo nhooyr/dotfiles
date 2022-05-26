@@ -285,7 +285,7 @@ function! s:settings() abort
     autocmd! TabLeave * call s:tab_leave()
     autocmd! TabClosed * call s:tab_closed()
   augroup END
-  nnoremap <silent> <C-w>t :execute 'tabn '.g:nhooyr_tab_history[1]<CR>
+  nnoremap <silent> <Leader>t :execute 'tabn '.g:nhooyr_tab_history[1]<CR>
 endfunction
 call s:settings()
 
@@ -299,7 +299,9 @@ function! s:maps() abort
   nnoremap <silent> ZW zw
   command! SpellCleanAdd runtime spell/cleanadd.vim
 
-  nnoremap <silent> <Leader>t :tabnew<CR>
+  nnoremap <silent> 's :split<CR>
+  nnoremap <silent> 'v :vsplit<CR>
+  nnoremap <silent> 't :tabnew<CR>
 
   nnoremap <silent> <Leader>ee :source $MYVIMRC<CR>
   nnoremap <silent> <Leader>s :setlocal spell! spelllang=en_ca<CR>
@@ -405,7 +407,7 @@ function! s:maps() abort
   tnoremap <silent> <C-l> <C-\><C-n><C-W>l
   tnoremap <silent> <C-j> <C-\><C-n><C-W>j
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
-  nnoremap <silent> <C-w>d :enew <BAR> bd!#<CR>
+  nnoremap <silent> 'd :enew <BAR> bd!#<CR>
   nnoremap <silent> <M-q> :buf#<Bar>bdelete!#<Bar>startinsert<CR>
   inoremap <silent> <M-q> <Esc>:buf#<Bar>bdelete!#<Bar>startinsert<CR>
   nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
