@@ -587,25 +587,12 @@ function! s:fzf() abort
     call system("zsh -ic \"cd ~notes && git add -A && git diff --cached --stat | grep -q " .
           \ "'deletions\\\?(-)'\"")
     if v:shell_error == 0
-      " Needs approval.
-      call s:exit_fzf("gcn")
+      echom 'please run in terminal and review diff (there were deletions)'
       return
     endif
     " No deletions so no approval needed.
     echom 'gcn ' . strftime("%I:%M:%S%p")
     call jobstart("zsh -ic gcn &!")
-  endfunction
-
-  " This isn't used for just fzf anymore, see gcn usage.
-  function! s:exit_fzf(type) abort
-    if !empty($NVIM_FZF_TYPE)
-      call system("echo " . a:type . " > " . $NVIM_FZF_TYPE)
-    endif
-    " Makes it far more efficient to switch between notes and files quickly after making
-    " small editions. To also save I mean to avoid the extra keystroke.
-    " Also more efficient than :write and :quit as :exit only writes if changes have been
-    " made!
-    exit
   endfunction
 
   command! -nargs=1 TermFile file %;\#<args>
@@ -641,20 +628,8 @@ function! s:fzf() abort
   nnoremap <silent> <M-v> :QuickPaths<CR>
   inoremap <silent> <M-v> <ESC>:QuickPaths<CR>
 
-  " nnoremap <silent> <M-v> :call <SID>exit_fzf("paths")<CR>
-  " inoremap <silent> <M-v> <ESC>:call <SID>exit_fzf("paths")<CR>
-
   nnoremap <silent> <M-r> :call <SID>gcn()<CR>
   inoremap <silent> <M-r> <ESC>:call <SID>gcn()<CR>
-
-  " nnoremap <silent> <M-g> :call <SID>exit_fzf("last-file")<CR>
-  " inoremap <silent> <M-g> <ESC>:call <SID>exit_fzf("last-file")<CR>
-
-  " nnoremap <silent> <M-a> :call <SID>exit_fzf("paths-all")<CR>
-  " inoremap <silent> <M-a> <ESC>:call <SID>exit_fzf("paths-all")<CR>
-
-  " nnoremap <silent> <M-t> :call <SID>exit_fzf("rg")<CR>
-  " inoremap <silent> <M-t> <ESC>:call <SID>exit_fzf("rg")<CR>
 
   " Adds all accessed files into my shell history.
   function! s:update_history() abort
