@@ -301,9 +301,11 @@ function! s:maps() abort
 
   nnoremap <silent> <Leader>t :tabnew<CR>
 
-  nnoremap <silent> <Leader>es :source $MYVIMRC<CR>
+  nnoremap <silent> <Leader>ee :source $MYVIMRC<CR>
   nnoremap <silent> <Leader>s :setlocal spell! spelllang=en_ca<CR>
-  nnoremap <silent> <Leader>c :let @+ = expand('%:p')<CR>
+  nnoremap <silent> <Leader>cd :Lcd<CR>
+  nnoremap <silent> <Leader>cg :Gcd<CR>
+  nnoremap <silent> <Leader>cp :let @+ = expand('%:p')<CR>
 
   nnoremap <silent> <Leader>ll :set list!<CR>
 
@@ -318,7 +320,7 @@ function! s:maps() abort
   nnoremap <silent> Q/ q/
   nnoremap <silent> Q? q?
   nnoremap <silent> <M-q> @@
-  nnoremap <silent> <leader>ee :e $MYVIMRC<CR>
+  nnoremap <silent> <leader>es :e $MYVIMRC<CR>
   nnoremap <silent> <leader>ec :e ~/.config/nvim/colors/elysian.vim<CR>
   nnoremap <silent> k gk
   nnoremap <silent> j gj
@@ -404,7 +406,7 @@ function! s:maps() abort
   tnoremap <silent> <C-l> <C-\><C-n><C-W>l
   tnoremap <silent> <C-j> <C-\><C-n><C-W>j
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
-  nnoremap <silent> <C-w>b :enew <BAR> bd!#<CR>
+  nnoremap <silent> <C-w>d :enew <BAR> bd!#<CR>
   nnoremap <silent> <M-q> :buf#<Bar>bdelete!#<Bar>startinsert<CR>
   inoremap <silent> <M-q> <Esc>:buf#<Bar>bdelete!#<Bar>startinsert<CR>
   nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
@@ -460,7 +462,7 @@ function! s:maps() abort
     autocmd FileType qf setlocal statusline=%f
     autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<Bar>lclose<CR>
 
-    autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<Bar>nohlsearch<CR><C-o>
+    " autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<Bar>nohlsearch<CR><C-o>
     " autocmd FileType diff nnoremap <buffer> <silent> <M-p>     :call  <SID>diff_next("?")<CR>
     " autocmd FileType diff nnoremap <buffer> <silent> <M-n>     :call  <SID>diff_next("/")<CR>
 
@@ -530,7 +532,6 @@ function! s:maps() abort
     execute 'lcd '.l:git_dir
   endfunction
   command! -bar Gcd call s:gcd()
-  nnoremap <silent> <Leader>g :Gcd<CR>
 endfunction
 call s:maps()
 
