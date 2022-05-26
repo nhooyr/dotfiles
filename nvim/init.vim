@@ -307,8 +307,8 @@ function! s:maps() abort
   nnoremap <silent> <Leader>s :setlocal spell! spelllang=en_ca<CR>
   nnoremap <silent> <Leader>cd :Lcd<CR>
   nnoremap <silent> <Leader>cg :Gcd<CR>
-  nnoremap <silent> <Leader>cpf :let @+ = expand('%:p')<CR>
-  nnoremap <silent> <Leader>cpd :let @+ = expand('%:p:h')<CR>
+  nnoremap <silent> 'f :let @+ = expand('%:p')<CR>
+  nnoremap <silent> 'h :let @+ = expand('%:p:h')<CR>
 
   nnoremap <silent> <Leader>ll :set list!<CR>
 
