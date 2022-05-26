@@ -301,8 +301,8 @@ function! s:maps() abort
 
   nnoremap <silent> <Leader>t :tabnew<CR>
 
-  nnoremap <silent> <Leader>sr :source $MYVIMRC<CR>
-  nnoremap <silent> <Leader>ss :setlocal spell! spelllang=en_ca<CR>
+  nnoremap <silent> <Leader>es :source $MYVIMRC<CR>
+  nnoremap <silent> <Leader>s :setlocal spell! spelllang=en_ca<CR>
   nnoremap <silent> <Leader>cd :cd %:h<CR>
 
   nnoremap <silent> <Leader>ll :set list!<CR>
