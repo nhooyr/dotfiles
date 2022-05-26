@@ -24,17 +24,14 @@ hi TabLineSel   ctermfg=0      ctermbg=218  cterm=NONE
 hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Folded       ctermfg=black   ctermbg=250  cterm=NONE
 
-hi Directory  ctermfg=18 ctermbg=NONE cterm=NONE
-hi SpecialKey ctermfg=5 ctermbg=NONE cterm=underline
-augroup elysian
-  autocmd!
-  " Ignore carriage returns.
-  autocmd FileType * match Ignore /\r$/
-
-  autocmd FileType dirvish hi link DirvishArg Normal
-augroup END
-
+hi Directory  ctermfg=18  ctermbg=NONE cterm=NONE
+hi SpecialKey ctermfg=5   ctermbg=NONE cterm=underline
 hi TermCursor ctermfg=246 ctermbg=NONE cterm=reverse
+
+hi SpellBad   ctermfg=yellow ctermbg=NONE cterm=underline
+hi SpellCap   ctermfg=blue  ctermbg=NONE cterm=underline
+hi SpellLocal ctermfg=blue  ctermbg=NONE cterm=underline
+hi SpellRare  ctermfg=blue  ctermbg=NONE cterm=underline
 
 " Language colors.
 hi Comment    ctermfg=249    ctermbg=NONE cterm=italic
@@ -72,3 +69,11 @@ hi link markdownItalic NONE
 hi link qfFileName Identifier
 
 hi link zshVariable Identifier
+
+augroup elysian
+  autocmd!
+  " Ignore carriage returns.
+  autocmd FileType * match Ignore /\r$/
+
+  autocmd FileType dirvish hi link DirvishArg Normal
+augroup END
