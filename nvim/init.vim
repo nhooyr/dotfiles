@@ -261,17 +261,32 @@ function! s:settings() abort
     autocmd VimLeave * call <SID>save_this_session()
   augroup END
 
-  if !exists('g:nhooyr_last_tab')
-    let g:nhooyr_last_tab = 1
-    let g:nhooyr_last_tab_backup = 1
+  function s:tab_leave() abort
+    if len(g:nhooyr_tab_history) > 1
+      let g:nhooyr_tab_history = [g:nhooyr_tab_history[1]]
+    endif
+    call add(g:nhooyr_tab_history, tabpagenr())
+  endfunction
+  function s:tab_closed() abort
+    if len(g:nhooyr_tab_history) < 2
+      let g:nhooyr_tab_history = []
+      return
+    endif
+    if g:nhooyr_tab_history[0] > g:nhooyr_tab_history[1]
+      let g:nhooyr_tab_history[0] -= 1
+    endif
+    execute 'tabn '.g:nhooyr_tab_history[0]
+    let g:nhooyr_tab_history = []
+  endfunction
+  if !exists('g:nhooyr_tab_history')
+    let g:nhooyr_tab_history = []
   endif
-  augroup nhooyr_last_tab
+  augroup nhooyr_tab_history
     autocmd!
-    autocmd! TabLeave * let g:nhooyr_last_tab_backup = g:nhooyr_last_tab
-    autocmd! TabLeave * let g:nhooyr_last_tab = tabpagenr()
-    autocmd! TabClosed * let g:nhooyr_last_tab = g:nhooyr_last_tab_backup
+    autocmd! TabLeave * call s:tab_leave()
+    autocmd! TabClosed * call s:tab_closed()
   augroup END
-  nnoremap <silent> <C-w>t :execute 'tabn '.g:nhooyr_last_tab<CR>
+  nnoremap <silent> <C-w>t :execute 'tabn '.g:nhooyr_tab_history[1]<CR>
 endfunction
 call s:settings()
 
