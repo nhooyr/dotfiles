@@ -10,7 +10,7 @@ hi CursorLine   ctermfg=NONE ctermbg=NONE cterm=NONE
 hi CursorLineNr ctermfg=NONE ctermbg=NONE cterm=NONE
 hi LineNr       ctermfg=244    ctermbg=NONE cterm=NONE
 hi ErrorMsg     ctermfg=yellow ctermbg=NONE cterm=NONE
-hi VertSplit    ctermfg=244    ctermbg=NONE cterm=NONE
+hi VertSplit    ctermfg=234    ctermbg=NONE cterm=NONE
 hi MatchParen   ctermfg=0      ctermbg=225  cterm=NONE
 hi NonText      ctermfg=244    ctermbg=NONE cterm=NONE
 hi IncSearch    ctermfg=0      ctermbg=218  cterm=NONE
