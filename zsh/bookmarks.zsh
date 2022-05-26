@@ -21,6 +21,7 @@ bookmarks=(
   "$HOME/src/nhooyr/notes/decisions"
   "$HOME/src/nhooyr/notes/friends"
   "$HOME/src/nhooyr/notes/coder"
+  "$HOME/src/nhooyr/scratch"
 
   "$HOME/src/nhooyr/websocket"
   "$HOME/src/nhooyr/blog"
