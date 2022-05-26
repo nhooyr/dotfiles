@@ -222,10 +222,10 @@ function! s:settings() abort
 
   augroup nhooyr_autocd
     autocmd!
-    autocmd FileType * Lcd
-    autocmd BufEnter * Lcd
+    autocmd FileType * silent! Lcd
+    autocmd BufEnter * silent! Lcd
   augroup END
-  command! -bar Lcd silent! lcd %:p:h
+  command! -bar Lcd lcd %:p:h | pwd
 
   function! s:rdiff(args) abort
     enew
