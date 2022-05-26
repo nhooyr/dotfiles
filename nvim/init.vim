@@ -508,7 +508,7 @@ function! s:maps() abort
   nnoremap <silent> <M-n> :call <SID>note()<CR>
 
   function! s:find(pat) abort
-    lgetexpr system('find . -path '.shellescape(a:pat)
+    cgetexpr system('find . -path '.shellescape(a:pat)
           \.' | xargs file | sed "s/:/:1:/"')
   endfunction
   command! -nargs=1 Find call <SID>find(<q-args>)
