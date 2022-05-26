@@ -544,6 +544,7 @@ function! s:maps() abort
     endif
     let l:git_dir = system('git rev-parse --show-toplevel')
     execute 'lcd '.l:git_dir
+    pwd
   endfunction
   command! -bar Gcd call s:gcd()
 endfunction
