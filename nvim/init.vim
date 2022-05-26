@@ -434,8 +434,22 @@ function! s:maps() abort
   nnoremap <silent> [q :cprev<CR>
   nnoremap <silent> ]l :lnext<CR>
   nnoremap <silent> [l :lprev<CR>
-  nnoremap <silent> <Leader>q :cclose<CR>
-  nnoremap <silent> <Leader>lc :lclose<CR>
+  function! s:toggle_quickfix() abort
+    if empty(filter(getwininfo(), 'v:val.quickfix'))
+      copen
+    else
+      cclose
+    endif
+  endfunction
+  function! s:toggle_loclist() abort
+    if empty(filter(getwininfo(), 'v:val.loclist'))
+      lopen
+    else
+      lclose
+    endif
+  endfunction
+  nnoremap <silent> <Leader>qq :call <SID>toggle_quickfix()<CR>
+  nnoremap <silent> <Leader>ql :call <SID>toggle_loclist()<CR>
   nnoremap <silent> ]t :tabn<CR>
   nnoremap <silent> [t :tabp<CR>
 
