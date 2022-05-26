@@ -601,7 +601,8 @@ function! s:fzf() abort
   endfunction
   command! -nargs=? Term call s:term(<q-args>)
   nnoremap <silent> <M-t> :call <SID>term('')<CR>
-  tnoremap <silent> <ESC> <C-\><C-n>
+  " Will not work with embedded vi's unfortunately.
+  " tnoremap <silent> <ESC> <C-\><C-n>
   tnoremap <silent> <M-l> <C-l>
   nnoremap <silent> <M-l> i<C-l><C-\><C-n>
 
