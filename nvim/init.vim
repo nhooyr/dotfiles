@@ -295,10 +295,15 @@ function! s:maps() abort
   nnoremap <silent> s zz
   nnoremap <nowait> z zb
   nnoremap <silent> Z z
+  nnoremap <silent> ZG zg
+  " :runtime spell/cleanadd.vim to cleanup spellfile comments.
+  nnoremap <silent> ZW zw
+  command! SpellCleanAdd runtime spell/cleanadd.vim
 
   nnoremap <silent> <Leader>t :tabnew<CR>
 
-  nnoremap <silent> <Leader>s :source $MYVIMRC<CR>
+  nnoremap <silent> <Leader>sr :source $MYVIMRC<CR>
+  nnoremap <silent> <Leader>ss :setlocal spell! spelllang=en_ca<CR>
   nnoremap <silent> <Leader>cd :cd %:h<CR>
 
   nnoremap <silent> <Leader>ll :set list!<CR>
