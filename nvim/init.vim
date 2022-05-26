@@ -303,7 +303,7 @@ function! s:maps() abort
 
   nnoremap <silent> <Leader>es :source $MYVIMRC<CR>
   nnoremap <silent> <Leader>s :setlocal spell! spelllang=en_ca<CR>
-  nnoremap <silent> <Leader>cd :cd %:h<CR>
+  nnoremap <silent> <Leader>c :let @+ = expand('%:p')<CR>
 
   nnoremap <silent> <Leader>ll :set list!<CR>
 
