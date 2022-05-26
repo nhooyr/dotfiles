@@ -28,10 +28,10 @@ hi Directory  ctermfg=18  ctermbg=NONE cterm=NONE
 hi SpecialKey ctermfg=5   ctermbg=NONE cterm=underline
 hi TermCursor ctermfg=246 ctermbg=NONE cterm=reverse
 
-hi SpellBad   ctermfg=yellow ctermbg=NONE cterm=underline
-hi SpellCap   ctermfg=blue  ctermbg=NONE cterm=underline
-hi SpellLocal ctermfg=blue  ctermbg=NONE cterm=underline
-hi SpellRare  ctermfg=blue  ctermbg=NONE cterm=underline
+hi SpellBad   ctermfg=yellow ctermbg=NONE cterm=italic,underline
+hi SpellCap   ctermfg=blue   ctermbg=NONE cterm=italic,underline
+hi SpellLocal ctermfg=blue   ctermbg=NONE cterm=italic,underline
+hi SpellRare  ctermfg=blue   ctermbg=NONE cterm=italic,underline
 
 " Language colors.
 hi Comment    ctermfg=249    ctermbg=NONE cterm=italic
