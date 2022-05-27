@@ -269,11 +269,19 @@ function! s:settings() abort
   augroup END
 
   function! s:bclean(bang) abort
-    let l:buffers = filter(getbufinfo(), 'v:val.hidden')
+    " Find all hidden or listed and not loaded buffers.
+    let l:buffers = filter(getbufinfo(), 'v:val.hidden || (v:val.listed && !v:val.loaded)')
     for l:buf in l:buffers
-      echom 'bdelete '.l:buf.bufnr.' " '.l:buf.name
+      if l:buf.listed && !l:buf.loaded
+        " Listed but unloaded so we need to use bwipeout.
+        " Happens to hidden buffers after session resumption.
+        let l:delete_cmd = 'bwipeout '.l:buf.bufnr.' "'.l:buf.name
+      else
+        let l:delete_cmd = 'bdelete '.l:buf.bufnr.' "'.l:buf.name
+      endif
+      echom l:delete_cmd
       if a:bang ==# '!'
-        silent! execute 'bdelete '.l:buf.bufnr
+        silent! execute l:delete_cmd
       endif
     endfor
   endfunction
