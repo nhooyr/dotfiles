@@ -195,7 +195,8 @@ function! s:settings() abort
 
     autocmd BufWinEnter,FileType * setlocal foldmethod=indent
     autocmd BufEnter,FileType * setlocal number
-    autocmd BufEnter,FileType * setlocal nocursorline
+    autocmd BufEnter,FileType * setlocal cursorline
+    autocmd BufLeave * setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
