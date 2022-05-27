@@ -462,3 +462,11 @@ ipsum() {
 ipsumn1() {
   fortune | head -n1 | pc
 }
+
+if [ "$NVIM" -a "$NVIM_SESSION" ]; then
+  man() {
+    # Without 2> complains about lcd errors from lcd autocmd even though those are
+    # prefixed with :silent.
+    nvim --server "/tmp/nvim-$NVIM_SESSION" --remote-expr "execute('Man $*')" 2> /dev/null
+  }
+fi
