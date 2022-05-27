@@ -445,7 +445,7 @@ function! s:maps() abort
   tnoremap <silent> <C-j> <C-\><C-n><C-W>j
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
   nnoremap <silent> 'd :enew <BAR> silent bwipeout!#<CR>
-  nnoremap <silent> 'q :close <BAR> silent bwipeout!#<CR>
+  nnoremap <silent> 'q :enew <BAR> silent bwipeout!# <BAR> :close<CR>
   nnoremap <silent> <M-q> :buf#<Bar>bwipeout!#<Bar>startinsert<CR>
   inoremap <silent> <M-q> <Esc>:buf#<Bar>bwipeout!#<Bar>startinsert<CR>
   nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bwipeout#<Bar>startinsert<CR>
