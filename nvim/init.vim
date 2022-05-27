@@ -1,5 +1,7 @@
 " TODO: prune
 " TODO: teach vim about zsh bookmarks somehow
+" https://threkk.medium.com/how-to-use-bookmarks-in-bash-zsh-6b8074e40774
+" get rid of zsh bookmarks and only use CDPATH in both vim and zsh!
 function! s:plugins() abort
   let s:vim_plug = "~/.local/share/nvim/site/autoload/plug.vim"
   if empty(glob(s:vim_plug, 1))
