@@ -236,7 +236,7 @@ function! s:settings() abort
   function! s:rdiff(args) abort
     enew
     setlocal noreadonly
-    execute 'read !git diff '.a:args
+    silent execute 'read !git diff '.a:args
     normal gg"_dd
     setlocal filetype=diff
     setlocal noswapfile buftype=nofile bufhidden=hide
@@ -431,8 +431,8 @@ function! s:maps() abort
   tnoremap <silent> <C-l> <C-\><C-n><C-W>l
   tnoremap <silent> <C-j> <C-\><C-n><C-W>j
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
-  nnoremap <silent> 'd :enew <BAR> bd!#<CR>
-  nnoremap <silent> 'q :close <BAR> bd!#<CR>
+  nnoremap <silent> 'd :enew <BAR> silent bd!#<CR>
+  nnoremap <silent> 'q :close <BAR> silent bd!#<CR>
   nnoremap <silent> <M-q> :buf#<Bar>bdelete!#<Bar>startinsert<CR>
   inoremap <silent> <M-q> <Esc>:buf#<Bar>bdelete!#<Bar>startinsert<CR>
   nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
