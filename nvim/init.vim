@@ -24,7 +24,6 @@ function! s:plugins() abort
   Plug 'Shougo/neosnippet-snippets'
 
   Plug 'junegunn/fzf'
-  Plug 'junegunn/fzf.vim'
 
   Plug 'gcmt/taboo.vim'
   Plug 'justinmk/vim-dirvish'
@@ -665,16 +664,6 @@ function! s:fzf() abort
   " tnoremap <silent> <ESC> <C-\><C-n>
   tnoremap <silent> <M-l> <C-l>
   nnoremap <silent> <M-l> i<C-l><C-\><C-n>
-
-  nnoremap <silent> <M-g> :GitFiles<CR>
-  nnoremap <silent> <M-w> :Windows<CR>
-  nnoremap <silent> <M-b> :Buffers<CR>
-
-  inoremap <silent> <M-g> <ESC>:GitFiles<CR>
-  inoremap <silent> <M-w> <ESC>:Windows<CR>
-
-  tnoremap <silent> <M-g> <C-\><C-n>:GitFiles<CR>
-  tnoremap <silent> <M-w> <C-\><C-n>:Windows<CR>
 
   " function! s:quickPathsSink(path) abort
   "   let l:system("zsh -c 'source ~/.zshrc && eval \"echo $1\"' -- ".shellescape('~notes'))
