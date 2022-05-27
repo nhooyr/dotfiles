@@ -454,3 +454,11 @@ trash() {
   md /tmp/trash
   mv "$@" /tmp/trash
 }
+
+ipsum() {
+  fortune | pc
+}
+
+ipsumn1() {
+  fortune | head -n1 | pc
+}
