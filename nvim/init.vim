@@ -332,9 +332,7 @@ endfunction
 call s:settings()
 
 function! s:maps() abort
-  nnoremap <silent> t zt
   nnoremap <silent> s zz
-  nnoremap <nowait> f zb
 
   command! -bar SpellCleanAdd runtime spell/cleanadd.vim
 
@@ -342,7 +340,7 @@ function! s:maps() abort
   nnoremap <silent> 'v :vsplit<CR>
   nnoremap <silent> 't :tabnew<CR>
 
-  nnoremap <silent> <Leader>ee :source $MYVIMRC<CR>
+  nnoremap <silent> <Leader>er :source $MYVIMRC<CR>
   nnoremap <silent> <Leader>s :setlocal spell! spelllang=en_ca<CR>
   nnoremap <silent> <Leader>c :Lcd<CR>
   nnoremap <silent> <Leader>g :Gcd<CR>
