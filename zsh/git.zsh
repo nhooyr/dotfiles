@@ -308,6 +308,7 @@ ghc() {
   gh repo create --private "$@" &&
   ghd "${@[-1]}"
 }
+alias ghp="gh pr checkout"
 
 git_push() {(
   set -euo pipefail
