@@ -656,6 +656,7 @@ function! s:fzf() abort
   " function! s:quickPathsSink(path) abort
   "   let l:system("zsh -c 'source ~/.zshrc && eval \"echo $1\"' -- ".shellescape('~notes'))
   " endfunction
+  " TODO: some day expand bookmark after and not use fzf#wrap.
   command! -bar QuickPaths call fzf#run(fzf#wrap({'source': 'source ~/.zshrc && processed_quick_paths | expand_bookmarks'}))
   nnoremap <silent> <M-v> :QuickPaths<CR>
   inoremap <silent> <M-v> <ESC>:QuickPaths<CR>
