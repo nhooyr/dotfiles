@@ -271,6 +271,16 @@ function! s:settings() abort
     autocmd VimLeave * call <SID>save_this_session()
   augroup END
 
+  function! s:bclean_delete_cmd(force, buf) abort
+    if a:buf.listed && !a:buf.loaded
+      " Listed but unloaded so we need to use bwipeout.
+      " Happens to hidden buffers after session resumption.
+      return 'bwipeout'.a:force.' '.a:buf.bufnr.' "'.a:buf.name
+    else
+      return 'bdelete'.a:force.' '.a:buf.bufnr.' "'.a:buf.name
+    endif
+  endfunction
+
   function! s:bclean(bang, force) abort
     let l:force = ''
     if a:force !=# ''
@@ -279,17 +289,15 @@ function! s:settings() abort
     " Find all hidden or listed and unloaded buffers.
     let l:buffers = filter(getbufinfo(), 'v:val.hidden || (v:val.listed && !v:val.loaded)')
     for l:buf in l:buffers
-      if l:buf.listed && !l:buf.loaded
-        " Listed but unloaded so we need to use bwipeout.
-        " Happens to hidden buffers after session resumption.
-        let l:delete_cmd = 'bwipeout'.l:force.' '.l:buf.bufnr.' "'.l:buf.name
-      else
-        let l:delete_cmd = 'bdelete'.l:force.' '.l:buf.bufnr.' "'.l:buf.name
+      let l:delete_cmd = s:bclean_delete_cmd(l:force, l:buf)
+      if a:bang ==# '!'
+        try
+          silent execute l:delete_cmd
+        catch
+          let l:delete_cmd = s:bclean_delete_cmd('!', l:buf)
+        endtry
       endif
       echom l:delete_cmd
-      if a:bang ==# '!'
-        silent! execute l:delete_cmd
-      endif
     endfor
   endfunction
   " Bclean or Bclean! or Bclean!!
