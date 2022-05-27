@@ -187,7 +187,7 @@ function! s:settings() abort
     " https://superuser.com/a/1090762
     autocmd CursorHold * if getcmdwintype() == '' | checktime | endif
 
-    autocmd FileType * setlocal foldmethod=indent
+    autocmd FileType * setlocal foldmethod=indent foldlevel=20
     autocmd FileType * setlocal number
     autocmd FileType * setlocal nocursorline
     autocmd BufEnter * setlocal number
