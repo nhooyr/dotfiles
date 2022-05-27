@@ -141,8 +141,8 @@ function! s:settings() abort
     set expandtab
 
     set foldmethod=indent
-    set foldlevel=20
   endif
+  set foldlevelstart=20
   set textwidth=90
 
   set formatoptions+=ro
@@ -186,7 +186,7 @@ function! s:settings() abort
     " https://superuser.com/a/1090762
     autocmd CursorHold * if getcmdwintype() == '' | checktime | endif
 
-    autocmd BufWinEnter,FileType * setlocal foldmethod=indent foldlevel=20
+    autocmd BufWinEnter,FileType * setlocal foldmethod=indent
     autocmd BufEnter,FileType * setlocal number
     autocmd BufEnter,FileType * setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"
