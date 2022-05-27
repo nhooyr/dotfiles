@@ -572,6 +572,7 @@ function! s:maps() abort
 
   " Life saver alignment mapping.
   " https://unix.stackexchange.com/a/179319
+  " TODO: turn into command that accepts something to align on.
   vnoremap <silent> <C-l> :!column -t \| sed 's/\( *\) /\1/g'<CR>
 
   function! s:note() abort
