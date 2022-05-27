@@ -1,3 +1,5 @@
+" TODO: prune
+" TODO: teach vim about zsh bookmarks somehow
 function! s:plugins() abort
   let s:vim_plug = "~/.local/share/nvim/site/autoload/plug.vim"
   if empty(glob(s:vim_plug, 1))
