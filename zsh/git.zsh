@@ -108,6 +108,7 @@ gshb() {
   git show --no-patch --format=%b "$@"
 }
 alias gst="git stash"
+alias gsta="git stash apply"
 alias gstp="git stash pop"
 alias gstpu="git stash push"
 alias gstk="git stash --keep-index"
