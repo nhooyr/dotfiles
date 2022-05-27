@@ -270,13 +270,13 @@ function! s:settings() abort
   endfunction
   command! -bar -bang Bclean call s:bclean('<bang>')
 
-  function s:tab_leave() abort
+  function! s:tab_leave() abort
     if len(g:nhooyr_tab_history) > 1
       let g:nhooyr_tab_history = [g:nhooyr_tab_history[1]]
     endif
     call add(g:nhooyr_tab_history, tabpagenr())
   endfunction
-  function s:tab_closed() abort
+  function! s:tab_closed() abort
     if len(g:nhooyr_tab_history) < 2
       let g:nhooyr_tab_history = []
       return
