@@ -656,6 +656,8 @@ function! s:fzf() abort
     autocmd!
     autocmd BufWinEnter,BufFilePost * call s:update_history()
   augroup END
+
+  let g:fzf_preview_window = []
 endfunction
 call s:fzf()
 
