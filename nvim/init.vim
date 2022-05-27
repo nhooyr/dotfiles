@@ -224,7 +224,16 @@ function! s:settings() abort
     autocmd FileType * silent! Lcd
     autocmd BufEnter * silent! Lcd
   augroup END
-  command! -bar Lcd lcd %:p:h | pwd
+  function! s:lcd() abort
+    if &buftype ==# "terminal"
+      let l:term_dir = matchlist(@%, 'term://\(\~.*\)//.*')[1]
+      execute 'lcd '.expand(l:term_dir)
+    else
+      lcd %:p:h
+    endif
+    pwd
+  endfunction
+  command! -bar Lcd call s:lcd()
 
   function! s:rdiff(args) abort
     enew
