@@ -187,11 +187,9 @@ function! s:settings() abort
     " https://superuser.com/a/1090762
     autocmd CursorHold * if getcmdwintype() == '' | checktime | endif
 
-    autocmd FileType * setlocal foldmethod=indent foldlevel=20
-    autocmd FileType * setlocal number
-    autocmd FileType * setlocal nocursorline
-    autocmd BufEnter * setlocal number
-    autocmd BufEnter * setlocal nocursorline
+    autocmd BufWinEnter,FileType * setlocal foldmethod=indent foldlevel=20
+    autocmd BufEnter,FileType * setlocal number
+    autocmd BufEnter,FileType * setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
