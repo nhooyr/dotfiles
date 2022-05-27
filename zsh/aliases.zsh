@@ -31,6 +31,8 @@ alias sshu="ssh -oControlPath=none"
 alias rb="s reboot"
 alias po="s poweroff"
 
+alias xg="xargs -I{}"
+
 alias er="e -R"
 
 es() {
