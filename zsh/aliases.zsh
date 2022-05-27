@@ -163,6 +163,7 @@ rg() {
     --colors match:fg:yellow \
     --colors match:style:nobold \
     --hidden \
+    --no-heading \
     -g '!.git' \
     "$@"
 }
