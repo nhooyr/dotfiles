@@ -200,6 +200,7 @@ function! s:settings() abort
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType make let &tabstop=&shiftwidth
     autocmd FileType help setlocal fo-=t
+    autocmd FileType go setlocal noexpandtab
   augroup END
 
   set breakindent
