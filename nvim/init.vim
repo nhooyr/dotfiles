@@ -25,6 +25,8 @@ function! s:plugins() abort
   Plug 'gcmt/taboo.vim'
   Plug 'justinmk/vim-dirvish'
 
+  Plug 'mattn/emmet-vim'
+
   Plug expand('~/src/terrastruct/d2-vim')
   " Plug 'terrastruct/dia-vim'
   call plug#end()
@@ -59,8 +61,8 @@ function! s:plugin_settings() abort
   " imap <silent><expr> <C-l> '- '.strftime("%I:%M:%S%p").': '
   nmap <silent> <M-o> o<C-o>"_d0<C-l>
 
-  " let g:user_emmet_leader_key = "<C-y>"
-  " let g:user_emmet_mode="i"
+  let g:user_emmet_leader_key = "<C-y>"
+  let g:user_emmet_mode="i"
 
   " let g:go_gopls_enabled = 0
   " let g:go_echo_go_info = 0
