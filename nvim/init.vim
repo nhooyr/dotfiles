@@ -303,6 +303,8 @@ function! s:settings() abort
     autocmd!
     autocmd! TabLeave * call s:tab_leave()
     autocmd! TabClosed * call s:tab_closed()
+
+    autocmd! WinClosed * wincmd p
   augroup END
   nnoremap <silent> <Leader>t :execute 'tabn '.g:nhooyr_tab_history[1]<CR>
 endfunction
