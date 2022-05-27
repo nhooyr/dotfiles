@@ -64,6 +64,10 @@ gacmp() {
   ga "$@" && gcm && git_push
 }
 compdef _git gacmp=git-add
+gacm() {
+  ga "$@" && gcm
+}
+compdef _git gacm=git-add
 gcmp() {
   gcm "$@" && git_push
 }
