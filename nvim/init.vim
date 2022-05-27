@@ -435,10 +435,10 @@ function! s:maps() abort
   inoremap <silent> <M-q> <Esc>:buf#<Bar>bdelete!#<Bar>startinsert<CR>
   nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
   inoremap <silent> <M-x> <Esc>:silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
-  inoremap <silent> <C-k> <Esc><C-W>k
-  inoremap <silent> <C-l> <Esc><C-W>l
-  inoremap <silent> <C-j> <Esc><C-W>j
-  inoremap <silent> <C-h> <Esc><C-W>h
+  " inoremap <silent> <C-k> <Esc><C-W>k
+  " inoremap <silent> <C-l> <Esc><C-W>l
+  " inoremap <silent> <C-j> <Esc><C-W>j
+  " inoremap <silent> <C-h> <Esc><C-W>h
 
   noremap <silent> <C-z> zz
   " For some reason in markdown files this causes C-f to be inserted as a literal.
