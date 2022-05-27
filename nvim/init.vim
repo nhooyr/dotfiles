@@ -275,13 +275,7 @@ function! s:settings() abort
   augroup END
 
   function! s:bclean_delete_cmd(force, buf) abort
-    if a:buf.listed && !a:buf.loaded
-      " Listed but unloaded so we need to use bwipeout.
-      " Happens to hidden buffers after session resumption.
-      return 'bwipeout'.a:force.' '.a:buf.bufnr.' "'.a:buf.name
-    else
-      return 'bdelete'.a:force.' '.a:buf.bufnr.' "'.a:buf.name
-    endif
+    return 'bwipeout'.a:force.' '.a:buf.bufnr.' "'.a:buf.name
   endfunction
 
   function! s:bclean(bang, force) abort
@@ -452,12 +446,12 @@ function! s:maps() abort
   tnoremap <silent> <C-l> <C-\><C-n><C-W>l
   tnoremap <silent> <C-j> <C-\><C-n><C-W>j
   tnoremap <silent> <C-h> <C-\><C-n><C-W>h
-  nnoremap <silent> 'd :enew <BAR> silent bd!#<CR>
-  nnoremap <silent> 'q :close <BAR> silent bd!#<CR>
-  nnoremap <silent> <M-q> :buf#<Bar>bdelete!#<Bar>startinsert<CR>
-  inoremap <silent> <M-q> <Esc>:buf#<Bar>bdelete!#<Bar>startinsert<CR>
-  nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
-  inoremap <silent> <M-x> <Esc>:silent write<Bar>buf#<Bar>bdelete#<Bar>startinsert<CR>
+  nnoremap <silent> 'd :enew <BAR> silent bwipeout!#<CR>
+  nnoremap <silent> 'q :close <BAR> silent bwipeout!#<CR>
+  nnoremap <silent> <M-q> :buf#<Bar>bwipeout!#<Bar>startinsert<CR>
+  inoremap <silent> <M-q> <Esc>:buf#<Bar>bwipeout!#<Bar>startinsert<CR>
+  nnoremap <silent> <M-x> :silent write<Bar>buf#<Bar>bwipeout#<Bar>startinsert<CR>
+  inoremap <silent> <M-x> <Esc>:silent write<Bar>buf#<Bar>bwipeout#<Bar>startinsert<CR>
   " TODO: Sort all mode mappings to easily see what's available and taken.
   "       Add comments for default binds.
   " TODO: Add map for digraph C-k and then re-enable these.
