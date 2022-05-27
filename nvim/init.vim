@@ -36,7 +36,6 @@ call s:plugins()
 
 function! s:plugin_settings() abort
   set sessionoptions+=globals,terminal
-  set sessionoptions-=buffers
 
   let g:dia_block_string_syntaxes = {'zsh': ['zsh'], 'rust': ['rust'], 'typescript': ['typescript', 'ts']}
 
