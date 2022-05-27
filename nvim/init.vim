@@ -174,8 +174,6 @@ function! s:settings() abort
   " Fuck netrw.
   let g:loaded_netrw       = 1
   let g:loaded_netrwPlugin = 1
-  let g:netrw_banner=0
-  let g:netrw_cursor = 0
   " netrw needs an explicit nu here for line numbers otherwise they don't always come up
   " even with FileType and BufWinEnter set.
   " let g:netrw_bufsettings = 'noma nomod nonu nowrap ro nobl nu'
