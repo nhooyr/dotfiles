@@ -140,8 +140,7 @@ function! s:settings() abort
     set expandtab
 
     set foldmethod=indent
-    set foldnestmax=1
-    set foldlevel=1
+    set foldlevel=20
   endif
   set textwidth=90
 
@@ -188,6 +187,7 @@ function! s:settings() abort
     " https://superuser.com/a/1090762
     autocmd CursorHold * if getcmdwintype() == '' | checktime | endif
 
+    autocmd FileType * setlocal foldmethod=indent
     autocmd FileType * setlocal number
     autocmd FileType * setlocal nocursorline
     autocmd BufEnter * setlocal number
@@ -321,11 +321,8 @@ call s:settings()
 function! s:maps() abort
   nnoremap <silent> t zt
   nnoremap <silent> s zz
-  nnoremap <nowait> z zb
-  nnoremap <silent> Z z
-  nnoremap <silent> ZG zg
-  " :runtime spell/cleanadd.vim to cleanup spellfile comments.
-  nnoremap <silent> ZW zw
+  nnoremap <nowait> f zb
+
   command! -bar SpellCleanAdd runtime spell/cleanadd.vim
 
   nnoremap <silent> 's :split<CR>
