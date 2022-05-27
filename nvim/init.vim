@@ -29,8 +29,8 @@ function! s:plugins() abort
   " Plug 'terrastruct/dia-vim'
   call plug#end()
 
-  command! PU PlugUpgrade | PlugUpdate
-  command! PC PlugClean
+  command! -bar PU PlugUpgrade | PlugUpdate
+  command! -bar PC PlugClean
 endfunction
 call s:plugins()
 
@@ -236,14 +236,14 @@ function! s:settings() abort
     setlocal nomodified readonly nomodifiable
     execute 'file git-diff-'.bufnr()
   endfunction
-  command! -nargs=* Rdiff call s:rdiff(<q-args>)
+  command! -bar -nargs=* Rdiff call s:rdiff(<q-args>)
 
   function! s:make_session(name) abort
     let l:sessions_file = stdpath('data').'/sessions/'.a:name.'.vim'
     silent !mkdir -p $XDG_DATA_HOME/nvim/sessions
     execute 'silent mksession! '.l:sessions_file
   endfunction
-  command! -nargs=1 MakeSession call <SID>make_session(<q-args>)
+  command! -bar -nargs=1 MakeSession call <SID>make_session(<q-args>)
 
   function! s:save_this_session() abort
     if $NVIM_SESSION != ''
@@ -307,7 +307,7 @@ function! s:maps() abort
   nnoremap <silent> ZG zg
   " :runtime spell/cleanadd.vim to cleanup spellfile comments.
   nnoremap <silent> ZW zw
-  command! SpellCleanAdd runtime spell/cleanadd.vim
+  command! -bar SpellCleanAdd runtime spell/cleanadd.vim
 
   nnoremap <silent> 's :split<CR>
   nnoremap <silent> 'v :vsplit<CR>
@@ -509,7 +509,7 @@ function! s:maps() abort
 
   if executable("rg")
     let &grepprg="rg -S --vimgrep"
-    command! -nargs=+ Rg silent grep! <args>
+    command! -bar -nargs=+ Rg silent grep! <args>
   endif
 
   " https://stackoverflow.com/a/4313335/4283659
@@ -527,7 +527,7 @@ function! s:maps() abort
     call feedkeys("/".a:pattern."/\<CR>")
     call feedkeys(":lvimgrep /".a:pattern."/j %\<CR>")
   endfunction
-  command! -nargs=+ Search call <SID>lvimgrep(<q-args>)
+  command! -bar -nargs=+ Search call <SID>lvimgrep(<q-args>)
 
   " Life saver alignment mapping.
   " https://unix.stackexchange.com/a/179319
@@ -542,15 +542,15 @@ function! s:maps() abort
     cgetexpr system('find . -path '.shellescape(a:pat)
           \.' | xargs file | sed "s/:/:1:/"')
   endfunction
-  command! -nargs=1 Find call <SID>find(<q-args>)
+  command! -bar -nargs=1 Find call <SID>find(<q-args>)
 
   function! s:ggrep(pat) abort
     call s:gcd()
     execute 'Lgrep '.a:pat
     silent! lcd %:p:h
   endfunction
-  command! -nargs=1 Lgrep silent lgrep! <args>
-  command! -nargs=1 Ggrep call <SID>ggrep(<q-args>)
+  command! -bar -nargs=1 Lgrep silent lgrep! <args>
+  command! -bar -nargs=1 Ggrep call <SID>ggrep(<q-args>)
 
   function! s:gcd() abort
     if match(getcwd(), '/.git$') != -1
@@ -608,7 +608,7 @@ function! s:fzf() abort
     call jobstart("zsh -ic gcn &!")
   endfunction
 
-  command! -nargs=1 TermFile file %;\#<args>
+  command! -bar -nargs=1 TermFile file %;\#<args>
   function! s:term(cmd) abort
     execute 'term '.a:cmd
     let l:tabname = g:TabooTabName(tabpagenr())
@@ -617,7 +617,7 @@ function! s:fzf() abort
     endif
     execute 'TermFile '.l:tabname
   endfunction
-  command! -nargs=? Term call s:term(<q-args>)
+  command! -bar -nargs=? Term call s:term(<q-args>)
   nnoremap <silent> <M-t> :call <SID>term('')<CR>
   " Will not work with embedded vi's unfortunately.
   " tnoremap <silent> <ESC> <C-\><C-n>
@@ -637,7 +637,7 @@ function! s:fzf() abort
   " function! s:quickPathsSink(path) abort
   "   let l:system("zsh -c 'source ~/.zshrc && eval \"echo $1\"' -- ".shellescape('~notes'))
   " endfunction
-  command! QuickPaths call fzf#run(fzf#wrap({'source': 'source ~/.zshrc && processed_quick_paths | expand_bookmarks'}))
+  command! -bar QuickPaths call fzf#run(fzf#wrap({'source': 'source ~/.zshrc && processed_quick_paths | expand_bookmarks'}))
   nnoremap <silent> <M-v> :QuickPaths<CR>
   inoremap <silent> <M-v> <ESC>:QuickPaths<CR>
 
