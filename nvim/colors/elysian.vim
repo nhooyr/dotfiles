@@ -7,7 +7,7 @@ let g:colors_name = "elysian"
 " Vim UI colors.
 hi Normal       ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi CursorLine   ctermfg=NONE   ctermbg=NONE cterm=NONE
-hi CursorLineNr ctermfg=NONE   ctermbg=NONE cterm=NONE
+hi CursorLineNr ctermfg=252    ctermbg=NONE cterm=NONE
 hi LineNr       ctermfg=244    ctermbg=NONE cterm=NONE
 hi ErrorMsg     ctermfg=yellow ctermbg=NONE cterm=NONE
 hi VertSplit    ctermfg=234    ctermbg=NONE cterm=NONE
