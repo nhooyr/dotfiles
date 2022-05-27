@@ -269,7 +269,7 @@ function! s:settings() abort
   augroup END
 
   function! s:bclean(bang) abort
-    " Find all hidden or listed and not loaded buffers.
+    " Find all hidden or listed and unloaded buffers.
     let l:buffers = filter(getbufinfo(), 'v:val.hidden || (v:val.listed && !v:val.loaded)')
     for l:buf in l:buffers
       if l:buf.listed && !l:buf.loaded
