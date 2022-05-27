@@ -259,6 +259,17 @@ function! s:settings() abort
     autocmd VimLeave * call <SID>save_this_session()
   augroup END
 
+  function! s:bclean(bang) abort
+    let l:buffers = filter(getbufinfo(), 'v:val.hidden')
+    for l:buf in l:buffers
+      echom 'bdelete '.l:buf.bufnr.' " '.l:buf.name
+      if a:bang ==# '!'
+        silent! execute 'bdelete '.l:buf.bufnr
+      endif
+    endfor
+  endfunction
+  command! -bar -bang Bclean call s:bclean('<bang>')
+
   function s:tab_leave() abort
     if len(g:nhooyr_tab_history) > 1
       let g:nhooyr_tab_history = [g:nhooyr_tab_history[1]]
