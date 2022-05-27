@@ -1,5 +1,11 @@
 alias g="git"
-alias gb="git branch -vv"
+compdef _git gb=git-branch
+gb() {
+  if [ "$#" -eq 0 ]; then
+    set -- -vv
+  fi
+  git branch "$@"
+}
 alias gbr="git branch -rvv"
 # This does not work with upstream tracking branches. So annoying.
 # anything not origin i mean.
