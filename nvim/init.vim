@@ -353,7 +353,7 @@ function! s:maps() abort
   nnoremap <silent> <Leader>ls :%s/\s\+$// \| nohlsearch<CR>
 
   noremap ; :
-  noremap , ;
+  noremap : ;
   nnoremap <silent> <nowait> q :quit<CR>
   nnoremap <silent> Qm q
   nnoremap <silent> Q: q:
