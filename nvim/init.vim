@@ -2,6 +2,8 @@
 " TODO: teach vim about zsh bookmarks somehow
 " https://threkk.medium.com/how-to-use-bookmarks-in-bash-zsh-6b8074e40774
 " get rid of zsh bookmarks and only use CDPATH in both vim and zsh!
+" put bookmarks in directory inside bookmarks directory for never any ambiguity.
+" e.g. scratch would be eqd/scratch instead of ~scratch. so easy!
 function! s:plugins() abort
   let s:vim_plug = "~/.local/share/nvim/site/autoload/plug.vim"
   if empty(glob(s:vim_plug, 1))
