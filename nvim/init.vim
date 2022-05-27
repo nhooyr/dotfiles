@@ -485,8 +485,14 @@ function! s:maps() abort
   " https://vim.fandom.com/wiki/Search_for_visually_selected_text
   vnoremap // y/\V<C-R>=escape(@",'/\')<CR><CR>
 
+  " TODO: fix these and see [(, [{, ]), ]}
   nnoremap <silent> ]] ][
   nnoremap <silent> [[ []
+  " noremap <silent> [[ ?{<CR>w99[{
+  " noremap <silent> ][ /}<CR>b99]}
+  " noremap <silent> ]] j0[[%/{<CR>
+  " noremap <silent> [] k$][%?}<CR>
+
 
   function! s:diff_next(direction) abort
     " Jumps to the next comment block.
