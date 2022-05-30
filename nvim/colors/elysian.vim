@@ -24,6 +24,8 @@ hi TabLineSel   ctermfg=0      ctermbg=218  cterm=NONE
 hi SignColumn   ctermfg=NONE   ctermbg=NONE cterm=NONE
 hi Folded       ctermfg=249    ctermbg=NONE cterm=italic
 
+hi NormalFloat  ctermfg=NONE   ctermbg=234 cterm=NONE
+
 hi Directory  ctermfg=18  ctermbg=NONE cterm=NONE
 hi SpecialKey ctermfg=5   ctermbg=NONE cterm=underline
 hi TermCursor ctermfg=246 ctermbg=NONE cterm=reverse
