@@ -332,7 +332,9 @@ endfunction
 call s:settings()
 
 function! s:maps() abort
+  nnoremap <silent> t zt
   nnoremap <silent> s zz
+  nnoremap <silent> <M-b> zb
 
   command! -bar SpellCleanAdd runtime spell/cleanadd.vim
 
