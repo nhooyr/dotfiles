@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+while read -r p; do
+  if [ -e "$p" ]; then
+    printf "%s\n" "$p"
+  fi
+done
