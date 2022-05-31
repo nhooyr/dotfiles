@@ -6,4 +6,4 @@ shift
 
 cd "$(git rev-parse --show-toplevel)"
 git ls-files --modified --other --deduplicate | echo_exists \
-  | grep "$PATTERN" | tee /dev/stderr | xargs -P8 -n32 "$@"
+  | grep "$PATTERN" | tee /dev/stderr | xargsp "$@"

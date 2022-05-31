@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+xargs -P8 -n32 "$@"
