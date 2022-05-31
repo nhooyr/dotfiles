@@ -1,5 +1,8 @@
 #!/bin/sh
 set -eu
 
+PATTERN="$1"
+shift
+
 cd "$(git rev-parse --show-toplevel)"
-git status --porcelain | sed s/\^...// | grep '\.go$' | xargs -P8 -n32 "$@"
+git status --porcelain | sed s/\^...// | grep "$PATTERN" | tee /dev/stderr | xargs -P8 -n32 "$@"

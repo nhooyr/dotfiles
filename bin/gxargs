@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+PATTERN="$1"
+shift
+
+cd "$(git rev-parse --show-toplevel)"
+git ls-files | grep "$PATTERN" | tee /dev/stderr | xargs -P8 -n32 "$@"
