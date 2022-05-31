@@ -64,8 +64,6 @@ function! s:plugin_settings() abort
   let g:neosnippet#snippets_directory = stdpath('config').'/after/snippets'
   imap <silent> <M-i> <Plug>(neosnippet_expand)
   imap <silent> <C-j> <Plug>(neosnippet_jump)
-  " imap <silent><expr> <C-l> '- '.strftime("%I:%M:%S%p").': '
-  nmap <silent> <M-o> o<C-o>"_d0<C-l>
 
   let g:user_emmet_leader_key = "<C-y>"
   let g:user_emmet_mode="i"
