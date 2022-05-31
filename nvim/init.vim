@@ -227,8 +227,8 @@ function! s:settings() abort
 
   augroup nhooyr_autocd
     autocmd!
-    autocmd FileType * silent! Lcd
-    autocmd BufEnter * silent! Lcd
+    " autocmd FileType * silent! Lcd
+    " autocmd BufEnter * silent! Lcd
   augroup END
   function! s:lcd() abort
     if &buftype ==# "terminal"
@@ -586,12 +586,13 @@ function! s:maps() abort
   function! s:ggrep(pat) abort
     call s:gcd()
     execute 'Lgrep '.a:pat
-    silent! lcd %:p:h
+    silent! Lcd
   endfunction
   command! -bar -nargs=1 Lgrep silent lgrep! <args>
   command! -bar -nargs=1 Ggrep call <SID>ggrep(<q-args>)
 
   function! s:gcd() abort
+    silent! Lcd
     if match(getcwd(), '/.git$') != -1
       lcd ..
       return
