@@ -1,6 +1,5 @@
 #!/bin/sh
 set -eu
 
-PATH="$(printfs "$PATH" | sed 's#:*[^:]*nhooyr/dotfiles/bin:*##')"
 gofmt -s -w "$@"
 goimports -w -local "$(go list -m)" "$@"
