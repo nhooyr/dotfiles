@@ -61,6 +61,7 @@ function! s:plugin_settings() abort
 
   let g:surround_no_insert_mappings = 1
 
+  let g:neosnippet#snippets_directory = stdpath('config').'/after/snippets'
   imap <silent> <M-i> <Plug>(neosnippet_expand)
   imap <silent> <C-j> <Plug>(neosnippet_jump)
   " imap <silent><expr> <C-l> '- '.strftime("%I:%M:%S%p").': '
