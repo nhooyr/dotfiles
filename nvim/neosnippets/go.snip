@@ -45,8 +45,24 @@ options word
 snippet main
 options head
 	func main() {
-		${0}
+		$0
 	}
 
 snippet json
 	\`json:"${1:keyName}"\`
+
+snippet tcs
+  testCases := []struct{
+		name string
+	}{
+		{},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			$0
+		})
+	}
