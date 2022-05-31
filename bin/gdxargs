@@ -2,7 +2,11 @@
 set -eu
 
 PATTERN="$1"
+_TMPDIR="$(mktemp -d)"
 shift
 
 cd "$(git rev-parse --show-toplevel)"
-git status --porcelain | sed s/\^...// | grep "$PATTERN" | tee /dev/stderr | xargs -P8 -n32 "$@"
+# https://stackoverflow.com/a/71424856/19187377
+git ls-files --modified --other | sort -u > "$_TMPDIR/m"
+git ls-files --deleted | sort -u > "$_TMPDIR/d"
+comm -3 "$_TMPDIR/m" "$_TMPDIR/d" | grep "$PATTERN" | tee /dev/stderr | xargs -P8 -n32 "$@"
