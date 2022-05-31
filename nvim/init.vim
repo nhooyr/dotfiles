@@ -191,7 +191,7 @@ function! s:settings() abort
     autocmd TextYankPost * silent! lua require'vim.highlight'.on_yank(nil, 150)
 
     " https://superuser.com/a/1090762
-    " autocmd CursorHold * if getcmdwintype() == '' | checktime | endif
+    autocmd CursorHold * if getcmdwintype() == '' | checktime | endif
 
     autocmd BufWinEnter,FileType * setlocal foldmethod=indent
     autocmd BufEnter,FileType * setlocal nonumber
