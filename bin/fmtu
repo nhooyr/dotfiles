@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+fmt 999999999 "$@" | pbcopy
