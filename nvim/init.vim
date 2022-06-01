@@ -512,7 +512,6 @@ function! s:maps() abort
   " noremap <silent> ]] j0[[%/{<CR>
   " noremap <silent> [] k$][%?}<CR>
 
-
   function! s:diff_next(direction) abort
     " Jumps to the next comment block.
     " Regex is ^[^#].*\n\zs\%(# .*\n\)\+
