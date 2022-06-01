@@ -456,11 +456,15 @@ trash() {
 }
 
 ipsum() {
-  fortune | pc
+  fortune
 }
 
-ipsumn1() {
-  fortune | head -n1 | pc
+ipsumc() {
+  ipsum | pc
+}
+
+ipsumn1c() {
+  ipsumn1 | head -n1 | pc
 }
 
 if [ "$NVIM" -a "$NVIM_SESSION" ]; then
