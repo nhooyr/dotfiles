@@ -241,7 +241,7 @@ fzf-commits() {
 
   local selected
   selected=("${(@f)$(gls | \
-    fzf --bind=ctrl-g:toggle-sort --expect=ctrl-v --tiebreak=index --query="$query")}")
+    fzf --no-sort --bind=ctrl-g:toggle-sort --expect=ctrl-v --tiebreak=index --query="$query")}")
   local key="${selected[1]}"
   local commit="$(echo "${selected[2]}" | awk '{ print $1 }' )"
   if [[ "$commit" ]]; then
