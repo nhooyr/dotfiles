@@ -493,8 +493,8 @@ function! s:maps() abort
       lclose
     endif
   endfunction
-  nnoremap <silent> <Leader>qq :call <SID>toggle_quickfix()<CR>
-  nnoremap <silent> <Leader>ql :call <SID>toggle_loclist()<CR>
+  nnoremap <silent> <Leader>q :call <SID>toggle_quickfix()<CR>
+  nnoremap <silent> <Leader>w :call <SID>toggle_loclist()<CR>
   nnoremap <silent> ]t :tabn<CR>
   nnoremap <silent> [t :tabp<CR>
 
