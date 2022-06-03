@@ -327,6 +327,8 @@ function! s:settings() abort
     autocmd! WinClosed * wincmd p
   augroup END
   nnoremap <silent> <Leader>t :execute 'tabn '.g:nhooyr_tab_history[1]<CR>
+
+  set display+=uhex
 endfunction
 call s:settings()
 
