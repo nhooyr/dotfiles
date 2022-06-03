@@ -539,6 +539,7 @@ function! s:maps() abort
 
     " q should always close.
     autocmd FileType * nnoremap <buffer> <nowait> <silent> q :close<CR>
+    autocmd BufEnter * nnoremap <buffer> <nowait> <silent> q :close<CR>
     " C-x should always do :x.
     autocmd FileType * nnoremap <buffer> <nowait> <silent> <C-x> :silent x<CR>
     autocmd FileType * inoremap <buffer> <nowait> <silent> <C-x> <Esc>:silent x<CR>
