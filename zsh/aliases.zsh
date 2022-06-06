@@ -463,8 +463,8 @@ ipsumc() {
   ipsum | pc
 }
 
-ipsumn1c() {
-  ipsumn1 | head -n1 | pc
+ipsumcn1() {
+  ipsum | head -n1 | pc
 }
 
 if [ "$NVIM" -a "$NVIM_SESSION" ]; then
