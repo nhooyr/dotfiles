@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-xargs -P8 -n32 "$@"
+xargs -P16 -n256 "$@"
