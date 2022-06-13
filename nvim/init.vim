@@ -656,7 +656,7 @@ function! s:fzf() abort
     if empty(l:tabname)
       let l:tabname = "scratch"
     endif
-    execute 'TermFile '.l:tabname
+    execute 'TermFile t'.l:tabname
   endfunction
   command! -bar -nargs=? Term call s:term(<q-args>)
   nnoremap <silent> <M-t> :call <SID>term('')<CR>
