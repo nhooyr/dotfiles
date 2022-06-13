@@ -368,8 +368,8 @@ function! s:maps() abort
   nnoremap <silent> k gk
   nnoremap <silent> j gj
   " https://vim.fandom.com/wiki/Format_pasted_text_automatically
-  nnoremap <silent> p ]p
-  nnoremap <silent> P ]P
+  " nnoremap <silent> p ]p
+  " nnoremap <silent> P ]P
   nnoremap <silent> ]p p=`]
   nnoremap <silent> ]P P=`]
 
