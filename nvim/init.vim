@@ -176,7 +176,7 @@ function! s:settings() abort
   " endfunction
   " let &statusline="%!NhooyrStatus()"
   " %p shows percentage of *current* line but %P shows percentage of last line visible.
-  let &statusline=" %F %m[%{mode()}] %= %l    %P "
+  let &statusline=" %F [%{mode()}]%m %= %l    %P "
 
   " Fuck netrw.
   let g:loaded_netrw       = 1
