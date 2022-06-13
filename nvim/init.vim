@@ -351,6 +351,7 @@ function! s:maps() abort
   nnoremap <silent> 'h :let @+ = expand('%:p:h')<CR>
 
   nnoremap <silent> <Leader>ll :set list!<CR>
+  nnoremap <Leader>lm :ls+<CR>
 
   " Strip leading whitespace.
   nnoremap <silent> <Leader>ls :%s/\s\+$// \| nohlsearch<CR>
