@@ -527,7 +527,6 @@ function! s:maps() abort
   augroup nhooyr_maps
     autocmd!
 
-    autocmd FileType qf setlocal statusline=%f
     autocmd FileType qf nnoremap <buffer> <silent> <M-CR> <CR>:cclose<Bar>lclose<CR>
 
     " autocmd FileType diff nnoremap <buffer> <silent> <Leader>c :%s/^# //<Bar>nohlsearch<CR><C-o>
