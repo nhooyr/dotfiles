@@ -737,7 +737,7 @@ EOF
     nnoremap <silent> <buffer> K     <cmd>lua vim.lsp.buf.hover()<CR>
     nnoremap <silent> <buffer> gi    <cmd>lua vim.lsp.buf.implementation()<CR>
     nnoremap <silent> <buffer> gh    <cmd>lua vim.lsp.buf.signature_help()<CR>
-    nnoremap <silent> <buffer> gp    <cmd>lua vim.lsp.buf.type_definition()<CR>
+    " nnoremap <silent> <buffer> gp    <cmd>lua vim.lsp.buf.type_definition()<CR>
     nnoremap <silent> <buffer> gr    <cmd>lua vim.lsp.buf.references()<CR>
     nnoremap <silent> <buffer> gs    <cmd>lua vim.lsp.buf.document_symbol()<CR>
     nnoremap <silent> <buffer> gw    <cmd>lua vim.lsp.buf.workspace_symbol()<CR>
