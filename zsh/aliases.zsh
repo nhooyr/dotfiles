@@ -460,11 +460,11 @@ ipsum() {
 }
 
 ipsumc() {
-  ipsum | pc
+  ipsum | tee /dev/stderr | pc
 }
 
 ipsumcn1() {
-  ipsum | head -n1 | pc
+  ipsum | head -n1 | tee /dev/stderr | pc
 }
 
 if [ "$NVIM" -a "$NVIM_SESSION" ]; then
