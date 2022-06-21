@@ -376,7 +376,7 @@ ytitle() {
 }
 
 alias grepw='git grep -I "\\s\+\$"'
-alias sedw='git grep -Il "" | xargs -n1 gsed -i "s/\\s\\+\$//g"'
+alias sedw='git grep -Il "" | xargsp -n1 gsed -i "s/\\s\\+\$//g"'
 
 lotto() {
   local output=""
