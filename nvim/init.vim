@@ -580,8 +580,8 @@ function! s:maps() abort
   " inoremap `; ``<Left>
 
   function! s:lvimgrep(pattern) abort
-    call feedkeys("/".a:pattern."/\<CR>")
-    call feedkeys(":lvimgrep /".a:pattern."/j %\<CR>")
+    call feedkeys("/".a:pattern."/\<CR>", 'n')
+    call feedkeys(":lvimgrep /".a:pattern."/j %\<CR>", 'n')
   endfunction
   command! -bar -nargs=+ Search call <SID>lvimgrep(<q-args>)
 
