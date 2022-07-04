@@ -10,3 +10,5 @@ LogLevel=QUIET
 StrictHostKeyChecking accept-new
 ConnectTimeout 5
 AddKeysToAgent yes
+
+Include /Users/nhooyr/src/nhooyr/dotfiles/secrets/ssh/config
