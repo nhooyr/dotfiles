@@ -9,6 +9,7 @@ bookmarks=(
   # keep going.
   "$HOME/src"
   "$HOME/src/nhooyr"
+  "$HOME/src/nhooyr-ts"
   "$HOME/src/cdr"
 
   "$HOME/src/nhooyr/dotfiles"

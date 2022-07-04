@@ -343,6 +343,11 @@ note() {
 gcn() {(
   set -euo pipefail
   cd ~notes
+  _gcn
+  cd ~nhooyr-ts/notes
+  _gcn
+)}
+_gcn() {
   git add -A
   if git diff --cached --stat | grep -q 'deletions\?(-)'; then
     # We use --edit here so I can see the diff and approve.
@@ -351,7 +356,7 @@ gcn() {(
     git commit -m "$(date-full)" || true
   fi
   git_push
-)}
+}
 bindkey-gcn() {
   execute=1 execi gcn
 }
