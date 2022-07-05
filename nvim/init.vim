@@ -289,7 +289,7 @@ function! s:settings() abort
     execute 'autocmd BufRead '.fnameescape(stdpath('data')).'/sessions/*.vim silent source %'
     autocmd VimLeave * call <SID>save_this_session()
     " In case we crash.
-    autocmd CursorHold * call <SID>save_this_session()
+    autocmd FocusGained,FocusLost * call <SID>save_this_session()
   augroup END
 
   function! s:bclean_delete_cmd(force, buf) abort
