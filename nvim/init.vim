@@ -567,7 +567,8 @@ function! s:maps() abort
 
   if executable("rg")
     let &grepprg="rg -S --vimgrep"
-    command! -bar -nargs=+ Rg silent grep! <args>
+    " Use Lgrep or Ggrep
+    " command! -bar -nargs=+ Rg silent grep! <q-args>
   endif
 
   " https://stackoverflow.com/a/4313335/4283659

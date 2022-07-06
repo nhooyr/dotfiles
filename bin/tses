@@ -1,4 +1,7 @@
 #!/bin/sh
 set -eu
 
-tmux new -A -s "${1-default}"
+TMUX_SESSION_NAME="${1-default}"
+shift
+
+tmux new -A -s "$TMUX_SESSION_NAME" "$@"
