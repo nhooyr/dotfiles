@@ -15,6 +15,9 @@
 	prune = true
 	pruneTags = true
 
+[pull]
+	ff = only
+
 [merge]
 	conflictstyle = zdiff3
 [diff]
@@ -54,4 +57,4 @@
 	required = true
 
 [include]
-  path = ~/src/nhooyr/dotfiles/secrets/gitconfig
+	path = ~/src/nhooyr/dotfiles/secrets/gitconfig
