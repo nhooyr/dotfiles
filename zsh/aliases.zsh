@@ -460,18 +460,6 @@ trash() {
   mv "$@" /tmp/trash
 }
 
-ipsum() {
-  fortune
-}
-
-ipsumc() {
-  ipsum | tee /dev/stderr | pc
-}
-
-ipsumcn1() {
-  ipsum | head -n1 | tee /dev/stderr | pc
-}
-
 if [ "$NVIM" -a "$NVIM_SESSION" ]; then
   man() {
     # Without 2> complains about lcd errors from lcd autocmd even though those are
