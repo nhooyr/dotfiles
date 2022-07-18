@@ -36,20 +36,11 @@ options word
 
 snippet debug
 options word
-  /* TODO: debug */
-  println(fmt.Sprintf("\033[1;31m%s: %s\033[m", func() string {
-    _, file, line, _ := runtime.Caller(1)
-    wd, _ := os.Getwd()
-    file, _ = filepath.Rel(wd, file)
-    return fmt.Sprintf("--- DEBUG: %s:%d", file, line)
-  }(), func(v ...interface{}) string {
-    s := ""
-    for _, p := range v {
-      s += fmt.Sprintf("%#v; ", p)
-    }
-    return s
-  }($0)))
-  /* END: debug */
+  println("\033[1;31m--- DEBUG:", $0, "\033[m")
+
+snippet debugf
+options word
+  println(fmt.Sprintf("\033[1;31m--- DEBUG: %s\033[m", func(v ...interface{}) string { s := ""; for _, p := range v { s += fmt.Sprintf("%#v; ", p) }; return s }($0)))
 
 snippet panicf
 options word
