@@ -344,8 +344,8 @@ gcn() {(
   set -euo pipefail
   cd ~notes
   _gcn
-  cd ~nhooyr-ts/notes
-  _gcn
+  # cd ~nhooyr-ts/notes
+  # _gcn
 )}
 _gcn() {
   git add -A
