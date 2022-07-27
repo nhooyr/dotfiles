@@ -334,7 +334,7 @@ git_push() {(
     git push "$@"
   else
     # It gives status info on stderr so we have to redirect both.
-    git push "$@" &> /dev/null &!
+    (git push "$@" &> /dev/null || echo git push failed) &!
   fi
 )}
 _git_push() {
