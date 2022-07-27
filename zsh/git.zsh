@@ -274,7 +274,7 @@ gh_url() {
     return
   fi
 
-  repo_path="$(git config --get remote.origin.url | sed -e 's#https://github.com/##' -e 's#.git$##' )"
+  repo_path="$(git config --get remote.origin.url | sed -e 's#https://github.com/##' -e 's#.git$##')"
   echo "https://github.com/$repo_path"
 }
 
