@@ -346,8 +346,11 @@ gcn() {(
   _gcn
   # cd ~nhooyr-ts/notes
   # _gcn
-  rclone sync -L --exclude .git/ ~notes/ gdrive:/notes/ &!
+  rcln
 )}
+rcln() {
+  rclone sync -L --exclude .git/ ~notes/2022 gdrive:/notes/2022
+}
 _gcn() {
   git add -A
   if git diff --cached --stat | grep -q 'deletions\?(-)'; then

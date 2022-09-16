@@ -13,6 +13,7 @@ bookmarks=(
   "$HOME/src/cdr"
 
   "$HOME/src/nhooyr/dotfiles"
+  "$HOME/src/nhooyr/archive"
   "$HOME/src/nhooyr/dotfiles/nvim"
   "$HOME/src/nhooyr/dotfiles/zsh"
   "$HOME/src/nhooyr/dotfiles/secrets"
