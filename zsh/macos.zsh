@@ -59,3 +59,5 @@ eloston() {
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 touch ~/.bash_sessions_disable
+
+prepend_PATH /usr/local/opt/go@1.18/bin

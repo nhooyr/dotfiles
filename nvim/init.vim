@@ -193,7 +193,7 @@ function! s:settings() abort
   " endfunction
   " let &statusline="%!NhooyrStatus()"
   " %p shows percentage of *current* line but %P shows percentage of last line visible.
-  let &statusline="[%{mode()}] %F %m %= %l    %P "
+  let &statusline="[%{mode()}] %f %m %= %l    %P "
 
   " Fuck netrw.
   let g:loaded_netrw       = 1
@@ -361,6 +361,7 @@ function! s:maps() abort
   nnoremap <silent> 's :split<CR>
   nnoremap <silent> 'v :vsplit<CR>
   nnoremap <silent> 't :tabnew<CR>
+  nnoremap <silent> 'c :split<CR><C-W>Tzz
 
   nnoremap <silent> <Leader>er :source $MYVIMRC<CR>
   nnoremap <silent> <Leader>s :setlocal spell! spelllang=en_ca<CR>

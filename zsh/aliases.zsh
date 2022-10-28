@@ -53,7 +53,7 @@ e() {
     cd "$@"
     return
   fi
-  command "$EDITOR" "$@"
+  eval "$EDITOR $*"
   if [[ ! -e "$NVIM_FZF_TYPE" ]]; then
     unset NVIM_FZF_TYPE
   fi
@@ -219,6 +219,7 @@ rs() {
 
 # https://unix.stackexchange.com/a/541415
 alias pc="perl -pe 'chomp if eof' | pbcopy"
+alias pcc="cat \$(pp) | pc"
 alias pp="pbpaste"
 alias catq="jq -R"
 

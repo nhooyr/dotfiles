@@ -6,6 +6,8 @@ prepend_PATH ~dotfiles/bin
 if [ "$NVIM" -a "$NVIM_SESSION" ]; then
   export EDITOR=nvim_terminal_editor
   export MANPAGER="nvim +Man!"
+elif command_exists mate; then
+  export EDITOR="mate --wait"
 elif command_exists nvim; then
   export EDITOR=nvim
   export MANPAGER="nvim +Man!"

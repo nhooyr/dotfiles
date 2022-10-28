@@ -60,6 +60,8 @@ quick_paths() {(
 
   echo ~/src
   fd -H -d2 . ~/src
+  fd -H -d2 . ~/src/nhooyr
+  fd -H -d2 . ~/src/terrastruct
 
   # if [[ -d ~/Downloads ]]; then
   #   echo ~/Downloads

@@ -34,3 +34,6 @@
 (setq ido-everywhere t)
 (load-theme 'manoj-dark t)
 (set-face-attribute 'default nil :family "DejaVu Sans")
+
+(tab-bar-mode)
+(set-frame-font "Dejavu Sans Mono" nil t)

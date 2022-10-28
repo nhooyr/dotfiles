@@ -56,7 +56,7 @@ snippet json
 	\`json:"${1:keyName}"\`
 
 snippet tcs
-  testCases := []struct{
+	testCases := []struct{
 		name string
 	}{
 		{},
@@ -76,3 +76,7 @@ options head
     if err != nil {
       $0
     }
+
+snippet debugj
+	b, _ := json.Marshal($0)
+	println("\033[1;31m--- DEBUG:", string(b), "\033[m")

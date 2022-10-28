@@ -39,11 +39,11 @@ bookmarks=(
   "$HOME/Pictures"
 
   "$HOME/src/terrastruct"
-  "$HOME/src/terrastruct/terrastruct-backend"
-  "$HOME/src/terrastruct/terrastruct-frontend"
-  "$HOME/src/terrastruct/wiki"
-  "$HOME/src/terrastruct/ansible"
-  "$HOME/src/terrastruct/envs"
+  "$HOME/src/terrastruct/d2"
+  "$HOME/src/terrastruct/src"
+  "$HOME/src/terrastruct/xos"
+  "$HOME/src/terrastruct/xdefer"
+  "$HOME/src/terrastruct/src/backend/tala"
 )
 
 setup_bookmarks() {
@@ -55,3 +55,6 @@ setup_bookmarks() {
   done
 }
 setup_bookmarks
+hash -d "tsrc=$HOME/src/terrastruct/src"
+hash -d "tbackend=$HOME/src/terrastruct/src/backend"
+hash -d "tfrontend=$HOME/src/terrastruct/src/frontend"

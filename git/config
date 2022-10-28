@@ -58,3 +58,7 @@
 
 [include]
 	path = ~/src/nhooyr/dotfiles/secrets/gitconfig
+[grep]
+	lineNumber = true
+[credential]
+	helper = store
