@@ -1,5 +1,5 @@
-source ~/src/nhooyr/dotfiles/zsh/lib.zsh
-source ~/src/nhooyr/dotfiles/zsh/bookmarks.zsh
+source ~/sync/src/nhooyr/dotfiles/zsh/lib.zsh
+source ~/sync/src/nhooyr/dotfiles/zsh/bookmarks.zsh
 
 if [[ "$OSTYPE" == darwin* ]]; then
   source ~zsh/macos.zsh

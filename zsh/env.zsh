@@ -7,7 +7,7 @@ if [ "$NVIM" -a "$NVIM_SESSION" ]; then
   export EDITOR=nvim_terminal_editor
   export MANPAGER="nvim +Man!"
 elif command_exists mate; then
-  export EDITOR="mate --wait"
+  export EDITOR="nvim"
 elif command_exists nvim; then
   export EDITOR=nvim
   export MANPAGER="nvim +Man!"
@@ -30,3 +30,5 @@ export LS_COLORS="$RESET_LS_COLORS:$NHOOYR_LS_COLORS"
 export HUSKY_SKIP_HOOKS=1
 
 export XDG_DATA_HOME=~/.local/share
+export PLAN9=$HOME/src/9fans/plan9port
+export PATH=$PATH:$PLAN9/bin
