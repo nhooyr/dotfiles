@@ -11,7 +11,7 @@ fzf_default_opts=(
 export FZF_DEFAULT_OPTS="${fzf_default_opts[*]}"
 
 relative_path() {
-  if [[ "$PWD" == ~  || "$PWD" == ~//sync/src ]]; then
+  if [[ "$PWD" == ~  || "$PWD" == ~/src ]]; then
     # From a performance perspective this is very unfortunate.
     cat
   fi
@@ -58,10 +58,10 @@ quick_paths() {(
   echo ~notes
   fd -H . ~notes
 
-  echo ~//sync/src
-  fd -H -d2 . ~//sync/src
-  fd -H -d2 . ~//sync/src/nhooyr
-  fd -H -d2 . ~//sync/src/terrastruct
+  echo ~/src
+  fd -H -d2 . ~/src
+  fd -H -d2 . ~/src/nhooyr
+  fd -H -d2 . ~/src/terrastruct
 
   # if [[ -d ~/Downloads ]]; then
   #   echo ~/Downloads
