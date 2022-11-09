@@ -215,7 +215,6 @@ function! s:settings() abort
     autocmd BufLeave * setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"
     autocmd FileType c let &commentstring="// %s"
-    autocmd FileType make let &tabstop=&shiftwidth
     autocmd FileType help setlocal fo-=t
     autocmd FileType go setlocal noexpandtab indentkeys-=<:>
   augroup END
@@ -558,9 +557,9 @@ function! s:maps() abort
     autocmd QuickFixCmdPost [^l]* cwindow
     autocmd QuickFixCmdPost l*    lwindow
 
-    " q should always close.
-    autocmd FileType * nnoremap <buffer> <nowait> <silent> q :close<CR>
-    autocmd BufEnter * nnoremap <buffer> <nowait> <silent> q :close<CR>
+    " q should always quit.
+    autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
+    autocmd BufEnter * nnoremap <buffer> <nowait> <silent> q :quit<CR>
     " C-x should always do :x.
     autocmd FileType * nnoremap <buffer> <nowait> <silent> <C-x> :silent x<CR>
     autocmd FileType * inoremap <buffer> <nowait> <silent> <C-x> <Esc>:silent x<CR>
