@@ -561,6 +561,7 @@ function! s:maps() abort
     autocmd FileType * nnoremap <buffer> <nowait> <silent> q :quit<CR>
     autocmd BufEnter * nnoremap <buffer> <nowait> <silent> q :quit<CR>
     " C-x should always do :x.
+    autocmd BufEnter * nnoremap <buffer> <nowait> <silent> <C-x> :silent x<CR>
     autocmd FileType * nnoremap <buffer> <nowait> <silent> <C-x> :silent x<CR>
     autocmd FileType * inoremap <buffer> <nowait> <silent> <C-x> <Esc>:silent x<CR>
     " autocmd FileType * cnoremap <buffer> <nowait> <silent> <C-x> <C-c>:silent x<CR>

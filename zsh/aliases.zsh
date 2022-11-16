@@ -472,3 +472,7 @@ if [ "$NVIM" -a "$NVIM_SESSION" ]; then
     nvim --server "/tmp/nvim-$NVIM_SESSION" --remote-expr "execute('Man $*')" 2> /dev/null
   }
 fi
+
+mcdt() {
+  cd "$(mktemp -d)"
+}
