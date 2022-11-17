@@ -16,22 +16,22 @@ gch() {(
 
   if [[ "$#" -eq 1 ]]; then
     if [ "$1" = "-" ] || [ -f "$1" ]; then
-      git checkout "$@"
+      git checkout "$@" --
       return
     fi
 
     # Check if the passed argument is just a commit.
     if [ "$1" = "$(git rev-parse "$1" 2>&1)" ]; then
-      git checkout "$@"
+      git checkout "$@" --
       return
     fi
 
     if [ ! "$(git branch --list "$*")" ] && [ ! "$(git branch --list --remote "origin/$*")" ]; then
       set "$*-$(xxd -p -l 2 /dev/urandom)"
-      git branch "$@"
+      git branch "$@" --
     fi
   fi
-  git checkout "$@"
+  git checkout "$@" --
 )}
 _gch() {
   compadd "${(@f)$(git for-each-ref '--format=%(refname:short)')}"
