@@ -430,4 +430,4 @@ elif [[ "$DISTRO" == "debian" ]]; then
   prepend_PATH /usr/share/doc/git/contrib/diff-highlight
 fi
 
-alias gg="git grep -E"
+alias gg="git grep"
