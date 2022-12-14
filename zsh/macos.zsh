@@ -1,6 +1,7 @@
 export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 export HOMEBREW_NO_EMOJI=1
+export HOMEBREW_NO_ENV_HINTS=1
 
 tputq() {
   tput "$@" | sed "s#\[#\\\[#"
@@ -28,11 +29,11 @@ alias o="open"
 alias o.="open ."
 
 prepend_PATH /usr/local/sbin
-prepend_PATH /usr/local/opt/llvm/bin
-prepend_PATH /usr/local/opt/make/libexec/gnubin
+# prepend_PATH /usr/local/opt/llvm/bin
+# prepend_PATH /usr/local/opt/make/libexec/gnubin
 # prepend_PATH /usr/local/opt/gnu-sed/libexec/gnubin
 prepend_PATH /usr/local/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/bin
-prepend_PATH /usr/local/opt/node@12/bin
+# prepend_PATH /usr/local/opt/node@12/bin
 
 prepend_path FPATH /usr/local/share/zsh-completions
 # Always use zsh's _git completion instead of the one bundled with git.

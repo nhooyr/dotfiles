@@ -136,7 +136,11 @@ alias gddc="git difftool --cached"
 alias grb="git rebase"
 grbi() {
   if [ "$*" = "" ]; then
-    set -- origin/master
+    if git remote | grep -q upstream; then
+      set -- upstream/master
+    else
+      set -- origin/master
+    fi
   fi
   git rebase --interactive "$@"
 }
@@ -426,4 +430,4 @@ elif [[ "$DISTRO" == "debian" ]]; then
   prepend_PATH /usr/share/doc/git/contrib/diff-highlight
 fi
 
-alias gg="git grep"
+alias gg="git grep -E"

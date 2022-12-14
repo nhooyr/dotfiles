@@ -1,7 +1,7 @@
 Host *
-ControlPath ~/.ssh/sockets/%r@%n
-ControlMaster auto
-ControlPersist yes
+# ControlPath ~/.ssh/sockets/%r@%n
+# ControlMaster auto
+# ControlPersist yes
 ServerAliveInterval 5
 TCPKeepAlive no
 ExitOnForwardFailure yes

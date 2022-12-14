@@ -48,6 +48,7 @@ bookmarks=(
   "$HOME/src/terrastruct/xdefer"
   "$HOME/src/terrastruct/src/backend/tala"
   "$HOME/src/terrastruct/d2-docs"
+  "$HOME/src/terrastruct/util-go"
 )
 
 setup_bookmarks() {
@@ -65,3 +66,4 @@ hash -d "tbackend=$HOME/src/terrastruct/src/backend"
 hash -d "tfrontend=$HOME/src/terrastruct/src/frontend"
 hash -d "tci=$HOME/src/terrastruct/ci"
 hash -d "twiki=$HOME/src/terrastruct/src/wiki"
+hash -d "tstruct=$HOME/src/terrastruct"

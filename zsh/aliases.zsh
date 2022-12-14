@@ -53,7 +53,7 @@ e() {
     cd "$@"
     return
   fi
-  eval "$EDITOR $*"
+  "$EDITOR" "$@"
   if [[ ! -e "$NVIM_FZF_TYPE" ]]; then
     unset NVIM_FZF_TYPE
   fi

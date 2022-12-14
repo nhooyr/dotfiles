@@ -44,7 +44,7 @@ call s:plugins()
 function! s:plugin_settings() abort
   set sessionoptions+=globals,terminal
 
-  let g:dia_block_string_syntaxes = {'zsh': ['zsh'], 'rust': ['rust'], 'typescript': ['typescript', 'ts']}
+  " let g:dia_block_string_syntaxes = {'zsh': ['zsh'], 'rust': ['rust'], 'typescript': ['typescript', 'ts']}
 
   augroup nhooyr_dia_go
     autocmd!
