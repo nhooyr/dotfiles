@@ -1,4 +1,8 @@
 prompt() {
+  TERM=xterm+sl tput tsl
+  echo -n "%~"
+  TERM=xterm+sl tput fsl
+
   echo -n "%F{yellow}"
   echo -n "%B"
   echo -n "%(0?..+
