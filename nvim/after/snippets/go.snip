@@ -40,7 +40,11 @@ options word
 
 snippet debugf
 options word
-  println(fmt.Sprintf("\033[1;31m--- DEBUG: %s\033[m", func(v ...interface{}) string { s := ""; for _, p := range v { s += fmt.Sprintf("%#v; ", p) }; return s }($0)))
+  println(fmt.Sprintln("\033[1;31m--- DEBUG:", $0, "\033[m"))
+
+snippet debugj
+	b, _ := json.MarshalIndent($0, "", "  ")
+	println("\033[1;31m--- DEBUG:", string(b), "\033[m")
 
 snippet panicf
 options word
@@ -55,19 +59,24 @@ options head
 snippet json
 	\`json:"${1:keyName}"\`
 
-snippet tcs
-	testCases := []struct{
+snippet tca
+	tca := []struct{
 		name string
+    run func(t testing.TB, ctx context.Context)
 	}{
 		{},
 	}
 
-	for _, tc := range testCases {
+  ctx := context.Background()
+	for _, tc := range tca {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			$0
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+      tc.run(t, ctx$0)
 		})
 	}
 
@@ -76,7 +85,3 @@ options head
     if err != nil {
       $0
     }
-
-snippet debugj
-	b, _ := json.Marshal($0)
-	println("\033[1;31m--- DEBUG:", string(b), "\033[m")
