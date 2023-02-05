@@ -33,7 +33,7 @@ function! s:plugins() abort
   Plug 'mattn/emmet-vim'
 
   Plug expand('~/src/terrastruct/d2-vim')
-  " Plug 'terrastruct/dia-vim'
+  " Plug 'terrastruct/d2-vim'
   call plug#end()
 
   command! -bar PU PlugUpgrade | PlugUpdate
@@ -210,7 +210,7 @@ function! s:settings() abort
     autocmd CursorHold * if getcmdwintype() == '' | checktime | endif
 
     autocmd BufWinEnter,FileType * setlocal foldmethod=indent
-    autocmd BufEnter,FileType * setlocal nonumber
+    autocmd BufEnter,FileType * setlocal number
     autocmd BufEnter,FileType * setlocal cursorline
     autocmd BufLeave * setlocal nocursorline
     autocmd FileType diff let &commentstring="# %s"

@@ -40,7 +40,7 @@ options word
 
 snippet debugf
 options word
-  println(fmt.Sprintln("\033[1;31m--- DEBUG:", $0, "\033[m"))
+  print(fmt.Sprintln("\033[1;31m--- DEBUG:", $0, "\033[m"))
 
 snippet debugj
 	b, _ := json.MarshalIndent($0, "", "  ")
