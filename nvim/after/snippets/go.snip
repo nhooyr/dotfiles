@@ -40,6 +40,10 @@ options word
 
 snippet debugf
 options word
+  print(fmt.Sprintf("\033[1;31m--- DEBUG: %q \033[m\n", $0))
+
+snippet debugl
+options word
   print(fmt.Sprintln("\033[1;31m--- DEBUG:", $0, "\033[m"))
 
 snippet debugj
