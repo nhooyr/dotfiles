@@ -431,3 +431,5 @@ elif [[ "$DISTRO" == "debian" ]]; then
 fi
 
 alias gg="git grep"
+
+alias gdp="ga && gcmd && gp"

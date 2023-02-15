@@ -217,6 +217,7 @@ function! s:settings() abort
     autocmd FileType c let &commentstring="// %s"
     autocmd FileType help setlocal fo-=t
     autocmd FileType go setlocal noexpandtab indentkeys-=<:>
+    autocmd FileType markdown setlocal tabstop=2 shiftwidth=2 expandtab
   augroup END
 
   set breakindent
@@ -738,7 +739,6 @@ function! s:lsp() abort
     vim.lsp.handlers["textDocument/publishDiagnostics"] = function() end
 
     lsp.gopls.setup{}
-    lsp.tsserver.setup{}
     lsp.clangd.setup{}
 EOF
   endif
