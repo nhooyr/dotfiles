@@ -476,3 +476,5 @@ fi
 mcdt() {
   cd "$(mktemp -d)"
 }
+
+alias http='python3 -m http.server 8080'
