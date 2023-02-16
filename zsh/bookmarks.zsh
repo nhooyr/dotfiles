@@ -31,6 +31,7 @@ bookmarks=(
   "$HOME/src/nhooyr/websocket"
   "$HOME/src/nhooyr/blog"
   "$HOME/src/nhooyr/lip"
+  "$HOME/src/nhooyr/flappybird"
   "$HOME/src/cdr/x11wasm"
   "$HOME/src/cdr/bark"
   "$HOME/src/cdr/enterprise"
