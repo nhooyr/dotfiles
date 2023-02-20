@@ -484,8 +484,7 @@ compress_vids() {
     vid_noext="${vid%.mp4}"
     vid_noext="${vid_noext%.MP4}"
     set -x
-    # https://trac.ffmpeg.org/wiki/Encode/H.264#a1.ChooseaCRFvalue
-    ffmpeg -i "$vid" -vcodec libx265 -crf 28 "$vid_noext-2.mp4"
+    ffmpeg -i "$vid" -vcodec libx265 -vf scale=-1:720 "$vid_noext-2.mp4"
     set +x
   done
 }
