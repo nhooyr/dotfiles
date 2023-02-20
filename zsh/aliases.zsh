@@ -350,7 +350,7 @@ gcn() {(
   rcln
 )}
 rcln() {
-  rclone sync -L --exclude .git/ ~notes/2023 gdrive:/notes/2023
+  rclone sync -L --exclude .git/ ~notes/2023/02.txt gdrive:/notes/2023/
 }
 _gcn() {
   git add -A
