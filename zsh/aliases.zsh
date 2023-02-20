@@ -478,3 +478,11 @@ mcdt() {
 }
 
 alias http='python3 -m http.server 8080'
+
+compress_vids() {
+  for vid in *.mp4; do
+    vid_noext="${vid%.mp4}"
+    vid_noext="${vid_noext%.MP4}"
+    ffmpeg -i "$vid" -vcodec libx265 -crf 30 "$vid_noext-2.mp4"
+  done
+}
