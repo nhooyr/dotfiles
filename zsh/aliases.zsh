@@ -356,9 +356,9 @@ _gcn() {
   git add -A
   if git diff --cached --stat | grep -q 'deletions\?(-)'; then
     # We use --edit here so I can see the diff and approve.
-    git commit --edit -m "$(date-full)" || true
-  else
-    git commit -m "$(date-full)" || true
+    git commit --edit -m "$(date-full)"
+  elif [ -n "$(git status --porcelain)" ]; then
+    git commit -m "$(date-full)"
   fi
   git_push
 }
