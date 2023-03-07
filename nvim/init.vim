@@ -667,9 +667,12 @@ function! s:fzf() abort
       echom 'please run in terminal and review diff (there were deletions)'
       return
     endif
-    " No deletions so no approval needed.
+    call system("zsh -ic gcn")
+    if v:shell_error != 0
+      echom 'gcn failure'
+      return
+    endif
     echom 'gcn ' . strftime("%I:%M:%S%p")
-    call jobstart("zsh -ic gcn &!")
   endfunction
 
   command! -bar -nargs=1 TermFile file %;\#<args>
