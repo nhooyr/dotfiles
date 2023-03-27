@@ -418,6 +418,8 @@ function! s:maps() abort
   " nnoremap <silent> S "_S
   " noremap <silent> S "_S
 
+  " title case map
+  vnoremap <silent> gt :s/\<\(\w\)\(\w*\)\>/\u\1\L\2/ \| nohlsearch<CR>
   vnoremap <silent> > >gv
   vnoremap <silent> < <gv
 
