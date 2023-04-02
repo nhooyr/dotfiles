@@ -360,7 +360,7 @@ _gcn() {
   elif [ -n "$(git status --porcelain)" ]; then
     git commit -m "$(date-full)"
   fi
-  git_push
+  GIT_PUSH_SYNC=1 git_push
 }
 bindkey-gcn() {
   execute=1 execi gcn
