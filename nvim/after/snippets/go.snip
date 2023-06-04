@@ -66,12 +66,12 @@ snippet json
 snippet tca
 	tca := []struct{
 		name string
-    run func(t *testing.T, ctx context.Context)
+		run func(t *testing.T, ctx context.Context)
 	}{
 		{},
 	}
 
-  ctx := context.Background()
+	ctx := context.Background()
 	for _, tc := range tca {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -80,7 +80,7 @@ snippet tca
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
 
-      tc.run(t, ctx$0)
+			tc.run(t, ctx$0)
 		})
 	}
 
