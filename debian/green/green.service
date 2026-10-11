@@ -1,3 +1,0 @@
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/green.sh

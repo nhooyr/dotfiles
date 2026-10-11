@@ -1,4 +1,0 @@
-#!/bin/sh
-set -eu
-
-ipsum "$@" | tee /dev/stderr | pbcopy

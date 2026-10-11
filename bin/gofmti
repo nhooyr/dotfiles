@@ -1,5 +1,0 @@
-#!/bin/sh
-set -eu
-
-gofmt -s -w "$@"
-goimports -w -local "$(go list -m)" "$@"

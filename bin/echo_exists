@@ -1,8 +1,0 @@
-#!/bin/sh
-set -eu
-
-while read -r p; do
-  if [ -e "$p" ]; then
-    printfs "$p"$'\n'
-  fi
-done
