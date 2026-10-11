@@ -1,0 +1,7 @@
+[user]
+	email = adam@qsnow.ca
+	name = Adam Quinn Snow
+	signingkey = 1688D6235A387852
+[commit]
+	verbose = true
+	gpgsign = true
