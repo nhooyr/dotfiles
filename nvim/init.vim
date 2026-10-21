@@ -26,6 +26,7 @@ set list
 set listchars+=extends:>,precedes:<
 highlight! link NonText Comment
 
+set dictionary=/usr/share/dict/words
 set spell
 set spelllang=en_ca,en_us
 set spellcapcheck=
