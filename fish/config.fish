@@ -69,12 +69,7 @@ abbrali gl git log
 abbrali gls git ls-files
 abbrali gcl git clone
 abbrali gpl git pull
-function ghcl --argument-names url
-    if test -z "$url"
-        printf 'Usage: ghcl <owner/repo | github-url>\n' >&2
-        return 1
-    end
-
+function parse_ghurl --argument-names url
     # Remove the GitHub URL prefix, surrounding slashes, and query/fragment.
     set -l repo_path "$(string replace -r '^(https?://|git://|ssh://git@|git@)?github\.com[:/]' '' -- "$url")"
     set repo_path "$(string trim --chars / -- "$repo_path")"
@@ -89,6 +84,20 @@ function ghcl --argument-names url
         set remote "git@github.com:$owner/$repo.git"
     end
 
+    echo "$owner"
+    echo "$repo"
+    echo "$remote"
+end
+function ghcl --argument-names url
+    if test -z "$url"
+        printf 'Usage: ghcl <owner/repo | github-url>\n' >&2
+        return 1
+    end
+    set -l ghurl_array $(parse_ghurl "$url")
+    set -l owner "$ghurl_array[1]"
+    set -l repo "$ghurl_array[2]"
+    set -l remote "$ghurl_array[3]"
+
     set -l repo_dir "$HOME/code/$owner/$repo"
     if not test -d "$repo_dir/.git"
         git ls-remote "$remote" >/dev/null; or return 1
@@ -97,6 +106,22 @@ function ghcl --argument-names url
     end
     cd "$repo_dir"
 end
+function gho --argument-names url
+    if test -z "$url"
+        if not git rev-parse --is-inside-work-tree >/dev/null 2>&1
+            printf 'Usage: gho <owner/repo | github-url> or run gho inside a git repository.\n' >&2
+            return 1
+        end
+        set url "$(git remote get-url origin)"; or return 1
+    end
+    set -l ghurl_array $(parse_ghurl "$url")
+    set -l owner "$ghurl_array[1]"
+    set -l repo "$ghurl_array[2]"
+    set -l remote "$ghurl_array[3]"
+
+    open "https://github.com/$owner/$repo"
+end
+
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return
     cd "$git_root"
