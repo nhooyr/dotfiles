@@ -1,0 +1,4 @@
+Alfred.alfredpreferences/** filter=lfs diff=lfs merge=lfs -text
+Terminal/** filter=lfs diff=lfs merge=lfs -text
+**.jpg filter=lfs diff=lfs merge=lfs -text
+**.png filter=lfs diff=lfs merge=lfs -text

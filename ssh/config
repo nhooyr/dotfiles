@@ -1,0 +1,12 @@
+Host *
+	StrictHostKeyChecking accept-new
+	ConnectTimeout 4
+	ServerAliveInterval 8
+	ExitOnForwardFailure yes
+	ControlPath ~/.ssh/sockets/%r@%n:%p
+	ControlMaster auto
+	ControlPersist yes
+	AddKeysToAgent yes
+	UseKeychain yes
+
+Include ${SECRETS}/ssh/config

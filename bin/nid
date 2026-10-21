@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+</dev/urandom base64 | tr -d '+/=' | head -c8 | tr [:upper:] [:lower:] | pbc
+printf '\n'

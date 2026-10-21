@@ -1,0 +1,30 @@
+{
+    "workbench.colorTheme": "nhooyr",
+    "explorer.confirmDragAndDrop": false,
+    "diffEditor.renderSideBySide": false,
+    "_0": true,
+    "editor.fontFamily": "SF Mono, Menlo, Monaco, 'Courier New', monospace",
+    "editor.minimap.enabled": false,
+    "editor.formatOnSave": true,
+    "files.autoSave": "onFocusChange",
+    "files.autoSaveWhenNoErrors": true,
+    "_1": true,
+    "terminal.integrated.lineHeight": 1.3,
+    "terminal.integrated.tabStopWidth": 4,
+    "terminal.integrated.drawBoldTextInBrightColors": false,
+    "terminal.integrated.minimumContrastRatio": 1,
+    "accessibility.signals.terminalBell": {
+        "sound": "on"
+    },
+    "terminal.integrated.enableVisualBell": true,
+    "terminal.integrated.scrollback": 99999,
+    "_2": true,
+    "editor.stickyTabStops": true,
+    "editor.insertSpaces": false,
+    "editor.quickSuggestions": {
+        "other": "on",
+        "comments": "on",
+        "strings": "on"
+    },
+    "editor.wordBasedSuggestions": "allDocuments"
+}

@@ -1,0 +1,47 @@
+[user]
+	email = adam@qsnow.ca
+	name = Adam Quinn Snow
+	signingkey = ~/.ssh/id_ed25519.pub
+[gpg]
+	format = ssh
+[commit]
+	verbose = true
+	gpgsign = true
+[rebase]
+	autoSquash = true
+
+[fetch]
+	pruneTags = true
+[pull]
+	ff = only
+[push]
+	autoSetupRemote = true
+	recurseSubmodules = on-demand
+
+[merge]
+	conflictstyle = zdiff3
+[diff]
+	algorithm = histogram
+	tool = nvimdiff
+	wsErrorHighlight = all
+	submodule = diff
+[difftool]
+	prompt = false
+[color "diff"]
+	meta = ul 5
+	frag = ul 5
+[blame]
+	date = relative
+	blankBoundary = true
+	coloring = repeatedLines
+[grep]
+	lineNumber = true
+
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+
+[advice]
+	addEmptyPathspec = false

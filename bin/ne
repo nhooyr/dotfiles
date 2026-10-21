@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+printf "adam+$(nid 2>&1)@qsnow.ca\n" | pbc

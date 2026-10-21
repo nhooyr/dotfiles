@@ -1,0 +1,34 @@
+{
+    "name": "theme",
+    "displayName": "nhooyr",
+    "description": "A light VS Code theme based on my 0nhooyr Terminal.app profile.",
+    "version": "0.1.0",
+    "publisher": "nhooyr",
+    "license": "MIT",
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Themes"
+    ],
+    "icon": "./icon.jpg",
+    "files": [
+        "LICENSE",
+        "theme.json",
+        "icon.jpg"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/nhooyr/dotfiles.git",
+        "directory": "vscode/theme"
+    },
+    "contributes": {
+        "themes": [
+            {
+                "label": "nhooyr",
+                "uiTheme": "vs",
+                "path": "./theme.json"
+            }
+        ]
+    }
+}
