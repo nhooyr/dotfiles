@@ -1,4 +1,4 @@
 [submodule "secrets"]
 	path = secrets
-	url = https://github.com/nhooyr/secrets
+	url = https://github.com/nhooyr/secrets.git
 	branch = main
