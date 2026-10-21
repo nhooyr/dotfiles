@@ -13,6 +13,11 @@
 	gpgsign = true
 [rebase]
 	autoSquash = true
+	updateRefs = true
+[rerere]
+	enabled = true
+[branch]
+	sort = -committerdate
 
 [fetch]
 	prune = true
@@ -30,6 +35,7 @@
 	tool = nvimdiff
 	wsErrorHighlight = all
 	submodule = diff
+	colorMoved = default
 [difftool]
 	prompt = false
 [color "diff"]
