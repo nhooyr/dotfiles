@@ -28,10 +28,12 @@ end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
     if cd "$dir"
-        eval $argv[2..]
+        $argv[2..]
         set -l code "$status"
         cd -
         return "$code"
+    else
+        return 1
     end
 end
 function cdf --wraps cd --argument-names file
@@ -40,7 +42,7 @@ end
 abbrali pd prevd
 abbrali nd nextd
 abbrali t time
-alias mkd="cd $(mktemp -d)"
+abbrali mkd 'cd "$(mktemp -d)"'
 alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
 abbrali socks ssh -ND1080

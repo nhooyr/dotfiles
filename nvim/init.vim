@@ -84,7 +84,7 @@ command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_
 
 augroup aqsnow
 	autocmd!
-	autocmd FocusLost * nested if &modified | silent! wall | stopinsert | endif
+	autocmd FocusLost * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | stopinsert | endif
 	autocmd filetype gitcommit setlocal tabstop=4 textwidth=120
 	autocmd filetype html,jsonc,fish setlocal expandtab
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
