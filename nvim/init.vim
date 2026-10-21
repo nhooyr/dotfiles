@@ -20,6 +20,7 @@ highlight Constant ctermfg=5
 highlight Type ctermfg=5
 highlight PreProc ctermfg=6 cterm=italic
 let g:gitcommit_summary_length = &textwidth
+let g:no_gitrebase_maps = v:true
 
 set list
 set listchars+=extends:>,precedes:<
@@ -44,7 +45,7 @@ nnoremap <silent> <nowait> <Leader>s :source $MYVIMRC<CR>
 nnoremap <silent> <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <nowait> <Leader>r :%s##
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
-vnoremap // y/\V<C-R>=escape(@",'/\')<CR><CR>
+vnoremap // "zy/\V<C-R>=escape(@z,'/\')<CR><CR>
 
 nnoremap <silent> <nowait> q :quit<CR>
 nnoremap <silent> <nowait> <C-q> :quitall!<CR>
@@ -85,9 +86,7 @@ augroup aqsnow
 	autocmd!
 	autocmd FocusLost * nested if &modified | silent! wall | stopinsert | endif
 	autocmd filetype gitcommit setlocal tabstop=4 textwidth=120
-	autocmd filetype gitrebase nnoremap <buffer> <silent> <nowait> <C-b> :<C-U><C-R>=v:count1<CR>Cycle!<CR>
-	autocmd filetype gitrebase execute 'nunmap <buffer> <C-X>'
-	autocmd filetype html,json,fish setlocal expandtab
+	autocmd filetype html,jsonc,fish setlocal expandtab
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 augroup END
 nnoremap <silent> <nowait> <Leader>ls :%s/\s\+$// \| nohlsearch<CR>

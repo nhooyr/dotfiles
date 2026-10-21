@@ -29,7 +29,9 @@ abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
     if cd "$dir"
         eval $argv[2..]
+        set -l code "$status"
         cd -
+        return "$code"
     end
 end
 function cdf --wraps cd --argument-names file
@@ -38,6 +40,7 @@ end
 abbrali pd prevd
 abbrali nd nextd
 abbrali t time
+alias mkd="cd $(mktemp -d)"
 alias sshq="ssh -O exit"
 alias sshu="ssh -oControlPath=none"
 abbrali socks ssh -ND1080
@@ -83,8 +86,11 @@ alias grep='grep --color=auto -inI'
 alias rg='rg -Sn'
 alias fd='fd -HL'
 function f
-    find . -iname \*$argv\*
+    find . -iname "*$argv*"
 end
+abbrali nl nlogin
+abbrali np npass
+abbrali ne nemail
 
 abbrali chx chmod +x
 function totp
@@ -126,7 +132,7 @@ for mode in default insert
 end
 function aqsnow_exec
     set -l cmd $(commandline --tokens-expanded)
-    if test "$(count $cmd)" -eq 1 -a -f "$cmd[1]"
+    if test "$(count $cmd)" -eq 1 -a -f "$cmd[1]" && not type -q "$cmd[1]"
         if not string match -qr '^\.?/' -- "$cmd[1]"
             fish_commandline_prepend "$EDITOR"
         end
@@ -143,14 +149,13 @@ set -gx DOTFILES "$(realpath "$(realpath "$__fish_config_dir/config.fish")/../..
 function add_cdpath
     for path in $argv
         if not contains "$path" $CDPATH
-            set --append --path -gx CDPATH "$path"
+            set --append --path -g CDPATH "$path"
         end
     end
 end
 add_cdpath . ~ "$DOTFILES"
-set -gx SECRETS "$DOTFILES/secrets"
-if test -d "$SECRETS"
-    source "$SECRETS/fish/config.fish"
+if test -d "$DOTFILES/secrets"
+    source "$DOTFILES/secrets/fish/config.fish"
 end
 source "$DOTFILES/fish/prompt.fish"
 source "$DOTFILES/fish/up.fish"

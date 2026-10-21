@@ -1,3 +1,5 @@
+Include ./config.secret
+
 Host *
 	StrictHostKeyChecking accept-new
 	ConnectTimeout 4
@@ -8,5 +10,3 @@ Host *
 	ControlPersist yes
 	AddKeysToAgent yes
 	UseKeychain yes
-
-Include ${SECRETS}/ssh/config
