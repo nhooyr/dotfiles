@@ -59,6 +59,7 @@ abbrali gcmf git commit --fixup
 abbrali grb git rebase
 abbrali grbi git rebase -i
 abbrali grbc git rebase --continue
+abbrali grba git rebase --abort
 abbrali gs git status
 abbrali gd git diff
 abbrali grt git reset
