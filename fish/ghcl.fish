@@ -7,6 +7,10 @@ function parse_ghurl --argument-names url
     set -l parts $(string split / -- "$repo_path")
     set -l owner "$parts[1]"
     set -l repo "$(string replace -r '\.git$' '' -- "$parts[2]")"
+    if not string match -qr '^[A-Za-z0-9-]+$' -- "$owner"; or not string match -qr '^[A-Za-z0-9._-]+$' -- "$repo"
+        printf 'parse_ghurl: %s: Not a GitHub repo\n' "$url" >&2
+        return 1
+    end
 
     set -l remote "https://github.com/$owner/$repo.git"
     if string match -qr '^(git@|ssh://)' -- "$url"
@@ -22,7 +26,7 @@ function ghcl --argument-names url
         printf 'Usage: ghcl <owner/repo | github-url>\n' >&2
         return 1
     end
-    set -l ghurl_array $(parse_ghurl "$url")
+    set -l ghurl_array $(parse_ghurl "$url"); or return 1
     set -l owner "$ghurl_array[1]"
     set -l repo "$ghurl_array[2]"
     set -l remote "$ghurl_array[3]"
@@ -87,13 +91,9 @@ function gho --argument-names target
     end
 
     set -l remote_url "$(git -C "$dir" remote get-url "$remote")"; or return
-    set -l repo "$(string match -rg '^(?:https?://|ssh://)?(?:[^@/]+@)?github\.com[:/]+([^/]+/[^/]+?)(?:\.git)?/?$' -- "$remote_url")"
-    if test -z "$repo"
-        printf 'gho: %s: Not a GitHub remote: %s\n' "$remote" "$remote_url" >&2
-        return 1
-    end
+    set -l ghurl_array $(parse_ghurl "$remote_url"); or return 1
 
-    set -l url "https://github.com/$repo"
+    set -l url "https://github.com/$ghurl_array[1]/$ghurl_array[2]"
     if test -n "$path" -o "$ref" != "$(git -C "$dir" rev-parse --abbrev-ref "$remote/HEAD" 2>/dev/null | string replace -- "$remote/" '')"
         set url "$url/$kind/$(string escape --style=url -- "$ref")"
         if test -n "$path"
