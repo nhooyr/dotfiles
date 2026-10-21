@@ -1,4 +1,6 @@
-tabs -4
+if status is-interactive
+    tabs -4
+end
 set -gx LESS -RXF -ix4
 set fish_greeting
 fish_add_path --path ~/.local/bin
@@ -52,7 +54,7 @@ abbrali ga git add
 abbrali gaa git add -A
 abbrali gap git add -p
 abbrali gp git push
-abbrali gpf git push -f
+abbrali gpf git push --force-with-lease
 abbrali gcm git commit
 abbrali gcma git commit --amend
 abbrali gcmf git commit --fixup
@@ -72,7 +74,7 @@ abbrali gcl git clone
 abbrali gpl git pull
 
 function gcd
-    set -l git_root "$(git rev-parse --show-toplevel)"; or return
+    set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
 end
 
@@ -140,7 +142,7 @@ alias vsce='NO_COLOR=1 command vsce'
 set -gx DOTFILES "$(realpath "$(realpath "$__fish_config_dir/config.fish")/../..")"
 function add_cdpath
     for path in $argv
-        if not contains "$path" "$CDPATH"
+        if not contains "$path" $CDPATH
             set --append --path -gx CDPATH "$path"
         end
     end

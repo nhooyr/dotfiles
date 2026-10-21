@@ -87,10 +87,10 @@ function gho --argument-names target
         set ref "$(git -C "$dir" describe --tags --exact-match HEAD 2>/dev/null)"
     end
     if test -z "$ref"
-        set ref "$(git -C "$dir" rev-parse HEAD)"; or return
+        set ref "$(git -C "$dir" rev-parse HEAD)"; or return 1
     end
 
-    set -l remote_url "$(git -C "$dir" remote get-url "$remote")"; or return
+    set -l remote_url "$(git -C "$dir" remote get-url "$remote")"; or return 1
     set -l ghurl_array $(parse_ghurl "$remote_url"); or return 1
 
     set -l url "https://github.com/$ghurl_array[1]/$ghurl_array[2]"
