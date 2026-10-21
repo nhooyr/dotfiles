@@ -71,6 +71,9 @@ abbrali grt git reset
 abbrali grth git reset --hard
 abbrali gdc git diff --cached
 abbrali grm git rm
+abbrali grmr git rm -r
+abbrali grmc git rm --cached
+abbrali grmcr git rm --cached -r
 abbrali gl git log
 abbrali gls git ls-files
 abbrali gcl git clone

@@ -57,7 +57,6 @@ nnoremap <silent> <nowait> <C-x> :xit<CR>
 inoremap <silent> <nowait> <C-x> <Esc>:xit<CR>
 
 inoremap <nowait> <C-a> <C-o>^
-inoremap <nowait> <C-e> <C-o>$
 inoremap <nowait> <C-d> <Del>
 inoremap <nowait> <C-k> <C-o>dd
 cnoremap <nowait> <C-a> <Home>
