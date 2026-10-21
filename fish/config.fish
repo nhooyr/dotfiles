@@ -78,6 +78,8 @@ abbrali gl git log
 abbrali gls git ls-files
 abbrali gcl git clone
 abbrali gpl git pull
+abbrali gro git remote -v
+abbrali gb git branch
 
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
