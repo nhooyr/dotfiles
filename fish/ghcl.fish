@@ -94,7 +94,7 @@ function gho --argument-names target
     set -l ghurl_array $(parse_ghurl "$remote_url"); or return 1
 
     set -l url "https://github.com/$ghurl_array[1]/$ghurl_array[2]"
-    if test -n "$path" -o "$ref" != "$(git -C "$dir" rev-parse --abbrev-ref "$remote/HEAD" 2>/dev/null | string replace -- "^$remote/" '')"
+    if test -n "$path" -o "$ref" != "$(git -C "$dir" rev-parse --abbrev-ref "$remote/HEAD" 2>/dev/null | string replace -r "^$remote/" '')"
         set url "$url/$kind/$(string escape --style=url -- "$ref")"
         if test -n "$path"
             set url "$url/$(string escape --style=url -- "$path")"

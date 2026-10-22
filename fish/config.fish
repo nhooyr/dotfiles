@@ -111,7 +111,9 @@ end
 alias ymp3='yt-dlp --audio-format mp3 -x --embed-thumbnail'
 alias n='shuf -n1 -i 1-999'
 
-fzf --fish | source
+if status is-interactive
+    fzf --fish | source
+end
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --no-mouse --scroll-off=0 --info=inline-right \
     --color=bw,query:regular,info:italic:underline,hl:underline:bold,fg+:regular:reverse,\
