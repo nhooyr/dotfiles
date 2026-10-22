@@ -32,7 +32,7 @@ function ghcl --argument-names url
     set -l remote "$ghurl_array[3]"
 
     set -l repo_dir "$HOME/code/$owner/$repo"
-    if not test -d "$repo_dir/.git"
+    if not test -e "$repo_dir/.git"
         git ls-remote "$remote" >/dev/null; or return 1
         mkdir -p "$repo_dir"
         git clone -- "$remote" "$repo_dir"; or return 1
