@@ -42,9 +42,7 @@ end
 function gho --argument-names target
     # Open the GitHub page for a path in the current repo, at the checked-out
     # branch, tag or commit. Defaults to the current directory.
-    if test -z "$target"
-        set target .
-    end
+    test -n "$target"; or set target .
     if not test -e "$target"
         printf 'gho: %s: No such file or directory\n' "$target" >&2
         return 1
@@ -53,52 +51,34 @@ function gho --argument-names target
     set -l dir "$target"
     set -l kind tree
     if not test -d "$target"
-        set dir "$(dirname -- "$target")"
+        set dir "$(path dirname -- "$target")"
         set kind blob
     end
 
-    if test "$(git -C "$dir" rev-parse --is-inside-work-tree 2>/dev/null)" != true
-        printf 'gho: %s: Not inside a git work tree\n' "$target" >&2
-        return 1
-    end
-
     # Path relative to the repo root.
-    set -l path "$(git -C "$dir" rev-parse --show-prefix)"
+    set -l path "$(git -C "$dir" rev-parse --show-prefix)"; or return
     if test "$kind" = blob
-        set path "$path$(basename -- "$target")"
+        set path "$path$(path basename -- "$target")"
     end
-    set path "$(string trim --right --chars / -- "$path")"
 
-    # Prefer the branch's upstream: its remote and its name on that remote.
+    # Prefer the branch's upstream, then an exact tag, then the commit.
     set -l remote origin
     set -l ref
-    set -l branch "$(git -C "$dir" symbolic-ref -q --short HEAD)"
-    if test -n "$branch"
-        set -l upstream "$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"
-        set -l upstream_remote "$(git -C "$dir" config "branch.$branch.remote")"
-        if test -n "$upstream" -a -n "$upstream_remote" -a "$upstream_remote" != .
-            set remote "$upstream_remote"
-            set ref "$(string replace -- "$remote/" '' "$upstream")"
-        else if git -C "$dir" show-ref -q --verify "refs/remotes/origin/$branch"
-            set ref "$branch"
-        end
-    end
-    if test -z "$ref"
-        set ref "$(git -C "$dir" describe --tags --exact-match HEAD 2>/dev/null)"
-    end
-    if test -z "$ref"
-        set ref "$(git -C "$dir" rev-parse HEAD)"; or return 1
+    set -l upstream $(git -C "$dir" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | string split -m1 /)
+    if set -q upstream[2]
+        set remote "$upstream[1]"
+        set ref "$upstream[2]"
+    else
+        set ref "$(git -C "$dir" describe --tags --exact-match 2>/dev/null; or git -C "$dir" rev-parse HEAD)"
     end
 
-    set -l remote_url "$(git -C "$dir" remote get-url "$remote")"; or return 1
-    set -l ghurl_array $(parse_ghurl "$remote_url"); or return 1
+    set -l ghurl $(parse_ghurl "$(git -C "$dir" remote get-url "$remote")"); or return
+    set -l url "https://github.com/$ghurl[1]/$ghurl[2]"
 
-    set -l url "https://github.com/$ghurl_array[1]/$ghurl_array[2]"
-    if test -n "$path" -o "$ref" != "$(git -C "$dir" rev-parse --abbrev-ref "$remote/HEAD" 2>/dev/null | string replace -r "^$remote/" '')"
-        set url "$url/$kind/$(string escape --style=url -- "$ref")"
-        if test -n "$path"
-            set url "$url/$(string escape --style=url -- "$path")"
-        end
+    # At the root on the default branch, the plain repo page is enough.
+    set -l default "$(git -C "$dir" rev-parse --abbrev-ref "$remote/HEAD" 2>/dev/null)"
+    if test -n "$path" -o "$remote/$ref" != "$default"
+        set url "$url/$kind/$(string escape --style=url -- "$ref/$path" | string trim -r -c /)"
     end
     echo "$url"
     open "$url"
