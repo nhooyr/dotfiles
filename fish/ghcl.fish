@@ -61,15 +61,20 @@ function gho --argument-names target
         set path "$path$(path basename -- "$target")"
     end
 
-    # Prefer the branch's upstream, then an exact tag, then the commit.
+    # Prefer the branch's upstream on a remote (not a local branch, whose
+    # remote is "."), then an exact tag, then the commit.
     set -l remote origin
     set -l ref
-    set -l upstream $(git -C "$dir" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null | string split -m1 /)
-    if set -q upstream[2]
+    set -l upstream $(git -C "$dir" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)' -- "$(git -C "$dir" symbolic-ref -q HEAD)")
+    if test -n "$upstream[1]" -a "$upstream[1]" != .
         set remote "$upstream[1]"
-        set ref "$upstream[2]"
+        set ref "$(string replace -- refs/heads/ '' "$upstream[2]")"
     else
-        set ref "$(git -C "$dir" describe --tags --exact-match 2>/dev/null; or git -C "$dir" rev-parse HEAD)"
+        set ref "$(git -C "$dir" describe --tags --exact-match 2>/dev/null; or git -C "$dir" rev-parse -q --verify HEAD)"
+        or begin
+            printf 'gho: %s: No commits yet\n' "$target" >&2
+            return 1
+        end
     end
 
     set -l ghurl $(parse_ghurl "$(git -C "$dir" remote get-url "$remote")"); or return
@@ -78,10 +83,10 @@ function gho --argument-names target
     # At the root on the default branch, the plain repo page is enough. Repos
     # that weren't cloned don't know their default branch, so look it up once.
     if test -z "$path"
-        git -C "$dir" rev-parse -q --verify "$remote/HEAD" >/dev/null
+        git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" >/dev/null
         or GIT_TERMINAL_PROMPT=0 git -C "$dir" remote set-head "$remote" --auto >/dev/null 2>&1
     end
-    set -l default "$(git -C "$dir" rev-parse --abbrev-ref "$remote/HEAD" 2>/dev/null)"
+    set -l default "$(git -C "$dir" symbolic-ref -q --short "refs/remotes/$remote/HEAD")"
     if test -n "$path" -o "$remote/$ref" != "$default"
         set url "$url/$kind/$(string escape --style=url -- "$ref/$path" | string trim -r -c /)"
     end

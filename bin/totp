@@ -36,6 +36,18 @@ otpauth://totp/*)
 	done
 	unset IFS
 	set +f
+	# URL values can be percent-encoded (RFC 3986), like %3d for = padding.
+	secret="$(printf %s "$secret" | awk '
+		function hex(h) {
+			return index("0123456789abcdef", substr(h, 1, 1)) * 16 - 16 + index("0123456789abcdef", substr(h, 2, 1)) - 1
+		}
+		{
+			while (match($0, /%[0-9a-f][0-9a-f]/)) {
+				printf "%s%c", substr($0, 1, RSTART - 1), hex(substr($0, RSTART + 1, 2))
+				$0 = substr($0, RSTART + 3)
+			}
+			print
+		}')"
 	;;
 otpauth://*)
 	echo 'totp: only otpauth://totp/ URLs are supported' >&2
@@ -46,8 +58,8 @@ otpauth://*)
 	;;
 esac
 
-# Drop base32 padding, raw (=) or URL-encoded (%3d); oathtool doesn't need it.
-secret="${secret%%[=%]*}"
+# Drop base32 padding; oathtool doesn't need it.
+secret="${secret%%=*}"
 if [ -z "$secret" ]; then
 	echo 'totp: no secret found' >&2
 	exit 1
