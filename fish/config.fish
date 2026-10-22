@@ -43,7 +43,7 @@ set -gx LSCOLORS \
     # directory writable to others, without sticky bit
     He \
     # dataless file
-    hh
+    ha
 set -gx LSCOLORS "$(string join '' $LSCOLORS)"
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
@@ -152,7 +152,15 @@ abbrali ne nemail
 
 abbrali chx chmod +x
 alias ymp3='yt-dlp --audio-format mp3 -x --embed-thumbnail'
-alias n='shuf -n1 -i 1-999'
+alias num='shuf -n1 -i 1-999'
+
+function noti --wraps time
+    time eval $argv
+    set -l code "$status"
+    printf '\a'
+    return "$code"
+end
+abbrali n noti
 
 if status is-interactive
     fzf --fish | source
