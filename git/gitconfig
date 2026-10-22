@@ -35,7 +35,6 @@
 	tool = nvimdiff
 	wsErrorHighlight = all
 	submodule = diff
-	colorMoved = default
 [difftool]
 	prompt = false
 [color "diff"]
