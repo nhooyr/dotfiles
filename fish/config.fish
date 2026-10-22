@@ -161,6 +161,7 @@ function noti --wraps time
     return "$code"
 end
 abbrali n noti
+abbr -a --command noti e eval
 
 if status is-interactive
     fzf --fish | source
@@ -220,3 +221,7 @@ if test -f "$DOTFILES/secrets/fish/config.fish"
 end
 source "$DOTFILES/fish/prompt.fish"
 source "$DOTFILES/fish/ghcl.fish"
+
+if test "$PWD" = "$HOME"
+    cd "$DOTFILES"
+end
