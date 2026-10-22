@@ -1,8 +1,58 @@
 #!/bin/sh
+# Copy the current TOTP code for a base32 secret or an otpauth://totp/ URL,
+# given as arguments or read from the clipboard.
 set -eu
 
-secret="$*"
-if test "$#" -eq 0; then
-	secret="$(pbpaste)"
+input="$*"
+if [ -z "$input" ]; then
+	input="$(pbpaste)"
 fi
-printf %s "$secret" | sed 's/^totp: *//i' | oathtool --totp -b - | pbc
+# Secrets are case-insensitive and often shown in spaced groups.
+input="$(printf %s "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+
+mode=--totp
+set --
+case "$input" in
+otpauth://totp/*)
+	secret=
+	query="${input#*[?]}"
+	query="${query%%#*}"
+	set -f
+	IFS='&'
+	for param in $query; do
+		value="${param#*=}"
+		case "$param" in
+		secret=*) secret="$value" ;;
+		algorithm=sha1) mode=--totp=SHA1 ;;
+		algorithm=sha256) mode=--totp=SHA256 ;;
+		algorithm=sha512) mode=--totp=SHA512 ;;
+		algorithm=*)
+			echo "totp: unsupported algorithm: $value" >&2
+			exit 1
+			;;
+		digits=*) set -- "$@" "--digits=$value" ;;
+		period=*) set -- "$@" "--time-step-size=${value}s" ;;
+		esac
+	done
+	unset IFS
+	set +f
+	;;
+otpauth://*)
+	echo 'totp: only otpauth://totp/ URLs are supported' >&2
+	exit 1
+	;;
+*)
+	secret="${input#totp:}"
+	;;
+esac
+
+# Drop base32 padding, raw (=) or URL-encoded (%3d); oathtool doesn't need it.
+secret="${secret%%[=%]*}"
+if [ -z "$secret" ]; then
+	echo 'totp: no secret found' >&2
+	exit 1
+fi
+
+# Generate first so a failure exits before touching the clipboard.
+code="$(printf %s "$secret" | oathtool "$mode" -b "$@" -)"
+printf '%s\n' "$code" | pbc
