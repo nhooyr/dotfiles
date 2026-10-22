@@ -101,13 +101,6 @@ abbrali np npass
 abbrali ne nemail
 
 abbrali chx chmod +x
-function totp
-    set -l secret "$argv"
-    if test -z "$secret"
-        set secret "$(pbpaste)"
-    end
-    printf %s "$secret" | sed 's/^totp: *//i' | oathtool --totp -b - | pbc
-end
 alias ymp3='yt-dlp --audio-format mp3 -x --embed-thumbnail'
 alias n='shuf -n1 -i 1-999'
 
