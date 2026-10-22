@@ -155,7 +155,7 @@ alias ymp3='yt-dlp --audio-format mp3 -x --embed-thumbnail'
 alias num='shuf -n1 -i 1-999'
 
 function noti --wraps time
-    time eval $argv
+    time $argv
     set -l code "$status"
     printf '\a'
     return "$code"
