@@ -4,7 +4,7 @@ set -eu
 if [ "$#" -eq 0 ]; then
 	set 20
 elif [ "$1" -lt 5 ]; then
-	echo "length must be at least 5"
+	echo "length must be at least 5" >&2
 	exit 1
 fi
 

@@ -215,7 +215,7 @@ function add_cdpath
     end
 end
 add_cdpath . ~ "$DOTFILES"
-if test -d "$DOTFILES/secrets"
+if test -f "$DOTFILES/secrets/fish/config.fish"
     source "$DOTFILES/secrets/fish/config.fish"
 end
 source "$DOTFILES/fish/prompt.fish"
