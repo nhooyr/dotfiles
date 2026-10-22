@@ -20,7 +20,6 @@ highlight Constant ctermfg=5
 highlight Type ctermfg=5
 highlight PreProc ctermfg=6 cterm=italic
 let g:gitcommit_summary_length = &textwidth
-let g:no_gitrebase_maps = v:true
 
 set list
 set listchars+=extends:>,precedes:<
@@ -53,8 +52,8 @@ nnoremap <silent> <nowait> <C-q> :quitall!<CR>
 inoremap <silent> <nowait> <C-q> <Esc>:quitall!<CR>
 nnoremap <silent> <nowait> <C-s> :write<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:write<CR>
-nnoremap <silent> <nowait> <C-x> :xit<CR>
-inoremap <silent> <nowait> <C-x> <Esc>:xit<CR>
+nnoremap <silent> <nowait> <M-s> :xit<CR>
+inoremap <silent> <nowait> <M-s> <Esc>:xit<CR>
 
 inoremap <nowait> <C-a> <C-o>^
 inoremap <nowait> <C-d> <Del>
@@ -69,7 +68,7 @@ imap <silent> <nowait> <C-_> <C-o>gcc
 vmap <silent> <nowait> <C-_> gc
 
 set completeopt=menuone,noselect,popup
-set complete+=U,k,kspell,s,i,d,f,o
+set complete+=U,kspell,i,d,f,o
 inoremap <silent><expr> <C-Space> pumvisible() ? "\<C-n>" :
 	   \ strpart(getline('.'), 0, col('.') - 1) =~# '\f*/\f*$'
 	   \ ? "\<C-x>\<C-f>" : "\<C-n>"
