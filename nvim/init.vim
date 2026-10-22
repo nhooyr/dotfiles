@@ -50,10 +50,8 @@ vnoremap // "zy/\V<C-R>=escape(@z,'/\')<CR><CR>
 nnoremap <silent> <nowait> q :quit<CR>
 nnoremap <silent> <nowait> <C-q> :quitall!<CR>
 inoremap <silent> <nowait> <C-q> <Esc>:quitall!<CR>
-nnoremap <silent> <nowait> <C-s> :write<CR>
-inoremap <silent> <nowait> <C-s> <Esc>:write<CR>
-nnoremap <silent> <nowait> <M-s> :xit<CR>
-inoremap <silent> <nowait> <M-s> <Esc>:xit<CR>
+nnoremap <silent> <nowait> <C-s> :xit<CR>
+inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
 
 inoremap <nowait> <C-a> <C-o>^
 inoremap <nowait> <C-d> <Del>

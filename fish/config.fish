@@ -28,9 +28,10 @@ end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
     if cd "$dir"
+        set -l prevd "$PWD"
         $argv[2..]
         set -l code "$status"
-        cd -
+        cd -- "$prevd"
         return "$code"
     else
         return 1
