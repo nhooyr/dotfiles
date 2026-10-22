@@ -27,8 +27,8 @@ function multicd
 end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
+    set -l prevd "$PWD"
     if cd "$dir"
-        set -l prevd "$PWD"
         $argv[2..]
         set -l code "$status"
         cd -- "$prevd"

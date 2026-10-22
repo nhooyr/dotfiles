@@ -17,5 +17,8 @@ mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/config
 
-git submodule update --init --remote
+if [ ! -e secrets/.git ]; then
+	git submodule update --init
+	git -C secrets switch main
+fi
 ./secrets/init.sh
