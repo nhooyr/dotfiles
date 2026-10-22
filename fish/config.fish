@@ -19,9 +19,34 @@ alias sudo='sudo --preserve-env=TERM_PROGRAM --preserve-env=SSH_TTY'
 fish_hybrid_key_bindings
 set -gx GOPATH ~/.local/share/go
 
-set -gx LSCOLORS exfxcxdxCxegedabagacadah
-alias l='ls --color -lh'
-alias ll='ls --color -lhA'
+set -gx LSCOLORS \
+    # dir
+    ex \
+    # symlink
+    Gx \
+    # socket
+    Cx \
+    # pipe
+    Cx \
+    # exec
+    Fx \
+    # block special
+    Hc \
+    # character special
+    Hc \
+    # setuid exec
+    Hf \
+    # setgid exec
+    Hf \
+    # directory writable to others, with sticky bit
+    He \
+    # directory writable to others, without sticky bit
+    He \
+    # dataless file
+    hh
+set -gx LSCOLORS "$(string join '' $LSCOLORS)"
+alias l='ls --color -lhF'
+alias ll='ls --color -lhAF'
 alias r="source $__fish_config_dir/config.fish"
 function multicd
     echo cd "$(string repeat -n "$(math "$(string length -- "$argv")" - 1)" ../)"

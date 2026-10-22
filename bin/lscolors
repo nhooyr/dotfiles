@@ -1,0 +1,66 @@
+#!/bin/sh
+set -eu
+
+dir="$(mktemp -d "${TMPDIR:-/tmp}/lscolors.XXXXXX")"
+trap 'rm -rf "$dir"' 0
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+cd "$dir"
+dir="$PWD"
+
+touch regular executable setuid_executable setgid_executable
+mkdir directory directory_sticky_other_writable directory_other_writable
+ln -s regular symbolic_link
+mkfifo pipe
+
+# Append examples in the LSCOLORS order documented in ls(1).
+set -- ./directory ./symbolic_link
+
+if /usr/bin/perl -MSocket -e '
+	socket(my $socket, PF_UNIX, SOCK_STREAM, 0) or die "socket: $!";
+	bind($socket, sockaddr_un("socket")) or die "bind: $!";
+' 2>/dev/null; then
+	set -- "$@" ./socket
+elif [ -S /var/run/mDNSResponder ]; then
+	set -- "$@" /var/run/mDNSResponder
+else
+	printf '%s\n' 'Could not create a UNIX socket; skipping that example.' >&2
+fi
+set -- "$@" ./pipe ./executable
+
+chmod 0644 regular
+chmod 0755 directory executable
+chmod 4755 setuid_executable
+chmod 2755 setgid_executable
+chmod 1777 directory_sticky_other_writable
+chmod 0777 directory_other_writable
+
+# Creating device nodes requires root; display existing nodes instead.
+for device in /dev/disk*; do
+	if [ -b "$device" ]; then
+		set -- "$@" "$device"
+		break
+	fi
+done
+set -- "$@" /dev/null
+
+# Some sandboxes silently strip set-ID bits. Use real examples in that case.
+if [ -u setuid_executable ]; then
+	set -- "$@" ./setuid_executable
+else
+	rm setuid_executable
+	set -- "$@" /usr/bin/su
+fi
+if [ -g setgid_executable ]; then
+	set -- "$@" ./setgid_executable
+else
+	rm setgid_executable
+	set -- "$@" /usr/bin/write
+fi
+set -- "$@" ./directory_sticky_other_writable ./directory_other_writable ./regular
+
+printf '%s\n' 'Existing system files supply examples that cannot be created here.'
+printf '%s\n\n' 'Dataless cloud placeholders are omitted (managed by macOS).'
+# -f preserves operand order. The regular file is an uncolored baseline at the end.
+/bin/ls --color=always -ldfF "$@"
