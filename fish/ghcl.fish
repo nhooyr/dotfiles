@@ -75,7 +75,12 @@ function gho --argument-names target
     set -l ghurl $(parse_ghurl "$(git -C "$dir" remote get-url "$remote")"); or return
     set -l url "https://github.com/$ghurl[1]/$ghurl[2]"
 
-    # At the root on the default branch, the plain repo page is enough.
+    # At the root on the default branch, the plain repo page is enough. Repos
+    # that weren't cloned don't know their default branch, so look it up once.
+    if test -z "$path"
+        git -C "$dir" rev-parse -q --verify "$remote/HEAD" >/dev/null
+        or GIT_TERMINAL_PROMPT=0 git -C "$dir" remote set-head "$remote" --auto >/dev/null 2>&1
+    end
     set -l default "$(git -C "$dir" rev-parse --abbrev-ref "$remote/HEAD" 2>/dev/null)"
     if test -n "$path" -o "$remote/$ref" != "$default"
         set url "$url/$kind/$(string escape --style=url -- "$ref/$path" | string trim -r -c /)"
