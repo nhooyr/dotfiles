@@ -19,6 +19,7 @@ alias sudo='sudo --preserve-env=TERM_PROGRAM --preserve-env=SSH_TTY'
 fish_hybrid_key_bindings
 set -gx GOPATH ~/.local/share/go
 
+set -gx LSCOLORS exfxcxdxCxegedabagacadah
 alias l='ls --color -lh'
 alias ll='ls --color -lhA'
 alias r="source $__fish_config_dir/config.fish"
