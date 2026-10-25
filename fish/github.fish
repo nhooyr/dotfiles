@@ -157,7 +157,7 @@ function ghe --argument-names input
     __ghcl_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]"
 end
 
-function ghr --argument-names target
+function gho --argument-names target
     set -lx 0 (status current-function)
     if test (count $argv) -gt 1
         printf 'Usage: %s [path | owner/repo | github-url]\n' "$0" >&2
@@ -194,7 +194,7 @@ function ghr --argument-names target
         # Installed dotfile links may live outside their source repository.
         if test -L "$entry"; and test -e "$entry"
             set -l resolved "$(path resolve -- "$entry")"; or return
-            $0 "$resolved"
+            "$0" "$resolved"
             return $status
         end
         printf '%s: path is not in a Git checkout: %s\n' "$0" "$target" >&2
