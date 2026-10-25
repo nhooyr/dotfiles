@@ -81,8 +81,9 @@ inoremap <silent><expr> <C-Space> pumvisible() ? "\<C-n>" :
 inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
 inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
-highlight PmenuSel cterm=bold,italic,underline
-highlight PmenuMatchSel cterm=bold,italic
+highlight PmenuMatch cterm=underline
+highlight PmenuSel cterm=italic,underline,bold
+highlight PmenuMatchSel cterm=italic,bold
 
 command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_
 			   \ | diffthis | wincmd p | diffthis
