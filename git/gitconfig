@@ -46,9 +46,9 @@
 [color "decorate"]
 	branch = blue italic bold ul
 	remoteBranch = cyan ul
-	tag = magenta ul
+	tag = magenta italic ul
 	stash = magenta italic ul
-	head = normal ul
+	head = magenta ul
 [color "branch"]
 	current = blue italic bold
 	upstream = cyan ul
