@@ -17,6 +17,7 @@ abbr -a --command sudo vi nvim
 abbr -a s sudo
 alias sudo='sudo --preserve-env=TERM_PROGRAM --preserve-env=SSH_TTY'
 fish_hybrid_key_bindings
+set fish_color_quote green --theme=default
 set -gx GOPATH ~/.local/share/go
 
 set -gx LSCOLORS \
@@ -91,7 +92,9 @@ abbrali gls git ls-files
 abbrali gcl git clone
 abbrali gpl git pull
 abbrali gro git remote -v
-abbrali gb git branch
+abbrali gb git branch -vv
+abbrali gba git branch -avv
+abbrali gbr git branch -rvv
 abbrali gst git stash push -u
 abbrali gsts git stash show
 abbrali gstsp git stash show -p

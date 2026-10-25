@@ -43,16 +43,23 @@
 	submodule = diff
 [difftool]
 	prompt = false
+[color "decorate"]
+	branch = blue italic ul
+	remoteBranch = cyan ul
+	tag = magenta ul
+	stash = magenta italic ul
+	head = normal ul
+[color "branch"]
+	current = blue italic ul bold
+	upstream = cyan ul bold
+	remote = magenta
 [color "diff"]
+	commit = cyan ul italic
 	meta = magenta ul italic
 	frag = magenta ul italic
 	whitespace = white red
 	oldMoved = red italic
 	newMoved = green italic
-[color "branch"]
-	current = blue italic ul bold
-	upstream = cyan ul bold
-	remote = magenta
 [color "blame"]
 	repeatedLines = magenta italic
 [color "advice"]
