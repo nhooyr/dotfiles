@@ -85,9 +85,6 @@ set -g __fish_git_prompt_showdirtystate true
 set -g __fish_git_prompt_showuntrackedfiles true
 set -g __fish_git_prompt_showupstream informative
 set -g __fish_git_prompt_showstashstate true
-set -g ___fish_git_prompt_color_branch "$(set_color --underline)"
-set -g ___fish_git_prompt_color_branch_done "$(set_color --reset)"
-set -g ___fish_git_prompt_color_flags "$(set_color cyan)"
-set -g ___fish_git_prompt_color_flags_done "$(set_color --reset)"
-set -g ___fish_git_prompt_color_merging "$(set_color --italic)"
-set -g ___fish_git_prompt_color_merging_done "$(set_color --reset)"
+set -g __fish_git_prompt_color_branch --underline
+set -g __fish_git_prompt_color_flags cyan
+set -g __fish_git_prompt_color_merging --italic

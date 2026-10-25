@@ -4,7 +4,7 @@ end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
     set -l prevd "$PWD"
-    if cd "$dir"
+    if cd -- "$dir"
         $argv[2..]
         set -l code "$status"
         cd -- "$prevd"
@@ -14,7 +14,7 @@ function cdc --wraps cd --argument-names dir
     end
 end
 function cdf --wraps cd --argument-names file
-    cd "$(dirname "$file")"
+    cd -- "$(dirname -- "$file")"
 end
 function up
     if not set -q argv[1]
@@ -66,10 +66,15 @@ function cd --description 'Change directory'
         return $status
     end
 
-    if test -f "$argv"
-        cdf "$argv"
+    set -l file $argv
+    if test "$argv[1]" = --
+        set file $argv[2..]
+    end
+    if test (count $file) -eq 1; and test -f "$file"
+        cdf "$file"
         return
     end
+
     builtin cd $argv
     set -l cd_status $status
 

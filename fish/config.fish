@@ -79,9 +79,8 @@ alias rg="rg -Sn --no-heading \
     --colors=path:fg:cyan \
     --colors=line:none \
     --colors=line:style:italic \
-    --colors=match:none \
-    --colors=match:fg:white \
-    --colors=match:bg:blue \
+    --colors=match:bg:white \
+    --colors=match:fg:blue \
     --colors=match:style:italic \
 "
 alias fd='fd -HL'

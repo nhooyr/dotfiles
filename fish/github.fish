@@ -1,6 +1,7 @@
 function __gh_parse --argument-names input
     # Return three lines: owner/repo, the URL's remaining path, and a clone URL.
-    if string match -rqi '%00|[[:cntrl:]]' -- "$input"
+    # Reject controls before decoding can strip trailing newlines.
+    if string match -rqi '%[01][0-9a-f]|%7f|[[:cntrl:]]' -- "$input"
         printf '%s: invalid input\n' "$0" >&2
         return 1
     end
