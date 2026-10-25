@@ -26,7 +26,7 @@ otpauth://totp/*\?*)
           then error("only SHA1, 6 digits, and a 30-second period are supported")
           else map(select(.key == "secret")) | last.value // empty
           end
-        | select(contains("\u0000") | not)
+        | select(test("[\u0000-\u001f\u007f]") | not)
     ')"
 	if [ -z "$secret" ]; then
 		echo "$(basename "$0"): unable to parse otpauth secret URL" >&2

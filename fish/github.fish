@@ -54,6 +54,19 @@ function __gh_remotes --argument-names remote destination
     end
 end
 
+function __gh_refspecs --argument-names name destination
+    set -l refspecs (git -C "$destination" config --get-all "remote.$name.fetch")
+    for spec in $refspecs
+        set -l fields (string split -m 1 : -- "$spec")
+        if test (count $fields) -eq 2; and test -n "$fields[2]"; and not string match -q 'refs/*' -- "$fields[2]"; and not string match -q '*\**' -- "$fields[2]"
+            # Git accepts abbreviated exact destinations, such as feature-cache.
+            set -l canonical "$(git -C "$destination" rev-parse --verify --symbolic-full-name --end-of-options "$fields[2]" 2>/dev/null)"
+            test -z "$canonical"; or set spec "$fields[1]:$canonical"
+        end
+        printf '%s\n' "$spec"
+    end
+end
+
 function __gh_map_ref --argument-names source target ref
     set -l parts (string split -m 1 '*' -- "$source")
     if test (count $parts) -eq 1
@@ -114,7 +127,7 @@ function __gh_source_ref --argument-names ref
 end
 
 function __gh_cached_branches --argument-names name destination
-    set -l refspecs (git -C "$destination" config --get-all "remote.$name.fetch")
+    set -l refspecs (__gh_refspecs "$name" "$destination")
     set -l prefixes
     for spec in $refspecs
         set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
@@ -129,7 +142,7 @@ function __gh_cached_branches --argument-names name destination
     end
     test (count $prefixes) -gt 0; or return 0
     set -l refs (git -C "$destination" for-each-ref \
-        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' $prefixes); or return
+        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $prefixes); or return
     for ref in $refs
         set -l source (__gh_source_ref "$ref" $refspecs); or continue
         set -l target (__gh_tracking_ref "$source" $refspecs); or continue
@@ -233,7 +246,7 @@ end
 
 function __ghe_tracking_ref --argument-names name destination ref
     set -l branch_ref "refs/heads/$ref"
-    set -l refspecs (git -C "$destination" config --get-all "remote.$name.fetch")
+    set -l refspecs (__gh_refspecs "$name" "$destination")
     set -l tracking_ref (__gh_tracking_ref "$branch_ref" $refspecs)
     set -l mapping_status "$status"
     if test "$mapping_status" -eq 2
@@ -247,6 +260,10 @@ function __ghe_tracking_ref --argument-names name destination ref
     # A known commit can still be missing its remote-tracking ref.
     if not git --no-lazy-fetch -C "$destination" rev-parse --verify "$tracking_ref^{commit}" >/dev/null 2>&1
         git -C "$destination" fetch --quiet --no-recurse-submodules -- "$name" "+$branch_ref:$tracking_ref"; or return
+    end
+    if not string match -q 'refs/*' -- "$tracking_ref"
+        set -l canonical "$(git -C "$destination" rev-parse --verify --symbolic-full-name --end-of-options "$tracking_ref" 2>/dev/null)"
+        test -z "$canonical"; or set tracking_ref "$canonical"
     end
     printf '%s\n' "$tracking_ref"
 end
@@ -271,7 +288,7 @@ function __ghe_pull --argument-names destination remote
             return 1
         end
         # Skip mappings into the current branch; merge updates its worktree safely.
-        set -l refspecs (git -C "$destination" config --get-all "remote.$upstream[1].fetch")
+        set -l refspecs (__gh_refspecs "$upstream[1]" "$destination")
         set -l refmap_options
         set -l skipped false
         for spec in $refspecs
@@ -503,9 +520,9 @@ function gho --argument-names target
         set -l upstream (git -C "$dir" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)' -- "$branch")
         if test -n "$upstream[1]"; and test "$upstream[1]" != .
             set remote "$upstream[1]"
-            if test -n "$upstream[3]"; and string match -q 'refs/heads/*' -- "$upstream[2]"
+            set remote_ref "$upstream[3]"
+            if test -n "$remote_ref"; and string match -q 'refs/heads/*' -- "$upstream[2]"
                 set ref (string replace -r '\Arefs/heads/' '' -- "$upstream[2]")
-                set remote_ref "$upstream[3]"
             end
         end
     end
@@ -530,8 +547,12 @@ function gho --argument-names target
         return
     end
 
-    set -l refspecs (git -C "$dir" config --get-all "remote.$remote.fetch")
+    set -l refspecs (__gh_refspecs "$remote" "$dir")
     if test -n "$branch"
+        if test -n "$remote_ref"; and not string match -q 'refs/*' -- "$remote_ref"
+            set -l canonical "$(git -C "$dir" rev-parse --verify --symbolic-full-name --end-of-options "$remote_ref" 2>/dev/null)"
+            test -z "$canonical"; or set remote_ref "$canonical"
+        end
         if test -z "$remote_ref"
             set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
             set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
