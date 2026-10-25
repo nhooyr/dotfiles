@@ -21,6 +21,7 @@ highlight Comment ctermfg=8 cterm=italic
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
 highlight PreProc ctermfg=6 cterm=italic
+highlight Statement cterm=underline,italic
 let g:gitcommit_summary_length = &textwidth
 
 set list
