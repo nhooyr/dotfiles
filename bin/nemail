@@ -1,4 +1,5 @@
 #!/bin/sh
 set -eu
 
-printf 'adam+%s@qsnow.ca\n' "$(nid)" | pbc
+id="$(nid)"
+printf 'adam+%s@qsnow.ca\n' "$id" | pbc

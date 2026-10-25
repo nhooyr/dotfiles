@@ -1,4 +1,6 @@
 #!/bin/sh
 set -eu
 
-printf '%s\n%s\n' "$(nemail)" "$(npass)" | pbc
+email="$(nemail)"
+pass="$(npass)"
+printf '%s\n%s\n' "$email" "$pass" | pbc
