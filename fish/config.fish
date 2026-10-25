@@ -73,7 +73,7 @@ function ls
 end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
-abbrali fd fd -HL
+abbr -a fd fd -HL
 function f
     find . -iname "*$argv*"
 end
