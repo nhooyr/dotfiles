@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-tee /dev/stderr | perl -pe 'chomp if eof' | pbcopy
+perl -pe 'chomp if eof' | zsh -c 'tee >(pbcopy)'

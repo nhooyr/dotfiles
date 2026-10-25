@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-printf "%s\n%s\n" "$(nemail 2>&1)" "$(npass 2>&1)" | pbc
+printf '%s\n%s\n' "$(nemail)" "$(npass)" | pbc

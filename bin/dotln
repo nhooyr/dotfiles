@@ -17,7 +17,7 @@ src=$(realpath -- "$src")
 
 if [ -L "$dst" ]; then
 	echo "overwriting symlink $dst"
-	rm "$dst"
+	rm -- "$dst"
 elif [ -e "$dst" ]; then
 	echo "$dst exists and is not a symlink"
 	exit 1
@@ -25,5 +25,5 @@ else
 	echo "linking $dst"
 fi
 
-mkdir -p "$(dirname "$dst")"
-ln -s "$src" "$dst"
+mkdir -p -- "$(dirname -- "$dst")"
+ln -s -- "$src" "$dst"
