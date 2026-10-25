@@ -368,6 +368,10 @@ function gho --argument-names target
 
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
     set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
+    if test -z "$default_ref"; and test -z "$repo_path"; and test -n "$branch"
+        git -C "$dir" remote set-head "$remote" --auto >/dev/null 2>&1
+        set default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
+    end
     if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "$remote_ref"
         set ref ''
     else if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"; and git -C "$dir" show-ref --verify --quiet "$remote_ref"
