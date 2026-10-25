@@ -102,4 +102,4 @@ augroup aqsnow
 	autocmd filetype html,jsonc,fish setlocal expandtab
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 augroup END
-nnoremap <silent> <nowait> <Leader>ls :%s/\s\+$// \| nohlsearch<CR>
+nnoremap <silent> <nowait> <Leader>w :%s/\s\+$// \| nohlsearch<CR>
