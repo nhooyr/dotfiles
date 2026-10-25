@@ -491,6 +491,16 @@ function gho --argument-names target
             return 1
         end
     end
+    set -l remote_url "$(git -C "$dir" remote get-url -- "$remote")"; or return
+    set -l github (__gh_parse "$remote_url")
+    test (count $github) -eq 3; or return 1
+    set -l url "https://github.com/$github[1]"
+    if test -z "$repo_path"; and test -n "$branch"; and not git -C "$dir" rev-parse --verify HEAD >/dev/null 2>&1
+        printf '%s\n' "$url"
+        open "$url"
+        return
+    end
+
     if test -n "$branch"
         if test -z "$remote_ref"
             set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
@@ -533,10 +543,6 @@ function gho --argument-names target
         end
     end
 
-    set -l remote_url "$(git -C "$dir" remote get-url -- "$remote")"; or return
-    set -l github (__gh_parse "$remote_url")
-    test (count $github) -eq 3; or return 1
-
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
     set -l refspecs (git -C "$dir" config --get-all "remote.$remote.fetch")
     set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
@@ -577,7 +583,6 @@ function gho --argument-names target
         end
     end
 
-    set -l url "https://github.com/$github[1]"
     set -l web_path "$ref"
     if test -n "$repo_path"
         set web_path "$web_path/$repo_path"
