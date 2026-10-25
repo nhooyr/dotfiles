@@ -312,8 +312,11 @@ function gho --argument-names target
         set ref "$(git -C "$dir" describe --tags --exact-match HEAD 2>/dev/null)"
     end
     test -n "$ref"; or set ref "$commit"
-    # A shared branch/tag name is ambiguous in a browser URL; use the commit.
-    if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"; and git -C "$dir" show-ref --verify --quiet "refs/remotes/$remote/$ref"
+    # The default-branch homepage needs no ref; other ambiguous links use the commit.
+    set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
+    if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "refs/remotes/$remote/$ref"
+        set ref ''
+    else if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"; and git -C "$dir" show-ref --verify --quiet "refs/remotes/$remote/$ref"
         set ref "$commit"
     end
 
@@ -321,12 +324,9 @@ function gho --argument-names target
     set -l github (__gh_parse "$remote_url")
     test (count $github) -eq 3; or return 1
     set -l url "https://github.com/$github[1]"
-    set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
     set -l web_path "$ref"
     if test -n "$repo_path"
         set web_path "$web_path/$repo_path"
-    else if test -n "$branch"; and test "$default_ref" = "refs/remotes/$remote/$ref"
-        set web_path ''
     end
     if test -n "$commit"; and test -n "$web_path"
         set url "$url/$kind/$(string escape --style=url -- "$web_path")"
