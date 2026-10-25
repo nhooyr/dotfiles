@@ -97,8 +97,18 @@ highlight PmenuMatch cterm=underline
 highlight PmenuSel cterm=italic,underline,bold
 highlight PmenuMatchSel cterm=italic,bold
 
-command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_
-			   \ | diffthis | wincmd p | diffthis
+command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
+			   \ diffthis | wincmd p | diffthis
+
+function! s:restore_cursor() abort
+	if line("'\"") > 1
+		if line("'\"") <= line("$")
+			normal! g`"
+		else
+			keepjumps normal! G
+		endif
+	endif
+endfunction
 
 augroup aqsnow
 	autocmd!
@@ -106,5 +116,6 @@ augroup aqsnow
 	autocmd filetype gitcommit setlocal tabstop=4 textwidth=120
 	autocmd filetype html,jsonc,fish setlocal expandtab
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
+	autocmd BufReadPost * call <SID>restore_cursor()
 augroup END
 nnoremap <silent> <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
