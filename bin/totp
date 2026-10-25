@@ -2,8 +2,13 @@
 set -eu
 
 secret="$*"
-if test "$#" -eq 0; then
+if [ -z "$secret" ]; then
 	secret="$(pbpaste)"
+fi
+
+if test -z "$secret"; then
+	echo "$0: no secret in \$1 or clipboard" >&2
+	exit 1
 fi
 
 case "$secret" in
@@ -11,15 +16,17 @@ otpauth://totp/*\?*)
 	# Read the secret query parameter; the account label and issuer are unused.
 	query="${secret#*\?}"
 	query="${query%%#*}"
-	secret="$(printf '%s\n' "&$query" | sed -nE 's/.*&secret=([^&]*).*/\1/p')"
+	secret="$(printf %s "&$query" | sed -E 's/.*&secret=([^&]*).*/\1/')"
+	if test -z "$secret"; then
+		echo "$0: unable to parse otpauth secret URL" >&2
+		exit 1
+	fi
+	;;
+totp:*)
+	echo hi
+	secret="$(printf %s "$secret" | sed 's/^totp:\s*//i')"
 	;;
 esac
 
-if test -z "$secret"; then
-	echo 'totp: no secret found' >&2
-	exit 1
-fi
-
-# Leave the clipboard alone if code generation fails.
-code="$(printf %s "$secret" | sed 's/^totp: *//i' | oathtool --totp -b -)"
+code="$(printf %s "$secret" | oathtool --totp -b -)"
 printf '%s\n' "$code" | pbc
