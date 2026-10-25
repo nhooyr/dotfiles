@@ -272,15 +272,35 @@ function __ghe_pull --argument-names destination remote
             printf '%s: upstream remote does not match the requested repository: %s\n' "$0" "$upstream[1]" >&2
             return 1
         end
-        set -l upstream_ref "$(git -C "$destination" rev-parse --symbolic-full-name "$upstream[3]" 2>/dev/null)"
-        if test "$upstream[3]" = "$branch"; or test "$upstream_ref" = "$branch"
-            # A fetch mapping may target the checked-out local branch.
-            git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$upstream[1]" "$upstream[2]"; or return
-            set merge_ref FETCH_HEAD
-        else
-            git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "$upstream[2]"; or return
-            set merge_ref FETCH_HEAD
+        # Skip mappings into the current branch; merge updates its worktree safely.
+        set -l refspecs (git -C "$destination" config --get-all "remote.$upstream[1].fetch")
+        set -l refmap_options
+        set -l skipped false
+        for spec in $refspecs
+            set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
+            if test (count $fields) -eq 2; and test -n "$fields[2]"
+                # Exact targets need no source match, including abbreviated sources.
+                set -l target "$fields[2]"
+                if string match -q '*\**' -- "$target"
+                    set target (__gh_map_ref "$fields[1]" "$target" "$upstream[2]")
+                end
+                if test -n "$target"
+                    set -l canonical "$(git -C "$destination" rev-parse --symbolic-full-name "$target" 2>/dev/null)"
+                    if test "$target" = "$branch"; or test "$canonical" = "$branch"
+                        set skipped true
+                        continue
+                    end
+                end
+            end
+            set -a refmap_options "--refmap=$spec"
         end
+        if test "$skipped" = false
+            set refmap_options
+        else if test (count $refmap_options) -eq 0
+            set refmap_options --refmap=
+        end
+        git -C "$destination" fetch --quiet --no-recurse-submodules $refmap_options -- "$upstream[1]" "$upstream[2]"; or return
+        set merge_ref FETCH_HEAD
     end
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
 end
