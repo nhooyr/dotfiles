@@ -28,6 +28,6 @@ if [ "$force" != true ] && code --list-extensions --show-versions | grep -qFx "$
 	echo "$(basename "$0"): Run with -f to force update." >&2
 	exit 0
 fi
-rm ./*.vsix || true
+rm -f ./*.vsix
 vsce package
 code ${force:+--force} --install-extension "./$name-$version.vsix"

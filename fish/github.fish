@@ -454,6 +454,9 @@ function gho --argument-names target
         return 1
     end
     if test "$is_file" = true
+        if not test -L "$entry"
+            set name "$(path basename -- "$(path resolve -- "$entry")")"
+        end
         set repo_path "$repo_path$name"
     else if test -n "$repo_path"
         # Git's directory prefix ends in /.

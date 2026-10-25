@@ -33,7 +33,7 @@ function up
     end
 
     if string match --quiet --regex '^[0-9]+$' -- "$argv"
-        set -l up (string repeat --count "$argv" ../)
+        set -l up (string repeat --count "$argv" ../); or return
         cd "./$up"
         return
     end
