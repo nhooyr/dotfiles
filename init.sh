@@ -11,7 +11,6 @@ dotln ./nvim/vimrc ~/.vimrc
 dotln ./tmux/tmux.conf ~/.tmux.conf
 dotln ./fish/config.fish ~/.config/fish/config.fish
 dotln ./vscode/settings.json ~/Library/Application\ Support/Code/User/settings.json
-./vscode/theme/install.sh
 dotln ./ssh/config ~/.ssh/config
 mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
@@ -22,3 +21,5 @@ if [ ! -e secrets/.git ]; then
 	git -C secrets switch "$(git config --file .gitmodules submodule.secrets.branch)"
 fi
 ./secrets/init.sh
+
+./vscode/theme/install.sh

@@ -30,4 +30,4 @@ if [ "$force" != true ] && code --list-extensions --show-versions | grep -qFx "$
 fi
 rm ./*.vsix || true
 vsce package
-code "${force:+--force}" --install-extension "./$name-$version.vsix"
+code ${force:+--force} --install-extension "./$name-$version.vsix"
