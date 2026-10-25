@@ -48,7 +48,10 @@ function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
 end
-abbrali gg git grep -iIE
+function gg --wraps 'git grep'
+    git grep -iIE --recurse-submodules $argv
+end
+
 function gapply --wraps 'git apply'
     pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
 end
