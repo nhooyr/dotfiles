@@ -18,14 +18,11 @@ otpauth://totp/*\?*)
 	query="${query%%#*}"
 	# Split before decoding so escaped delimiters stay inside their fields.
 	secret="$(printf %s "$query" | jq -Rrs --arg name "$(basename "$0")" '
-        # Base32 secrets and supported option values are ASCII.
-        def uridecode:
-            @json | gsub("%(?<hex>[0-9a-fA-F]{2})"; "\\u00" + .hex) | fromjson;
         split("&")
         | map(split("=") | {
-            key: (.[0] | uridecode),
-            value: (.[1:] | join("=") | uridecode)
-        })
+            key: (.[0] // ""),
+            value: (.[1:] | join("="))
+        } | map_values(@urid))
         | if any(.[];
             (.key == "algorithm" and .value != "SHA1") or
             (.key == "digits" and .value != "6") or
