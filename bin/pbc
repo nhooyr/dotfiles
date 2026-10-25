@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-zsh -c 'tee >(perl -pe "chomp if eof" | pbcopy)'
+zsh -o pipefail -c 'tee /dev/fd/3 | perl -pe "chomp if eof" | pbcopy' 3>&1

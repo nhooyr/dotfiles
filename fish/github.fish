@@ -197,9 +197,9 @@ function __gh_resolve --argument-names remote tail destination cached_only
                     return 0
                 end
             end
-            if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$ref"
+            if string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
                 # A short hex name may be a branch, such as 2026/fix.
-                if test "$source" = remote; or test (string length -- "$ref") -eq 40; or git --no-lazy-fetch -C "$destination" cat-file -e "$ref^{commit}" 2>/dev/null
+                if test "$source" = remote; or git --no-lazy-fetch -C "$destination" cat-file -e "$ref^{commit}" 2>/dev/null
                     printf '%s\n' "$ref" "$ref" (string trim -r -c / -- "$path") "$ref"
                     return 0
                 end
@@ -227,20 +227,13 @@ function __ghe_remote --argument-names remote destination ref full_ref
         end
     end
     if test -z "$name"
-        set -l names (git -C "$destination" remote); or return
-        set name origin
-        set -l suffix 2
-        while contains -- "$name" $names
-            set name "origin-$suffix"
-            set suffix (math "$suffix + 1")
-        end
-        git -C "$destination" remote add -- "$name" "$remote"; or return
+        printf '%s: no remote matches the requested repository\n' "$0" >&2
+        return 1
     end
     printf '%s\n' "$name"
 end
 
-function __ghe_tracking_ref --argument-names remote destination ref full_ref
-    set -l name (__ghe_remote "$remote" "$destination" "$ref" "$full_ref"); or return
+function __ghe_tracking_ref --argument-names name destination ref
     set -l branch_ref "refs/heads/$ref"
     set -l refspecs (git -C "$destination" config --get-all "remote.$name.fetch")
     set -l tracking_ref (__gh_tracking_ref "$branch_ref" $refspecs)
@@ -348,7 +341,7 @@ function __ghe_checkout --argument-names remote destination tail
                         git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
                     else
                         set -l name (__ghe_remote "$remote" "$destination" "$ref" "$full_ref"); or return
-                        set -l tracking_ref (__ghe_tracking_ref "$remote" "$destination" "$ref" "$full_ref"); or return
+                        set -l tracking_ref (__ghe_tracking_ref "$name" "$destination" "$ref"); or return
                         if git -C "$destination" show-ref --verify --quiet "$branch_ref"
                             git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
                         else
@@ -514,7 +507,6 @@ function gho --argument-names target
                 return 1
             end
         end
-        set ref "$(git -C "$dir" describe --tags --exact-match HEAD 2>/dev/null)"
     end
     test -n "$ref"; or set ref "$commit"
     if test -z "$remote_ref"

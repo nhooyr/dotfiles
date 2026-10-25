@@ -52,7 +52,7 @@ nnoremap <silent> <nowait> <Leader>s :source $MYVIMRC<CR>
 nnoremap <silent> <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <nowait> <Leader>r :%s##
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
-vnoremap // "zy/\V<C-R>=escape(@z,'/\')<CR><CR>
+vnoremap // "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 
 nnoremap <silent> <nowait> q :quit<CR>
 nnoremap <silent> <nowait> <C-q> :quitall!<CR>
@@ -60,9 +60,11 @@ inoremap <silent> <nowait> <C-q> <Esc>:quitall!<CR>
 nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
 function! s:exit_and_run() abort
-	wall
+	write
 	if $AQSNOW_FISH_RENDEZVOUS != ""
-		call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
+		if line('$') > 1 || getline(1) != ""
+			call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
+		endif
 	endif
 	xit
 endfunction
