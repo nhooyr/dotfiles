@@ -48,50 +48,7 @@ set -gx LSCOLORS "$(string join '' $LSCOLORS)"
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
 alias r="source $__fish_config_dir/config.fish"
-function multicd
-    echo cd "$(string repeat -n "$(math "$(string length -- "$argv")" - 1)" ../)"
-end
-abbr --add dotdot --regex '^\.\.\.+$' --function multicd
-function cdc --wraps cd --argument-names dir
-    set -l prevd "$PWD"
-    if cd "$dir"
-        $argv[2..]
-        set -l code "$status"
-        cd -- "$prevd"
-        return "$code"
-    else
-        return 1
-    end
-end
-function cdf --wraps cd --argument-names file
-    cd "$(dirname "$file")"
-end
-function up
-    if not set -q argv[1]
-        cd ..
-        return
-    end
 
-    if string match --quiet --regex '^[0-9]+$' -- "$argv"
-        set -l up (string repeat --count "$argv" ../)
-        cd "./$up"
-        return
-    end
-
-    set -l dir "$PWD"
-    while test "$dir" != /
-        set dir "$(path dirname -- "$dir")"
-        if string match --quiet --regex -- "$argv" "$(path basename -- "$dir")"
-            cd -- "$dir"
-            return
-        end
-    end
-
-    printf 'up: no parent dir matches %s\n' "$argv" >&2
-    return 1
-end
-abbrali pd prevd
-abbrali nd nextd
 abbrali t time
 abbrali mkd 'cd "$(mktemp -d)"'
 alias sshq="ssh -O exit"
@@ -234,9 +191,12 @@ add_cdpath . ~ "$DOTFILES"
 if test -f "$DOTFILES/secrets/fish/config.fish"
     source "$DOTFILES/secrets/fish/config.fish"
 end
-source "$DOTFILES/fish/prompt.fish"
 source "$DOTFILES/fish/ghcl.fish"
 
-if test "$PWD" = "$HOME"
-    cd "$DOTFILES"
+if status is-interactive
+    source "$DOTFILES/fish/prompt.fish"
+    source "$DOTFILES/fish/cd.fish"
+    if test "$PWD" = "$HOME"
+        cd "$DOTFILES"
+    end
 end

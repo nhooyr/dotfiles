@@ -20,12 +20,6 @@ function fish_prompt
     echo -n -s "$(set_color --bold --underline --italic)$suffix$normal "
 end
 set -g fish_prompt_pwd_dir_length 0
-
-set -g __fish_git_prompt_showdirtystate true
-set -g __fish_git_prompt_showuntrackedfiles true
-set -g __fish_git_prompt_showupstream informative
-set -g __fish_git_prompt_showstashstate true
-
 set -g fish_color_user --reset --theme=default
 if fish_is_root_user
     set -g fish_color_user brred --underline --bold --italic --theme=default
@@ -87,3 +81,7 @@ function fish_mode_prompt
     set_color --reset
     echo -n ' '
 end
+set -g __fish_git_prompt_showdirtystate true
+set -g __fish_git_prompt_showuntrackedfiles true
+set -g __fish_git_prompt_showupstream informative
+set -g __fish_git_prompt_showstashstate true
