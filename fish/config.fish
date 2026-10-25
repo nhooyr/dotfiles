@@ -21,10 +21,13 @@ alias sudo='sudo --preserve-env=TERM_PROGRAM --preserve-env=SSH_TTY'
 fish_hybrid_key_bindings
 set -g fish_color_error normal --italic
 set -g fish_color_quote green
-set -g fish_color_search_match white --background=black
+set -g fish_color_search_match normal --reverse
 set -g fish_pager_color_progress magenta --underline --italic
 set -g fish_pager_color_prefix --italic --underline
-set -g fish_pager_color_selected_prefix --bold --italic
+set -g fish_pager_color_selected_background --background=black
+set -g fish_pager_color_selected_prefix white --bold --italic
+set -g fish_pager_color_selected_completion white
+set -g fish_pager_color_selected_description white
 function r
     source "$__fish_config_dir/config.fish"
 end
