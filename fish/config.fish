@@ -17,12 +17,12 @@ abbr -a --command sudo vi nvim
 abbr -a s sudo
 alias sudo='sudo --preserve-env=TERM_PROGRAM --preserve-env=SSH_TTY'
 fish_hybrid_key_bindings
-set -g fish_color_error normal
-set -g fish_color_quote green --theme=default
-set -g fish_color_search_match regular --reverse --theme=default
-set -g fish_pager_color_progress magenta --underline --italic --theme=default
-set -g fish_pager_color_prefix --italic --underline --theme=default
-set -g fish_pager_color_selected_prefix --bold --italic --theme=default
+set -g fish_color_error normal --italic
+set -g fish_color_quote green
+set -g fish_color_search_match regular --reverse
+set -g fish_pager_color_progress magenta --underline --italic
+set -g fish_pager_color_prefix --italic --underline
+set -g fish_pager_color_selected_prefix --bold --italic
 set -gx GOPATH ~/.local/share/go
 
 set -gx LSCOLORS \

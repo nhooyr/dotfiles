@@ -11,7 +11,7 @@ function fish_prompt
     end
 
     if test "$last_status" -ne 0
-        set status_color "$(set_color brred --underline --bold --theme=default)"
+        set status_color "$(set_color brred --underline --bold)"
         set prompt_status " $status_color"'['"$last_status"']'"$normal"
         set suffix "$(set_color brred --underline)$suffix"
     end
@@ -20,13 +20,13 @@ function fish_prompt
     echo -n -s "$(set_color --bold --underline --italic)$suffix$normal "
 end
 set -g fish_prompt_pwd_dir_length 0
-set -g fish_color_user --reset --theme=default
+set -g fish_color_user --reset
 if fish_is_root_user
-    set -g fish_color_user brred --underline --bold --italic --theme=default
+    set -g fish_color_user brred --underline --bold --italic
 end
-set -g fish_color_cwd blue --theme=default
-set -g fish_color_host --underline --theme=default
-set -g fish_color_host_remote cyan --underline --theme=default
+set -g fish_color_cwd blue
+set -g fish_color_host --underline
+set -g fish_color_host_remote cyan --underline
 function prompt_hostname
     if set -q SSH_TTY
         hostname
@@ -35,7 +35,7 @@ function prompt_hostname
     end
 end
 function fish_right_prompt
-    set_color magenta --italic --theme=default
+    set_color magenta --italic
     date '+%X'
     set_color --reset
 end
@@ -85,9 +85,9 @@ set -g __fish_git_prompt_showdirtystate true
 set -g __fish_git_prompt_showuntrackedfiles true
 set -g __fish_git_prompt_showupstream informative
 set -g __fish_git_prompt_showstashstate true
-set -g ___fish_git_prompt_color_branch "$(set_color --underline --theme default)"
+set -g ___fish_git_prompt_color_branch "$(set_color --underline)"
 set -g ___fish_git_prompt_color_branch_done "$(set_color --reset)"
-set -g ___fish_git_prompt_color_flags "$(set_color cyan --theme default)"
+set -g ___fish_git_prompt_color_flags "$(set_color cyan)"
 set -g ___fish_git_prompt_color_flags_done "$(set_color --reset)"
-set -g ___fish_git_prompt_color_merging "$(set_color --italic --theme default)"
+set -g ___fish_git_prompt_color_merging "$(set_color --italic)"
 set -g ___fish_git_prompt_color_merging_done "$(set_color --reset)"
