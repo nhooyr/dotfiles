@@ -19,7 +19,7 @@ if [ -L "$dst" ]; then
 	echo "overwriting symlink $dst"
 	rm -- "$dst"
 elif [ -e "$dst" ]; then
-	echo "$dst exists and is not a symlink"
+	echo "$dst exists and is not a symlink" >&2
 	exit 1
 else
 	echo "linking $dst"

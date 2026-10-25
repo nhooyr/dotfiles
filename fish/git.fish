@@ -5,8 +5,8 @@ abbrali gap git add -p
 abbrali gp git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
-alias gcp='gcm && gp'
-alias gacp='ga && gcp'
+abbrali gcp gcm "&&" gp
+abbrali gacp ga "&&" gcp
 abbrali gcma git commit --amend
 abbrali gcmf git commit --fixup
 abbrali grb git rebase
@@ -41,7 +41,7 @@ abbrali gstl git stash list
 abbrali gstd git stash drop
 abbrali gds git diff stash@{0}
 abbrali gbl git blame
-abbrali gshort 'git rev-parse --short'
+abbrali gshort git rev-parse --short
 abbrali gch git checkout
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
@@ -50,7 +50,6 @@ end
 function gg --wraps 'git grep'
     git grep -iIE --recurse-submodules $argv
 end
-
 function gapply --wraps 'git apply'
     pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
 end
