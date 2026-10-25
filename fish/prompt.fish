@@ -23,9 +23,8 @@ set -g fish_prompt_pwd_dir_length 0
 
 set -g __fish_git_prompt_showdirtystate true
 set -g __fish_git_prompt_showuntrackedfiles true
-set -g __fish_git_prompt_showupstream auto
+set -g __fish_git_prompt_showupstream informative
 set -g __fish_git_prompt_showstashstate true
-set -g __fish_git_prompt_showcolorhints true
 
 set -g fish_color_user --reset --theme=default
 if fish_is_root_user
