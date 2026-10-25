@@ -21,9 +21,11 @@ abbrali grth git reset --hard
 abbrali gdc git diff --cached
 abbrali grm git rm
 abbrali grmr git rm -r
-abbrali grmf git rm -rf
+abbrali grmf git rm -f
+abbrali grmrf git rm -rf
 abbrali grmc git rm --cached
 abbrali grmcr git rm --cached -r
+abbrali grmcrf git rm --cached -rf
 abbrali gl git log
 abbrali glsf git ls-files
 abbrali gcl git clone
