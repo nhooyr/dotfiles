@@ -133,6 +133,11 @@ abbrali gcl git clone
 abbrali gpl git pull
 abbrali gro git remote -v
 abbrali gb git branch
+abbrali gst git stash push --include-untracked
+abbrali gsts git stash show
+abbrali gstp git stash pop
+abbrali gstl git stash list
+abbrali gstd git stash drop
 
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
