@@ -61,7 +61,7 @@ function ls
     if type -q gls
         gls --group-directories-first $argv
     else
-        command $argv
+        command ls $argv
     end
 end
 alias l='ls --color -lhF'
