@@ -7,7 +7,8 @@ function __gh_parse --argument-names input
     end
     # Accept GitHub's standard ports and its alternate SSH endpoint.
     set -l http_userinfo '(?:[A-Za-z0-9._~!$&\'()*+,;=:-]|%[0-9a-f]{2})+'
-    set -l path (string replace -ri "^(https://(?:$http_userinfo@)?github\\.com(:443)?/|http://(?:$http_userinfo@)?github\\.com(:80)?/|ssh://git@(github\\.com(:22)?|ssh\\.github\\.com:443)/|git@github\\.com:|github\\.com(:443)?/)" '' -- "$input")
+    set -l http_host '(?:github\.com|raw\.githubusercontent\.com)'
+    set -l path (string replace -ri "^(https://(?:$http_userinfo@)?$http_host(:443)?/|http://(?:$http_userinfo@)?$http_host(:80)?/|ssh://git@(github\\.com(:22)?|ssh\\.github\\.com:443)/|git@github\\.com:|github\\.com(:443)?/)" '' -- "$input")
     set -l is_url false
     test "$path" != "$input"; and set is_url true
     set path (string replace -r '[?#].*$' '' -- "$path")
@@ -31,7 +32,10 @@ function __gh_parse --argument-names input
         printf '%s: URL paths cannot contain dot segments\n' "$0" >&2
         return 1
     end
-    set -l userinfo (string match -rgi "^https?://($http_userinfo@)github\\.com(?::[0-9]+)?/" -- "$input")
+    if string match -rqi "^https?://(?:$http_userinfo@)?raw\\.githubusercontent\\.com(?::[0-9]+)?/" -- "$input"
+        set tail "raw/$tail"
+    end
+    set -l userinfo (string match -rgi "^https?://($http_userinfo@)$http_host(?::[0-9]+)?/" -- "$input")
     set -l remote "https://$userinfo[1]github.com/$parts[1]/$repo.git"
     set -l ssh_authority (string match -ri '^ssh://git@[^/]+:[0-9]+/' -- "$input")
     if test -n "$ssh_authority"
@@ -165,30 +169,49 @@ function __gh_cached_branches --argument-names name destination
 end
 
 function __gh_is_ref_route --argument-names tail
-    string match -qr '^(blob|tree|commits?|blame)/.+' -- "$tail"
+    string match -qr '^(blob|tree|commits?|blame|tag|branch|tagfile|branchfile|oid)/.+' -- "$tail"
 end
 
 function __gh_resolve --argument-names remote tail destination cached_only
     # Return the full ref, short name, path, and a locally usable revision or OID.
     set -l route (string split -m 1 / -- "$tail")
     if not __gh_is_ref_route "$tail"
-        printf '%s: expected a repository, blob, tree, commit, commits, or blame URL\n' "$0" >&2
+        printf '%s: expected a URL identifying a ref or file\n' "$0" >&2
         return 1
+    end
+    set -l namespace ''
+    switch "$route[1]"
+        case tag tagfile
+            set namespace refs/tags
+        case branch branchfile
+            set namespace refs/heads
+        case oid
+            string match -qr '^[0-9a-fA-F]{4,40}$' -- "$route[2]"; or return 1
+            printf '%s\n' "$route[2]" "$route[2]" '' "$route[2]"
+            return 0
+    end
+    set -l exact false
+    if contains -- "$route[1]" tag branch
+        git check-ref-format "$namespace/$route[2]"; or return
+        set exact true
     end
     # Commit URLs must stay unambiguous even when a ref has the same name.
     set -l commit_path (string split -m 1 / -- "$route[2]")
-    if string match -qr '^[0-9a-fA-F]{40}$' -- "$commit_path[1]"
+    if test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{40}$' -- "$commit_path[1]"
         printf '%s\n' "$commit_path[1]" "$commit_path[1]" (string trim -r -c / -- "$commit_path[2]") "$commit_path[1]"
         return 0
     end
     # Prefer local refs, including cached branches from the requested repository.
     set -l prefixes refs/tags refs/heads
+    test -z "$namespace"; or set prefixes "$namespace"
+    set -l source_prefixes $prefixes
     # Symbolic aliases such as origin/HEAD aren't branch names to check out.
     set -l refs (git -C "$destination" for-each-ref \
         --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' $prefixes); or return
     set -l revisions $refs
     set -l remotes (__gh_remotes "$remote" "$destination"); or return
     for name in $remotes
+        test "$namespace" != refs/tags; or continue
         set -a prefixes "refs/remotes/$name"
         set -l cached (__gh_cached_branches "$name" "$destination"); or return
         for line in $cached
@@ -212,7 +235,7 @@ function __gh_resolve --argument-names remote tail destination cached_only
                 set -a refs "$fields[2]"
                 set -a revisions "$fields[1]"
             end
-            set prefixes refs/tags refs/heads
+            set prefixes $source_prefixes
         end
 
         # Ref names can contain slashes. Try the longest known name first.
@@ -226,13 +249,14 @@ function __gh_resolve --argument-names remote tail destination cached_only
                     return 0
                 end
             end
-            if string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
+            if test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
                 # A short hex name may be a branch, such as 2026/fix.
                 if test "$source" = remote; or git --no-lazy-fetch -C "$destination" cat-file -e "$ref^{commit}" 2>/dev/null
                     printf '%s\n' "$ref" "$ref" (string trim -r -c / -- "$path") "$ref"
                     return 0
                 end
             end
+            test "$exact" = false; or break
             set -l parts (string split -r -m 1 / -- "$ref")
             if test (count $parts) -ne 2
                 break
@@ -334,7 +358,206 @@ function __ghe_pull --argument-names destination remote
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
 end
 
-function __ghe_checkout --argument-names remote destination tail line
+function __ghe_compare_ref --argument-names remote destination ref
+    # Fork-qualified refs use owner:branch or owner:repository:branch.
+    set -l qualified false
+    if string match -q '*:*' -- "$ref"
+        set qualified true
+        set -l github (__gh_parse "$remote"); or return
+        set -l parts (string split -m 2 : -- "$ref")
+        set -l repo (string split -m 1 / -- "$github[1]")[2]
+        if test (count $parts) -eq 3
+            set repo "$parts[2]"
+        end
+        set -l fork (__gh_parse "$parts[1]/$repo"); or return
+        set remote (string replace -r '[^/:]+/[^/]+\.git$' "$fork[1].git" -- "$remote")
+        set ref "$parts[-1]"
+    end
+
+    set -l ancestry (string match -rg '((?:[~^][0-9]*)+)$' -- "$ref")
+    set ref (string replace -r '(?:[~^][0-9]*)+$' '' -- "$ref")
+    set -l explicit false
+    string match -qr '^(refs/)?(heads|tags)/' -- "$ref"; and set explicit true
+    set -l kind heads
+    if string match -qr '^(refs/)?tags/' -- "$ref"
+        set kind tags
+    end
+    set ref (string replace -r '^(refs/)?(heads|tags)/' '' -- "$ref")
+    set -l remotes (__gh_remotes "$remote" "$destination"); or return
+    set -l query "$remote"
+    set -q remotes[1]; and set query "$remotes[1]"
+    set -l sources "refs/$kind/$ref"
+    if test "$explicit" = false; and test "$kind" = heads
+        set -a sources "refs/tags/$ref"
+    end
+    if test "$ref" = HEAD; and test "$explicit" = false
+        set sources HEAD
+    end
+    set -l candidates
+    if test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
+        set candidates "$ref"
+    else
+        if test "$kind" = heads
+            for name in $remotes
+                if test "$ref" = HEAD; and test "$explicit" = false
+                    set -l default_ref "$(git -C "$destination" symbolic-ref -q "refs/remotes/$name/HEAD" 2>/dev/null)"
+                    set -l specs (__gh_refspecs "$name" "$destination")
+                    set -l source (__gh_source_ref "$default_ref" $specs)
+                    if test -z "$source"; and string match -q "refs/remotes/$name/*" -- "$default_ref"
+                        set source "refs/heads/$(string replace -- "refs/remotes/$name/" '' "$default_ref")"
+                    end
+                    set -l tracking (__gh_tracking_ref "$source" $specs)
+                    test -z "$tracking"; or set default_ref "$tracking"
+                    test -z "$default_ref"; or set -a candidates "$default_ref"
+                else
+                    set -l tracking (__gh_tracking_ref "refs/heads/$ref" (__gh_refspecs "$name" "$destination"))
+                    test -z "$tracking"; or set -a candidates "$tracking"
+                end
+            end
+        end
+        for source in $sources
+            if test "$qualified" = false; and string match -q 'refs/tags/*' -- "$source"
+                set -a candidates "$source"
+            end
+        end
+        if test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
+            set -a candidates "$ref"
+        end
+    end
+    set -l oid
+    for candidate in $candidates
+        set oid "$(git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$candidate^{commit}" 2>/dev/null)"
+        test -z "$oid"; or break
+    end
+    if test -z "$oid"
+        set -l fetch_refs "$ref"
+        set -l short_oid false
+        if test "$explicit" = true; or not string match -qr '^(HEAD|[0-9a-fA-F]{40})$' -- "$ref"
+            set -l advertised (git -C "$destination" ls-remote --refs -- "$query" $sources); or return
+            set fetch_refs
+            for source in $sources
+                for line in $advertised
+                    set -l fields (string split \t -- "$line")
+                    if test "$fields[2]" = "$source"
+                        set fetch_refs "$source"
+                        break
+                    end
+                end
+                test (count $fetch_refs) -eq 0; or break
+            end
+            if test (count $fetch_refs) -eq 0; and test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
+                # Git cannot fetch an abbreviated OID; fetch branch histories to resolve it.
+                set advertised (git -C "$destination" ls-remote --heads -- "$query"); or return
+                for line in $advertised
+                    set -a fetch_refs (string split \t -- "$line")[2]
+                end
+                set short_oid true
+            end
+            if test (count $fetch_refs) -eq 0
+                printf '%s: no branch, tag, or commit matches comparison ref: %s\n' "$0" "$ref" >&2
+                return 1
+            end
+        end
+        set -l fetch_options
+        if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
+            set fetch_options --unshallow
+        end
+        git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= $fetch_options -- "$query" $fetch_refs; or return
+        set -l revision FETCH_HEAD
+        test "$short_oid" = false; or set revision "$ref"
+        set oid "$(git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$revision^{commit}" 2>/dev/null)"
+        if test -z "$oid"
+            printf '%s: comparison commit is missing or ambiguous: %s\n' "$0" "$ref" >&2
+            return 1
+        end
+    end
+    git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$oid$ancestry[1]^{commit}"
+end
+
+function __ghe_compare --argument-names remote destination comparison
+    test -n "$comparison"; or return 0
+    set -l range (string split -m 1 ... -- "$comparison")
+    set -l dots ...
+    if test (count $range) -ne 2
+        set range (string split -m 1 .. -- "$comparison")
+        set dots ..
+    end
+    if test (count $range) -ne 2
+        set range HEAD "$comparison"
+        set dots ...
+    end
+    test -n "$range[1]"; or set range[1] HEAD
+    test -n "$range[2]"; or set range[2] HEAD
+    set -l base (__ghe_compare_ref "$remote" "$destination" "$range[1]"); or return
+    set -l head (__ghe_compare_ref "$remote" "$destination" "$range[2]"); or return
+    if test "$dots" = ...
+        if not git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" >/dev/null 2>&1
+            printf '%s: comparison has no local merge base; fetch more history or use a two-dot comparison\n' "$0" >&2
+            return 1
+        end
+        git -C "$destination" diff "$base...$head" --
+    else
+        git -C "$destination" diff "$base" "$head" --
+    end
+end
+
+function __ghe_url_route --argument-names repository tail
+    switch "$tail"
+        case 'raw/refs/heads/*'
+            string replace -r '^raw/refs/heads/' branchfile/ -- "$tail"
+        case 'raw/refs/tags/*'
+            string replace -r '^raw/refs/tags/' tagfile/ -- "$tail"
+        case 'raw/*' 'edit/*'
+            string replace -r '^(raw|edit)/' blob/ -- "$tail"
+        case 'releases/tag/*'
+            string replace -r '^releases/tag/' tag/ -- "$tail"
+        case releases/latest
+            set -l tag "$(gh api --hostname github.com "repos/$repository/releases/latest" --jq '.tag_name | select(type == "string" and length > 0)')"; or return
+            if test -z "$tag"; or not git check-ref-format "refs/tags/$tag" >/dev/null 2>&1
+                printf '%s: latest release has no valid tag\n' "$0" >&2
+                return 1
+            end
+            printf 'tag/%s\n' "$tag"
+        case 'archive/*'
+            set -l ref (string sub -s 9 -- "$tail")
+            set ref (string replace -r '\.(zip|tar\.gz)$' '' -- "$ref"); or return 0
+            switch "$ref"
+                case 'refs/heads/*'
+                    string replace -r '^refs/heads/' branch/ -- "$ref"
+                case 'refs/tags/*'
+                    string replace -r '^refs/tags/' tag/ -- "$ref"
+                case '*'
+                    if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$ref"
+                        printf 'oid/%s\n' "$ref"
+                    end
+            end
+        case 'tag/*' 'branch/*' 'tagfile/*' 'branchfile/*' 'oid/*'
+            # These routes are internal results, not GitHub page URLs.
+            return 0
+        case '*'
+            printf '%s\n' "$tail"
+    end
+end
+
+function __ghe_pull_request --argument-names remote destination number
+    string match -qr '^[1-9][0-9]*$' -- "$number"; or return 1
+    set -l name (__ghe_remote "$remote" "$destination"); or return
+    set -l cache "refs/gh/pull/$name/$number/head"
+    set -l revision ''
+    # A symbolic cache must never turn a PR fetch into a local branch update.
+    if not git -C "$destination" symbolic-ref -q "$cache" >/dev/null 2>&1
+        set revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$cache^{commit}" 2>/dev/null)"
+    end
+    if test -z "$revision"
+        git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= -- "$name" "refs/pull/$number/head"; or return
+        set revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify 'FETCH_HEAD^{commit}')"; or return
+        git -C "$destination" update-ref --no-deref "$cache" "$revision"; or return
+    end
+    printf '%s\n' "$revision"
+end
+
+
+function __ghe_checkout --argument-names remote destination tail line column
     if test -e "$destination/.git"
         set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
         if test "$root" != "$(path resolve -- "$destination")"
@@ -350,6 +573,25 @@ function __ghe_checkout --argument-names remote destination tail line
         mkdir -p -- "$(path dirname -- "$destination")"; or return
         git clone -- "$remote" "$destination"; or return
     end
+
+    set -l github (__gh_parse "$remote")
+    set tail "$(__ghe_url_route "$github[1]" "$tail")"; or return
+    if string match -qr '^compare(/|$)' -- "$tail"
+        cd -- "$destination"; or return
+        __ghe_compare "$remote" "$destination" (string replace -r '^compare/?' '' -- "$tail")
+        return $status
+    end
+    if string match -qr '^pull/[1-9][0-9]*(/|$)' -- "$tail"
+        set -l request (string split / -- "$tail")
+        if test "$request[3]" = commits; and string match -qr '^[0-9a-fA-F]{40}$' -- "$request[4]"
+            set tail "oid/$request[4]"
+        else
+            set -l revision (__ghe_pull_request "$remote" "$destination" "$request[2]"); or return
+            set tail "oid/$revision"
+        end
+    end
+    # Other GitHub pages, such as issues, open the repository.
+    __gh_is_ref_route "$tail"; or set tail ''
 
     set -l target "$destination"
     set -l requested_path ''
@@ -455,7 +697,11 @@ function __ghe_checkout --argument-names remote destination tail line
             printf '%s: EDITOR is empty\n' "$0" >&2
             return 1
         end
-        test -z "$line"; or set -a editor "+$line"
+        if test -n "$column"
+            set -a editor "+call cursor($line, $column)"
+        else if test -n "$line"
+            set -a editor "+$line"
+        end
         $editor "$target"
     end
 end
@@ -469,12 +715,8 @@ function ghe --argument-names input
     end
     set -l github (__gh_parse "$input")
     test (count $github) -eq 3; or return 1
-    # Other GitHub pages, such as issues and pull requests, open the repository.
-    if not __gh_is_ref_route "$github[2]"
-        set github[2] ''
-    end
-    set -l line (string match -rg '#L([0-9]+)(?:-L[0-9]+)?$' -- "$input")
-    __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line"
+    set -l position (string match -rg '#L([0-9]+)(?:C([0-9]+))?(?:-L[0-9]+(?:C[0-9]+)?)?$' -- "$input" | string replace -r '^0+(?=[0-9])' '')
+    __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$position[1]" "$position[2]"
 end
 
 function gho --argument-names target
