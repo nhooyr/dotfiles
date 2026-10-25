@@ -1,6 +1,8 @@
+set -gx GOPATH ~/.local/share/go
 fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     ~/.local/bin \
     /opt/homebrew/share/git-core/contrib/diff-highlight \
+    "$GOPATH/bin" \
     /opt/homebrew/bin
 if not status is-interactive
     return 0
@@ -33,8 +35,6 @@ set -g fish_pager_color_selected_description white
 function r
     source "$__fish_config_dir/config.fish"
 end
-
-set -gx GOPATH ~/.local/share/go
 
 set -gx LSCOLORS \
     # dir
@@ -84,7 +84,7 @@ function gre
     if type -q ggrep
         ggrep --color -inIE $argv
     else
-        grep --color -inIE $argv
+        command grep --color -inIE $argv
     end
 end
 
