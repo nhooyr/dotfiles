@@ -244,12 +244,16 @@ function __ghe_checkout --argument-names remote destination tail
         end
     end
 
-    __ghe_pull "$destination"; or return
     if test -n "$requested_path"
         set target "$destination/$requested_path"
         if not test -e "$target"; and not test -L "$target"
-            printf '%s: path does not exist in this checkout: %s\n' "$0" "$requested_path" >&2
-            return 1
+            # Existing paths open immediately, including while offline.
+            # Pull only when the requested path may have been added upstream.
+            __ghe_pull "$destination"; or return
+            if not test -e "$target"; and not test -L "$target"
+                printf '%s: path does not exist in this checkout: %s\n' "$0" "$requested_path" >&2
+                return 1
+            end
         end
     end
     if test "$target" = "$destination"
