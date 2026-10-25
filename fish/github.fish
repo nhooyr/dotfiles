@@ -186,7 +186,9 @@ function __gh_resolve --argument-names remote tail destination cached_only
         if test "$source" = remote
             # gho only needs to check ambiguity among locally known refs.
             test "$cached_only" != true; or return 1
-            set -l advertised (git ls-remote --refs --heads --tags -- "$remote"); or return
+            set -l query_remote "$remote"
+            set -q remotes[1]; and set query_remote "$remotes[1]"
+            set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$query_remote"); or return
             set refs
             set revisions
             for line in $advertised
@@ -259,7 +261,7 @@ function __ghe_tracking_ref --argument-names name destination ref
     end
     # A known commit can still be missing its remote-tracking ref.
     if not git --no-lazy-fetch -C "$destination" rev-parse --verify "$tracking_ref^{commit}" >/dev/null 2>&1
-        git -C "$destination" fetch --quiet --no-recurse-submodules -- "$name" "+$branch_ref:$tracking_ref"; or return
+        git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$name" "+$branch_ref:$tracking_ref"; or return
     end
     if not string match -q 'refs/*' -- "$tracking_ref"
         set -l canonical "$(git -C "$destination" rev-parse --verify --symbolic-full-name --end-of-options "$tracking_ref" 2>/dev/null)"
@@ -351,7 +353,7 @@ function __ghe_checkout --argument-names remote destination tail line
             if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
                 set fetch_options --unshallow
             end
-            git -C "$destination" fetch --quiet --no-recurse-submodules $fetch_options -- "$name" "+refs/heads/*:refs/remotes/$name/*"; or return
+            git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= $fetch_options -- "$name" "+refs/heads/*:refs/remotes/$name/*"; or return
             set revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$full_ref^{commit}" 2>/dev/null)"
             if test -z "$revision"
                 printf '%s: commit %s is missing or ambiguous after fetching remote branches; use a longer or full commit hash\n' "$0" "$ref" >&2
@@ -395,7 +397,8 @@ function __ghe_checkout --argument-names remote destination tail line
                 else
                     # Cached tags and commits need no refresh.
                     if test -z "$revision"
-                        git -C "$destination" fetch --quiet --no-recurse-submodules -- "$remote" "$full_ref"; or return
+                        set -l fetch_remote (__ghe_remote "$remote" "$destination"); or return
+                        git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$fetch_remote" "$full_ref"; or return
                         set revision FETCH_HEAD
                     end
                     # A commit expression prevents choosing a branch named after the OID.
