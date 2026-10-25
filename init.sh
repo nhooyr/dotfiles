@@ -19,6 +19,6 @@ chmod 600 ~/.ssh/config
 
 if [ ! -e secrets/.git ]; then
 	git submodule update --init
-	git -C secrets switch main
+	git -C secrets switch "$(git config get --file .gitmodules submodule.secrets.branch)"
 fi
 ./secrets/init.sh
