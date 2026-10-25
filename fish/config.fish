@@ -143,9 +143,9 @@ function fzf_accept_and_run --argument-names widget
 end
 function aqsnow_exec
     set -l cmd $(commandline --tokens-expanded)
-    if test "$(count $cmd)" -eq 1 -a -f "$cmd[1]" && not type -q "$cmd[1]"
+    if test "$(count $cmd)" -eq 1 -a -f "$cmd[1]" && not type -q -- "$cmd[1]"
         if not string match -qr '^\.?/' -- "$cmd[1]"
-            fish_commandline_prepend "$EDITOR"
+            fish_commandline_prepend "$EDITOR --"
         end
     end
     commandline -f execute
