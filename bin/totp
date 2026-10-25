@@ -16,14 +16,13 @@ otpauth://totp/*\?*)
 	# Read the secret query parameter; the account label and issuer are unused.
 	query="${secret#*\?}"
 	query="${query%%#*}"
-	secret="$(printf %s "&$query" | sed -E 's/.*&secret=([^&]*).*/\1/')"
+	secret="$(printf %s "&$query" | sed -nE 's/.*&secret=([^&]*).*/\1/p')"
 	if test -z "$secret"; then
 		echo "$0: unable to parse otpauth secret URL" >&2
 		exit 1
 	fi
 	;;
-totp:*)
-	echo hi
+totp:* | TOTP:*)
 	secret="$(printf %s "$secret" | sed 's/^totp:\s*//i')"
 	;;
 esac
