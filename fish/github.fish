@@ -111,7 +111,7 @@ function __gh_resolve --argument-names remote tail destination
     return 1
 end
 
-function __ghe_tracking_ref --argument-names remote destination ref full_ref
+function __ghe_remote --argument-names remote destination ref full_ref
     set -l remotes (__gh_remotes "$remote" "$destination"); or return
     set -l name "$remotes[1]"
     # Keep using the remote whose cached branch was resolved.
@@ -131,7 +131,11 @@ function __ghe_tracking_ref --argument-names remote destination ref full_ref
         end
         git -C "$destination" remote add -- "$name" "$remote"; or return
     end
+    printf '%s\n' "$name"
+end
 
+function __ghe_tracking_ref --argument-names remote destination ref full_ref
+    set -l name (__ghe_remote "$remote" "$destination" "$ref" "$full_ref"); or return
     set -l branch_ref "refs/heads/$ref"
     set -l tracking_ref "refs/remotes/$name/$ref"
     # Single-branch clones need a mapping for future fetches, too.
@@ -183,8 +187,17 @@ function __ghe_checkout --argument-names remote destination tail
         set -l ref "$resolved[2]"
         set -l revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$resolved[4]^{commit}" 2>/dev/null)"
         if test -z "$revision"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$full_ref"
-            printf '%s: commit %s is not available locally; use the full commit hash or fetch its branch first\n' "$0" "$ref" >&2
-            return 1
+            set -l name (__ghe_remote "$remote" "$destination"); or return
+            set -l fetch_options
+            if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
+                set fetch_options --unshallow
+            end
+            git -C "$destination" fetch --quiet --no-recurse-submodules $fetch_options -- "$name" "+refs/heads/*:refs/remotes/$name/*"; or return
+            set revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$full_ref^{commit}" 2>/dev/null)"
+            if test -z "$revision"
+                printf '%s: commit %s is missing or ambiguous after fetching remote branches; use a longer or full commit hash\n' "$0" "$ref" >&2
+                return 1
+            end
         end
         set requested_path "$resolved[3]"
         set -l current_branch "$(git -C "$destination" symbolic-ref -q HEAD)"
