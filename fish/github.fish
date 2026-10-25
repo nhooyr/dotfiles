@@ -36,6 +36,20 @@ function __gh_parse --argument-names input
     printf '%s\n' "$parts[1]/$repo" "$tail" "$remote"
 end
 
+function __gh_remotes --argument-names remote destination
+    # Match GitHub repositories across HTTPS and SSH URLs.
+    set -l requested (__gh_parse "$remote")
+    test (count $requested) -eq 3; or return 1
+    set -l remotes (git -C "$destination" remote); or return
+    for name in $remotes
+        set -l url "$(git -C "$destination" remote get-url "$name")"; or return
+        set -l github (__gh_parse "$url" 2>/dev/null)
+        if test (count $github) -eq 3; and test (string lower -- "$github[1]") = (string lower -- "$requested[1]")
+            printf '%s\n' "$name"
+        end
+    end
+end
+
 function __gh_resolve --argument-names remote tail destination
     # Return the full ref, short name, path, and a locally usable revision or OID.
     set -l route (string split -m 1 / -- "$tail")
@@ -45,15 +59,9 @@ function __gh_resolve --argument-names remote tail destination
     end
     # Prefer local refs, including cached branches from the requested repository.
     set -l prefixes refs/tags refs/heads
-    set -l requested (__gh_parse "$remote")
-    test (count $requested) -eq 3; or return 1
-    set -l remotes (git -C "$destination" remote); or return
+    set -l remotes (__gh_remotes "$remote" "$destination"); or return
     for name in $remotes
-        set -l url "$(git -C "$destination" remote get-url "$name")"; or return
-        set -l github (__gh_parse "$url" 2>/dev/null)
-        if test (count $github) -eq 3; and test (string lower -- "$github[1]") = (string lower -- "$requested[1]")
-            set -a prefixes "refs/remotes/$name"
-        end
+        set -a prefixes "refs/remotes/$name"
     end
     # Symbolic aliases such as origin/HEAD aren't branch names to check out.
     set -l refs (git -C "$destination" for-each-ref \
@@ -103,6 +111,41 @@ function __gh_resolve --argument-names remote tail destination
     return 1
 end
 
+function __ghe_tracking_ref --argument-names remote destination ref full_ref
+    set -l remotes (__gh_remotes "$remote" "$destination"); or return
+    set -l name "$remotes[1]"
+    # Keep using the remote whose cached branch was resolved.
+    for candidate in $remotes
+        if test "$full_ref" = "refs/remotes/$candidate/$ref"
+            set name "$candidate"
+            break
+        end
+    end
+    if test -z "$name"
+        set -l names (git -C "$destination" remote); or return
+        set name origin
+        set -l suffix 2
+        while contains -- "$name" $names
+            set name "origin-$suffix"
+            set suffix (math "$suffix + 1")
+        end
+        git -C "$destination" remote add -- "$name" "$remote"; or return
+    end
+
+    set -l branch_ref "refs/heads/$ref"
+    set -l tracking_ref "refs/remotes/$name/$ref"
+    # Single-branch clones need a mapping for future fetches, too.
+    set -l refspecs (git -C "$destination" config --get-all "remote.$name.fetch")
+    if not contains -- "+refs/heads/*:refs/remotes/$name/*" $refspecs; and not contains -- "+$branch_ref:$tracking_ref" $refspecs
+        git -C "$destination" remote set-branches --add -- "$name" "$ref"; or return
+    end
+    # A known commit can still be missing its remote-tracking ref.
+    if not git --no-lazy-fetch -C "$destination" rev-parse --verify "$tracking_ref^{commit}" >/dev/null 2>&1
+        git -C "$destination" fetch --quiet --no-recurse-submodules -- "$name" "+$branch_ref:$tracking_ref"; or return
+    end
+    printf '%s\n' "$tracking_ref"
+end
+
 function __ghe_checkout --argument-names remote destination tail
     if test -e "$destination/.git"
         set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
@@ -143,20 +186,19 @@ function __ghe_checkout --argument-names remote destination tail
             if test -n "$changes"
                 printf '%s: keeping the current ref because the checkout has local changes\n' "$0" >&2
             else
-                # Cached refs need no refresh. Fetch only an unavailable revision.
-                if test -z "$revision"
-                    set -l fetch_ref "$full_ref"
-                    test -z "$branch_ref"; or set fetch_ref "$branch_ref"
-                    git -C "$destination" fetch --quiet --no-recurse-submodules -- "$remote" "$fetch_ref"; or return
-                    set revision FETCH_HEAD
-                end
                 if test -n "$branch_ref"
                     if git -C "$destination" show-ref --verify --quiet "$branch_ref"
                         git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
                     else
-                        git -C "$destination" switch --quiet --no-overwrite-ignore --no-track --create "$ref" "$revision"; or return
+                        set -l tracking_ref (__ghe_tracking_ref "$remote" "$destination" "$ref" "$full_ref"); or return
+                        git -C "$destination" switch --quiet --no-overwrite-ignore --track=direct --create "$ref" "$tracking_ref"; or return
                     end
                 else
+                    # Cached tags and commits need no refresh.
+                    if test -z "$revision"
+                        git -C "$destination" fetch --quiet --no-recurse-submodules -- "$remote" "$full_ref"; or return
+                        set revision FETCH_HEAD
+                    end
                     git -C "$destination" switch --quiet --no-overwrite-ignore --detach "$revision"; or return
                 end
             end
