@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+</dev/urandom base64 | tr -d '+/='
