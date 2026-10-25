@@ -87,3 +87,7 @@ set -g __fish_git_prompt_showupstream informative
 set -g __fish_git_prompt_showstashstate true
 set -g ___fish_git_prompt_color_branch "$(set_color --underline --theme default)"
 set -g ___fish_git_prompt_color_branch_done "$(set_color --reset)"
+set -g ___fish_git_prompt_color_flags "$(set_color cyan --theme default)"
+set -g ___fish_git_prompt_color_flags_done "$(set_color --reset)"
+set -g ___fish_git_prompt_color_merging "$(set_color --italic --theme default)"
+set -g ___fish_git_prompt_color_merging_done "$(set_color --reset)"
