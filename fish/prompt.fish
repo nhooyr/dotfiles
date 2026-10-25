@@ -5,19 +5,19 @@ function fish_prompt
     set -l cwd_color "$(set_color $fish_color_cwd)"
     set -l prompt_status ""
 
-    set -l suffix '[$]'
+    set -l suffix '$'
     if fish_is_root_user
-        set suffix "$(set_color brred)"'[#]'
+        set suffix '#'
     end
 
     if test "$last_status" -ne 0
-        set status_color "$(set_color brred --underline --bold)"
-        set prompt_status " $status_color"'['"$last_status"']'"$normal"
-        set suffix "$(set_color brred --underline)$suffix"
+        set status_color "$(set_color brred --bold)"
+        set prompt_status ' ['"$status_color$last_status$normal"']'
+        set suffix "$(set_color brred)$suffix"
     end
 
     echo -s "$(prompt_login) $cwd_color$(prompt_pwd)$normal$(fish_vcs_prompt)$normal$prompt_status"
-    echo -n -s "$(set_color --bold --underline --italic)$suffix$normal "
+    echo -n -s "$(set_color --bold)"'['"$suffix$(set_color --reset --bold)"']'"$normal "
 end
 set -g fish_prompt_pwd_dir_length 0
 set -g fish_color_user --reset
