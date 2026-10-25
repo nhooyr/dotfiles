@@ -1,7 +1,6 @@
 function fish_prompt
     set -l last_status "$status"
     set -l normal "$(set_color --reset)"
-    set -l status_color "$(set_color brgreen)"
     set -l cwd_color "$(set_color $fish_color_cwd)"
     set -l prompt_status ""
 
@@ -11,7 +10,7 @@ function fish_prompt
     end
 
     if test "$last_status" -ne 0
-        set status_color "$(set_color brred)"
+        set -l status_color "$(set_color brred)"
         set prompt_status ' ['"$status_color$last_status$normal"']'
         set suffix "$(set_color brred)$suffix"
     end
