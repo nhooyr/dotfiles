@@ -255,38 +255,20 @@ function gho --argument-names target
         set -l parts (string split -r -m 1 / -- "$repo_path")
         set repo_path "$parts[1]"
     end
-    set -l commit "$(git -C "$dir" rev-parse --verify 'HEAD^{commit}' 2>/dev/null)"; or begin
-        if test -n "$repo_path"
-            printf '%s: repository has no commits\n' "$0" >&2
-            return 1
-        end
-    end
-    set -l kind tree
-    if test -n "$repo_path"
-        set kind "$(git -C "$dir" --literal-pathspecs ls-tree --full-tree --format='%(objecttype)' HEAD -- "$repo_path")"; or return
-        if test -z "$kind"
-            printf '%s: path is not in the current commit: %s\n' "$0" "$target" >&2
-            return 1
-        end
-        if test "$kind" != tree; and test "$kind" != blob
-            printf '%s: unsupported Git object at path: %s\n' "$0" "$target" >&2
-            return 1
-        end
-    end
 
-    # Only select a remote branch when its cached commit matches this checkout.
+    # Named branches open the cached remote version, including when local commits are ahead.
     set -l remote
+    set -l remote_ref
     set -l ref
+    set -l commit
     set -l branch "$(git -C "$dir" symbolic-ref -q HEAD)"
     if test -n "$branch"
         set -l upstream (git -C "$dir" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)' -- "$branch")
         if test -n "$upstream[1]"; and test "$upstream[1]" != .
             set remote "$upstream[1]"
             if test -n "$upstream[3]"; and string match -q 'refs/heads/*' -- "$upstream[2]"
-                set -l tracked "$(git -C "$dir" rev-parse --verify "$upstream[3]^{commit}" 2>/dev/null)"
-                if test "$tracked" = "$commit"
-                    set ref (string replace -r '\Arefs/heads/' '' -- "$upstream[2]")
-                end
+                set ref (string replace -r '\Arefs/heads/' '' -- "$upstream[2]")
+                set remote_ref "$upstream[3]"
             end
         end
     end
@@ -301,22 +283,52 @@ function gho --argument-names target
             return 1
         end
     end
-    if test -z "$ref"; and test -n "$branch"
-        set -l branch_name (string replace -r '\Arefs/heads/' '' -- "$branch")
-        set -l tracked "$(git -C "$dir" rev-parse --verify "refs/remotes/$remote/$branch_name^{commit}" 2>/dev/null)"
-        if test "$tracked" = "$commit"
-            set ref "$branch_name"
+    if test -n "$branch"
+        if test -z "$remote_ref"
+            set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
+            set remote_ref "refs/remotes/$remote/$ref"
         end
-    end
-    if test -z "$ref"; and test -z "$branch"
+        set commit "$(git -C "$dir" rev-parse --verify "$remote_ref^{commit}" 2>/dev/null)"
+        if test -z "$commit"
+            printf '%s: branch has not been pushed or fetched yet: %s/%s\n' "$0" "$remote" "$ref" >&2
+            return 1
+        end
+    else
+        set commit "$(git -C "$dir" rev-parse --verify 'HEAD^{commit}' 2>/dev/null)"; or begin
+            if test -n "$repo_path"
+                printf '%s: repository has no commits\n' "$0" >&2
+                return 1
+            end
+        end
         set ref "$(git -C "$dir" describe --tags --exact-match HEAD 2>/dev/null)"
     end
     test -n "$ref"; or set ref "$commit"
+    if test -z "$remote_ref"
+        set remote_ref "refs/remotes/$remote/$ref"
+    end
+
+    set -l kind tree
+    if test -n "$repo_path"
+        set kind "$(git -C "$dir" --literal-pathspecs ls-tree --full-tree --format='%(objecttype)' "$commit" -- "$repo_path")"; or return
+        if test -z "$kind"
+            if test -n "$branch"
+                printf '%s: path is not in the cached remote branch; push or fetch first: %s\n' "$0" "$target" >&2
+            else
+                printf '%s: path is not in the current commit: %s\n' "$0" "$target" >&2
+            end
+            return 1
+        end
+        if test "$kind" != tree; and test "$kind" != blob
+            printf '%s: unsupported Git object at path: %s\n' "$0" "$target" >&2
+            return 1
+        end
+    end
+
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
     set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
-    if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "refs/remotes/$remote/$ref"
+    if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "$remote_ref"
         set ref ''
-    else if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"; and git -C "$dir" show-ref --verify --quiet "refs/remotes/$remote/$ref"
+    else if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"; and git -C "$dir" show-ref --verify --quiet "$remote_ref"
         set ref "$commit"
     end
 
