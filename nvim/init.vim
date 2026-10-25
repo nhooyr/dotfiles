@@ -27,6 +27,7 @@ let g:gitcommit_summary_length = &textwidth
 set list
 set listchars+=extends:>,precedes:<
 highlight! link NonText Comment
+highlight! link LineNr Comment
 
 set dictionary=/usr/share/dict/words
 set spell
