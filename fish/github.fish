@@ -5,7 +5,8 @@ function __gh_parse --argument-names input
         printf '%s: invalid input\n' "$0" >&2
         return 1
     end
-    set -l path (string replace -ri '^(https?://github\.com/|ssh://git@github\.com/|git@github\.com:|github\.com/)' '' -- "$input")
+    # Accept GitHub's standard ports and its alternate SSH endpoint.
+    set -l path (string replace -ri '^(https://github\.com(:443)?/|http://github\.com(:80)?/|ssh://git@(github\.com(:22)?|ssh\.github\.com:443)/|git@github\.com:|github\.com(:443)?/)' '' -- "$input")
     set -l is_url false
     test "$path" != "$input"; and set is_url true
     set path (string replace -r '[?#].*$' '' -- "$path")
@@ -30,7 +31,10 @@ function __gh_parse --argument-names input
         return 1
     end
     set -l remote "https://github.com/$parts[1]/$repo.git"
-    if string match -rqi '^(git@|ssh://git@)' -- "$input"
+    set -l ssh_authority (string match -ri '^ssh://git@[^/]+:[0-9]+/' -- "$input")
+    if test -n "$ssh_authority"
+        set remote "$(string lower -- "$ssh_authority")$parts[1]/$repo.git"
+    else if string match -rqi '^(git@|ssh://git@)' -- "$input"
         set remote "git@github.com:$parts[1]/$repo.git"
     end
     printf '%s\n' "$parts[1]/$repo" "$tail" "$remote"
