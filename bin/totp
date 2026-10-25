@@ -32,7 +32,7 @@ otpauth://totp/*\?*)
 	fi
 	;;
 totp:* | TOTP:*)
-	secret="$(printf %s "$secret" | sed 's/^totp:\s*//i')"
+	secret="$(printf %s "$secret" | sed 's/^totp:[[:space:]]*//i')"
 	;;
 esac
 
