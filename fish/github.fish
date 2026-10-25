@@ -1,7 +1,7 @@
 function __gh_parse --argument-names input
     # Return three lines: owner/repo, the URL's remaining path, and a clone URL.
     if string match -rqi '%00|[[:cntrl:]]' -- "$input"
-        printf 'GitHub: invalid input\n' >&2
+        printf '%s: invalid input\n' "$0" >&2
         return 1
     end
     set -l path (string replace -ri '^(https?://github\.com/|ssh://git@github\.com/|git@github\.com:|github\.com/)' '' -- "$input")
@@ -12,20 +12,20 @@ function __gh_parse --argument-names input
     set -l parts (string split -m 2 / -- "$path")
     set -l repo (string replace -r '\.git$' '' -- "$parts[2]")
     if not string match -qr '^[A-Za-z0-9][A-Za-z0-9_-]*$' -- "$parts[1]"
-        printf 'GitHub: expected owner/repo or a GitHub URL\n' >&2
+        printf '%s: expected owner/repo or a GitHub URL\n' "$0" >&2
         return 1
     end
     if not string match -qr '^[A-Za-z0-9._-]+$' -- "$repo"; or contains -- "$repo" . ..
-        printf 'GitHub: invalid repository name\n' >&2
+        printf '%s: invalid repository name\n' "$0" >&2
         return 1
     end
     if test "$is_url" = false; and test (count $parts) -gt 2
-        printf 'GitHub: use a GitHub URL to specify a ref or file\n' >&2
+        printf '%s: use a GitHub URL to specify a ref or file\n' "$0" >&2
         return 1
     end
     set -l tail "$(string unescape --style=url -- "$parts[3]")"; or return
     if string match -qr '(^|/)\.{1,2}(/|$)' -- "$tail"
-        printf 'GitHub: URL paths cannot contain dot segments\n' >&2
+        printf '%s: URL paths cannot contain dot segments\n' "$0" >&2
         return 1
     end
     set -l remote "https://github.com/$parts[1]/$repo.git"
@@ -39,7 +39,7 @@ function __gh_resolve --argument-names remote tail
     # A ref can contain slashes. Try the longest advertised name first.
     set -l route (string split -m 1 / -- "$tail")
     if not contains -- "$route[1]" blob tree commit; or test -z "$route[2]"
-        printf 'ghcl: expected a repository, blob, tree, or commit URL\n' >&2
+        printf '%s: expected a repository, blob, tree, or commit URL\n' "$0" >&2
         return 1
     end
     set -l advertised (git ls-remote --refs --heads --tags -- "$remote"); or return
@@ -65,7 +65,7 @@ function __gh_resolve --argument-names remote tail
         end
         set -l parts (string split -r -m 1 / -- "$ref")
         if test (count $parts) -ne 2
-            printf 'ghcl: no branch, tag, or commit matches this URL\n' >&2
+            printf '%s: no branch, tag, or commit matches this URL\n' "$0" >&2
             return 1
         end
         set ref "$parts[1]"
@@ -77,7 +77,7 @@ function __ghcl_checkout --argument-names remote destination tail
     if test -e "$destination/.git"
         set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
         if test "$root" != "$(path resolve -- "$destination")"
-            printf 'ghcl: destination is not a repository root: %s\n' "$destination" >&2
+            printf '%s: destination is not a repository root: %s\n' "$0" "$destination" >&2
             return 1
         end
     else
@@ -93,7 +93,7 @@ function __ghcl_checkout --argument-names remote destination tail
         set -l ref "$resolved[2]"
         set -l changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
         if test -n "$changes"
-            printf 'ghcl: keeping the current ref because the checkout has local changes\n' >&2
+            printf '%s: keeping the current ref because the checkout has local changes\n' "$0" >&2
         else
             set -l revision
             if not string match -q 'refs/*' -- "$full_ref"
@@ -118,7 +118,7 @@ function __ghcl_checkout --argument-names remote destination tail
         if test -n "$resolved[3]"
             set target "$destination/$resolved[3]"
             if not test -e "$target"; and not test -L "$target"
-                printf 'ghcl: path does not exist in this checkout: %s\n' "$resolved[3]" >&2
+                printf '%s: path does not exist in this checkout: %s\n' "$0" "$resolved[3]" >&2
                 return 1
             end
         end
@@ -132,22 +132,24 @@ function __ghcl_checkout --argument-names remote destination tail
     else
         cd -- "$(path dirname -- "$target")"; or return
         if not set -q EDITOR[1]; or test -z "$EDITOR"
-            printf 'ghcl: EDITOR is not set\n' >&2
+            printf '%s: EDITOR is not set\n' "$0" >&2
             return 1
         end
         # Respect quoted arguments in EDITOR without evaluating shell commands.
         printf '%s\n' "$EDITOR" | read --tokenize --array --local editor; or return
         if test (count $editor) -eq 0
-            printf 'ghcl: EDITOR is empty\n' >&2
+            printf '%s: EDITOR is empty\n' "$0" >&2
             return 1
         end
         $editor "$target"
     end
 end
 
-function ghcl --argument-names input
+function ghe --argument-names input
+    # Fish doesn't set $0; export it locally so the helpers inherit this name.
+    set -lx 0 (status current-function)
     if test (count $argv) -ne 1; or test -z "$input"
-        printf 'Usage: ghcl <owner/repo | github-url>\n' >&2
+        printf 'Usage: %s <owner/repo | github-url>\n' "$0" >&2
         return 1
     end
     set -l github (__gh_parse "$input")
@@ -155,9 +157,10 @@ function ghcl --argument-names input
     __ghcl_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]"
 end
 
-function gho --argument-names target
+function ghr --argument-names target
+    set -lx 0 (status current-function)
     if test (count $argv) -gt 1
-        printf 'Usage: gho [path | owner/repo | github-url]\n' >&2
+        printf 'Usage: %s [path | owner/repo | github-url]\n' "$0" >&2
         return 1
     end
     if test (count $argv) -eq 0
@@ -191,10 +194,10 @@ function gho --argument-names target
         # Installed dotfile links may live outside their source repository.
         if test -L "$entry"; and test -e "$entry"
             set -l resolved "$(path resolve -- "$entry")"; or return
-            gho "$resolved"
+            $0 "$resolved"
             return $status
         end
-        printf 'gho: path is not in a Git checkout: %s\n' "$target" >&2
+        printf '%s: path is not in a Git checkout: %s\n' "$0" "$target" >&2
         return 1
     end
     if test "$is_file" = true
@@ -206,18 +209,18 @@ function gho --argument-names target
     end
     set -l commit "$(git -C "$dir" rev-parse --verify 'HEAD^{commit}' 2>/dev/null)"; or begin
         if test -n "$repo_path"
-            printf 'gho: repository has no commits\n' >&2
+            printf '%s: repository has no commits\n' "$0" >&2
             return 1
         end
     end
     set -l kind tree
     if test -n "$repo_path"
         set kind "$(git -C "$dir" cat-file -t "HEAD:$repo_path" 2>/dev/null)"; or begin
-            printf 'gho: path is not in the current commit: %s\n' "$target" >&2
+            printf '%s: path is not in the current commit: %s\n' "$0" "$target" >&2
             return 1
         end
         if test "$kind" != tree; and test "$kind" != blob
-            printf 'gho: unsupported Git object at path: %s\n' "$target" >&2
+            printf '%s: unsupported Git object at path: %s\n' "$0" "$target" >&2
             return 1
         end
     end
@@ -245,7 +248,7 @@ function gho --argument-names target
         else if test (count $remotes) -eq 1
             set remote "$remotes[1]"
         else
-            printf 'gho: set a tracking remote or add an origin remote\n' >&2
+            printf '%s: set a tracking remote or add an origin remote\n' "$0" >&2
             return 1
         end
     end
