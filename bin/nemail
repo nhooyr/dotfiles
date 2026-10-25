@@ -1,5 +1,5 @@
 #!/bin/sh
 set -eu
 
-id="$(nid)"
+id="$(PBC_SKIP=1 nid)"
 printf 'adam+%s@qsnow.ca\n' "$id" | pbc

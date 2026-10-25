@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
 
-email="$(nemail)"
-pass="$(npass)"
+email="$(PBC_SKIP=1 nemail)"
+pass="$(PBC_SKIP=1 npass)"
 printf '%s\n%s\n' "$email" "$pass" | pbc
