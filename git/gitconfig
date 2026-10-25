@@ -6,8 +6,6 @@
 	format = ssh
 [gpg "ssh"]
 	allowedSignersFile = ~/.ssh/allowed_signers
-# [log]
-# 	showSignature = true
 [commit]
 	verbose = true
 	gpgsign = true
@@ -28,18 +26,29 @@
 	autoSetupRemote = true
 	recurseSubmodules = on-demand
 
+[pager]
+	log = diff-highlight | less
+	show = diff-highlight | less
+	diff = diff-highlight | less
+[interactive]
+	diffFilter = diff-highlight
 [merge]
 	conflictstyle = zdiff3
 [diff]
 	algorithm = histogram
 	tool = nvimdiff
 	wsErrorHighlight = all
+	colorMoved = default
+	colorMovedWS = allow-indentation-change
 	submodule = diff
 [difftool]
 	prompt = false
 [color "diff"]
-	meta = ul 5
-	frag = ul 5
+	meta = ul italic magenta
+	frag = ul italic magenta
+	whitespace = white red
+	oldMoved = italic red
+	newMoved = italic green
 [blame]
 	date = relative
 	blankBoundary = true
