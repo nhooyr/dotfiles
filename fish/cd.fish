@@ -42,7 +42,6 @@ function up
 end
 abbrali pd prevd
 abbrali nd nextd
-cd is a function with definition
 # From embedded:functions/cd.fish @ line 5
 # Only change I made is to use cdf and increase MAX_DIR_HIST to 999.
 function cd --description 'Change directory'

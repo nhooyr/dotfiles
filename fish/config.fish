@@ -59,8 +59,10 @@ function colors
     for name in black red green yellow blue magenta cyan white
         printf '%s\t%s\n' "$(set_color "$name")$name" "$(set_color "br$name")br$name"
     end
+    set_color reset
 end
 
+fish_add_path --path /opt/homebrew/share/git-core/contrib/diff-highlight
 abbrali g git
 abbrali gsh git show
 abbrali ga git add -A
@@ -96,6 +98,7 @@ abbrali gstsp git stash show -p
 abbrali gstp git stash pop
 abbrali gstl git stash list
 abbrali gstd git stash drop
+abbrali gbl git blame
 
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
