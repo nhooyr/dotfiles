@@ -68,7 +68,8 @@ function ls
 end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
-function grep
+abbr -a grep gre
+function gre
     if type -q ggrep
         ggrep --color -inIE $argv
     else
