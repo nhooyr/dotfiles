@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-id="$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c8 | tr '[:upper:]' '[:lower:]')"
+id="$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c8)"
 if [ "${#id}" -ne 8 ]; then
 	echo "$(basename "$0"): unable to generate enough random characters" >&2
 	exit 1
