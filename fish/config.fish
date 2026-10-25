@@ -106,8 +106,7 @@ end
 
 abbrali g git
 abbrali gsh git show
-abbrali ga git add
-abbrali gaa git add -A
+abbrali ga git add -A
 abbrali gap git add -p
 abbrali gp git push
 abbrali gpf git push --force-with-lease
@@ -133,8 +132,9 @@ abbrali gcl git clone
 abbrali gpl git pull
 abbrali gro git remote -v
 abbrali gb git branch
-abbrali gst git stash push --include-untracked
+abbrali gst git stash push -u
 abbrali gsts git stash show
+abbrali gstsp git stash show -p
 abbrali gstp git stash pop
 abbrali gstl git stash list
 abbrali gstd git stash drop
