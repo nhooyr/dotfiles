@@ -175,7 +175,7 @@ end
 
 alias vsce='NO_COLOR=1 command vsce'
 
-set -gx DOTFILES "$(realpath "$(realpath "$__fish_config_dir/config.fish")/../..")"
+set -gx DOTFILES "$(path resolve "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
     for path in $argv
         if not contains "$path" $CDPATH
