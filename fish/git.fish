@@ -40,6 +40,7 @@ abbrali gstsp git stash show -p
 abbrali gstp git stash pop
 abbrali gstl git stash list
 abbrali gstd git stash drop
+abbrali gds git diff stash@{0}
 abbrali gbl git blame
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
