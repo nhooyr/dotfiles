@@ -321,9 +321,14 @@ function gho --argument-names target
     set -l github (__gh_parse "$remote_url")
     test (count $github) -eq 3; or return 1
     set -l url "https://github.com/$github[1]"
-    if test -n "$commit"
-        set -l web_path "$ref"
-        test -z "$repo_path"; or set web_path "$web_path/$repo_path"
+    set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
+    set -l web_path "$ref"
+    if test -n "$repo_path"
+        set web_path "$web_path/$repo_path"
+    else if test -n "$branch"; and test "$default_ref" = "refs/remotes/$remote/$ref"
+        set web_path ''
+    end
+    if test -n "$commit"; and test -n "$web_path"
         set url "$url/$kind/$(string escape --style=url -- "$web_path")"
     end
     printf '%s\n' "$url"
