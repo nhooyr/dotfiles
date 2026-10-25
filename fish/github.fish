@@ -164,11 +164,15 @@ function __gh_cached_branches --argument-names name destination
     end
 end
 
+function __gh_is_ref_route --argument-names tail
+    string match -qr '^(blob|tree|commits?|blame)/.+' -- "$tail"
+end
+
 function __gh_resolve --argument-names remote tail destination cached_only
     # Return the full ref, short name, path, and a locally usable revision or OID.
     set -l route (string split -m 1 / -- "$tail")
-    if not contains -- "$route[1]" blob tree commit; or test -z "$route[2]"
-        printf '%s: expected a repository, blob, tree, or commit URL\n' "$0" >&2
+    if not __gh_is_ref_route "$tail"
+        printf '%s: expected a repository, blob, tree, commit, commits, or blame URL\n' "$0" >&2
         return 1
     end
     # Commit URLs must stay unambiguous even when a ref has the same name.
@@ -465,6 +469,10 @@ function ghe --argument-names input
     end
     set -l github (__gh_parse "$input")
     test (count $github) -eq 3; or return 1
+    # Other GitHub pages, such as issues and pull requests, open the repository.
+    if not __gh_is_ref_route "$github[2]"
+        set github[2] ''
+    end
     set -l line (string match -rg '#L([0-9]+)(?:-L[0-9]+)?$' -- "$input")
     __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line"
 end
