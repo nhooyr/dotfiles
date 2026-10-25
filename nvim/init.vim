@@ -12,6 +12,8 @@ set backupdir-=.
 set undofile
 set undolevels=99999
 set undoreload=99999
+packadd nvim.undotree
+nnoremap <silent> <nowait> <Leader>u :Undotree<CR>
 
 set notermguicolors
 colorscheme default
@@ -101,6 +103,9 @@ command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 			   \ diffthis | wincmd p | diffthis
 
 function! s:restore_cursor() abort
+	if undotree().seq_last == 0
+		return
+	endif
 	if line("'\"") > 1
 		if line("'\"") <= line("$")
 			normal! g`"
@@ -119,3 +124,4 @@ augroup aqsnow
 	autocmd BufReadPost * call <SID>restore_cursor()
 augroup END
 nnoremap <silent> <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
+nnoremap <silent> <nowait> <Leader>+ :keeppatterns %s/^+\(\s\)/\1/<CR>
