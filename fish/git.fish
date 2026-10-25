@@ -43,6 +43,7 @@ abbrali gstl git stash list
 abbrali gstd git stash drop
 abbrali gds git diff stash@{0}
 abbrali gbl git blame
+abbrali gitshort 'git rev-parse --short'
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
