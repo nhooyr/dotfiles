@@ -278,7 +278,8 @@ function __ghe_pull --argument-names destination remote
             git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$upstream[1]" "$upstream[2]"; or return
             set merge_ref FETCH_HEAD
         else
-            git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "+$upstream[2]:$upstream[3]"; or return
+            git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "$upstream[2]"; or return
+            set merge_ref FETCH_HEAD
         end
     end
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
