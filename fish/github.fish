@@ -54,12 +54,18 @@ function __gh_remotes --argument-names remote destination
     end
 end
 
-function __gh_resolve --argument-names remote tail destination
+function __gh_resolve --argument-names remote tail destination cached_only
     # Return the full ref, short name, path, and a locally usable revision or OID.
     set -l route (string split -m 1 / -- "$tail")
     if not contains -- "$route[1]" blob tree commit; or test -z "$route[2]"
         printf '%s: expected a repository, blob, tree, or commit URL\n' "$0" >&2
         return 1
+    end
+    # Commit URLs must stay unambiguous even when a ref has the same name.
+    set -l commit_path (string split -m 1 / -- "$route[2]")
+    if string match -qr '^[0-9a-fA-F]{40}$' -- "$commit_path[1]"
+        printf '%s\n' "$commit_path[1]" "$commit_path[1]" (string trim -r -c / -- "$commit_path[2]") "$commit_path[1]"
+        return 0
     end
     # Prefer local refs, including cached branches from the requested repository.
     set -l prefixes refs/tags refs/heads
@@ -74,6 +80,8 @@ function __gh_resolve --argument-names remote tail destination
 
     for source in cached remote
         if test "$source" = remote
+            # gho only needs to check ambiguity among locally known refs.
+            test "$cached_only" != true; or return 1
             set -l advertised (git ls-remote --refs --heads --tags -- "$remote"); or return
             set refs
             set revisions
@@ -166,7 +174,9 @@ function __ghe_pull --argument-names destination
         return 0
     end
 
-    git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "+$upstream[2]:$upstream[3]"; or return
+    if test "$upstream[1]" != .
+        git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "+$upstream[2]:$upstream[3]"; or return
+    end
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$upstream[3]"
 end
 
@@ -238,7 +248,8 @@ function __ghe_checkout --argument-names remote destination tail
                         git -C "$destination" fetch --quiet --no-recurse-submodules -- "$remote" "$full_ref"; or return
                         set revision FETCH_HEAD
                     end
-                    git -C "$destination" switch --quiet --no-overwrite-ignore --detach "$revision"; or return
+                    # A commit expression prevents choosing a branch named after the OID.
+                    git -C "$destination" switch --quiet --no-overwrite-ignore --detach "$revision^{commit}"; or return
                 end
             end
         end
@@ -410,6 +421,10 @@ function gho --argument-names target
         end
     end
 
+    set -l remote_url "$(git -C "$dir" remote get-url "$remote")"; or return
+    set -l github (__gh_parse "$remote_url")
+    test (count $github) -eq 3; or return 1
+
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
     set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
     if test -z "$default_ref"; and test -z "$repo_path"; and test -n "$branch"
@@ -418,13 +433,17 @@ function gho --argument-names target
     end
     if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "$remote_ref"
         set ref ''
+    else if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
+        set ref "$commit"
     else if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"; and git -C "$dir" show-ref --verify --quiet "$remote_ref"
         set ref "$commit"
+    else
+        set -l resolved (__gh_resolve "$remote_url" "$kind/$ref/$repo_path" "$dir" true)
+        if test (count $resolved) -ne 4; or test "$resolved[2]" != "$ref"; or test "$resolved[3]" != "$repo_path"
+            set ref "$commit"
+        end
     end
 
-    set -l remote_url "$(git -C "$dir" remote get-url "$remote")"; or return
-    set -l github (__gh_parse "$remote_url")
-    test (count $github) -eq 3; or return 1
     set -l url "https://github.com/$github[1]"
     set -l web_path "$ref"
     if test -n "$repo_path"
