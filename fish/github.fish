@@ -56,14 +56,24 @@ function __gh_remotes --argument-names remote destination
     end
 end
 
+function __gh_local_ref --argument-names name
+    # Expand an exact fetch destination the way git fetch does, even before it exists.
+    switch "$name"
+        case 'refs/*'
+            printf '%s\n' "$name"
+        case 'heads/*' 'tags/*' 'remotes/*'
+            printf 'refs/%s\n' "$name"
+        case '*'
+            printf 'refs/heads/%s\n' "$name"
+    end
+end
+
 function __gh_refspecs --argument-names name destination
-    set -l refspecs (git -C "$destination" config --get-all "remote.$name.fetch")
-    for spec in $refspecs
+    for spec in (git -C "$destination" config --get-all "remote.$name.fetch")
         set -l fields (string split -m 1 : -- "$spec")
-        if test (count $fields) -eq 2; and test -n "$fields[2]"; and not string match -q 'refs/*' -- "$fields[2]"; and not string match -q '*\**' -- "$fields[2]"
-            # Git accepts abbreviated exact destinations, such as feature-cache.
-            set -l canonical "$(git -C "$destination" rev-parse --verify --symbolic-full-name --end-of-options "$fields[2]" 2>/dev/null)"
-            test -z "$canonical"; or set spec "$fields[1]:$canonical"
+        # Git uses pattern destinations as written.
+        if test (count $fields) -eq 2; and test -n "$fields[2]"; and not string match -q '*\**' -- "$fields[2]"
+            set spec "$fields[1]:$(__gh_local_ref "$fields[2]")"
         end
         printf '%s\n' "$spec"
     end
@@ -264,10 +274,6 @@ function __ghe_tracking_ref --argument-names name destination ref
     # A known commit can still be missing its remote-tracking ref.
     if not git --no-lazy-fetch -C "$destination" rev-parse --verify "$tracking_ref^{commit}" >/dev/null 2>&1
         git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$name" "+$branch_ref:$tracking_ref"; or return
-    end
-    if not string match -q 'refs/*' -- "$tracking_ref"
-        set -l canonical "$(git -C "$destination" rev-parse --verify --symbolic-full-name --end-of-options "$tracking_ref" 2>/dev/null)"
-        test -z "$canonical"; or set tracking_ref "$canonical"
     end
     printf '%s\n' "$tracking_ref"
 end
@@ -554,10 +560,8 @@ function gho --argument-names target
 
     set -l refspecs (__gh_refspecs "$remote" "$dir")
     if test -n "$branch"
-        if test -n "$remote_ref"; and not string match -q 'refs/*' -- "$remote_ref"
-            set -l canonical "$(git -C "$dir" rev-parse --verify --symbolic-full-name --end-of-options "$remote_ref" 2>/dev/null)"
-            test -z "$canonical"; or set remote_ref "$canonical"
-        end
+        # %(upstream) prints abbreviated fetch destinations as written.
+        test -z "$remote_ref"; or set remote_ref (__gh_local_ref "$remote_ref")
         if test -z "$remote_ref"
             set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
             set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
