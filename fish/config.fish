@@ -229,7 +229,7 @@ add_cdpath . ~ "$DOTFILES"
 if test -f "$DOTFILES/secrets/fish/config.fish"
     source "$DOTFILES/secrets/fish/config.fish"
 end
-source "$DOTFILES/fish/ghcl.fish"
+source "$DOTFILES/fish/github.fish"
 
 if status is-interactive
     source "$DOTFILES/fish/prompt.fish"
