@@ -61,9 +61,8 @@ function __gh_map_ref --argument-names source target ref
         printf '%s\n' "$target"
     else
         set -l pattern "^$(string escape --style=regex -- "$parts[1]")(.*)$(string escape --style=regex -- "$parts[2]")\$"
-        set -l matched (string match -r -- "$pattern" "$ref")
-        test (count $matched) -eq 2; or return 1
-        string replace -- '*' "$matched[2]" "$target"
+        set -l matched (string match -rg -- "$pattern" "$ref"); or return 1
+        string replace -- '*' "$matched" "$target"
     end
 end
 
@@ -94,17 +93,17 @@ function __gh_source_ref --argument-names ref
     set -l fallback
     for spec in $argv[2..]
         set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
-        if test (count $fields) -eq 2; and test -n "$fields[2]"
-            set -l source (__gh_map_ref "$fields[2]" "$fields[1]" "$ref")
-            if string match -q 'refs/heads/*' -- "$source"
-                set -l target (__gh_tracking_ref "$source" $argv[2..]); or continue
-                if test "$target" = "$ref"
-                    printf '%s\n' "$source"
-                    return 0
-                end
-                test -n "$fallback"; or set fallback "$source"
-            end
+        if test (count $fields) -ne 2; or test -z "$fields[2]"
+            continue
         end
+        set -l source (__gh_map_ref "$fields[2]" "$fields[1]" "$ref")
+        string match -q 'refs/heads/*' -- "$source"; or continue
+        set -l target (__gh_tracking_ref "$source" $argv[2..]); or continue
+        if test "$target" = "$ref"
+            printf '%s\n' "$source"
+            return 0
+        end
+        test -n "$fallback"; or set fallback "$source"
     end
     # A cached HEAD alias may still point at a secondary fetch destination.
     if test -n "$fallback"
@@ -134,10 +133,9 @@ function __gh_cached_branches --argument-names name destination
     for ref in $refs
         set -l source (__gh_source_ref "$ref" $refspecs); or continue
         set -l target (__gh_tracking_ref "$source" $refspecs); or continue
-        if test "$ref" = "$target"
-            set -l branch (string replace -r '^refs/heads/' '' -- "$source")
-            printf '%s\t%s\n' "refs/remotes/$name/$branch" "$ref"
-        end
+        test "$ref" = "$target"; or continue
+        set -l branch (string replace -r '^refs/heads/' '' -- "$source")
+        printf '%s\t%s\n' "refs/remotes/$name/$branch" "$ref"
     end
 end
 
@@ -365,19 +363,17 @@ function __ghe_checkout --argument-names remote destination tail line
             if test -n "$changes"
                 printf '%s: keeping the current ref because the checkout has local changes\n' "$0" >&2
             else
+                set -l switch_args
+                set -l name
                 if test -n "$branch_ref"
-                    if git -C "$destination" show-ref --verify --quiet "$branch_ref"
-                        git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
-                    else
-                        set -l name (__ghe_remote "$remote" "$destination" "$ref" "$full_ref"); or return
+                    set switch_args -- "$ref"
+                    if not git -C "$destination" show-ref --verify --quiet "$branch_ref"
+                        set name (__ghe_remote "$remote" "$destination" "$ref" "$full_ref"); or return
                         set -l tracking_ref (__ghe_tracking_ref "$name" "$destination" "$ref"); or return
-                        if git -C "$destination" show-ref --verify --quiet "$branch_ref"
-                            git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
-                        else
-                            git -C "$destination" switch --quiet --no-overwrite-ignore --no-track --create "$ref" "$tracking_ref^{commit}"; or return
+                        # Fetch mappings can create the local branch, too.
+                        if not git -C "$destination" show-ref --verify --quiet "$branch_ref"
+                            set switch_args --no-track --create "$ref" "$tracking_ref^{commit}"
                         end
-                        git -C "$destination" config --replace-all "branch.$ref.remote" "$name"; or return
-                        git -C "$destination" config --replace-all "branch.$ref.merge" "$branch_ref"; or return
                     end
                 else
                     # Cached tags and commits need no refresh.
@@ -386,7 +382,12 @@ function __ghe_checkout --argument-names remote destination tail line
                         set revision FETCH_HEAD
                     end
                     # A commit expression prevents choosing a branch named after the OID.
-                    git -C "$destination" switch --quiet --no-overwrite-ignore --detach "$revision^{commit}"; or return
+                    set switch_args --detach "$revision^{commit}"
+                end
+                git -C "$destination" switch --quiet --no-overwrite-ignore $switch_args; or return
+                if test -n "$name"
+                    git -C "$destination" config --replace-all "branch.$ref.remote" "$name"; or return
+                    git -C "$destination" config --replace-all "branch.$ref.merge" "$branch_ref"; or return
                 end
             end
         end
@@ -412,7 +413,7 @@ function __ghe_checkout --argument-names remote destination tail line
         cd -- "$target"
     else
         cd -- "$(path dirname -- "$target")"; or return
-        if not set -q EDITOR[1]; or test -z "$EDITOR"
+        if test -z "$EDITOR"
             printf '%s: EDITOR is not set\n' "$0" >&2
             return 1
         end
@@ -448,9 +449,7 @@ function gho --argument-names target
         printf 'Usage: %s [path | owner/repo | github-url]\n' "$0" >&2
         return 1
     end
-    if test (count $argv) -eq 0
-        set target "$PWD"
-    end
+    set -q argv[1]; or set target "$PWD"
 
     # Inspect the final entry itself, including a symlink followed by a slash.
     set -l parent "$(path dirname -- "$target")"
@@ -491,8 +490,7 @@ function gho --argument-names target
         set repo_path "$repo_path$name"
     else if test -n "$repo_path"
         # Git's directory prefix ends in /.
-        set -l parts (string split -r -m 1 / -- "$repo_path")
-        set repo_path "$parts[1]"
+        set repo_path (string trim -r -c / -- "$repo_path")
     end
 
     # Named branches open the cached remote version, including when local commits are ahead.
@@ -532,10 +530,10 @@ function gho --argument-names target
         return
     end
 
+    set -l refspecs (git -C "$dir" config --get-all "remote.$remote.fetch")
     if test -n "$branch"
         if test -z "$remote_ref"
             set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
-            set -l refspecs (git -C "$dir" config --get-all "remote.$remote.fetch")
             set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
             test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
         end
@@ -553,9 +551,6 @@ function gho --argument-names target
         end
     end
     test -n "$ref"; or set ref "$commit"
-    if test -z "$remote_ref"
-        set remote_ref "refs/remotes/$remote/$ref"
-    end
 
     set -l kind tree
     if test -n "$repo_path"
@@ -575,7 +570,6 @@ function gho --argument-names target
     end
 
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
-    set -l refspecs (git -C "$dir" config --get-all "remote.$remote.fetch")
     set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
     if test -n "$default_ref"
         set -l source (__gh_source_ref "$default_ref" $refspecs)
