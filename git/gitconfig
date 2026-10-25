@@ -44,11 +44,19 @@
 [difftool]
 	prompt = false
 [color "diff"]
-	meta = ul italic magenta
-	frag = ul italic magenta
+	meta = magenta ul italic
+	frag = magenta ul italic
 	whitespace = white red
-	oldMoved = italic red
-	newMoved = italic green
+	oldMoved = red italic
+	newMoved = green italic
+[color "branch"]
+	current = blue italic ul bold
+	upstream = cyan ul bold
+	remote = magenta
+[color "blame"]
+	repeatedLines = magenta italic
+[color "advice"]
+	hint = cyan ul italic
 [blame]
 	date = relative
 	blankBoundary = true
@@ -61,6 +69,3 @@
 	process = git-lfs filter-process
 	required = true
 	clean = git-lfs clean -- %f
-
-[advice]
-	addEmptyPathspec = false
