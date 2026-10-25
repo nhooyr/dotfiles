@@ -73,7 +73,7 @@ function __gh_resolve --argument-names remote tail
     end
 end
 
-function __ghcl_checkout --argument-names remote destination tail
+function __ghe_checkout --argument-names remote destination tail
     if test -e "$destination/.git"
         set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
         if test "$root" != "$(path resolve -- "$destination")"
@@ -154,7 +154,7 @@ function ghe --argument-names input
     end
     set -l github (__gh_parse "$input")
     test (count $github) -eq 3; or return 1
-    __ghcl_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]"
+    __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]"
 end
 
 function gho --argument-names target
@@ -174,7 +174,6 @@ function gho --argument-names target
     if not test -e "$target"; and not test -L "$entry"
         set -l github (__gh_parse "$target")
         test (count $github) -eq 3; or return 1
-        git ls-remote -- "$github[3]" >/dev/null; or return
         set -l url "https://github.com/$github[1]"
         if test -n "$github[2]"
             set url "$url/$(string escape --style=url -- "$github[2]")"

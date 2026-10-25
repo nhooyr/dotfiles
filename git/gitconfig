@@ -38,7 +38,7 @@
 	algorithm = histogram
 	tool = nvimdiff
 	wsErrorHighlight = all
-	colorMoved = default
+	colorMoved = blocks
 	colorMovedWS = allow-indentation-change
 	submodule = diff
 [difftool]

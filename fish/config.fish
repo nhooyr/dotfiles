@@ -1,11 +1,13 @@
-if status is-interactive
-    tabs -4
-end
-set -gx LESS -RXF -ix4
-set -g fish_greeting
 fish_add_path --path ~/.local/bin
 fish_add_path --path ~/.local/bin/dotfiles
 fish_add_path --path /opt/homebrew/bin
+if not status is-interactive
+    return 0
+end
+
+tabs -4
+set -gx LESS -RXF -ix4
+set -g fish_greeting
 set -gx MANPAGER nvim +Man!
 set -gx EDITOR nvim
 function abbrali --argument-names name
@@ -23,6 +25,8 @@ set -g fish_color_search_match regular --reverse
 set -g fish_pager_color_progress magenta --underline --italic
 set -g fish_pager_color_prefix --italic --underline
 set -g fish_pager_color_selected_prefix --bold --italic
+alias r="source $__fish_config_dir/config.fish"
+
 set -gx GOPATH ~/.local/share/go
 
 set -gx LSCOLORS \
@@ -62,68 +66,6 @@ function ls
 end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
-alias r="source $__fish_config_dir/config.fish"
-
-abbrali t time
-abbrali mkd 'cd "$(mktemp -d)"'
-alias sshq="ssh -O exit"
-alias sshu="ssh -oControlPath=none"
-abbrali socks ssh -ND1080
-
-function colors
-    for name in black red green yellow blue magenta cyan white
-        printf '%s\t%s\n' "$(set_color "$name")$name" "$(set_color "br$name")br$name"
-    end
-    set_color reset
-end
-
-fish_add_path --path /opt/homebrew/share/git-core/contrib/diff-highlight
-abbrali g git
-abbrali gsh git show
-abbrali ga git add -A
-abbrali gap git add -p
-abbrali gp git push
-abbrali gpf git push --force-with-lease
-abbrali gcm git commit
-alias gcp='gcm && gp'
-alias gacp='ga && gcp'
-abbrali gcma git commit --amend
-abbrali gcmf git commit --fixup
-abbrali grb git rebase
-abbrali grbi git rebase -i
-abbrali grbc git rebase --continue
-abbrali grba git rebase --abort
-abbrali gs git status
-abbrali gd git diff
-abbrali grt git reset
-abbrali grth git reset --hard
-abbrali gdc git diff --cached
-abbrali grm git rm
-abbrali grmr git rm -r
-abbrali grmf git rm -rf
-abbrali grmc git rm --cached
-abbrali grmcr git rm --cached -r
-abbrali gl git log
-abbrali glsf git ls-files
-abbrali gcl git clone
-abbrali gpl git pull
-abbrali gro git remote -v
-abbrali gb git branch -vv
-abbrali gba git branch -avv
-abbrali gbr git branch -rvv
-abbrali gst git stash push -u
-abbrali gsts git stash show
-abbrali gstsp git stash show -p
-abbrali gstp git stash pop
-abbrali gstl git stash list
-abbrali gstd git stash drop
-abbrali gbl git blame
-
-function gcd
-    set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
-    cd "$git_root"
-end
-
 function grep
     if type -q ggrep
         ggrep --color -inIE $argv
@@ -131,7 +73,6 @@ function grep
         command grep --color -inIE $argv
     end
 end
-alias gg='git grep -iI'
 set -gx GREP_COLORS 'mt=03;37;44:fn=36:ln=03:bn=03:se=00'
 set -gx GREP_COLOR '03;37;44'
 alias rg="rg -Sn --no-heading \
@@ -147,6 +88,20 @@ alias fd='fd -HL'
 function f
     find . -iname "*$argv*"
 end
+
+abbrali t time
+abbrali mkd 'cd "$(mktemp -d)"'
+alias sshq="ssh -O exit"
+alias sshu="ssh -oControlPath=none"
+abbrali socks ssh -ND1080
+
+function colors
+    for name in black red green yellow blue magenta cyan white
+        printf '%s\t%s\n' "$(set_color "$name")$name" "$(set_color "br$name")br$name"
+    end
+    set_color reset
+end
+
 abbrali nl nlogin
 abbrali np npass
 abbrali ne nemail
@@ -164,9 +119,7 @@ end
 abbrali n noti
 abbr -a --command noti e eval
 
-if status is-interactive
-    fzf --fish | source
-end
+fzf --fish | source
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --no-mouse --scroll-off=0 --info=inline-right \
     --color=bw,query:regular,info:italic:underline,hl:underline:italic,fg+:regular:reverse,\
@@ -229,12 +182,11 @@ add_cdpath . ~ "$DOTFILES"
 if test -f "$DOTFILES/secrets/fish/config.fish"
     source "$DOTFILES/secrets/fish/config.fish"
 end
+source "$DOTFILES/fish/git.fish"
 source "$DOTFILES/fish/github.fish"
 
-if status is-interactive
-    source "$DOTFILES/fish/prompt.fish"
-    source "$DOTFILES/fish/cd.fish"
-    if test "$PWD" = "$HOME"
-        cd "$DOTFILES"
-    end
+source "$DOTFILES/fish/prompt.fish"
+source "$DOTFILES/fish/cd.fish"
+if test "$PWD" = "$HOME"
+    cd "$DOTFILES"
 end

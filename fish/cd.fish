@@ -41,6 +41,7 @@ function up
     return 1
 end
 abbrali pd prevd
+abbrali bd prevd
 abbrali nd nextd
 # From embedded:functions/cd.fish @ line 5
 # Only change I made is to use cdf and increase MAX_DIR_HIST to 999.
