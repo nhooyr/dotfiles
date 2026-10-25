@@ -60,6 +60,7 @@ inoremap <silent> <nowait> <C-q> <Esc>:quitall!<CR>
 nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
 function! s:exit_and_run() abort
+	wall
 	if $AQSNOW_FISH_RENDEZVOUS != ""
 		call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
 	endif
