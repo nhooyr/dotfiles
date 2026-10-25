@@ -35,42 +35,68 @@ function __gh_parse --argument-names input
     printf '%s\n' "$parts[1]/$repo" "$tail" "$remote"
 end
 
-function __gh_resolve --argument-names remote tail
-    # A ref can contain slashes. Try the longest advertised name first.
+function __gh_resolve --argument-names remote tail destination
+    # Return the full ref, short name, path, and a locally usable revision or OID.
     set -l route (string split -m 1 / -- "$tail")
     if not contains -- "$route[1]" blob tree commit; or test -z "$route[2]"
         printf '%s: expected a repository, blob, tree, or commit URL\n' "$0" >&2
         return 1
     end
-    set -l advertised (git ls-remote --refs --heads --tags -- "$remote"); or return
-    set -l refs
-    for line in $advertised
-        set -a refs (string split -f 2 \t -- "$line")
+    # Prefer local refs, including cached branches from the requested repository.
+    set -l prefixes refs/tags refs/heads
+    set -l requested (__gh_parse "$remote")
+    test (count $requested) -eq 3; or return 1
+    set -l remotes (git -C "$destination" remote); or return
+    for name in $remotes
+        set -l url "$(git -C "$destination" remote get-url "$name")"; or return
+        set -l github (__gh_parse "$url" 2>/dev/null)
+        if test (count $github) -eq 3; and test (string lower -- "$github[1]") = (string lower -- "$requested[1]")
+            set -a prefixes "refs/remotes/$name"
+        end
     end
+    # Symbolic aliases such as origin/HEAD aren't branch names to check out.
+    set -l refs (git -C "$destination" for-each-ref \
+        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' $prefixes); or return
+    set -l revisions $refs
 
-    set -l ref "$route[2]"
-    set -l path ''
-    while true
-        set -l full_ref
-        if contains -- "refs/tags/$ref" $refs
-            set full_ref "refs/tags/$ref"
-        else if contains -- "refs/heads/$ref" $refs
-            set full_ref "refs/heads/$ref"
-        else if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$ref"
-            set full_ref "$ref"
+    for source in cached remote
+        if test "$source" = remote
+            set -l advertised (git ls-remote --refs --heads --tags -- "$remote"); or return
+            set refs
+            set revisions
+            for line in $advertised
+                set -l fields (string split \t -- "$line")
+                set -a refs "$fields[2]"
+                set -a revisions "$fields[1]"
+            end
+            set prefixes refs/tags refs/heads
         end
-        if test -n "$full_ref"
-            printf '%s\n' "$full_ref" "$ref" (string trim -r -c / -- "$path")
-            return 0
+
+        # Ref names can contain slashes. Try the longest known name first.
+        set -l ref "$route[2]"
+        set -l path ''
+        while true
+            for prefix in $prefixes
+                set -l index (contains -i -- "$prefix/$ref" $refs)
+                if test -n "$index"
+                    printf '%s\n' "$prefix/$ref" "$ref" (string trim -r -c / -- "$path") "$revisions[$index]"
+                    return 0
+                end
+            end
+            if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$ref"
+                printf '%s\n' "$ref" "$ref" (string trim -r -c / -- "$path") "$ref"
+                return 0
+            end
+            set -l parts (string split -r -m 1 / -- "$ref")
+            if test (count $parts) -ne 2
+                break
+            end
+            set ref "$parts[1]"
+            set path "$parts[2]/$path"
         end
-        set -l parts (string split -r -m 1 / -- "$ref")
-        if test (count $parts) -ne 2
-            printf '%s: no branch, tag, or commit matches this URL\n' "$0" >&2
-            return 1
-        end
-        set ref "$parts[1]"
-        set path "$parts[2]/$path"
     end
+    printf '%s: no branch, tag, or commit matches this URL\n' "$0" >&2
+    return 1
 end
 
 function __ghe_checkout --argument-names remote destination tail
@@ -87,31 +113,48 @@ function __ghe_checkout --argument-names remote destination tail
 
     set -l target "$destination"
     if test -n "$tail"
-        set -l resolved (__gh_resolve "$remote" "$tail")
-        test (count $resolved) -eq 3; or return 1
+        set -l resolved (__gh_resolve "$remote" "$tail" "$destination")
+        test (count $resolved) -eq 4; or return 1
         set -l full_ref "$resolved[1]"
         set -l ref "$resolved[2]"
-        set -l changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
-        if test -n "$changes"
-            printf '%s: keeping the current ref because the checkout has local changes\n' "$0" >&2
-        else
-            set -l revision
-            if not string match -q 'refs/*' -- "$full_ref"
-                # Git can resolve a local abbreviated SHA; servers require the full SHA.
-                set revision "$(git -C "$destination" rev-parse --verify "$full_ref^{commit}" 2>/dev/null)"
+        set -l revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$resolved[4]^{commit}" 2>/dev/null)"
+        set -l current_branch "$(git -C "$destination" symbolic-ref -q HEAD)"
+        set -l branch_ref ''
+        if string match -qr '^refs/(heads|remotes)/' -- "$full_ref"
+            set branch_ref "refs/heads/$ref"
+        end
+        set -l checkout_needed true
+        if test -n "$branch_ref"
+            if test "$current_branch" = "$branch_ref"; and test "$full_ref" = "$branch_ref"; and test -n "$revision"
+                set checkout_needed false
             end
-            if test -z "$revision"
-                git -C "$destination" fetch --quiet --no-recurse-submodules -- "$remote" "$full_ref"; or return
-                set revision FETCH_HEAD
+        else if test -z "$current_branch"; and test -n "$revision"
+            if test "$revision" = "$(git -C "$destination" rev-parse HEAD)"
+                set checkout_needed false
             end
-            if string match -q 'refs/heads/*' -- "$full_ref"
-                if git -C "$destination" show-ref --verify --quiet "refs/heads/$ref"
-                    git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
-                else
-                    git -C "$destination" switch --quiet --no-overwrite-ignore --no-track --create "$ref" "$revision"; or return
-                end
+        end
+
+        if test "$checkout_needed" = true
+            set -l changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
+            if test -n "$changes"
+                printf '%s: keeping the current ref because the checkout has local changes\n' "$0" >&2
             else
-                git -C "$destination" switch --quiet --no-overwrite-ignore --detach "$revision"; or return
+                # Cached refs need no refresh. Fetch only an unavailable revision.
+                if test -z "$revision"
+                    set -l fetch_ref "$full_ref"
+                    test -z "$branch_ref"; or set fetch_ref "$branch_ref"
+                    git -C "$destination" fetch --quiet --no-recurse-submodules -- "$remote" "$fetch_ref"; or return
+                    set revision FETCH_HEAD
+                end
+                if test -n "$branch_ref"
+                    if git -C "$destination" show-ref --verify --quiet "$branch_ref"
+                        git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
+                    else
+                        git -C "$destination" switch --quiet --no-overwrite-ignore --no-track --create "$ref" "$revision"; or return
+                    end
+                else
+                    git -C "$destination" switch --quiet --no-overwrite-ignore --detach "$revision"; or return
+                end
             end
         end
 
@@ -159,6 +202,8 @@ end
 
 function gho --argument-names target
     set -lx 0 (status current-function)
+    # Opening a page must not fetch missing objects from a partial clone.
+    set -lx GIT_NO_LAZY_FETCH 1
     if test (count $argv) -gt 1
         printf 'Usage: %s [path | owner/repo | github-url]\n' "$0" >&2
         return 1
@@ -214,7 +259,8 @@ function gho --argument-names target
     end
     set -l kind tree
     if test -n "$repo_path"
-        set kind "$(git -C "$dir" cat-file -t "HEAD:$repo_path" 2>/dev/null)"; or begin
+        set kind "$(git -C "$dir" --literal-pathspecs ls-tree --full-tree --format='%(objecttype)' HEAD -- "$repo_path")"; or return
+        if test -z "$kind"
             printf '%s: path is not in the current commit: %s\n' "$0" "$target" >&2
             return 1
         end
