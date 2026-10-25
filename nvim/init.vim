@@ -52,6 +52,8 @@ nnoremap <silent> <nowait> <C-q> :quitall!<CR>
 inoremap <silent> <nowait> <C-q> <Esc>:quitall!<CR>
 nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
+nnoremap <silent> <nowait> <M-CR> :if $AQSNOW_FISH_RENDEZVOUS != "" \| call writefile([@%], $AQSNOW_FISH_RENDEZVOUS) \| endif \| xit<CR>
+inoremap <silent> <nowait> <M-CR> <Esc>:if $AQSNOW_FISH_RENDEZVOUS != "" \| call writefile([@%], $AQSNOW_FISH_RENDEZVOUS) \| endif \| xit<CR>
 
 inoremap <nowait> <C-a> <C-o>^
 inoremap <nowait> <C-d> <Del>

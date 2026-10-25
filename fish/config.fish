@@ -178,9 +178,9 @@ hl+:reverse:underline,pointer:magenta:bold"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
 function fzf_accept_and_run --argument-names widget
-    set -l rendezvous "$(mktemp)"
+    set -l AQSNOW_FISH_RENDEZVOUS "$(mktemp)"
 
-    set -l action "alt-enter:execute-silent(printf %s {+} > $(string escape -- "$rendezvous"))+accept"
+    set -l action "alt-enter:execute-silent(printf %s {+} > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
     set -l option "--bind=$(string escape -- "$action")"
 
     set -lx FZF_CTRL_R_OPTS "$FZF_CTRL_R_OPTS $option"
@@ -188,14 +188,10 @@ function fzf_accept_and_run --argument-names widget
 
     "$widget"
 
-    if test -s "$rendezvous"
+    if test -s "$AQSNOW_FISH_RENDEZVOUS"
         aqsnow_exec
     end
-    rm "$rendezvous"
-end
-for mode in default insert
-    bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
-    bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
+    rm "$AQSNOW_FISH_RENDEZVOUS"
 end
 function aqsnow_exec
     set -l cmd $(commandline --tokens-expanded)
@@ -209,6 +205,19 @@ end
 bind -M insert enter aqsnow_exec
 bind -m insert enter aqsnow_exec
 bind -M replace -m insert enter aqsnow_exec repaint-mode
+function aqsnow_edit_command
+    set -lx AQSNOW_FISH_RENDEZVOUS "$(mktemp)"
+    edit_command_buffer
+    if test -s "$AQSNOW_FISH_RENDEZVOUS"
+        aqsnow_exec
+    end
+    rm "$AQSNOW_FISH_RENDEZVOUS"
+end
+for mode in default insert
+    bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
+    bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
+    bind -M "$mode" alt-e aqsnow_edit_command
+end
 
 alias vsce='NO_COLOR=1 command vsce'
 
