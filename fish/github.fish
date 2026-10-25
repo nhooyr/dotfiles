@@ -146,6 +146,22 @@ function __ghe_tracking_ref --argument-names remote destination ref full_ref
     printf '%s\n' "$tracking_ref"
 end
 
+function __ghe_pull --argument-names destination
+    set -l changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
+    if test -n "$changes"
+        return 0
+    end
+    set -l branch "$(git -C "$destination" symbolic-ref -q HEAD)"; or return 0
+    set -l upstream (git -C "$destination" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)' -- "$branch"); or return
+    if test -z "$upstream[1]"; or test -z "$upstream[2]"; or test -z "$upstream[3]"
+        printf '%s: no upstream configured; skipping pull\n' "$0" >&2
+        return 0
+    end
+
+    git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "+$upstream[2]:$upstream[3]"; or return
+    git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$upstream[3]"
+end
+
 function __ghe_checkout --argument-names remote destination tail
     if test -e "$destination/.git"
         set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
@@ -159,12 +175,18 @@ function __ghe_checkout --argument-names remote destination tail
     end
 
     set -l target "$destination"
+    set -l requested_path ''
     if test -n "$tail"
         set -l resolved (__gh_resolve "$remote" "$tail" "$destination")
         test (count $resolved) -eq 4; or return 1
         set -l full_ref "$resolved[1]"
         set -l ref "$resolved[2]"
         set -l revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$resolved[4]^{commit}" 2>/dev/null)"
+        if test -z "$revision"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$full_ref"
+            printf '%s: commit %s is not available locally; use the full commit hash or fetch its branch first\n' "$0" "$ref" >&2
+            return 1
+        end
+        set requested_path "$resolved[3]"
         set -l current_branch "$(git -C "$destination" symbolic-ref -q HEAD)"
         set -l branch_ref ''
         if string match -qr '^refs/(heads|remotes)/' -- "$full_ref"
@@ -203,13 +225,14 @@ function __ghe_checkout --argument-names remote destination tail
                 end
             end
         end
+    end
 
-        if test -n "$resolved[3]"
-            set target "$destination/$resolved[3]"
-            if not test -e "$target"; and not test -L "$target"
-                printf '%s: path does not exist in this checkout: %s\n' "$0" "$resolved[3]" >&2
-                return 1
-            end
+    __ghe_pull "$destination"; or return
+    if test -n "$requested_path"
+        set target "$destination/$requested_path"
+        if not test -e "$target"; and not test -L "$target"
+            printf '%s: path does not exist in this checkout: %s\n' "$0" "$requested_path" >&2
+            return 1
         end
     end
     if test "$target" = "$destination"
