@@ -54,6 +54,93 @@ function __gh_remotes --argument-names remote destination
     end
 end
 
+function __gh_map_ref --argument-names source target ref
+    set -l parts (string split -m 1 '*' -- "$source")
+    if test (count $parts) -eq 1
+        test "$source" = "$ref"; or return 1
+        printf '%s\n' "$target"
+    else
+        set -l pattern "^$(string escape --style=regex -- "$parts[1]")(.*)$(string escape --style=regex -- "$parts[2]")\$"
+        set -l matched (string match -r -- "$pattern" "$ref")
+        test (count $matched) -eq 2; or return 1
+        string replace -- '*' "$matched[2]" "$target"
+    end
+end
+
+function __gh_tracking_ref --argument-names ref
+    # Git applies exclusions before choosing the first matching fetch mapping.
+    for spec in $argv[2..]
+        if string match -q '^*' -- "$spec"
+            set -l source (string sub -s 2 -- "$spec")
+            if __gh_map_ref "$source" "$source" "$ref" >/dev/null
+                return 2
+            end
+        end
+    end
+    for spec in $argv[2..]
+        set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
+        if test (count $fields) -eq 2; and test -n "$fields[2]"
+            set -l target (__gh_map_ref "$fields[1]" "$fields[2]" "$ref")
+            if test -n "$target"
+                printf '%s\n' "$target"
+                return 0
+            end
+        end
+    end
+    return 1
+end
+
+function __gh_source_ref --argument-names ref
+    set -l fallback
+    for spec in $argv[2..]
+        set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
+        if test (count $fields) -eq 2; and test -n "$fields[2]"
+            set -l source (__gh_map_ref "$fields[2]" "$fields[1]" "$ref")
+            if string match -q 'refs/heads/*' -- "$source"
+                set -l target (__gh_tracking_ref "$source" $argv[2..]); or continue
+                if test "$target" = "$ref"
+                    printf '%s\n' "$source"
+                    return 0
+                end
+                test -n "$fallback"; or set fallback "$source"
+            end
+        end
+    end
+    # A cached HEAD alias may still point at a secondary fetch destination.
+    if test -n "$fallback"
+        printf '%s\n' "$fallback"
+        return 0
+    end
+    return 1
+end
+
+function __gh_cached_branches --argument-names name destination
+    set -l refspecs (git -C "$destination" config --get-all "remote.$name.fetch")
+    set -l prefixes
+    for spec in $refspecs
+        set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
+        if test (count $fields) -eq 2; and test -n "$fields[2]"
+            set -l parts (string split -m 1 '*' -- "$fields[2]")
+            set -l prefix "$parts[1]"
+            if test (count $parts) -eq 2
+                set prefix (string replace -r '[^/]*$' '' -- "$prefix")
+            end
+            contains -- "$prefix" $prefixes; or set -a prefixes "$prefix"
+        end
+    end
+    test (count $prefixes) -gt 0; or return 0
+    set -l refs (git -C "$destination" for-each-ref \
+        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' $prefixes); or return
+    for ref in $refs
+        set -l source (__gh_source_ref "$ref" $refspecs); or continue
+        set -l target (__gh_tracking_ref "$source" $refspecs); or continue
+        if test "$ref" = "$target"
+            set -l branch (string replace -r '^refs/heads/' '' -- "$source")
+            printf '%s\t%s\n' "refs/remotes/$name/$branch" "$ref"
+        end
+    end
+end
+
 function __gh_resolve --argument-names remote tail destination cached_only
     # Return the full ref, short name, path, and a locally usable revision or OID.
     set -l route (string split -m 1 / -- "$tail")
@@ -69,14 +156,20 @@ function __gh_resolve --argument-names remote tail destination cached_only
     end
     # Prefer local refs, including cached branches from the requested repository.
     set -l prefixes refs/tags refs/heads
-    set -l remotes (__gh_remotes "$remote" "$destination"); or return
-    for name in $remotes
-        set -a prefixes "refs/remotes/$name"
-    end
     # Symbolic aliases such as origin/HEAD aren't branch names to check out.
     set -l refs (git -C "$destination" for-each-ref \
         --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' $prefixes); or return
     set -l revisions $refs
+    set -l remotes (__gh_remotes "$remote" "$destination"); or return
+    for name in $remotes
+        set -a prefixes "refs/remotes/$name"
+        set -l cached (__gh_cached_branches "$name" "$destination"); or return
+        for line in $cached
+            set -l fields (string split \t -- "$line")
+            set -a refs "$fields[1]"
+            set -a revisions "$fields[2]"
+        end
+    end
 
     for source in cached remote
         if test "$source" = remote
@@ -149,10 +242,15 @@ end
 function __ghe_tracking_ref --argument-names remote destination ref full_ref
     set -l name (__ghe_remote "$remote" "$destination" "$ref" "$full_ref"); or return
     set -l branch_ref "refs/heads/$ref"
-    set -l tracking_ref "refs/remotes/$name/$ref"
-    # Single-branch clones need a mapping for future fetches, too.
     set -l refspecs (git -C "$destination" config --get-all "remote.$name.fetch")
-    if not contains -- "+refs/heads/*:refs/remotes/$name/*" $refspecs; and not contains -- "+$branch_ref:$tracking_ref" $refspecs
+    set -l tracking_ref (__gh_tracking_ref "$branch_ref" $refspecs)
+    set -l mapping_status "$status"
+    if test "$mapping_status" -eq 2
+        printf '%s: branch is excluded by the remote fetch configuration: %s/%s\n' "$0" "$name" "$ref" >&2
+        return 1
+    else if test -z "$tracking_ref"
+        # Single-branch clones need a mapping for future fetches, too.
+        set tracking_ref "refs/remotes/$name/$ref"
         git -C "$destination" remote set-branches --add -- "$name" "$ref"; or return
     end
     # A known commit can still be missing its remote-tracking ref.
@@ -162,7 +260,7 @@ function __ghe_tracking_ref --argument-names remote destination ref full_ref
     printf '%s\n' "$tracking_ref"
 end
 
-function __ghe_pull --argument-names destination
+function __ghe_pull --argument-names destination remote
     set -l changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
     if test -n "$changes"
         return 0
@@ -175,6 +273,11 @@ function __ghe_pull --argument-names destination
     end
 
     if test "$upstream[1]" != .
+        set -l remotes (__gh_remotes "$remote" "$destination"); or return
+        if not contains -- "$upstream[1]" $remotes
+            printf '%s: upstream remote does not match the requested repository: %s\n' "$0" "$upstream[1]" >&2
+            return 1
+        end
         git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "+$upstream[2]:$upstream[3]"; or return
     end
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$upstream[3]"
@@ -185,6 +288,11 @@ function __ghe_checkout --argument-names remote destination tail
         set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
         if test "$root" != "$(path resolve -- "$destination")"
             printf '%s: destination is not a repository root: %s\n' "$0" "$destination" >&2
+            return 1
+        end
+        set -l remotes (__gh_remotes "$remote" "$destination"); or return
+        if test (count $remotes) -eq 0
+            printf '%s: destination does not match the requested repository: %s\n' "$0" "$destination" >&2
             return 1
         end
     else
@@ -239,8 +347,15 @@ function __ghe_checkout --argument-names remote destination tail
                     if git -C "$destination" show-ref --verify --quiet "$branch_ref"
                         git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
                     else
+                        set -l name (__ghe_remote "$remote" "$destination" "$ref" "$full_ref"); or return
                         set -l tracking_ref (__ghe_tracking_ref "$remote" "$destination" "$ref" "$full_ref"); or return
-                        git -C "$destination" switch --quiet --no-overwrite-ignore --track=direct --create "$ref" "$tracking_ref"; or return
+                        if git -C "$destination" show-ref --verify --quiet "$branch_ref"
+                            git -C "$destination" switch --quiet --no-overwrite-ignore -- "$ref"; or return
+                        else
+                            git -C "$destination" switch --quiet --no-overwrite-ignore --no-track --create "$ref" "$tracking_ref^{commit}"; or return
+                        end
+                        git -C "$destination" config --replace-all "branch.$ref.remote" "$name"; or return
+                        git -C "$destination" config --replace-all "branch.$ref.merge" "$branch_ref"; or return
                     end
                 else
                     # Cached tags and commits need no refresh.
@@ -260,7 +375,7 @@ function __ghe_checkout --argument-names remote destination tail
         if not test -e "$target"; and not test -L "$target"
             # Existing paths open immediately, including while offline.
             # Pull only when the requested path may have been added upstream.
-            __ghe_pull "$destination"; or return
+            __ghe_pull "$destination" "$remote"; or return
             if not test -e "$target"; and not test -L "$target"
                 printf '%s: path does not exist in this checkout: %s\n' "$0" "$requested_path" >&2
                 return 1
@@ -383,7 +498,9 @@ function gho --argument-names target
     if test -n "$branch"
         if test -z "$remote_ref"
             set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
-            set remote_ref "refs/remotes/$remote/$ref"
+            set -l refspecs (git -C "$dir" config --get-all "remote.$remote.fetch")
+            set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
+            test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
         end
         set commit "$(git -C "$dir" rev-parse --verify "$remote_ref^{commit}" 2>/dev/null)"
         if test -z "$commit"
@@ -426,10 +543,31 @@ function gho --argument-names target
     test (count $github) -eq 3; or return 1
 
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
+    set -l refspecs (git -C "$dir" config --get-all "remote.$remote.fetch")
     set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
+    if test -n "$default_ref"
+        set -l source (__gh_source_ref "$default_ref" $refspecs)
+        if test -z "$source"; and string match -q "refs/remotes/$remote/*" -- "$default_ref"
+            set source "refs/heads/$(string replace -- "refs/remotes/$remote/" '' "$default_ref")"
+        end
+        if test -n "$source"
+            set -l mapped (__gh_tracking_ref "$source" $refspecs)
+            test -z "$mapped"; or set default_ref "$mapped"
+        end
+    end
     if test -z "$default_ref"; and test -z "$repo_path"; and test -n "$branch"
-        git -C "$dir" remote set-head --auto -- "$remote" >/dev/null 2>&1
-        set default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
+        # set-head assumes refs/remotes; cache the advertised HEAD using its mapping.
+        set -l advertised (git -C "$dir" ls-remote --symref -- "$remote" HEAD 2>/dev/null)
+        for line in $advertised
+            set -l fields (string split \t -- "$line")
+            if test "$fields[2]" = HEAD; and string match -q 'ref: refs/heads/*' -- "$fields[1]"
+                set -l source (string sub -s 6 -- "$fields[1]")
+                set default_ref (__gh_tracking_ref "$source" $refspecs)
+                test -n "$default_ref"; or set default_ref "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source")"
+                git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
+                break
+            end
+        end
     end
     if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "$remote_ref"
         set ref ''
