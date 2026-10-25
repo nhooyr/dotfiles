@@ -1,6 +1,6 @@
+fish_add_path --prepend --move --path /opt/homebrew/bin
 fish_add_path --path ~/.local/bin
 fish_add_path --path ~/.local/bin/dotfiles
-fish_add_path --path /opt/homebrew/bin
 if not status is-interactive
     return 0
 end
