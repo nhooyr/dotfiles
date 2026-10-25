@@ -47,6 +47,10 @@ function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
 end
+function scd
+    set -l super_root "$(git rev-parse --show-superproject-working-tree)"; or return 1
+    cd "$super_root"
+end
 function gg --wraps 'git grep'
     git grep -iIE --recurse-submodules $argv
 end

@@ -29,5 +29,5 @@ if [ "$force" != true ] && code --list-extensions --show-versions | grep -qFx "$
 	exit 0
 fi
 rm -f ./*.vsix
-vsce package
+NO_COLOR=1 vsce package
 code ${force:+--force} --install-extension "./$name-$version.vsix"

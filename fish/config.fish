@@ -17,9 +17,9 @@ function abbrali --argument-names name
 end
 abbrali vi nvim
 abbr -a --command sudo vi nvim
-abbr -a s sudo
+abbrali s sudo
+alias sudo='sudo --preserve-env=SSH_TTY'
 abbr -a --position anywhere pbp '"$(pbpaste)"'
-alias sudo='sudo --preserve-env=TERM_PROGRAM --preserve-env=SSH_TTY'
 fish_hybrid_key_bindings
 set -g fish_color_error normal --italic
 set -g fish_color_quote green
@@ -73,25 +73,25 @@ function ls
 end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
+abbrali fd fd -HL
+function f
+    find . -iname "*$argv*"
+end
+set -gx GREP_COLORS 'mt=03;37;44:fn=36:ln=03:bn=03:se=00'
+set -gx GREP_COLOR '03;37;44'
 abbr -a grep gre
 function gre
     if type -q ggrep
         ggrep --color -inIE $argv
     else
-        command grep --color -inIE $argv
+        grep --color -inIE $argv
     end
-end
-set -gx GREP_COLORS 'mt=03;37;44:fn=36:ln=03:bn=03:se=00'
-set -gx GREP_COLOR '03;37;44'
-alias fd='fd -HL'
-function f
-    find . -iname "*$argv*"
 end
 
 abbrali t time
 abbrali mkd 'cd "$(mktemp -d)"'
-alias sshq="ssh -O exit"
-alias sshu="ssh -oControlPath=none"
+abbrali sshq ssh -O exit
+abbrali sshu ssh -oControlPath=none
 abbrali socks ssh -ND1080
 
 function colors
@@ -106,8 +106,8 @@ abbrali np npass
 abbrali ne nemail
 
 abbrali chx chmod +x
-alias ymp3='yt-dlp --audio-format mp3 -x --embed-thumbnail'
-alias num='shuf -n1 -i 1-999'
+abbrali ymp3 yt-dlp --audio-format mp3 -x --embed-thumbnail
+abbrali num shuf -n1 -i 1-999
 
 function noti --wraps time
     time $argv
@@ -167,7 +167,7 @@ for mode in default insert
     bind -M "$mode" alt-e aqsnow_edit_command
 end
 
-alias vsce='NO_COLOR=1 command vsce'
+abbrali vsce NO_COLOR=1 command vsce
 
 set -gx DOTFILES "$(path resolve "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
