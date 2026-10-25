@@ -64,6 +64,12 @@
 	repeatedLines = magenta italic
 [color "advice"]
 	hint = cyan ul italic
+[color "grep"]
+	filename = cyan
+	lineNumber = normal italic
+	column = normal italic
+	match = white blue italic
+	separator = normal
 [blame]
 	date = relative
 	blankBoundary = true

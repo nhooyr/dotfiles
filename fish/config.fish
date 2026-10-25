@@ -51,6 +51,15 @@ set -gx LSCOLORS \
     # dataless file
     ha
 set -gx LSCOLORS "$(string join '' $LSCOLORS)"
+set -gx LS_COLORS "di=34:ln=3;36:so=3;32:pi=3;32:ex=3;35:bd=3;37;42:\
+cd=3;37;42:su=3;37;45:sg=3;37;45:tw=3;37;44:ow=3;37;44:st=34"
+function ls
+    if type -q gls
+        gls --group-directories-first $argv
+    else
+        command $argv
+    end
+end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
 alias r="source $__fish_config_dir/config.fish"
@@ -95,7 +104,7 @@ abbrali grmf git rm -rf
 abbrali grmc git rm --cached
 abbrali grmcr git rm --cached -r
 abbrali gl git log
-abbrali gls git ls-files
+abbrali glsf git ls-files
 abbrali gcl git clone
 abbrali gpl git pull
 abbrali gro git remote -v
@@ -115,9 +124,25 @@ function gcd
     cd "$git_root"
 end
 
+function grep
+    if type -q ggrep
+        ggrep --color -inIE $argv
+    else
+        command grep --color -inIE $argv
+    end
+end
 alias gg='git grep -iI'
-alias grep='grep --color=auto -inI'
-alias rg='rg -Sn'
+set -gx GREP_COLORS 'mt=03;37;44:fn=36:ln=03:bn=03:se=00'
+set -gx GREP_COLOR '03;37;44'
+alias rg="rg -Sn --no-heading \
+    --colors=path:fg:cyan \
+    --colors=line:none \
+    --colors=line:style:italic \
+    --colors=match:none \
+    --colors=match:fg:white \
+    --colors=match:bg:blue \
+    --colors=match:style:italic \
+"
 alias fd='fd -HL'
 function f
     find . -iname "*$argv*"

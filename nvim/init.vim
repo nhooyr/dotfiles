@@ -15,6 +15,8 @@ set undoreload=99999
 
 set notermguicolors
 colorscheme default
+highlight Search cterm=italic
+highlight CurSearch cterm=italic
 highlight Comment ctermfg=8 cterm=italic
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
