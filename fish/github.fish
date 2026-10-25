@@ -265,15 +265,23 @@ function __ghe_pull --argument-names destination remote
         return 0
     end
 
+    set -l merge_ref "$upstream[3]"
     if test "$upstream[1]" != .
         set -l remotes (__gh_remotes "$remote" "$destination"); or return
         if not contains -- "$upstream[1]" $remotes
             printf '%s: upstream remote does not match the requested repository: %s\n' "$0" "$upstream[1]" >&2
             return 1
         end
-        git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "+$upstream[2]:$upstream[3]"; or return
+        set -l upstream_ref "$(git -C "$destination" rev-parse --symbolic-full-name "$upstream[3]" 2>/dev/null)"
+        if test "$upstream[3]" = "$branch"; or test "$upstream_ref" = "$branch"
+            # A fetch mapping may target the checked-out local branch.
+            git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$upstream[1]" "$upstream[2]"; or return
+            set merge_ref FETCH_HEAD
+        else
+            git -C "$destination" fetch --quiet --no-recurse-submodules -- "$upstream[1]" "+$upstream[2]:$upstream[3]"; or return
+        end
     end
-    git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$upstream[3]"
+    git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
 end
 
 function __ghe_checkout --argument-names remote destination tail line
