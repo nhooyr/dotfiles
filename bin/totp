@@ -16,23 +16,24 @@ otpauth://totp/*\?*)
 	# Read the secret query parameter; the account label and issuer are unused.
 	query="${secret#*\?}"
 	query="${query%%#*}"
+	# Reject settings that would otherwise generate the wrong code.
+	unsupported="$(printf %s "$query" | tr '&' '\n' | sed -nE '
+       /^(algorithm=SHA1|digits=6|period=30)$/d
+       /^(algorithm|digits|period)=/p
+   ')"
+	if [ -n "$unsupported" ]; then
+		echo "$(basename "$0"): only SHA1, 6 digits, and a 30-second period are supported" >&2
+		exit 1
+	fi
 	# Split before decoding so escaped delimiters stay inside their fields.
-	secret="$(printf %s "$query" | jq -Rrs --arg name "$(basename "$0")" '
+	secret="$(printf %s "$query" | jq -Rrs '
         split("&")
         | map(split("=") | {
             key: (.[0] // ""),
             value: (.[1:] | join("="))
         } | map_values(@urid))
-        | if any(.[];
-            (.key == "algorithm" and .value != "SHA1") or
-            (.key == "digits" and .value != "6") or
-            (.key == "period" and .value != "30")) then
-            "\($name): only SHA1, 6 digits, and a 30-second period are supported\n"
-            | halt_error(1)
-        else
-            map(select(.key == "secret")) | last.value // empty
-            | select(contains("\u0000") | not)
-        end
+        | map(select(.key == "secret")) | last.value // empty
+        | select(contains("\u0000") | not)
     ')"
 	if test -z "$secret"; then
 		echo "$(basename "$0"): unable to parse otpauth secret URL" >&2
