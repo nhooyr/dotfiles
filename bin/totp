@@ -16,6 +16,15 @@ otpauth://totp/*\?*)
 	# Read the secret query parameter; the account label and issuer are unused.
 	query="${secret#*\?}"
 	query="${query%%#*}"
+	# Reject settings that would otherwise generate the wrong code.
+	unsupported="$(printf %s "$query" | tr '&' '\n' | sed -nE '
+       /^(algorithm=SHA1|digits=6|period=30)$/d
+       /^(algorithm|digits|period)=/p
+   ')"
+	if [ -n "$unsupported" ]; then
+		echo "$0: only SHA1, 6 digits, and a 30-second period are supported" >&2
+		exit 1
+	fi
 	secret="$(printf %s "&$query" | sed -nE 's/.*&secret=([^&]*).*/\1/p')"
 	if test -z "$secret"; then
 		echo "$0: unable to parse otpauth secret URL" >&2
