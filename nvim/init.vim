@@ -31,6 +31,10 @@ set dictionary=/usr/share/dict/words
 set spell
 set spelllang=en_ca,en_us
 set spellcapcheck=
+highlight clear SpellBad
+highlight clear SpellCap
+highlight clear SpellRare
+highlight clear SpellLocal
 nnoremap <silent> <nowait> <Leader>p :set spell!<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
 
