@@ -5,4 +5,21 @@ secret="$*"
 if test "$#" -eq 0; then
 	secret="$(pbpaste)"
 fi
-printf %s "$secret" | sed 's/^totp: *//i' | oathtool --totp -b - | pbc
+
+case "$secret" in
+otpauth://totp/*\?*)
+	# Read the secret query parameter; the account label and issuer are unused.
+	query="${secret#*\?}"
+	query="${query%%#*}"
+	secret="$(printf '%s\n' "&$query" | sed -nE 's/.*&secret=([^&]*).*/\1/p')"
+	;;
+esac
+
+if test -z "$secret"; then
+	echo 'totp: no secret found' >&2
+	exit 1
+fi
+
+# Leave the clipboard alone if code generation fails.
+code="$(printf %s "$secret" | sed 's/^totp: *//i' | oathtool --totp -b -)"
+printf '%s\n' "$code" | pbc
