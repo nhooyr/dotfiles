@@ -18,6 +18,7 @@ end
 abbrali vi nvim
 abbr -a --command sudo vi nvim
 abbr -a s sudo
+abbr -a --position anywhere pbp '"$(pbpaste)"'
 alias sudo='sudo --preserve-env=TERM_PROGRAM --preserve-env=SSH_TTY'
 fish_hybrid_key_bindings
 set -g fish_color_error normal --italic
