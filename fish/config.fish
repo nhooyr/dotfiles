@@ -83,14 +83,6 @@ function gre
 end
 set -gx GREP_COLORS 'mt=03;37;44:fn=36:ln=03:bn=03:se=00'
 set -gx GREP_COLOR '03;37;44'
-alias rg="rg -Sn --no-heading \
-    --colors=path:fg:cyan \
-    --colors=line:none \
-    --colors=line:style:italic \
-    --colors=match:bg:white \
-    --colors=match:fg:blue \
-    --colors=match:style:italic \
-"
 alias fd='fd -HL'
 function f
     find . -iname "*$argv*"
