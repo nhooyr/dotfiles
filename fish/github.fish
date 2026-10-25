@@ -6,7 +6,8 @@ function __gh_parse --argument-names input
         return 1
     end
     # Accept GitHub's standard ports and its alternate SSH endpoint.
-    set -l path (string replace -ri '^(https://github\.com(:443)?/|http://github\.com(:80)?/|ssh://git@(github\.com(:22)?|ssh\.github\.com:443)/|git@github\.com:|github\.com(:443)?/)' '' -- "$input")
+    set -l http_userinfo '(?:[A-Za-z0-9._~!$&\'()*+,;=:-]|%[0-9a-f]{2})+'
+    set -l path (string replace -ri "^(https://(?:$http_userinfo@)?github\\.com(:443)?/|http://(?:$http_userinfo@)?github\\.com(:80)?/|ssh://git@(github\\.com(:22)?|ssh\\.github\\.com:443)/|git@github\\.com:|github\\.com(:443)?/)" '' -- "$input")
     set -l is_url false
     test "$path" != "$input"; and set is_url true
     set path (string replace -r '[?#].*$' '' -- "$path")
@@ -30,7 +31,8 @@ function __gh_parse --argument-names input
         printf '%s: URL paths cannot contain dot segments\n' "$0" >&2
         return 1
     end
-    set -l remote "https://github.com/$parts[1]/$repo.git"
+    set -l userinfo (string match -rgi "^https?://($http_userinfo@)github\\.com(?::[0-9]+)?/" -- "$input")
+    set -l remote "https://$userinfo[1]github.com/$parts[1]/$repo.git"
     set -l ssh_authority (string match -ri '^ssh://git@[^/]+:[0-9]+/' -- "$input")
     if test -n "$ssh_authority"
         set remote "$(string lower -- "$ssh_authority")$parts[1]/$repo.git"
