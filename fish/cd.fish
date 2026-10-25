@@ -3,6 +3,10 @@ function multicd
 end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
+    if test "$(count $argv)" -lt 2
+        echo "cdc: <dir> <cmd>" >&2
+        return 1
+    end
     set -l prevd "$PWD"
     if cd -- "$dir"
         $argv[2..]
@@ -20,6 +24,11 @@ function up
     if not set -q argv[1]
         cd ..
         return
+    end
+
+    if not string match --invert --quiet --regex -- "$argv" ''
+        echo "up: invalid regex" >&2
+        return 1
     end
 
     if string match --quiet --regex '^[0-9]+$' -- "$argv"
