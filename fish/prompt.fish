@@ -57,24 +57,25 @@ function fish_mode_prompt
     if not contains -- "$fish_key_bindings" fish_vi_key_bindings fish_hybrid_key_bindings
         return
     end
+    set_color --bold
     switch $fish_bind_mode
         case default
-            set_color --bold blue
+            set_color blue
             echo '[N]'
         case insert
-            set_color --bold green
+            set_color green
             echo '[I]'
         case replace_one
-            set_color --bold green
+            set_color green
             echo '[R]'
         case replace
-            set_color --bold cyan
+            set_color cyan
             echo '[R]'
         case visual
-            set_color --bold magenta
+            set_color magenta
             echo '[V]'
         case operator f F t T
-            set_color --bold cyan
+            set_color cyan
             echo '[N]'
     end
     set_color --reset
