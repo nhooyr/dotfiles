@@ -7,7 +7,7 @@ function cdc --wraps cd --argument-names dir
     if cd -- "$dir"
         $argv[2..]
         set -l code "$status"
-        cd -- "$prevd"
+        cd -- "$prevd"; or return
         return "$code"
     else
         return 1

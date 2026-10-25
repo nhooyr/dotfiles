@@ -85,8 +85,11 @@ function __gh_resolve --argument-names remote tail destination
                 end
             end
             if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$ref"
-                printf '%s\n' "$ref" "$ref" (string trim -r -c / -- "$path") "$ref"
-                return 0
+                # A short hex name may be a branch, such as 2026/fix.
+                if test "$source" = remote; or test (string length -- "$ref") -eq 40; or git --no-lazy-fetch -C "$destination" cat-file -e "$ref^{commit}" 2>/dev/null
+                    printf '%s\n' "$ref" "$ref" (string trim -r -c / -- "$path") "$ref"
+                    return 0
+                end
             end
             set -l parts (string split -r -m 1 / -- "$ref")
             if test (count $parts) -ne 2

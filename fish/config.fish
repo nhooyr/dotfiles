@@ -25,7 +25,9 @@ set -g fish_color_search_match white --background=black
 set -g fish_pager_color_progress magenta --underline --italic
 set -g fish_pager_color_prefix --italic --underline
 set -g fish_pager_color_selected_prefix --bold --italic
-alias r="source $__fish_config_dir/config.fish"
+function r
+    source "$__fish_config_dir/config.fish"
+end
 
 set -gx GOPATH ~/.local/share/go
 
