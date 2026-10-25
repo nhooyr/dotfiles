@@ -18,8 +18,8 @@ esac
 if [ "$#" -gt 1 ]; then
 	echo "$(basename "$0"): only 0 or 1 argument accepted" >&2
 	exit 1
-elif [ "$1" -lt 5 ]; then
-	echo "$(basename "$0"): length must be at least 5" >&2
+elif [ "${#1}" -gt 4 ] || [ "$1" -lt 5 -o "$1" -gt 9999 ]; then
+	echo "$(basename "$0"): length must be at least 5 and less than 9999" >&2
 	exit 1
 fi
 
