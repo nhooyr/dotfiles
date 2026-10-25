@@ -557,7 +557,7 @@ function __ghe_pull_request --argument-names remote destination number
 end
 
 
-function __ghe_checkout --argument-names remote destination tail line column
+function __ghe_checkout --argument-names remote destination tail line column end_line end_column
     if test -e "$destination/.git"
         set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
         if test "$root" != "$(path resolve -- "$destination")"
@@ -697,7 +697,17 @@ function __ghe_checkout --argument-names remote destination tail line column
             printf '%s: EDITOR is empty\n' "$0" >&2
             return 1
         end
-        if test -n "$column"
+        if test -n "$end_line"
+            set -l selection V
+            if test -n "$column"; or test -n "$end_column"
+                set selection v
+                test -n "$end_column"; or set end_column "max([1, strlen(getline($end_line))])"
+            else
+                set end_column 1
+            end
+            test -n "$column"; or set column 1
+            set -a editor "+set selection=inclusive | call cursor($line, $column) | execute 'normal! $selection' | call cursor($end_line, $end_column)"
+        else if test -n "$column"
             set -a editor "+call cursor($line, $column)"
         else if test -n "$line"
             set -a editor "+$line"
@@ -715,8 +725,15 @@ function ghe --argument-names input
     end
     set -l github (__gh_parse "$input")
     test (count $github) -eq 3; or return 1
-    set -l position (string match -rg '#L([0-9]+)(?:C([0-9]+))?(?:-L[0-9]+(?:C[0-9]+)?)?$' -- "$input" | string replace -r '^0+(?=[0-9])' '')
-    __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$position[1]" "$position[2]"
+    set -l line ''
+    set -l column ''
+    set -l end_line ''
+    set -l end_column ''
+    string match -qr '#L(?<line>[0-9]+)(?:C(?<column>[0-9]+))?(?:-L(?<end_line>[0-9]+)(?:C(?<end_column>[0-9]+))?)?$' -- "$input"
+    for position in line column end_line end_column
+        set "$position" (string replace -r '^0+(?=[0-9])' '' -- "$$position")
+    end
+    __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line" "$column" "$end_line" "$end_column"
 end
 
 function gho --argument-names target
