@@ -2,7 +2,7 @@ if status is-interactive
     tabs -4
 end
 set -gx LESS -RXF -ix4
-set fish_greeting
+set -g fish_greeting
 fish_add_path --path ~/.local/bin
 fish_add_path --path ~/.local/bin/dotfiles
 fish_add_path --path /opt/homebrew/bin
@@ -17,7 +17,12 @@ abbr -a --command sudo vi nvim
 abbr -a s sudo
 alias sudo='sudo --preserve-env=TERM_PROGRAM --preserve-env=SSH_TTY'
 fish_hybrid_key_bindings
-set fish_color_quote green --theme=default
+set -g fish_color_error normal
+set -g fish_color_quote green --theme=default
+set -g fish_color_search_match regular --reverse --theme=default
+set -g fish_pager_color_progress magenta --underline --italic --theme=default
+set -g fish_pager_color_prefix --italic --underline --theme=default
+set -g fish_pager_color_selected_prefix --bold --italic --theme=default
 set -gx GOPATH ~/.local/share/go
 
 set -gx LSCOLORS \
@@ -139,8 +144,8 @@ if status is-interactive
 end
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --no-mouse --scroll-off=0 --info=inline-right \
-    --color=bw,query:regular,info:italic:underline,hl:underline:bold,fg+:regular:reverse,\
-hl+:reverse:underline,pointer:magenta:bold"
+    --color=bw,query:regular,info:italic:underline,hl:underline:italic,fg+:regular:reverse,\
+hl+:reverse:italic,pointer:magenta:bold"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
 function fzf_accept_and_run --argument-names widget
