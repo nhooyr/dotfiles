@@ -35,6 +35,7 @@ abbrali gb git branch -vv
 abbrali gba git branch -avv
 abbrali gbr git branch -rvv
 abbrali gst git stash push -u
+abbrali gsta git stash apply
 abbrali gsts git stash show
 abbrali gstsp git stash show -p
 abbrali gstp git stash pop
