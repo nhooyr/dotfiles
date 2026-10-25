@@ -276,7 +276,7 @@ function __ghe_pull --argument-names destination remote
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$upstream[3]"
 end
 
-function __ghe_checkout --argument-names remote destination tail
+function __ghe_checkout --argument-names remote destination tail line
     if test -e "$destination/.git"
         set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
         if test "$root" != "$(path resolve -- "$destination")"
@@ -393,6 +393,7 @@ function __ghe_checkout --argument-names remote destination tail
             printf '%s: EDITOR is empty\n' "$0" >&2
             return 1
         end
+        test -z "$line"; or set -a editor "+$line"
         $editor "$target"
     end
 end
@@ -406,7 +407,8 @@ function ghe --argument-names input
     end
     set -l github (__gh_parse "$input")
     test (count $github) -eq 3; or return 1
-    __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]"
+    set -l line (string match -rg '#L([0-9]+)(?:-L[0-9]+)?$' -- "$input")
+    __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line"
 end
 
 function gho --argument-names target
