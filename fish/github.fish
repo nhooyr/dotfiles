@@ -46,7 +46,7 @@ function __gh_remotes --argument-names remote destination
     test (count $requested) -eq 3; or return 1
     set -l remotes (git -C "$destination" remote); or return
     for name in $remotes
-        set -l url "$(git -C "$destination" remote get-url "$name")"; or return
+        set -l url "$(git -C "$destination" remote get-url -- "$name")"; or return
         set -l github (__gh_parse "$url" 2>/dev/null)
         if test (count $github) -eq 3; and test (string lower -- "$github[1]") = (string lower -- "$requested[1]")
             printf '%s\n' "$name"
@@ -421,14 +421,14 @@ function gho --argument-names target
         end
     end
 
-    set -l remote_url "$(git -C "$dir" remote get-url "$remote")"; or return
+    set -l remote_url "$(git -C "$dir" remote get-url -- "$remote")"; or return
     set -l github (__gh_parse "$remote_url")
     test (count $github) -eq 3; or return 1
 
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
     set -l default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
     if test -z "$default_ref"; and test -z "$repo_path"; and test -n "$branch"
-        git -C "$dir" remote set-head "$remote" --auto >/dev/null 2>&1
+        git -C "$dir" remote set-head --auto -- "$remote" >/dev/null 2>&1
         set default_ref "$(git -C "$dir" symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null)"
     end
     if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "$remote_ref"

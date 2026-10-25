@@ -26,7 +26,8 @@ function up
         return
     end
 
-    if not string match --invert --quiet --regex -- "$argv" ''
+    string match --quiet --regex -- "$argv" '' 2>/dev/null
+    if test "$status" -eq 2
         echo "up: invalid regex" >&2
         return 1
     end
