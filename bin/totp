@@ -7,7 +7,7 @@ if [ -z "$secret" ]; then
 fi
 
 if test -z "$secret"; then
-	echo "$0: no secret in \$1 or clipboard" >&2
+	echo "$(basename "$0"): no secret in \$1 or clipboard" >&2
 	exit 1
 fi
 
@@ -22,12 +22,12 @@ otpauth://totp/*\?*)
        /^(algorithm|digits|period)=/p
    ')"
 	if [ -n "$unsupported" ]; then
-		echo "$0: only SHA1, 6 digits, and a 30-second period are supported" >&2
+		echo "$(basename "$0"): only SHA1, 6 digits, and a 30-second period are supported" >&2
 		exit 1
 	fi
 	secret="$(printf %s "&$query" | sed -nE 's/.*&secret=([^&]*).*/\1/p')"
 	if test -z "$secret"; then
-		echo "$0: unable to parse otpauth secret URL" >&2
+		echo "$(basename "$0"): unable to parse otpauth secret URL" >&2
 		exit 1
 	fi
 	;;

@@ -3,13 +3,23 @@ set -eu
 
 if [ "$#" -eq 0 ]; then
 	set 20
-elif [ "$#" -gt 1 ]; then
-	echo "$0: only 0 or 1 argument accepted" >&2
+fi
+
+case "$1" in
+'' | *[!0-9]*)
+	echo "$(basename "$0"): length must be a positive integer" >&2
+	exit 1
+	;;
+esac
+
+if [ "$#" -gt 1 ]; then
+	echo "$(basename "$0"): only 0 or 1 argument accepted" >&2
 	exit 1
 elif [ "$1" -lt 5 ]; then
-	echo "$0: length must be at least 5" >&2
+	echo "$(basename "$0"): length must be at least 5" >&2
 	exit 1
 fi
 
-pass="$(nrand | head -c$(($1 - 4)))0xX#"
+length="$(printf %s "$1" | sed 's/^0*//')"
+pass="$(nrand | head -c$(($length - 4)))0xX#"
 printf "%s\n" "$pass" | pbc
