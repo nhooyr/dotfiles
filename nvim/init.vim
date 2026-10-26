@@ -3,9 +3,11 @@ set shiftwidth=0
 set ignorecase
 set smartcase
 set mouse=
-vnoremap <silent> <nowait> <C-c> "+y
+vnoremap <nowait> <C-c> "+y
 set laststatus=3
 set textwidth=120
+set foldmethod=indent
+set foldlevelstart=999
 
 set backup
 set backupdir-=.
@@ -13,10 +15,11 @@ set undofile
 set undolevels=99999
 set undoreload=99999
 packadd nvim.undotree
-nnoremap <silent> <nowait> <Leader>u :Undotree<CR>
+nnoremap <nowait> <Leader>u :Undotree<CR>
 
 set notermguicolors
 colorscheme default
+highlight MatchParen cterm=italic,bold,underline
 highlight Search cterm=italic
 highlight CurSearch cterm=italic
 highlight Comment ctermfg=8 cterm=italic
@@ -31,6 +34,7 @@ set list
 set listchars+=extends:>,precedes:<
 highlight! link NonText Comment
 highlight! link LineNr Comment
+highlight! link Folded Comment
 
 set dictionary=/usr/share/dict/words
 set spell
@@ -40,37 +44,40 @@ highlight clear SpellBad
 highlight clear SpellCap
 highlight clear SpellRare
 highlight clear SpellLocal
-nnoremap <silent> <nowait> <Leader>p :set spell!<CR>
+nnoremap <nowait> <Leader>p :set spell!<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
 
 " https://github.com/neovim/neovim/issues/39337
 let g:termfeatures = get(g:, 'termfeatures', {})
 let g:termfeatures.osc52 = v:false
 
-noremap <silent> <nowait> ; :
-noremap <silent> <nowait> : ;
-inoremap <silent> <nowait> <M-BS> <C-w>
+noremap <nowait> ; :
+noremap <nowait> : ;
+noremap <nowait> 0 ^
+noremap <nowait> ^ 0
+inoremap <nowait> <M-BS> <C-w>
 cnoremap <nowait> <M-BS> <C-w>
 function! s:update_myvimrc() abort
 	if expand('%:p') ==# $MYVIMRC
 		update
 	endif
 endfunction
-nnoremap <silent> <nowait> <Leader>s :call <SID>update_myvimrc() \| source $MYVIMRC<CR>
+nnoremap <nowait> <Leader>s :call <SID>update_myvimrc() \| source $MYVIMRC<CR>
 
-nnoremap <silent> <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
+nnoremap <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <nowait> <Leader>r :%s##
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
 vnoremap <nowait> // "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 vmap <nowait> <Leader>r //<Leader>r
 
-nnoremap <silent> <nowait> q :quit<CR>
-nnoremap <silent> <nowait> <M-w> :wall<CR>
-inoremap <silent> <nowait> <M-w> <Esc>:wall<CR>
-nnoremap <silent> <nowait> <C-q> :qall!<CR>
-inoremap <silent> <nowait> <C-q> <Esc>:qall!<CR>
-nnoremap <silent> <nowait> <C-s> :xit<CR>
-inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
+nnoremap <nowait> <M-q> q
+nnoremap <nowait> q :quit<CR>
+nnoremap <nowait> <C-s> :xit<CR>
+inoremap <nowait> <C-s> <Esc>:xit<CR>
+nnoremap <nowait> <M-w> :wall<CR>
+inoremap <nowait> <M-w> <Esc>:wall<CR>
+nnoremap <nowait> <C-q> :qall!<CR>
+inoremap <nowait> <C-q> <Esc>:qall!<CR>
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
 function! s:quit_and_run() abort
 	wall
@@ -81,8 +88,8 @@ function! s:quit_and_run() abort
 	endif
 	qall
 endfunction
-nnoremap <silent> <nowait> <M-CR> :call <SID>quit_and_run()<CR>
-inoremap <silent> <nowait> <M-CR> <Esc>:call <SID>quit_and_run()<CR>
+nnoremap <nowait> <M-CR> :call <SID>quit_and_run()<CR>
+inoremap <nowait> <M-CR> <Esc>:call <SID>quit_and_run()<CR>
 function! s:fzf_file_widget() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
@@ -90,8 +97,8 @@ function! s:fzf_file_widget() abort
 	endif
 	qall
 endfunction
-nnoremap <silent> <nowait> <M-v> :call <SID>fzf_file_widget()<CR>
-inoremap <silent> <nowait> <M-v> <Esc>:call <SID>fzf_file_widget()<CR>
+nnoremap <nowait> <M-v> :call <SID>fzf_file_widget()<CR>
+inoremap <nowait> <M-v> <Esc>:call <SID>fzf_file_widget()<CR>
 
 inoremap <nowait> <C-a> <C-o>^
 inoremap <nowait> <C-d> <Del>
@@ -99,21 +106,25 @@ inoremap <nowait> <C-k> <C-\><C-o>D
 cnoremap <nowait> <C-a> <Home>
 cnoremap <nowait> <C-d> <Del>
 
-vnoremap <silent> <nowait> > >gv
-vnoremap <silent> <nowait> < <gv
-nmap <silent> <nowait> <C-_> gcc
-imap <silent> <nowait> <C-_> <C-o>gcc
-vmap <silent> <nowait> <C-_> gc
+vnoremap <nowait> > >gv
+vnoremap <nowait> < <gv
+nmap <nowait> <C-_> gcc
+imap <nowait> <C-_> <C-o>gcc
+vmap <nowait> <C-_> gc
 
-nnoremap <silent> <nowait> c "_c
-vnoremap <silent> <nowait> c "_c
-nnoremap <silent> <nowait> C "_C
-vnoremap <silent> <nowait> C "_C
-nnoremap <silent> <nowait> <BS><BS> "_dd
+nnoremap <nowait> c "_c
+vnoremap <nowait> c "_c
+nnoremap <nowait> C "_C
+vnoremap <nowait> C "_C
+nnoremap <nowait> <BS><BS> "_dd
+nnoremap <BS> "_d
+vnoremap <nowait> <BS> "_d
+nnoremap <silent> <nowait> <Leader>d :t.<CR>
+nnoremap <silent> <nowait> <M-d> :t.<CR>
 
 set completeopt=menuone,noselect,popup
-set complete+=U,k,kspell,s,i,d,f,o
-inoremap <silent><expr> <C-Space> pumvisible() ? "\<C-n>" :
+set complete+=U,kspell,i,d,f,o
+inoremap <expr> <C-Space> pumvisible() ? "\<C-n>" :
 	   \ strpart(getline('.'), 0, col('.') - 1) =~# '\f*/\f*$'
 	   \ ? "\<C-x>\<C-f>" : "\<C-n>"
 inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
@@ -124,7 +135,7 @@ highlight PmenuSel cterm=italic,underline,bold
 highlight PmenuMatchSel cterm=italic,bold
 
 command -bar -bang -nargs=0 Mkdirp write<bang> ++p
-nnoremap <silent> <nowait> <Leader>m :Mkdirp<CR>
+nnoremap <nowait> <Leader>m :Mkdirp<CR>
 
 command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 			   \ diffthis | wincmd p | diffthis
@@ -152,6 +163,9 @@ augroup aqsnow
 	autocmd filetype html,jsonc,fish setlocal expandtab
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 	autocmd BufReadPost * call <SID>restore_cursor()
+	autocmd filetype fish setlocal formatprg=fish_indent
+	autocmd filetype sh setlocal formatprg=shfmt
+	autocmd BufWritePost $MYVIMRC source $MYVIMRC
 augroup END
-nnoremap <silent> <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
-nnoremap <silent> <nowait> <Leader>= :keeppatterns %s/^\s*+//<CR>
+nnoremap <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
+nnoremap <nowait> <Leader>= :keeppatterns %s/^\s*+//<CR>
