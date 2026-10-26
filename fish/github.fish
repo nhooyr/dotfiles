@@ -27,7 +27,10 @@ function __gh_parse --argument-names input
         printf '%s: use a GitHub URL to specify a ref or file\n' "$0" >&2
         return 1
     end
-    set -l tail "$(string unescape --style=url -- "$parts[3]")"; or return
+    set -l tail "$(string unescape --style=url -- "$parts[3]")"; or begin
+        printf '%s: invalid URL encoding\n' "$0" >&2
+        return 1
+    end
     if string match -qr '(^|/)\.{1,2}(/|$)' -- "$tail"
         printf '%s: URL paths cannot contain dot segments\n' "$0" >&2
         return 1
@@ -204,7 +207,10 @@ function __gh_resolve --argument-names remote tail destination cached_only
     end
     set -l exact false
     if contains -- "$route[1]" tag branch
-        git check-ref-format "$namespace/$route[2]"; or return
+        if not git check-ref-format "$namespace/$route[2]"
+            printf '%s: invalid ref name: %s\n' "$0" "$route[2]" >&2
+            return 1
+        end
         set exact true
     end
     # Commit URLs must stay unambiguous even when a ref has the same name.
@@ -411,7 +417,8 @@ function __ghe_fetch_history --argument-names destination remote
     if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
         set options --unshallow
     end
-    printf '%s\n' $refs | git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= $options --stdin -- "$remote"
+    # Keep fetch.pruneTags from adding unrelated tags to this explicit fetch.
+    printf '%s\n' $refs | git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --no-prune-tags --refmap= $options --stdin -- "$remote"
 end
 
 function __gh_cache_refs --argument-names destination cache source

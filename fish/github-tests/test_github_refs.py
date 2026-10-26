@@ -269,6 +269,22 @@ end
         for ref, oid in expected.items():
             self.assert_resolves(destination, ref, oid, offline=True)
 
+    def test_fork_comparison_does_not_fetch_or_prune_unrelated_tags(self):
+        destination = self.clone()
+        self.git(destination, "tag", "local-only")
+        self.git(destination, "config", "fetch.prune", "true")
+        self.git(destination, "config", "fetch.pruneTags", "true")
+        fork = self.new_repository("alice")
+        self.commit(fork, "older tagged commit\n")
+        self.git(fork, "tag", "fork-only")
+        tip = self.commit(fork, "newer branch commit\n")
+        self.urls["https://github.com/alice/project.git"] = fork.as_uri()
+
+        self.assert_resolves(destination, "alice:main", tip)
+
+        self.assertEqual(self.git(destination, "tag").stdout, "local-only\n")
+        self.assertEqual(self.oid(destination, "refs/tags/local-only"), self.initial)
+
     def test_empty_fork_does_not_resolve_an_unrelated_local_commit_prefix(self):
         destination = self.clone()
         empty_fork = self.new_repository("empty-fork")
