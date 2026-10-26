@@ -83,6 +83,7 @@ endfunction
 nnoremap <silent> <nowait> <M-CR> :call <SID>exit_and_run()<CR>
 inoremap <silent> <nowait> <M-CR> <Esc>:call <SID>exit_and_run()<CR>
 function! s:fzf_file_widget() abort
+	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		call writefile(['<M-v>'], $AQSNOW_FISH_RENDEZVOUS)
 	endif
