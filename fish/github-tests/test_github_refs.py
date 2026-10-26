@@ -54,7 +54,10 @@ os.execve(real_git, [real_git, *rewrites, *args], os.environ)
 '''
 
 
-@unittest.skipUnless(GIT and FISH, "Git and Fish must be installed")
+if not GIT or not FISH:
+    raise RuntimeError("Fish and Git are required to run the regression suite")
+
+
 class GithubRefsTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="dotfiles-github-refs-")
@@ -79,6 +82,7 @@ class GithubRefsTests(unittest.TestCase):
             GITHUB_TEST_REAL_GIT=GIT,
             GITHUB_TEST_TRANSPORT_LOG=str(self.log),
             XDG_CONFIG_HOME=str(self.directory / "config"),
+            XDG_DATA_HOME=str(self.directory / "data"),
             XDG_CACHE_HOME=str(self.directory / "cache"),
             LC_ALL="C",
         )

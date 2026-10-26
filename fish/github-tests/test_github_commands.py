@@ -23,7 +23,10 @@ def fish_quote(value):
     return "'" + str(value).replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
-@unittest.skipUnless(FISH and GIT, "fish and Git are required")
+if not FISH or not GIT:
+    raise RuntimeError("Fish and Git are required to run the regression suite")
+
+
 class GitHubCommandsTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="github-commands-")
@@ -46,6 +49,7 @@ class GitHubCommandsTests(unittest.TestCase):
         self.env.update(
             XDG_CONFIG_HOME=str(self.root / "config"),
             XDG_DATA_HOME=str(self.root / "data"),
+            XDG_CACHE_HOME=str(self.root / "cache"),
             GIT_CONFIG_GLOBAL=os.devnull,
             GIT_CONFIG_NOSYSTEM="1",
             GIT_TERMINAL_PROMPT="0",
