@@ -132,4 +132,4 @@ augroup aqsnow
 	autocmd BufReadPost * call <SID>restore_cursor()
 augroup END
 nnoremap <silent> <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
-nnoremap <silent> <nowait> <Leader>= :keeppatterns %s/^+//<CR>
+nnoremap <silent> <nowait> <Leader>= :keeppatterns %s/^\s*+//<CR>

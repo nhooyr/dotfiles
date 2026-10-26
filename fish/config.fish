@@ -133,7 +133,7 @@ function fzf_accept_and_run --argument-names widget
     set -lx FZF_CTRL_R_OPTS "$FZF_CTRL_R_OPTS $option"
     set -lx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS $option"
 
-    "$widget"
+    $widget
 
     if test -s "$AQSNOW_FISH_RENDEZVOUS"
         rm "$AQSNOW_FISH_RENDEZVOUS"
@@ -162,6 +162,9 @@ bind -M default -m insert enter aqsnow_exec
 bind -M insert enter aqsnow_exec
 if not set -q AQSNOW_FISH_RENDEZVOUS
     set -gx AQSNOW_FISH_RENDEZVOUS "$(mktemp -d)/rendezvous"
+    function aqsnow_rm_rendezvous --on-event fish_exit
+        rm -rf "$AQSNOW_FISH_RENDEZVOUS"
+    end
 end
 function aqsnow_maybe_push --on-event fish_postexec
     set -l result "$status"
