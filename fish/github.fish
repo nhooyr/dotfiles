@@ -417,6 +417,9 @@ function __ghe_compare_ref --argument-names remote destination ref
     if test "$ref" = HEAD; and test "$explicit" = false
         set sources HEAD
     end
+    set -l github (__gh_parse "$remote"); or return
+    set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
+    set -l cache "refs/gh/compare/$identity"
     set -l candidates
     if test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
         set candidates "$ref"
@@ -438,10 +441,12 @@ function __ghe_compare_ref --argument-names remote destination ref
                     test -z "$tracking"; or set -a candidates "$tracking"
                 end
             end
+            set -a candidates "$cache/$sources[1]"
         end
         for source in $sources
-            if test "$qualified" = false; and string match -q 'refs/tags/*' -- "$source"
-                set -a candidates "$source"
+            if string match -q 'refs/tags/*' -- "$source"
+                test "$qualified" != false; or set -a candidates "$source"
+                set -a candidates "$cache/$source"
             end
         end
         if test "$qualified" = false; and test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
@@ -500,6 +505,9 @@ function __ghe_compare_ref --argument-names remote destination ref
         if test -z "$oid"
             printf '%s: comparison commit is missing or ambiguous: %s\n' "$0" "$ref" >&2
             return 1
+        end
+        if test "$short_oid" = false
+            git -C "$destination" update-ref --no-deref "$cache/$fetch_refs[1]" "$oid"; or return
         end
     end
     git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$oid$ancestry[1]^{commit}"

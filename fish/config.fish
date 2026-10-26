@@ -163,7 +163,7 @@ bind -M insert enter aqsnow_exec
 if not set -q AQSNOW_FISH_RENDEZVOUS
     set -gx AQSNOW_FISH_RENDEZVOUS "$(mktemp -d)/rendezvous"
     function aqsnow_rm_rendezvous --on-event fish_exit
-        rm -rf "$AQSNOW_FISH_RENDEZVOUS"
+        rm -rf "$(path dirname "$AQSNOW_FISH_RENDEZVOUS")"
     end
 end
 function aqsnow_maybe_push --on-event fish_postexec
