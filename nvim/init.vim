@@ -104,6 +104,12 @@ nmap <silent> <nowait> <C-_> gcc
 imap <silent> <nowait> <C-_> <C-o>gcc
 vmap <silent> <nowait> <C-_> gc
 
+nnoremap <silent> <nowait> c "_c
+vnoremap <silent> <nowait> c "_c
+nnoremap <silent> <nowait> C "_C
+vnoremap <silent> <nowait> C "_C
+nnoremap <silent> <nowait> <BS><BS> "_dd
+
 set completeopt=menuone,noselect,popup
 set complete+=U,k,kspell,s,i,d,f,o
 inoremap <silent><expr> <C-Space> pumvisible() ? "\<C-n>" :
