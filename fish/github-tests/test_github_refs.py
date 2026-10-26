@@ -488,6 +488,20 @@ end
         self.assertNotEqual(local_tag.returncode, 0, local_tag.stdout)
         self.assertEqual(local_tag.stdout, "")
 
+    def test_fork_prefix_of_a_fetched_annotated_tag_resolves_to_its_commit(self):
+        destination = self.clone()
+        fork = self.new_repository("tagged-fork")
+        self.urls["https://github.com/alice/project.git"] = fork.as_uri()
+        wanted = self.commit(fork, "tagged fork commit\n")
+        self.git(fork, "tag", "--annotate", "--message", "Fork release", "release")
+        tag = self.oid(fork, "refs/tags/release")
+        self.assertNotEqual(wanted[:10], tag[:10])
+
+        result = self.compare_ref(destination, "alice:" + tag[:10])
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), wanted)
+
     def test_fork_prefix_rejects_two_colliding_fetched_commits(self):
         destination = self.clone()
         fork = self.new_repository("ambiguous-fork")
