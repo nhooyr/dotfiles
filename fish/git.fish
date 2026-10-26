@@ -10,6 +10,7 @@ abbrali gacm ga '&&' gcm
 abbrali gacmp ga '&&' gcmp
 abbrali gcma git commit --amend
 abbrali gcmap gcma '&&' gpf
+abbrali gacmap ga '&&' gcmap
 abbrali gcmf git commit --fixup
 abbrali grb git rebase
 abbrali grbi git rebase -i
@@ -73,8 +74,11 @@ end
 alias gh='NO_COLOR=1 command gh'
 abbrali ghf gh repo fork --remote
 function ghc --wraps 'gh repo create'
-    gh repo create --private $argv; or return
-    ghe $argv[-1]
+    set -l url "$(gh repo create --private $argv)"
+    set -l code "$status"
+    printf '%s\n' "$url"
+    test "$code" -eq 0; or return "$code"
+    ghe "$url"
 end
 abbrali ghch gh pr checkout
 abbrali ghpr gh pr create --web --fill-verbose
