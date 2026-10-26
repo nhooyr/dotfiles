@@ -50,7 +50,12 @@ noremap ; :
 noremap : ;
 inoremap <silent> <nowait> <M-BS> <C-w>
 cnoremap <nowait> <M-BS> <C-w>
-nnoremap <silent> <nowait> <Leader>s :source $MYVIMRC<CR>
+function! s:write_myvimrc() abort
+	if expand('%:p') ==# $MYVIMRC
+		write
+	endif
+endfunction
+nnoremap <silent> <nowait> <Leader>s :call <SID>write_myvimrc() \| source $MYVIMRC<CR>
 
 nnoremap <silent> <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <nowait> <Leader>r :%s##
@@ -103,10 +108,11 @@ command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 			   \ diffthis | wincmd p | diffthis
 
 function! s:restore_cursor() abort
-	if undotree().seq_last == 0
+	" Commit messages, rebase todos, and diffs start at the top.
+	if &filetype =~# 'commit' || &filetype ==# 'gitrebase' || &diff
 		return
 	endif
-	if line("'\"") > 1
+	if line("'\"") > 0
 		if line("'\"") <= line("$")
 			normal! g`"
 		else
@@ -115,6 +121,8 @@ function! s:restore_cursor() abort
 	endif
 endfunction
 
+" Detect filetypes before BufReadPost below, so restore_cursor sees them.
+filetype plugin indent on
 augroup aqsnow
 	autocmd!
 	autocmd FocusLost * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | stopinsert | endif
@@ -124,4 +132,4 @@ augroup aqsnow
 	autocmd BufReadPost * call <SID>restore_cursor()
 augroup END
 nnoremap <silent> <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
-nnoremap <silent> <nowait> <Leader>+ :keeppatterns %s/^+\(\s\)/\1/<CR>
+nnoremap <silent> <nowait> <Leader>= :keeppatterns %s/^+//<CR>
