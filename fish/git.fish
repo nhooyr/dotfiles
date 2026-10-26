@@ -8,7 +8,7 @@ abbrali gcm git commit
 abbrali gcp gcm "&&" gp
 abbrali gacp ga "&&" gcp
 abbrali gcma git commit --amend
-abbrali gcpa gcma "&&" gp
+abbrali gcpa gcma "&&" gpf
 abbrali gcmf git commit --fixup
 abbrali grb git rebase
 abbrali grbi git rebase -i
