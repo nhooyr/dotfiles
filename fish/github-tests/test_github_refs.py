@@ -482,6 +482,12 @@ end
         self.assertNotEqual(unqualified.returncode, 0, unqualified.stdout)
         self.assertEqual(unqualified.stdout, "")
 
+        # Only the local tag matches this longer prefix, not any fork object.
+        self.assertNotEqual(wanted[:10], tag[:10])
+        local_tag = self.compare_ref(destination, "alice:" + tag[:10])
+        self.assertNotEqual(local_tag.returncode, 0, local_tag.stdout)
+        self.assertEqual(local_tag.stdout, "")
+
     def test_fork_prefix_rejects_two_colliding_fetched_commits(self):
         destination = self.clone()
         fork = self.new_repository("ambiguous-fork")

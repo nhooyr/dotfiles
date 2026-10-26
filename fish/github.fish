@@ -394,6 +394,14 @@ function __gh_commit_prefix --argument-names destination prefix fetch_head
             # Resolve fork-qualified prefixes only among the fetched histories.
             set -l outside (string replace -r '^([^\t]+)\t.*$' '^$1' < "$fetch_head" | git --no-lazy-fetch -C "$destination" rev-list --max-count=1 "$commit" --stdin); or return
             test -z "$outside"; or continue
+            if test "$object" != "$commit"
+                # A local tag may peel to a fetched commit without belonging to the fork.
+                set -l fetched (
+                    string split -f 1 \t < "$fetch_head" | git --no-lazy-fetch -C "$destination" rev-list --objects --no-object-names --max-count=0 --filter=tree:0 --stdin | string match -- "$object"
+                    test "$pipestatus[2]" -eq 0
+                ); or return
+                test -n "$fetched"; or continue
+            end
             contains -- "$commit" $matches; and continue
         end
         set -a matches "$commit"
