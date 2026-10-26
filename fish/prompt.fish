@@ -11,7 +11,7 @@ function fish_prompt
 
     if test "$last_status" -ne 0
         set -l status_color "$(set_color brred)"
-        set prompt_status ' ['"$status_color$last_status$normal"']'
+        set prompt_status " =$status_color$last_status$normal"
         set suffix "$status_color$suffix"
     end
 
