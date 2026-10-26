@@ -75,6 +75,10 @@ end
 alias gh='NO_COLOR=1 command gh'
 abbrali ghf gh repo fork --remote
 function ghc --wraps 'gh repo create'
+    switch "$argv"
+        case --help -h
+        gh repo create --help
+    end
     set -l url $(gh repo create --private $argv); or return
     printf '%s\n' $url[1]
     ghe $url[1]
