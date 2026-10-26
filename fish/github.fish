@@ -871,6 +871,33 @@ function ghe --argument-names input
     __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line" "$column" "$end_line" "$end_column"
 end
 
+function __gho_pull_request --argument-names destination branch remote ref
+    # A branch can pull from upstream while pushing its PR head to a fork.
+    set -l push (git -C "$destination" for-each-ref --format='%(push:remotename)%0a%(push:remoteref)%0a%(push)' -- "$branch"); or return
+    if test -z "$push[2]"; and test -n "$push[3]"
+        set -l refspecs (__gh_refspecs "$push[1]" "$destination")
+        set push[2] (__gh_source_ref "$push[3]" $refspecs)
+    end
+    if test -n "$push[1]"; and string match -q 'refs/heads/*' -- "$push[2]"
+        set remote "$(git -C "$destination" remote get-url --push -- "$push[1]")"; or return
+        set ref (string replace -r '^refs/heads/' '' -- "$push[2]")
+    end
+    test -n "$ref"; or return 1
+    set -l github (__gh_parse "$remote"); or return
+    set -l repository (string split / -- "$github[1]")
+    gh api --hostname github.com graphql \
+        -f owner="$repository[1]" -f repo="$repository[2]" -f ref="refs/heads/$ref" \
+        -f query='query($owner: String!, $repo: String!, $ref: String!) {
+            repository(owner: $owner, name: $repo) {
+                ref(qualifiedName: $ref) {
+                    associatedPullRequests(states: OPEN, first: 1, orderBy: {field: CREATED_AT, direction: DESC}) {
+                        nodes { url }
+                    }
+                }
+            }
+        }' --jq '.data.repository.ref.associatedPullRequests.nodes[0].url // empty'
+end
+
 function __gho_url --argument-names target
     # Resolving a page must not fetch missing objects from a partial clone.
     set -lx GIT_NO_LAZY_FETCH 1
@@ -961,6 +988,13 @@ function __gho_url --argument-names target
             set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
             set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
             test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
+        end
+        if test -z "$repo_path"
+            set -l pull_request "$(__gho_pull_request "$dir" "$branch" "$remote_url" "$ref" 2>/dev/null)"
+            if test "$status" -eq 0; and test -n "$pull_request"
+                printf '%s\n' "$pull_request"
+                return
+            end
         end
         if git -C "$dir" symbolic-ref -q "$remote_ref" >/dev/null 2>&1
             printf '%s: cached remote branch is symbolic: %s\n' "$0" "$remote_ref" >&2
