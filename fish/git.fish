@@ -74,5 +74,6 @@ function ghc --wraps 'gh repo create'
     gh repo create --private $argv; or return
     ghe $argv[-1]
 end
-abbrali ghpc gh pr checkout
-abbrali ghpr gh pr create --fill-verbose --web
+abbrali ghch gh pr checkout
+abbrali ghpr gh pr create --web --fill-verbose
+abbrali ghopr gh pr view --web
