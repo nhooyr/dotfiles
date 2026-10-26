@@ -71,7 +71,6 @@ nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
 function! s:exit_and_run() abort
-	update
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != "")
 			call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
@@ -85,7 +84,7 @@ function! s:fzf_file_widget() abort
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		call writefile(['<M-v>'], $AQSNOW_FISH_RENDEZVOUS)
 	endif
-	qall
+	xit
 endfunction
 nnoremap <silent> <nowait> <M-v> :call <SID>fzf_file_widget()<CR>
 inoremap <silent> <nowait> <M-v> <Esc>:call <SID>fzf_file_widget()<CR>
