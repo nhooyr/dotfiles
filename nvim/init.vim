@@ -121,15 +121,13 @@ function! s:restore_cursor() abort
 	endif
 endfunction
 
-" Detect filetypes before BufReadPost below, so restore_cursor sees them.
-filetype plugin indent on
 augroup aqsnow
 	autocmd!
 	autocmd FocusLost * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | stopinsert | endif
 	autocmd filetype gitcommit setlocal tabstop=4 textwidth=120
 	autocmd filetype html,jsonc,fish setlocal expandtab
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
-	autocmd BufReadPost * call <SID>restore_cursor()
+	autocmd filetype * call <SID>restore_cursor()
 augroup END
 nnoremap <silent> <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
 nnoremap <silent> <nowait> <Leader>= :keeppatterns %s/^+//<CR>

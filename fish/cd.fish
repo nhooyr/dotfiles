@@ -18,7 +18,7 @@ function cdc --wraps cd --argument-names dir
     end
 end
 function cdf --wraps cd --argument-names file
-    cd -- "$(path dirname -- "$file")"
+    CDPATH=. cd -- "$(path dirname -- "$file")"
 end
 function up
     if not set -q argv[1]
