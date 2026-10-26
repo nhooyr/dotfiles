@@ -878,12 +878,19 @@ function __gho_pull_request --argument-names destination branch remote ref
         set -l refspecs (__gh_refspecs "$push[1]" "$destination")
         set push[2] (__gh_source_ref "$push[3]" $refspecs)
     end
+    if test -n "$push[1]"; and test -z "$push[2]"; and test "$push[1]" != "$remote"
+        set -l mode "$(git -C "$destination" config --get push.default)"
+        if contains -- "$mode" '' simple current matching
+            set push[2] "$branch"
+        end
+    end
     if test -n "$push[1]"; and string match -q 'refs/heads/*' -- "$push[2]"
-        set remote "$(git -C "$destination" remote get-url --push -- "$push[1]")"; or return
+        set remote "$push[1]"
         set ref (string replace -r '^refs/heads/' '' -- "$push[2]")
     end
     test -n "$ref"; or return 1
-    set -l github (__gh_parse "$remote"); or return
+    set -l url "$(git -C "$destination" remote get-url --push -- "$remote")"; or return
+    set -l github (__gh_parse "$url"); or return
     set -l repository (string split / -- "$github[1]")
     gh api --hostname github.com graphql \
         -f owner="$repository[1]" -f repo="$repository[2]" -f ref="refs/heads/$ref" \
@@ -981,6 +988,7 @@ function __gho_url --argument-names target
     end
 
     set -l refspecs (__gh_refspecs "$remote" "$dir")
+    set -l default_ref "$(__gh_default_ref "$remote" "$dir" $refspecs)"
     if test -n "$branch"
         # %(upstream) prints abbreviated fetch destinations as written.
         test -z "$remote_ref"; or set remote_ref (__gh_local_ref "$remote_ref")
@@ -989,8 +997,11 @@ function __gho_url --argument-names target
             set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
             test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
         end
-        if test -z "$repo_path"
-            set -l pull_request "$(__gho_pull_request "$dir" "$branch" "$remote_url" "$ref" 2>/dev/null)"
+        # A feature branch may track the default branch, so compare its local name too.
+        if test -z "$repo_path"; and begin
+                test "$default_ref" != "$remote_ref"; or test "$branch" != "refs/heads/$ref"
+            end
+            set -l pull_request "$(__gho_pull_request "$dir" "$branch" "$remote" "$ref" 2>/dev/null)"
             if test "$status" -eq 0; and test -n "$pull_request"
                 printf '%s\n' "$pull_request"
                 return
@@ -1033,7 +1044,6 @@ function __gho_url --argument-names target
     end
 
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
-    set -l default_ref "$(__gh_default_ref "$remote" "$dir" $refspecs)"
     if test -z "$default_ref"; and test -z "$repo_path"; and test -n "$branch"
         # set-head assumes refs/remotes; cache the advertised HEAD using its mapping.
         set -l advertised (git -C "$dir" ls-remote --symref -- "$remote" HEAD 2>/dev/null)

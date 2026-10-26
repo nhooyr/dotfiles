@@ -303,6 +303,8 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/main/a%20b%23.txt"])
 
     def test_gho_root_opens_the_active_pull_request_for_its_head(self):
+        self.git(self.checkout, "update-ref", "refs/remotes/origin/topic", self.initial)
+        self.git(self.checkout, "switch", "--quiet", "--create", "topic", "--track", "origin/topic")
         pull_request = self.url + "/pull/42"
         self.env["GH_REPO"] = "unrelated/repository"
         for arguments, cwd in (((), self.checkout), ((self.checkout,), self.sandbox)):
@@ -314,13 +316,40 @@ elif kind not in ("editor", "open", "dispatch"):
                 self.assertEqual(self.calls("open")[0]["args"], [pull_request])
                 self.assertEqual(result.directory, str(cwd))
                 query = self.calls("gh")[0]["args"]
-                for field in ("owner=test-owner", "repo=test-repo", "ref=refs/heads/main"):
+                for field in ("owner=test-owner", "repo=test-repo", "ref=refs/heads/topic"):
                     self.assertIn(field, query)
                 self.assertEqual(query[:4], ["api", "--hostname", "github.com", "graphql"])
                 self.assertIn("states: OPEN", next(arg for arg in query if arg.startswith("query=")))
                 self.assertEqual(self.network_calls(), [])
 
-    def test_gho_pull_request_uses_a_renamed_branches_upstream_in_a_fork(self):
+    def test_gho_default_branch_opens_the_homepage_without_checking_for_a_pull_request(self):
+        for offline in (False, True):
+            with self.subTest(offline=offline):
+                result = self.run_fish(
+                    "gho", cwd=self.checkout, offline=offline,
+                    responses={"graphql": self.url + "/pull/42"},
+                )
+
+                self.assert_success(result)
+                self.assertEqual(self.calls("open")[0]["args"], [self.url])
+                self.assertEqual(self.calls("gh"), [])
+                self.assertEqual(self.network_calls(), [])
+
+    def test_gho_custom_default_branch_uses_its_cached_fetch_mapping_without_network(self):
+        self.git(self.checkout, "branch", "--move", "trunk")
+        self.git(self.checkout, "config", "branch.trunk.merge", "refs/heads/trunk")
+        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch", "+refs/heads/*:refs/cache/origin/*")
+        self.git(self.checkout, "update-ref", "refs/cache/origin/trunk", self.initial)
+        self.git(self.checkout, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk")
+
+        result = self.run_fish("gho", cwd=self.checkout, responses={"graphql": self.url + "/pull/42"})
+
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url])
+        self.assertEqual(self.calls("gh"), [])
+        self.assertEqual(self.network_calls(), [])
+
+    def test_gho_pull_request_uses_the_upstream_of_a_renamed_fork_branch(self):
         self.git(self.checkout, "branch", "--move", "local-name")
         self.git(self.checkout, "remote", "set-url", "origin", "https://github.com/alice/test-repo.git")
         pull_request = self.url + "/pull/43"
@@ -349,14 +378,32 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertIn("ref=refs/heads/topic", query)
         self.assertEqual(self.network_calls(), [])
 
+    def test_gho_pull_request_uses_the_push_url_and_explicit_push_ref(self):
+        self.git(self.checkout, "update-ref", "refs/remotes/origin/local-topic", self.initial)
+        self.git(self.checkout, "switch", "--quiet", "--create", "local-topic", "--track", "origin/local-topic")
+        self.git(self.checkout, "remote", "set-url", "--push", "origin", "https://github.com/alice/test-repo.git")
+        self.git(self.checkout, "config", "remote.origin.push", "refs/heads/local-topic:refs/heads/topic")
+        pull_request = self.url + "/pull/45"
+
+        result = self.run_fish("gho", cwd=self.checkout, responses={"graphql": pull_request})
+
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [pull_request])
+        query = self.calls("gh")[0]["args"]
+        self.assertIn("owner=alice", query)
+        self.assertIn("ref=refs/heads/topic", query)
+
     def test_gho_pull_request_lookup_falls_back_without_an_open_pr_or_api_access(self):
+        self.git(self.checkout, "update-ref", "refs/remotes/origin/topic", self.initial)
+        self.git(self.checkout, "switch", "--quiet", "--create", "topic", "--track", "origin/topic")
         for response, offline in (("", False), (None, False), (self.url + "/pull/42", True)):
             with self.subTest(response=response, offline=offline):
                 responses = {} if response is None else {"graphql": response}
                 result = self.run_fish("gho", cwd=self.checkout, responses=responses, offline=offline)
 
                 self.assert_success(result)
-                self.assertEqual(self.calls("open")[0]["args"], [self.url])
+                self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/topic"])
+                self.assertEqual(len(self.calls("gh")), 1)
                 self.assertEqual(result.stderr, "")
 
     def test_gho_pull_request_lookup_skips_files_directories_and_detached_head(self):
