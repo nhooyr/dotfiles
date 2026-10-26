@@ -47,8 +47,8 @@ command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell
 let g:termfeatures = get(g:, 'termfeatures', {})
 let g:termfeatures.osc52 = v:false
 
-noremap ; :
-noremap : ;
+noremap <silent> <nowait> ; :
+noremap <silent> <nowait> : ;
 inoremap <silent> <nowait> <M-BS> <C-w>
 cnoremap <nowait> <M-BS> <C-w>
 function! s:update_myvimrc() abort
@@ -61,7 +61,8 @@ nnoremap <silent> <nowait> <Leader>s :call <SID>update_myvimrc() \| source $MYVI
 nnoremap <silent> <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <nowait> <Leader>r :%s##
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
-vnoremap // "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
+vnoremap <nowait> // "zyk/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
+vmap <nowait> <Leader>r //<Leader>r
 
 nnoremap <silent> <nowait> q :quit<CR>
 nnoremap <silent> <nowait> <M-w> :wall<CR>
@@ -71,23 +72,23 @@ inoremap <silent> <nowait> <C-q> <Esc>:qall!<CR>
 nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
-function! s:exit_and_run() abort
+function! s:quit_and_run() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != "")
 			call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
 		endif
 	endif
-	xit
+	qall
 endfunction
-nnoremap <silent> <nowait> <M-CR> :call <SID>exit_and_run()<CR>
-inoremap <silent> <nowait> <M-CR> <Esc>:call <SID>exit_and_run()<CR>
+nnoremap <silent> <nowait> <M-CR> :call <SID>quit_and_run()<CR>
+inoremap <silent> <nowait> <M-CR> <Esc>:call <SID>quit_and_run()<CR>
 function! s:fzf_file_widget() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		call writefile(['<M-v>'], $AQSNOW_FISH_RENDEZVOUS)
 	endif
-	xit
+	qall
 endfunction
 nnoremap <silent> <nowait> <M-v> :call <SID>fzf_file_widget()<CR>
 inoremap <silent> <nowait> <M-v> <Esc>:call <SID>fzf_file_widget()<CR>
