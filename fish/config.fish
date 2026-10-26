@@ -159,11 +159,12 @@ function aqsnow_edit_command
     end
     rm "$AQSNOW_FISH_RENDEZVOUS"
 end
+bind -m insert enter aqsnow_exec
+bind -M insert enter aqsnow_exec
 for mode in default insert
-    bind -M "$mode" enter aqsnow_exec
-    bind -M "$mode" ctrl-r fzf_accept_and_run fzf-history-widget
-    bind -M "$mode" ctrl-t fzf_accept_and_run fzf-file-widget
-    bind -M "$mode" alt-v fzf_accept_and_run fzf-file-widget
+    bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
+    bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
+    bind -M "$mode" alt-v 'fzf_accept_and_run fzf-file-widget'
     bind -M "$mode" alt-e aqsnow_edit_command
     bind -M "$mode" alt-enter accept-autosuggestion execute
 end
