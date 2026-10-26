@@ -104,7 +104,7 @@ highlight PmenuMatch cterm=underline
 highlight PmenuSel cterm=italic,underline,bold
 highlight PmenuMatchSel cterm=italic,bold
 
-command Mkdirp write ++p
+command -bar -bang -nargs=0 Mkdirp write<bang> ++p
 nnoremap <silent> <nowait> <Leader>m :Mkdirp<CR>
 
 command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
