@@ -67,11 +67,11 @@ nnoremap <silent> <nowait> <C-q> :quitall!<CR>
 inoremap <silent> <nowait> <C-q> <Esc>:quitall!<CR>
 nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
-let s:command_file = get(s:, 'command_file', fnamemodify(argv(0), ':p'))
+let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
 function! s:exit_and_run() abort
 	update
-	if $AQSNOW_FISH_RENDEZVOUS != ""
-		if expand('%:p') ==# s:command_file && (line('$') > 1 || getline(1) != "")
+	if !empty($AQSNOW_FISH_RENDEZVOUS)
+		if expand('%:p') ==# s:orig_file && (line('$') > 1 || getline(1) != "")
 			call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
 		endif
 	endif

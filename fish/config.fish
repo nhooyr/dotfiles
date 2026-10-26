@@ -164,14 +164,16 @@ bind -M default -m insert enter aqsnow_exec aqsnow_maybe_push
 bind -M insert enter aqsnow_exec aqsnow_maybe_push
 set -gx AQSNOW_FISH_RENDEZVOUS "$(mktemp)"
 function aqsnow_maybe_push
-    set -l result $status
+    set -l result "$status"
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
     # Consume the signal, including when the commit failed.
     printf '' >"$AQSNOW_FISH_RENDEZVOUS"; or return
     test "$result" -eq 0; or return
 
-    commandline --replace 'git push'
-    commandline -f execute
+    if string match -q 'git commit*' "$(history --max 1)"
+        commandline --replace 'git push'
+        commandline -f execute
+    end
 end
 bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
