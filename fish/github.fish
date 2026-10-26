@@ -295,8 +295,14 @@ function __ghe_tracking_ref --argument-names name destination ref
         printf '%s: branch is excluded by the remote fetch configuration: %s/%s\n' "$0" "$name" "$ref" >&2
         return 1
     else if test -z "$tracking_ref"
-        # Single-branch clones need a mapping for future fetches, too.
         set tracking_ref "refs/remotes/$name/$ref"
+    end
+    if git -C "$destination" symbolic-ref -q "$tracking_ref" >/dev/null 2>&1
+        printf '%s: fetch destination is symbolic: %s\n' "$0" "$tracking_ref" >&2
+        return 1
+    end
+    if test "$mapping_status" -ne 0
+        # Single-branch clones need a mapping for future fetches, too.
         git -C "$destination" remote set-branches --add -- "$name" "$ref"; or return
     end
     # A known commit can still be missing its remote-tracking ref.
@@ -325,7 +331,9 @@ function __ghe_pull --argument-names destination remote
             printf '%s: upstream remote does not match the requested repository: %s\n' "$0" "$upstream[1]" >&2
             return 1
         end
-        # Skip mappings into the current branch; merge updates its worktree safely.
+        # Skip mappings into checked-out branches; merge updates this worktree safely.
+        set -l checked_out_refs (git -C "$destination" for-each-ref \
+            --format='%(if)%(worktreepath)%(then)%(refname)%(end)' refs/heads); or return
         set -l refspecs (__gh_refspecs "$upstream[1]" "$destination")
         set -l refmap_options
         set -l skipped false
@@ -339,7 +347,7 @@ function __ghe_pull --argument-names destination remote
                 end
                 if test -n "$target"
                     set -l canonical "$(git -C "$destination" rev-parse --symbolic-full-name "$target" 2>/dev/null)"
-                    if test "$target" = "$branch"; or test "$canonical" = "$branch"
+                    if contains -- "$target" $checked_out_refs; or contains -- "$canonical" $checked_out_refs
                         set skipped true
                         continue
                     end
@@ -356,6 +364,17 @@ function __ghe_pull --argument-names destination remote
         set merge_ref FETCH_HEAD
     end
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
+end
+
+function __gh_commit_prefix --argument-names destination prefix
+    # Resolve abbreviated object IDs without consulting local ref names.
+    set -l matches
+    for object in (git --no-lazy-fetch -C "$destination" rev-parse --disambiguate="$prefix")
+        set -l commit "$(git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$object^{commit}" 2>/dev/null)"
+        test -z "$commit"; or set -a matches "$commit"
+    end
+    test (count $matches) -eq 1; or return 1
+    printf '%s\n' "$matches[1]"
 end
 
 function __ghe_compare_ref --argument-names remote destination ref
@@ -420,12 +439,15 @@ function __ghe_compare_ref --argument-names remote destination ref
                 set -a candidates "$source"
             end
         end
-        if test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
+        if test "$qualified" = false; and test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
             set -a candidates "$ref"
         end
     end
     set -l oid
     for candidate in $candidates
+        if test "$candidate" = "$ref"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
+            set candidate (__gh_commit_prefix "$destination" "$ref"); or continue
+        end
         set oid "$(git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$candidate^{commit}" 2>/dev/null)"
         test -z "$oid"; or break
     end
@@ -446,8 +468,8 @@ function __ghe_compare_ref --argument-names remote destination ref
                 test (count $fetch_refs) -eq 0; or break
             end
             if test (count $fetch_refs) -eq 0; and test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
-                # Git cannot fetch an abbreviated OID; fetch branch histories to resolve it.
-                set advertised (git -C "$destination" ls-remote --heads -- "$query"); or return
+                # Git cannot fetch an abbreviated OID; fetch advertised histories to resolve it.
+                set advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$query"); or return
                 for line in $advertised
                     set -a fetch_refs (string split \t -- "$line")[2]
                 end
@@ -463,9 +485,11 @@ function __ghe_compare_ref --argument-names remote destination ref
             set fetch_options --unshallow
         end
         git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= $fetch_options -- "$query" $fetch_refs; or return
-        set -l revision FETCH_HEAD
-        test "$short_oid" = false; or set revision "$ref"
-        set oid "$(git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$revision^{commit}" 2>/dev/null)"
+        if test "$short_oid" = true
+            set oid (__gh_commit_prefix "$destination" "$ref")
+        else
+            set oid "$(git --no-lazy-fetch -C "$destination" rev-parse --verify 'FETCH_HEAD^{commit}' 2>/dev/null)"
+        end
         if test -z "$oid"
             printf '%s: comparison commit is missing or ambiguous: %s\n' "$0" "$ref" >&2
             return 1
@@ -529,6 +553,9 @@ function __ghe_url_route --argument-names repository tail
                 case '*'
                     if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$ref"
                         printf 'oid/%s\n' "$ref"
+                    else
+                        # Older archive links name the branch or tag without refs/.
+                        printf 'tree/%s\n' "$ref"
                     end
             end
         case 'tag/*' 'branch/*' 'tagfile/*' 'branchfile/*' 'oid/*'
@@ -542,20 +569,21 @@ end
 function __ghe_pull_request --argument-names remote destination number
     string match -qr '^[1-9][0-9]*$' -- "$number"; or return 1
     set -l name (__ghe_remote "$remote" "$destination"); or return
-    set -l cache "refs/gh/pull/$name/$number/head"
-    set -l revision ''
-    # A symbolic cache must never turn a PR fetch into a local branch update.
-    if not git -C "$destination" symbolic-ref -q "$cache" >/dev/null 2>&1
-        set revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$cache^{commit}" 2>/dev/null)"
-    end
-    if test -z "$revision"
-        git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= -- "$name" "refs/pull/$number/head"; or return
-        set revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify 'FETCH_HEAD^{commit}')"; or return
+    # Remote names can change or be reused for another repository.
+    set -l github (__gh_parse "$remote"); or return
+    set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
+    set -l cache "refs/gh/pull/$identity/$number/head"
+    # Pull requests move, so refresh the head before falling back to the cache.
+    if git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= -- "$name" "refs/pull/$number/head"
+        set -l revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify 'FETCH_HEAD^{commit}')"; or return
         git -C "$destination" update-ref --no-deref "$cache" "$revision"; or return
+        printf '%s\n' "$revision"
+        return
     end
-    printf '%s\n' "$revision"
+    # A symbolic cache would read some other ref, so only a direct one counts.
+    git -C "$destination" symbolic-ref -q "$cache" >/dev/null 2>&1; and return 1
+    git --no-lazy-fetch -C "$destination" rev-parse --verify "$cache^{commit}" 2>/dev/null
 end
-
 
 function __ghe_checkout --argument-names remote destination tail line column end_line end_column
     if test -e "$destination/.git"
@@ -600,17 +628,30 @@ function __ghe_checkout --argument-names remote destination tail line column end
         test (count $resolved) -eq 4; or return 1
         set -l full_ref "$resolved[1]"
         set -l ref "$resolved[2]"
-        set -l revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$resolved[4]^{commit}" 2>/dev/null)"
+        set -l revision ''
+        if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$full_ref"
+            set revision (__gh_commit_prefix "$destination" "$full_ref")
+        else
+            set revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$resolved[4]^{commit}" 2>/dev/null)"
+        end
         if test -z "$revision"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$full_ref"
             set -l name (__ghe_remote "$remote" "$destination"); or return
             set -l fetch_options
             if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
                 set fetch_options --unshallow
             end
-            git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= $fetch_options -- "$name" "+refs/heads/*:refs/remotes/$name/*"; or return
-            set revision "$(git --no-lazy-fetch -C "$destination" rev-parse --verify "$full_ref^{commit}" 2>/dev/null)"
+            # Git cannot fetch an abbreviated OID; fetch advertised histories.
+            set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$name"); or return
+            set -l fetch_refs
+            for line in $advertised
+                set -a fetch_refs (string split \t -- "$line")[2]
+            end
+            if set -q fetch_refs[1]
+                printf '%s\n' $fetch_refs | git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= $fetch_options --stdin -- "$name"; or return
+            end
+            set revision (__gh_commit_prefix "$destination" "$full_ref")
             if test -z "$revision"
-                printf '%s: commit %s is missing or ambiguous after fetching remote branches; use a longer or full commit hash\n' "$0" "$ref" >&2
+                printf '%s: commit %s is missing or ambiguous after fetching remote refs; use a longer or full commit hash\n' "$0" "$ref" >&2
                 return 1
             end
         end
