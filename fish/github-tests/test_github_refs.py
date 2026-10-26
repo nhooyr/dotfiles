@@ -496,6 +496,20 @@ end
         self.assertEqual(result.stdout.strip(), "https://github.com/example/project/blob/" + upstream + "/file.txt")
         self.assertEqual(self.transport, [])
 
+    def test_stale_default_head_alias_uses_current_fetch_mapping_offline(self):
+        destination = self.clone()
+        newer = self.commit(self.source, "new mapped default\n")
+        self.git(destination, "config", "--replace-all", "remote.origin.fetch", "+refs/heads/*:refs/cache/origin/*")
+        self.git(destination, "fetch", "--quiet", "--no-tags", "--refmap=", self.source.as_uri(),
+                 "+refs/heads/main:refs/cache/origin/main")
+
+        result = self.fish('gho "$argv[1]"', destination, offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), "https://github.com/example/project")
+        self.assertEqual(self.transport, [])
+        self.assert_resolves(destination, "HEAD", newer, offline=True)
+
     def test_gho_uses_commit_link_when_a_longer_tag_changes_url_interpretation(self):
         self.commit(self.source, "nested file\n", "directory/file.txt")
         self.git(self.source, "tag", "main/directory")

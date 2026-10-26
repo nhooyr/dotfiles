@@ -176,7 +176,7 @@ function __gh_default_ref --argument-names name destination
     set -l specs $argv[3..]
     set -l source (__gh_source_ref "$ref" $specs)
     if test -z "$source"; and string match -q "refs/remotes/$name/*" -- "$ref"
-        set source "refs/heads/$(string replace -- "refs/remotes/$name/" '' -- "$ref")"
+        set source "refs/heads/$(string replace -- "refs/remotes/$name/" '' "$ref")"
     end
     set -l mapped (__gh_tracking_ref "$source" $specs)
     test -z "$mapped"; or set ref "$mapped"
