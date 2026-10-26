@@ -26,13 +26,13 @@ function up
         return
     end
 
-    string match --quiet --regex -- "$argv" '' 2>/dev/null
+    string match -qr -- "$argv" '' 2>/dev/null
     if test "$status" -eq 2
         echo "up: invalid regex" >&2
         return 1
     end
 
-    if string match --quiet --regex '^[0-9]+$' -- "$argv"
+    if string match -qr '^[0-9]+$' -- "$argv"
         set -l up (string repeat --count "$argv" ../); or return
         cd "./$up"
         return
@@ -41,7 +41,7 @@ function up
     set -l dir "$PWD"
     while test "$dir" != /
         set dir "$(path dirname -- "$dir")"
-        if string match --quiet --regex -- "$argv" "$(path basename -- "$dir")"
+        if string match -qr -- "$argv" "$(path basename -- "$dir")"
             cd -- "$dir"
             return
         end
