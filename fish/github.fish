@@ -403,7 +403,10 @@ function __ghe_fetch_history --argument-names destination remote
             set -a refs (string split \t -- "$line")[2]
         end
     end
-    set -q refs[1]; or return 0
+    if not set -q refs[1]
+        printf '%s: remote advertises no branch or tag histories\n' "$0" >&2
+        return 1
+    end
     set -l options
     if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
         set options --unshallow
@@ -714,15 +717,6 @@ function __ghe_checkout --argument-names remote destination tail line column end
         else
             set revision "$(__gh_commit "$destination" "$resolved[4]")"
         end
-        if test -z "$revision"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$full_ref"
-            set -l name (__ghe_remote "$remote" "$destination"); or return
-            __ghe_fetch_history "$destination" "$name"; or return
-            set revision (__gh_commit_prefix "$destination" "$full_ref")
-            if test -z "$revision"
-                printf '%s: commit %s is missing or ambiguous after fetching remote refs; use a longer or full commit hash\n' "$0" "$ref" >&2
-                return 1
-            end
-        end
         set requested_path "$resolved[3]"
         set -l current_branch "$(git -C "$destination" symbolic-ref -q HEAD)"
         set -l branch_ref ''
@@ -765,8 +759,17 @@ function __ghe_checkout --argument-names remote destination tail line column end
                     # Cached tags and commits need no refresh.
                     if test -z "$revision"
                         set -l fetch_remote (__ghe_remote "$remote" "$destination"); or return
-                        git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$fetch_remote" "$full_ref"; or return
-                        set revision FETCH_HEAD
+                        if string match -qr '^[0-9a-fA-F]{4,39}$' -- "$full_ref"
+                            __ghe_fetch_history "$destination" "$fetch_remote"; or return
+                            set revision (__gh_commit_prefix "$destination" "$full_ref")
+                            if test -z "$revision"
+                                printf '%s: commit %s is missing or ambiguous after fetching remote refs; use a longer or full commit hash\n' "$0" "$ref" >&2
+                                return 1
+                            end
+                        else
+                            git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$fetch_remote" "$full_ref"; or return
+                            set revision FETCH_HEAD
+                        end
                     end
                     # A commit expression prevents choosing a branch named after the OID.
                     set switch_args --detach "$revision^{commit}"

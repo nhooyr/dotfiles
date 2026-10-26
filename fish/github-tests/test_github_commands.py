@@ -379,6 +379,21 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "main")
         self.assertEqual((self.checkout / "file.txt").read_text(), "keep local edit\n")
 
+    def test_dirty_existing_path_does_not_fetch_uncached_short_commit(self):
+        revision = self.seed_commit({"file.txt": "upstream change\n"})
+        self.assertNotEqual(self.git(self.checkout, "cat-file", "-e", revision, check=False).returncode, 0)
+        (self.checkout / "file.txt").write_text("keep local edit\n")
+
+        result = self.run_fish("ghe", self.url + "/blob/" + revision[:10] + "/file.txt")
+
+        self.assert_success(result)
+        self.assertIn("keeping the current ref", result.stderr)
+        self.assertEqual(self.head(), self.initial)
+        self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "main")
+        self.assertEqual((self.checkout / "file.txt").read_text(), "keep local edit\n")
+        self.assertEqual(self.calls("editor")[0]["args"], [str(self.checkout / "file.txt")])
+        self.assertNotIn("fetch", [call["command"] for call in self.network_calls()])
+
     def test_ignored_file_is_not_overwritten_by_switch(self):
         self.seed_commit({"ignored.txt": "tracked upstream\n"}, branch="feature", create=True)
         self.fetch_fixture()
