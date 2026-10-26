@@ -160,10 +160,12 @@ function aqsnow_edit_command
 end
 bind -M default -m insert enter aqsnow_exec
 bind -M insert enter aqsnow_exec
-if not set -q AQSNOW_FISH_RENDEZVOUS
-    set -gx AQSNOW_FISH_RENDEZVOUS "$(mktemp -d)/rendezvous"
-    function aqsnow_rm_rendezvous --on-event fish_exit
-        rm -rf "$(path dirname "$AQSNOW_FISH_RENDEZVOUS")"
+if not set -q __aqsnow_rendezvous_dir
+    set -l rendezvous_dir "$(mktemp -d)"; or return
+    set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
+    set -gx AQSNOW_FISH_RENDEZVOUS "$rendezvous_dir/rendezvous"
+    function aqsnow_rm_rendezvous --on-event fish_exit --inherit-variable rendezvous_dir
+        rm -rf -- "$rendezvous_dir"
     end
 end
 function aqsnow_maybe_push --on-event fish_postexec

@@ -441,12 +441,12 @@ function __ghe_compare_ref --argument-names remote destination ref
                     test -z "$tracking"; or set -a candidates "$tracking"
                 end
             end
-            set -a candidates "$cache/$sources[1]"
+            set -a candidates "$cache/$(string escape --style=var -- "$sources[1]")" "$cache/$sources[1]"
         end
         for source in $sources
             if string match -q 'refs/tags/*' -- "$source"
                 test "$qualified" != false; or set -a candidates "$source"
-                set -a candidates "$cache/$source"
+                set -a candidates "$cache/$(string escape --style=var -- "$source")" "$cache/$source"
             end
         end
         if test "$qualified" = false; and test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
@@ -507,7 +507,7 @@ function __ghe_compare_ref --argument-names remote destination ref
             return 1
         end
         if test "$short_oid" = false
-            git -C "$destination" update-ref --no-deref "$cache/$fetch_refs[1]" "$oid"; or return
+            git -C "$destination" update-ref --no-deref "$cache/$(string escape --style=var -- "$fetch_refs[1]")" "$oid"; or return
         end
     end
     git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$oid$ancestry[1]^{commit}"
