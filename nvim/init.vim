@@ -50,12 +50,12 @@ noremap ; :
 noremap : ;
 inoremap <silent> <nowait> <M-BS> <C-w>
 cnoremap <nowait> <M-BS> <C-w>
-function! s:write_myvimrc() abort
+function! s:update_myvimrc() abort
 	if expand('%:p') ==# $MYVIMRC
-		write
+		update
 	endif
 endfunction
-nnoremap <silent> <nowait> <Leader>s :call <SID>write_myvimrc() \| source $MYVIMRC<CR>
+nnoremap <silent> <nowait> <Leader>s :call <SID>update_myvimrc() \| source $MYVIMRC<CR>
 
 nnoremap <silent> <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <nowait> <Leader>r :%s##
@@ -69,7 +69,7 @@ nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
 let s:command_file = get(s:, 'command_file', fnamemodify(argv(0), ':p'))
 function! s:exit_and_run() abort
-	write
+	update
 	if $AQSNOW_FISH_RENDEZVOUS != ""
 		if expand('%:p') ==# s:command_file && (line('$') > 1 || getline(1) != "")
 			call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
