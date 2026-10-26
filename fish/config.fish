@@ -97,6 +97,7 @@ abbrali mkd 'cd "$(mktemp -d)"'
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
 abbrali socks ssh -ND1080
+abbrali py python3
 
 function colors
     for name in black red green yellow blue magenta cyan white
