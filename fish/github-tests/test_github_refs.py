@@ -116,6 +116,12 @@ class GithubRefsTests(unittest.TestCase):
         self.git(repository, "commit", "--quiet", "--message", "Fixture change")
         return self.oid(repository)
 
+    def empty_root_commit(self, repository, message):
+        tree = self.git(repository, "hash-object", "-w", "-t", "tree", "--stdin", input="").stdout.strip()
+        identity = "Dotfiles tests <dotfiles-tests@example.invalid> 0 +0000"
+        text = "tree %s\nauthor %s\ncommitter %s\n\n%s\n" % (tree, identity, identity, message)
+        return self.git(repository, "hash-object", "-w", "-t", "commit", "--stdin", input=text).stdout.strip()
+
     def oid(self, repository, ref="HEAD"):
         return self.git(repository, "rev-parse", "--verify", ref).stdout.strip()
 
@@ -432,6 +438,66 @@ end
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertEqual(result.stdout, "")
         self.assertEqual(self.oid(destination), local)
+
+    def test_fork_prefix_ignores_a_colliding_unrelated_local_commit(self):
+        destination = self.clone()
+        fork = self.new_repository("colliding-fork")
+        self.urls["https://github.com/alice/project.git"] = fork.as_uri()
+        # Fixed messages give distinct SHA-1 commits sharing the prefix f546c.
+        wanted = self.empty_root_commit(fork, "fork 34609")
+        unrelated = self.empty_root_commit(destination, "local 50")
+        self.assertNotEqual(wanted, unrelated)
+        self.assertEqual(wanted[:5], unrelated[:5])
+        self.git(fork, "update-ref", "refs/heads/main", wanted)
+        self.git(destination, "update-ref", "refs/heads/unrelated", unrelated)
+
+        result = self.compare_ref(destination, "alice:" + wanted[:5])
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), wanted)
+        self.assertEqual(self.oid(destination), self.initial)
+
+    def test_fork_prefix_counts_a_commit_and_its_colliding_tag_once(self):
+        destination = self.clone()
+        fork = self.new_repository("tag-collision-fork")
+        self.urls["https://github.com/alice/project.git"] = fork.as_uri()
+        wanted = self.empty_root_commit(fork, "fork 34609")
+        self.empty_root_commit(destination, "fork 34609")
+        self.git(fork, "update-ref", "refs/heads/main", wanted)
+        # This fixed tag hashes to f546ce43..., sharing the commit's prefix.
+        tag_text = (
+            "object %s\ntype commit\ntag local-only\n"
+            "tagger Dotfiles tests <dotfiles-tests@example.invalid> 0 +0000\n\nlocal 573300\n"
+        ) % wanted
+        tag = self.git(destination, "hash-object", "-w", "-t", "tag", "--stdin", input=tag_text).stdout.strip()
+        self.assertNotEqual(wanted, tag)
+        self.assertEqual(wanted[:5], tag[:5])
+        self.git(destination, "update-ref", "refs/tags/local-only", tag)
+
+        result = self.compare_ref(destination, "alice:" + wanted[:5])
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), wanted)
+        unqualified = self.compare_ref(destination, wanted[:5])
+        self.assertNotEqual(unqualified.returncode, 0, unqualified.stdout)
+        self.assertEqual(unqualified.stdout, "")
+
+    def test_fork_prefix_rejects_two_colliding_fetched_commits(self):
+        destination = self.clone()
+        fork = self.new_repository("ambiguous-fork")
+        self.urls["https://github.com/alice/project.git"] = fork.as_uri()
+        first = self.empty_root_commit(fork, "fork 34609")
+        second = self.empty_root_commit(fork, "local 50")
+        self.assertNotEqual(first, second)
+        self.assertEqual(first[:5], second[:5])
+        self.git(fork, "update-ref", "refs/heads/main", first)
+        self.git(fork, "update-ref", "refs/heads/other", second)
+
+        result = self.compare_ref(destination, "alice:" + first[:5])
+
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(self.oid(destination), self.initial)
 
     def test_symbolic_comparison_cache_cannot_redirect_to_unrelated_branch(self):
         self.git(self.source, "branch", "topic")

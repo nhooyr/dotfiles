@@ -394,6 +394,7 @@ function __gh_commit_prefix --argument-names destination prefix fetch_head
             # Resolve fork-qualified prefixes only among the fetched histories.
             set -l outside (string replace -r '^([^\t]+)\t.*$' '^$1' < "$fetch_head" | git --no-lazy-fetch -C "$destination" rev-list --max-count=1 "$commit" --stdin); or return
             test -z "$outside"; or continue
+            contains -- "$commit" $matches; and continue
         end
         set -a matches "$commit"
     end
