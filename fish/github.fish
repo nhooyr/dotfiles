@@ -246,13 +246,8 @@ function __gh_resolve --argument-names remote tail destination cached_only
             set -l query_remote "$remote"
             set -q remotes[1]; and set query_remote "$remotes[1]"
             set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$query_remote"); or return
-            set refs
-            set revisions
-            for line in $advertised
-                set -l fields (string split \t -- "$line")
-                set -a refs "$fields[2]"
-                set -a revisions "$fields[1]"
-            end
+            set refs (string split -f 2 \t -- $advertised)
+            set revisions (string split -f 1 \t -- $advertised)
             set prefixes $source_prefixes
         end
 
@@ -405,9 +400,7 @@ function __ghe_fetch_history --argument-names destination remote
     set -l refs $argv[3..]
     if not set -q refs[1]
         set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$remote"); or return
-        for line in $advertised
-            set -a refs (string split \t -- "$line")[2]
-        end
+        set refs (string split -f 2 \t -- $advertised)
     end
     if not set -q refs[1]
         printf '%s: remote advertises no branch or tag histories\n' "$0" >&2
@@ -422,9 +415,13 @@ function __ghe_fetch_history --argument-names destination remote
 end
 
 function __gh_cache_refs --argument-names destination cache source
-    # Fixed-length current key, followed by the two previous cache formats.
+    # Request names only have hashed keys; old formats stored canonical sources.
     set -l key "$(printf '%s\n' "$source" | git -C "$destination" hash-object --stdin)"; or return
-    printf '%s\n' "$cache/by-ref/$key" "$cache/$(string escape --style=var -- "$source")" "$cache/$source"
+    printf '%s\n' "$cache/by-ref/$key"
+    switch "$source"
+        case HEAD 'refs/heads/*' 'refs/tags/*'
+            printf '%s\n' "$cache/$(string escape --style=var -- "$source")" "$cache/$source"
+    end
 end
 
 function __ghe_compare_ref --argument-names remote destination ref prefer_cached
@@ -514,7 +511,7 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
         set fetch_status "$status"
         if contains -- "$fetch_status" 0 2
             set fetch_refs
-            set -l refs (string replace -r '^[^\t]*\t' '' -- $advertised)
+            set -l refs (string split -f 2 \t -- $advertised)
             for source in $sources
                 if contains -- "$source" $refs
                     set fetch_refs "$source"
@@ -860,15 +857,9 @@ function ghe --argument-names input
     __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line" "$column" "$end_line" "$end_column"
 end
 
-function gho --argument-names target
-    set -lx 0 (status current-function)
-    # Opening a page must not fetch missing objects from a partial clone.
+function __gho_url --argument-names target
+    # Resolving a page must not fetch missing objects from a partial clone.
     set -lx GIT_NO_LAZY_FETCH 1
-    if test (count $argv) -gt 1
-        printf 'Usage: %s [path | owner/repo | github-url]\n' "$0" >&2
-        return 1
-    end
-    set -q argv[1]; or set target "$PWD"
 
     # Inspect the final entry itself, including a symlink followed by a slash.
     set -l parent "$(path dirname -- "$target")"
@@ -883,7 +874,6 @@ function gho --argument-names target
         end
         set url "$url$(string match -r '[?#].*$' -- "$target")"
         printf '%s\n' "$url"
-        open "$url"
         return
     end
 
@@ -897,7 +887,7 @@ function gho --argument-names target
         # Installed dotfile links may live outside their source repository.
         if test -L "$entry"; and test -e "$entry"
             set -l resolved "$(path resolve -- "$entry")"; or return
-            "$0" "$resolved"
+            __gho_url "$resolved"
             return $status
         end
         printf '%s: path is not in a Git checkout: %s\n' "$0" "$target" >&2
@@ -946,7 +936,6 @@ function gho --argument-names target
     set -l url "https://github.com/$github[1]"
     if test -z "$repo_path"; and test -n "$branch"; and not git -C "$dir" rev-parse --verify HEAD >/dev/null 2>&1
         printf '%s\n' "$url"
-        open "$url"
         return
     end
 
@@ -1015,7 +1004,7 @@ function gho --argument-names target
         set ref ''
     else if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
         set ref "$commit"
-    else if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"; and git -C "$dir" show-ref --verify --quiet "$remote_ref"
+    else if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"
         set ref "$commit"
     else
         set -l resolved (__gh_resolve "$remote_url" "$kind/$ref/$repo_path" "$dir" true)
@@ -1031,6 +1020,17 @@ function gho --argument-names target
     if test -n "$commit"; and test -n "$web_path"
         set url "$url/$kind/$(string escape --style=url -- "$web_path")"
     end
+    printf '%s\n' "$url"
+end
+
+function gho --argument-names target
+    set -lx 0 (status current-function)
+    if test (count $argv) -gt 1
+        printf 'Usage: %s [path | owner/repo | github-url]\n' "$0" >&2
+        return 1
+    end
+    set -q argv[1]; or set target "$PWD"
+    set -l url "$(__gho_url "$target")"; or return
     printf '%s\n' "$url"
     open "$url"
 end

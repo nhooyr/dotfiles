@@ -255,6 +255,25 @@ end
                     self.git(destination, "update-ref", "refs/gh/compare/" + identity + "/" + key, self.initial)
                     self.assert_resolves(destination, namespace + "/topic", self.initial, offline=True)
 
+    def test_comparison_request_cannot_alias_another_cache_key(self):
+        main_key = self.git(self.source, "hash-object", "--stdin", input="main\n").stdout.strip()
+        for branch in ("by-ref/" + main_key, "refs_2F_heads_2F_main"):
+            with self.subTest(branch=branch):
+                self.git(self.source, "switch", "--quiet", "--create", branch, "main")
+                tip = self.commit(self.source, branch + "\n")
+                self.git(self.source, "switch", "--quiet", "main")
+                destination = self.clone()
+                self.assert_success(self.compare_ref(destination, "main"))
+                identity = self.git(destination, "hash-object", "--stdin", input="example/project\n").stdout.strip()
+                # Keep an older escaped cache beside the current hashed main cache.
+                self.git(destination, "update-ref", "refs/gh/compare/" + identity + "/refs_2F_heads_2F_main", self.initial)
+                self.assertEqual(self.oid(destination, "refs/remotes/origin/" + branch), tip)
+
+                result = self.compare_ref(destination, branch, offline=True)
+
+                self.assert_success(result)
+                self.assertEqual(result.stdout.strip(), tip)
+
     def test_fork_comparison_caches_are_repository_specific(self):
         destination = self.empty_checkout()
         expected = {}
