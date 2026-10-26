@@ -58,6 +58,7 @@ class GitHubCommandsTests(unittest.TestCase):
             TEST_REMOTE=str(self.remote),
             TEST_GH_RESPONSES="{}",
             TEST_OFFLINE="",
+            TEST_CLONE_FAILURE="",
         )
         self._make_mocks()
         self.env["PATH"] = str(self.bin) + os.pathsep + os.environ["PATH"]
@@ -104,6 +105,11 @@ with open(os.environ["TEST_CALL_LOG"], "a") as log:
 if kind == "git":
     if command == "push":
         sys.exit("the command under test must never push")
+    if command == "clone" and os.environ.get("TEST_CLONE_FAILURE"):
+        if os.environ["TEST_CLONE_FAILURE"] == "nonempty":
+            sibling = pathlib.Path(args[-1]).parent / "unrelated.txt"
+            sibling.write_text("keep unrelated file\n")
+        sys.exit(37)
     if command in ("clone", "fetch", "ls-remote"):
         if os.environ.get("TEST_OFFLINE"):
             sys.exit("fixture is offline")
@@ -350,6 +356,47 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertEqual(result.directory, str(self.checkout))
         self.assertEqual([call["command"] for call in self.network_calls()], ["clone"])
         self.assertEqual(self.git(self.checkout, "remote", "get-url", "origin").stdout.strip(), self.url + ".git")
+
+    def assert_clone_failed_without_changing_directory(self, result):
+        self.assertEqual(result.returncode, 37, result.stderr)
+        self.assertEqual(result.directory, str(self.sandbox))
+        self.assertFalse(self.checkout.exists())
+        self.assertEqual(self.calls("editor"), [])
+        self.assertEqual([call["command"] for call in self.network_calls()], ["clone"])
+
+    def test_failed_clone_removes_new_empty_organization_directory(self):
+        shutil.rmtree(self.checkout.parent)
+        self.env["TEST_CLONE_FAILURE"] = "empty"
+        result = self.run_fish("ghe", self.url)
+        self.assert_clone_failed_without_changing_directory(result)
+        self.assertFalse(self.checkout.parent.exists())
+        self.assertTrue(self.checkout.parent.parent.is_dir())
+
+    def test_failed_clone_retains_preexisting_empty_organization_directory(self):
+        shutil.rmtree(self.checkout)
+        self.env["TEST_CLONE_FAILURE"] = "empty"
+        result = self.run_fish("ghe", self.url)
+        self.assert_clone_failed_without_changing_directory(result)
+        self.assertTrue(self.checkout.parent.is_dir())
+        self.assertEqual(list(self.checkout.parent.iterdir()), [])
+
+    def test_failed_clone_retains_new_nonempty_organization_and_clone_exit_status(self):
+        shutil.rmtree(self.checkout.parent)
+        self.env["TEST_CLONE_FAILURE"] = "nonempty"
+        result = self.run_fish("ghe", self.url)
+        self.assert_clone_failed_without_changing_directory(result)
+        self.assertEqual((self.checkout.parent / "unrelated.txt").read_text(), "keep unrelated file\n")
+        self.assertIn("rmdir:", result.stderr)
+        self.assertIn(str(self.checkout.parent), result.stderr)
+
+    def test_successful_clone_retains_new_organization_directory(self):
+        shutil.rmtree(self.checkout.parent)
+        result = self.run_fish("ghe", self.url)
+        self.assert_success(result)
+        self.assertTrue(self.checkout.parent.is_dir())
+        self.assertTrue((self.checkout / ".git").is_dir())
+        self.assertEqual(result.directory, str(self.checkout))
+        self.assertEqual([call["command"] for call in self.network_calls()], ["clone"])
 
     def test_clean_missing_path_pulls_before_opening(self):
         revision = self.seed_commit({"new-upstream.txt": "upstream\n"})

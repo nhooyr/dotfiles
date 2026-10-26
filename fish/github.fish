@@ -668,8 +668,19 @@ function __ghe_checkout --argument-names remote destination tail line column end
             return 1
         end
     else
-        mkdir -p -- "$(path dirname -- "$destination")"; or return
-        git clone -- "$remote" "$destination"; or return
+        set -l org_dir "$(path dirname -- "$destination")"
+        set -l created_org
+        if not test -d "$org_dir"
+            mkdir -p -- "$org_dir"; or return
+            set created_org "$org_dir"
+        end
+        git clone -- "$remote" "$destination"; or begin
+            set -l result "$status"
+            if set -q created_org[1]
+                rmdir -- "$created_org"
+            end
+            return "$result"
+        end
     end
 
     set -l github (__gh_parse "$remote")
