@@ -8,6 +8,7 @@ set laststatus=3
 set textwidth=120
 set foldmethod=indent
 set foldlevelstart=999
+set shortmess+=I
 
 set backup
 set backupdir-=.
@@ -20,8 +21,6 @@ nnoremap <nowait> <Leader>u :Undotree<CR>
 set notermguicolors
 colorscheme default
 highlight MatchParen cterm=italic,bold,underline
-highlight Search cterm=italic
-highlight CurSearch cterm=italic
 highlight Comment ctermfg=8 cterm=italic
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
