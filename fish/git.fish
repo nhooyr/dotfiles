@@ -74,11 +74,9 @@ end
 alias gh='NO_COLOR=1 command gh'
 abbrali ghf gh repo fork --remote
 function ghc --wraps 'gh repo create'
-    set -l url "$(gh repo create --private $argv)"
-    set -l code "$status"
-    printf '%s\n' "$url"
-    test "$code" -eq 0; or return "$code"
-    ghe "$url"
+    set -l url $(gh repo create --private $argv); or return
+    printf '%s\n' $url[1]
+    ghe $url[1]
 end
 abbrali ghch gh pr checkout
 abbrali ghpr gh pr create --web --fill-verbose
