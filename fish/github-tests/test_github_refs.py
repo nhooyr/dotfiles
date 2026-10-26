@@ -68,9 +68,6 @@ class GithubRefsTests(unittest.TestCase):
         wrapper = self.bin / "git"
         wrapper.write_text(GIT_WRAPPER, encoding="utf-8")
         wrapper.chmod(0o755)
-        gh = self.bin / "gh"
-        gh.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-        gh.chmod(0o755)
         self.log = self.directory / "transport.jsonl"
         self.urls = {}
         self.counter = 0
