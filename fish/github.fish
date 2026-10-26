@@ -486,7 +486,7 @@ function __ghe_compare_ref --argument-names remote destination ref
         if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
             set fetch_options --unshallow
         end
-        git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= $fetch_options -- "$query" $fetch_refs; or return
+        printf '%s\n' $fetch_refs | git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= $fetch_options --stdin -- "$query"; or return
         if test "$short_oid" = true
             set oid (__gh_commit_prefix "$destination" "$ref")
         else
