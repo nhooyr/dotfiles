@@ -9,6 +9,7 @@ abbrali gcmp gcm '&&' gp
 abbrali gacm ga '&&' gcm
 abbrali gacmp ga '&&' gcmp
 abbrali gcma git commit --amend
+abbrali gacma ga '&&' gcma
 abbrali gcmap gcma '&&' gpf
 abbrali gacmap ga '&&' gcmap
 abbrali gcmf git commit --fixup

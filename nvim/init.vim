@@ -63,8 +63,10 @@ nnoremap <nowait> <Leader>r :%s##
 vnoremap // "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 
 nnoremap <silent> <nowait> q :quit<CR>
-nnoremap <silent> <nowait> <C-q> :quitall!<CR>
-inoremap <silent> <nowait> <C-q> <Esc>:quitall!<CR>
+nnoremap <silent> <nowait> <M-w> :wall<CR>
+inoremap <silent> <nowait> <M-w> <Esc>:wall<CR>
+nnoremap <silent> <nowait> <C-q> :qall!<CR>
+inoremap <silent> <nowait> <C-q> <Esc>:qall!<CR>
 nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
@@ -79,6 +81,14 @@ function! s:exit_and_run() abort
 endfunction
 nnoremap <silent> <nowait> <M-CR> :call <SID>exit_and_run()<CR>
 inoremap <silent> <nowait> <M-CR> <Esc>:call <SID>exit_and_run()<CR>
+function! s:fzf_file_widget() abort
+	if !empty($AQSNOW_FISH_RENDEZVOUS)
+		call writefile(['<M-v>'], $AQSNOW_FISH_RENDEZVOUS)
+	endif
+	qall
+endfunction
+nnoremap <silent> <nowait> <M-v> :call <SID>fzf_file_widget()<CR>
+inoremap <silent> <nowait> <M-v> <Esc>:call <SID>fzf_file_widget()<CR>
 
 inoremap <nowait> <C-a> <C-o>^
 inoremap <nowait> <C-d> <Del>

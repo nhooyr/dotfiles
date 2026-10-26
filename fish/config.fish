@@ -153,12 +153,6 @@ function aqsnow_rendezvous
     aqsnow_exec
     set -g fish_bind_mode insert
 end
-function aqsnow_edit_command
-    edit_command_buffer
-    aqsnow_rendezvous
-end
-bind -M default -m insert enter aqsnow_exec
-bind -M insert enter aqsnow_exec
 if not set -q __aqsnow_rendezvous_dir
     set -l rendezvous_dir "$(mktemp -d)"; or return
     set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
@@ -167,26 +161,33 @@ if not set -q __aqsnow_rendezvous_dir
         rm -rf -- "$rendezvous_dir"
     end
 end
-function aqsnow_maybe_push --on-event fish_postexec
-    set -l result "$status"
+function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
+    set -l code "$status"
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
+    if grep -qF '<M-v>' "$AQSNOW_FISH_RENDEZVOUS"
+        rm "$AQSNOW_FISH_RENDEZVOUS"
+        fzf_accept_and_run fzf-file-widget
+        return
+    end
     rm "$AQSNOW_FISH_RENDEZVOUS"
-    test "$result" -eq 0; or return
+    test "$code" -eq 0; or return
 
-    switch "$argv[1]"
-        case 'git commit --amend*'
+    switch "$cmdline"
+        case '*git commit --amend*'
             gpf
-        case 'git commit*'
+        case '*git commit*'
             git push
     end
 end
-bind -M default -m insert alt-enter accept-autosuggestion execute
-bind -M insert alt-enter accept-autosuggestion execute
+bind -M default -m insert enter aqsnow_exec
+bind -M insert enter aqsnow_exec
+bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
+bind -M insert alt-enter accept-autosuggestion aqsnow_exec
 for mode in default insert
     bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
     bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
     bind -M "$mode" alt-v 'fzf_accept_and_run fzf-file-widget'
-    bind -M "$mode" alt-e aqsnow_edit_command
+    bind -M "$mode" alt-e edit_command_buffer aqsnow_rendezvous
 end
 
 abbrali vsce NO_COLOR=1 command vsce
