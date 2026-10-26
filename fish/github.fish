@@ -384,12 +384,18 @@ function __ghe_pull --argument-names destination remote
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
 end
 
-function __gh_commit_prefix --argument-names destination prefix
+function __gh_commit_prefix --argument-names destination prefix fetch_head
     # Resolve abbreviated object IDs without consulting local ref names.
     set -l matches
     for object in (git --no-lazy-fetch -C "$destination" rev-parse --disambiguate="$prefix")
         set -l commit "$(__gh_commit "$destination" "$object")"
-        test -z "$commit"; or set -a matches "$commit"
+        test -n "$commit"; or continue
+        if test -n "$fetch_head"
+            # Resolve fork-qualified prefixes only among the fetched histories.
+            set -l outside (string replace -r '^([^\t]+)\t.*$' '^$1' < "$fetch_head" | git --no-lazy-fetch -C "$destination" rev-list --max-count=1 "$commit" --stdin); or return
+            test -z "$outside"; or continue
+        end
+        set -a matches "$commit"
     end
     test (count $matches) -eq 1; or return 1
     printf '%s\n' "$matches[1]"
@@ -540,13 +546,11 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
     end
 
     if not set -q fetch_refs[1]
-        set oid (__gh_commit_prefix "$destination" "$ref")
-        if test "$qualified" = true; and test -n "$oid"
-            # A fork fetch must not validate an unrelated local commit prefix.
-            set -l fetch_head "$(git -C "$destination" rev-parse --path-format=absolute --git-path FETCH_HEAD)"; or return
-            set -l outside (string replace -r '^([^\t]+)\t.*$' '^$1' < "$fetch_head" | git --no-lazy-fetch -C "$destination" rev-list --max-count=1 "$oid" --stdin); or return
-            test -z "$outside"; or set oid ''
+        set -l fetch_head ''
+        if test "$qualified" = true
+            set fetch_head "$(git -C "$destination" rev-parse --path-format=absolute --git-path FETCH_HEAD)"; or return
         end
+        set oid (__gh_commit_prefix "$destination" "$ref" "$fetch_head")
     else
         set oid "$(__gh_commit "$destination" FETCH_HEAD)"
     end
