@@ -268,7 +268,7 @@ function __gh_resolve --argument-names remote tail destination cached_only
                 end
             end
             if test -z "$namespace"; and test "$ref" = HEAD; and test "$cached_only" != true
-                set -l revision (__ghe_compare_ref "$remote" "$destination" HEAD); or return
+                set -l revision (__ghe_compare_ref "$remote" "$destination" HEAD true); or return
                 printf '%s\n' "$revision" "$revision" (string trim -r -c / -- "$path") "$revision"
                 return 0
             end
@@ -427,7 +427,7 @@ function __gh_cache_refs --argument-names destination cache source
     printf '%s\n' "$cache/by-ref/$key" "$cache/$(string escape --style=var -- "$source")" "$cache/$source"
 end
 
-function __ghe_compare_ref --argument-names remote destination ref
+function __ghe_compare_ref --argument-names remote destination ref prefer_cached
     # Fork-qualified refs use owner:branch or owner:repository:branch.
     set -l qualified false
     if string match -q '*:*' -- "$ref"
@@ -465,11 +465,20 @@ function __ghe_compare_ref --argument-names remote destination ref
     set -l github (__gh_parse "$remote"); or return
     set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
     set -l cache "refs/gh/compare/$identity"
+    set -l cache_source "$ref"
+    test "$explicit" != true; or set cache_source "$sources[1]"
+    set -l named true
+    if test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,40}$' -- "$ref"
+        set named false
+    end
     set -l candidates
     if test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
         set candidates "$ref"
     else
+        # Remember which source an unqualified name last selected, including branch/tag changes.
+        set candidates (__gh_cache_refs "$destination" "$cache" "$cache_source"); or return
         if test "$kind" = heads
+            set -a candidates (__gh_cache_refs "$destination" "$cache" "$sources[1]"); or return
             for name in $remotes
                 if test "$ref" = HEAD; and test "$explicit" = false
                     set -l default_ref "$(__gh_default_ref "$name" "$destination" (__gh_refspecs "$name" "$destination"))"
@@ -479,12 +488,11 @@ function __ghe_compare_ref --argument-names remote destination ref
                     test -z "$tracking"; or set -a candidates "$tracking"
                 end
             end
-            set -a candidates (__gh_cache_refs "$destination" "$cache" "$sources[1]"); or return
         end
         for source in $sources
             if string match -q 'refs/tags/*' -- "$source"
-                test "$qualified" != false; or set -a candidates "$source"
                 set -a candidates (__gh_cache_refs "$destination" "$cache" "$source"); or return
+                test "$qualified" != false; or set -a candidates "$source"
             end
         end
         if test "$qualified" = false; and test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
@@ -499,13 +507,27 @@ function __ghe_compare_ref --argument-names remote destination ref
             set candidate (__gh_commit_prefix "$destination" "$ref"); or continue
         end
         set oid "$(__gh_commit "$destination" "$candidate")"
-        test -z "$oid"; or break
+        if test -n "$oid"
+            # A cached hex-named branch or tag still moves; a commit prefix does not.
+            string match -q 'refs/*' -- "$candidate"; and set named true
+            break
+        end
     end
-    if test -z "$oid"
-        set -l fetch_refs "$ref"
-        set -l short_oid false
-        if test "$explicit" = true; or not string match -qr '^(HEAD|[0-9a-fA-F]{40})$' -- "$ref"
-            set -l advertised (git -C "$destination" ls-remote --refs -- "$query" $sources); or return
+    if test -n "$oid"
+        if test "$prefer_cached" = true; or test "$named" = false
+            __gh_commit "$destination" "$oid$ancestry[1]"
+            return $status
+        end
+    end
+
+    set -l fetch_refs "$ref"
+    set -l short_oid false
+    set -l fetch_status 0
+    if test "$explicit" = true; or not string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
+        # Status 2 means the remote answered but the requested name is absent.
+        set -l advertised (git -C "$destination" ls-remote --exit-code -- "$query" $sources)
+        set fetch_status "$status"
+        if contains -- "$fetch_status" 0 2
             set fetch_refs
             set -l refs (string replace -r '^[^\t]*\t' '' -- $advertised)
             for source in $sources
@@ -514,16 +536,25 @@ function __ghe_compare_ref --argument-names remote destination ref
                     break
                 end
             end
-            if test (count $fetch_refs) -eq 0; and test "$explicit" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
+            if test (count $fetch_refs) -eq 0; and test "$named" = false
                 # Git cannot fetch an abbreviated OID; fetch advertised histories to resolve it.
                 set short_oid true
+                set fetch_status 0
             end
             if test (count $fetch_refs) -eq 0; and test "$short_oid" = false
                 printf '%s: no branch, tag, or commit matches comparison ref: %s\n' "$0" "$ref" >&2
                 return 1
             end
         end
-        __ghe_fetch_history "$destination" "$query" $fetch_refs; or return
+    end
+    if test "$fetch_status" -eq 0
+        __ghe_fetch_history "$destination" "$query" $fetch_refs
+        set fetch_status "$status"
+    end
+    if test "$fetch_status" -ne 0
+        test -n "$oid"; or return "$fetch_status"
+        printf '%s: could not refresh comparison ref; using cached commit: %s\n' "$0" "$ref" >&2
+    else
         if test "$short_oid" = true
             set oid (__gh_commit_prefix "$destination" "$ref")
             if test "$qualified" = true; and test -n "$oid"
@@ -540,8 +571,12 @@ function __ghe_compare_ref --argument-names remote destination ref
             return 1
         end
         if test "$short_oid" = false
-            set -l cache_refs (__gh_cache_refs "$destination" "$cache" "$fetch_refs[1]"); or return
-            git -C "$destination" update-ref --no-deref "$cache_refs[1]" "$oid"; or return
+            set -l cache_sources "$cache_source"
+            contains -- "$fetch_refs[1]" $cache_sources; or set -a cache_sources "$fetch_refs[1]"
+            for source in $cache_sources
+                set -l cache_refs (__gh_cache_refs "$destination" "$cache" "$source"); or return
+                git -C "$destination" update-ref --no-deref "$cache_refs[1]" "$oid"; or return
+            end
         end
     end
     __gh_commit "$destination" "$oid$ancestry[1]"

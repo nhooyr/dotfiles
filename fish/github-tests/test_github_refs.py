@@ -186,7 +186,8 @@ end
         self.assert_success(result)
         self.assertEqual(result.stdout.strip(), oid)
         if offline:
-            self.assertEqual(self.transport, [], "Cached resolution attempted transport")
+            self.assertTrue(self.transport, "Named comparison did not try to refresh")
+            self.assertIn("cached", result.stderr)
 
     def test_remote_matching_handles_filters_multiple_urls_and_rewrites(self):
         other_url = "https://github.com/other/project.git"
@@ -285,6 +286,108 @@ end
         self.assertEqual(self.git(destination, "tag").stdout, "local-only\n")
         self.assertEqual(self.oid(destination, "refs/tags/local-only"), self.initial)
 
+    def test_named_comparisons_refresh_and_keep_latest_snapshot_offline(self):
+        for qualified in (False, True):
+            with self.subTest(qualified=qualified):
+                self.git(self.source, "switch", "--quiet", "main")
+                repository = self.source
+                ref = "topic"
+                if qualified:
+                    repository = self.new_repository("alice")
+                    self.git(repository, "fetch", "--quiet", self.source.as_uri(), "main")
+                    self.git(repository, "reset", "--hard", "FETCH_HEAD")
+                    self.urls["https://github.com/alice/project.git"] = repository.as_uri()
+                    ref = "alice:topic"
+                self.git(repository, "branch", "topic")
+                destination = self.clone()
+                self.git(repository, "switch", "--quiet", "topic")
+
+                for contents in ("first remote version\n", "second remote version\n"):
+                    tip = self.commit(repository, contents)
+                    expected = self.git(repository, "diff", self.initial + "..." + tip, "--").stdout
+                    for offline in (False, True):
+                        result = self.fish(
+                            '__ghe_compare "$argv[1]" "$argv[2]" "$argv[3]"',
+                            URL, destination, "main..." + ref, offline=offline,
+                        )
+                        self.assert_success(result)
+                        self.assertEqual(result.stdout, expected)
+                        self.assertTrue(self.transport)
+                        if offline:
+                            self.assertIn("cached", result.stderr)
+                        else:
+                            self.assertTrue(any(call["command"] == "fetch" for call in self.transport))
+                        self.assertEqual(self.oid(destination), self.initial)
+                        self.assertEqual((destination / "file.txt").read_text(), "initial\n")
+                        self.assertEqual(self.git(destination, "status", "--porcelain").stdout, "")
+                self.git(repository, "switch", "--quiet", "main")
+
+    def test_moved_tag_and_branch_to_tag_comparison_keep_latest_snapshot(self):
+        self.git(self.source, "tag", "release")
+        self.git(self.source, "branch", "release")
+        destination = self.clone()
+        newer = self.commit(self.source, "retagged version\n")
+        self.git(self.source, "tag", "--force", "release", newer)
+
+        self.assert_resolves(destination, "tags/release", newer)
+        self.assert_resolves(destination, "tags/release", newer, offline=True)
+
+        self.assert_resolves(destination, "release", self.initial)
+        self.git(self.source, "branch", "--delete", "release")
+        self.assert_resolves(destination, "release", newer)
+        self.assert_resolves(destination, "release", newer, offline=True)
+
+        self.assertEqual(self.oid(destination, "refs/tags/release"), self.initial)
+        self.assertEqual(self.oid(destination), self.initial)
+
+    def test_deleted_comparison_ref_does_not_fall_back_to_stale_cache(self):
+        for namespace, ref in (("heads", "topic"), ("tags", "tags/topic")):
+            with self.subTest(namespace=namespace):
+                source_ref = "refs/" + namespace + "/topic"
+                self.git(self.source, "update-ref", source_ref, self.initial)
+                destination = self.clone()
+                self.assert_resolves(destination, ref, self.initial)
+                self.git(self.source, "update-ref", "-d", source_ref)
+
+                result = self.compare_ref(destination, ref)
+
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("no branch, tag, or commit matches", result.stderr)
+                self.assertTrue(any(call["command"] == "ls-remote" for call in self.transport))
+                self.assertEqual(self.oid(destination), self.initial)
+
+    def test_hex_named_comparison_branch_is_refreshed(self):
+        self.git(self.source, "branch", "2026")
+        destination = self.clone()
+        newer = self.commit(self.source, "new hexadecimal branch version\n")
+        self.git(self.source, "branch", "--force", "2026", newer)
+
+        self.assert_resolves(destination, "2026", newer)
+        self.assertTrue(any(call["command"] == "fetch" for call in self.transport))
+        self.assert_resolves(destination, "2026", newer, offline=True)
+
+    def test_cached_comparison_commit_ids_do_not_attempt_transport(self):
+        destination = self.clone()
+        for ref in (self.initial, self.initial[:10]):
+            for offline in (False, True):
+                with self.subTest(ref=ref, offline=offline):
+                    result = self.compare_ref(destination, ref, offline=offline)
+                    self.assert_success(result)
+                    self.assertEqual(result.stdout.strip(), self.initial)
+                    self.assertEqual(self.transport, [])
+
+    def test_head_file_open_uses_cached_default_commit_without_transport(self):
+        destination = self.clone()
+        self.commit(self.source, "new remote default version\n")
+
+        result = self.checkout(destination, "blob/HEAD/file.txt", offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(self.oid(destination), self.initial)
+        self.assertEqual((destination / "file.txt").read_text(), "initial\n")
+        self.assertEqual(self.transport, [])
+
     def test_empty_fork_does_not_resolve_an_unrelated_local_commit_prefix(self):
         destination = self.clone()
         empty_fork = self.new_repository("empty-fork")
@@ -360,7 +463,8 @@ end
                 )
                 self.assert_success(result)
                 self.assertEqual(result.stdout, expected)
-                self.assertEqual(self.transport, [])
+                self.assertTrue(self.transport)
+                self.assertIn("cached", result.stderr)
                 self.assertEqual(self.oid(destination), main)
                 self.assertEqual(self.git(destination, "status", "--porcelain").stdout, before)
 
