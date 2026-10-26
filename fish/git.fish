@@ -19,6 +19,7 @@ abbrali gd git diff
 abbrali grt git reset
 abbrali grth git reset --hard
 abbrali gdc git diff --cached
+abbrali gdcs git diff --cached --stat
 abbrali grm git rm
 abbrali grmr git rm -r
 abbrali grmf git rm -f
