@@ -138,6 +138,7 @@ function fzf_accept_and_run --argument-names widget
 
     if test -s "$AQSNOW_FISH_RENDEZVOUS"
         aqsnow_exec
+        set -g fish_bind_mode insert
     end
     rm "$AQSNOW_FISH_RENDEZVOUS"
 end
@@ -156,6 +157,7 @@ function aqsnow_edit_command
     edit_command_buffer
     if test -s "$AQSNOW_FISH_RENDEZVOUS"
         aqsnow_exec
+        set -g fish_bind_mode insert
     end
     rm "$AQSNOW_FISH_RENDEZVOUS"
 end
