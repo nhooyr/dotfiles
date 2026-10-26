@@ -1,4 +1,6 @@
-eval $(/opt/homebrew/bin/brew shellenv)
+if not set -q HOMEBREW_PREFIX
+    /opt/homebrew/bin/brew shellenv fish | source
+end
 set -gx GOPATH ~/.local/share/go
 fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     ~/.local/bin \
