@@ -163,7 +163,7 @@ if not set -q __aqsnow_rendezvous_dir
     end
 end
 function aqsnow_nvim_fzf_file_widget
-    if ! grep -qF '<M-v>' "$AQSNOW_FISH_RENDEZVOUS"
+    if ! echo '<M-v>' | cmp -s - "$AQSNOW_FISH_RENDEZVOUS"
         return 1
     end
     rm "$AQSNOW_FISH_RENDEZVOUS"
