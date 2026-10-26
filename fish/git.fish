@@ -47,6 +47,7 @@ abbrali gds git diff stash@{0}
 abbrali gbl git blame
 abbrali gshort git rev-parse --short
 abbrali gch git checkout
+abbrali gchb git checkout -b
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
@@ -74,4 +75,4 @@ function ghc --wraps 'gh repo create'
     ghe $argv[-1]
 end
 abbrali ghpc gh pr checkout
-abbrali ghpr gh pr create --draft --fill-verbose --editor --web
+abbrali ghpr gh pr create --fill-verbose --web
