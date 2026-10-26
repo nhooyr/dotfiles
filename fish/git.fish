@@ -2,6 +2,7 @@ abbrali g git
 abbrali gsh git show
 abbrali ga git add -A
 abbrali gap git add -p
+abbrali gai git add -i
 abbrali gp git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
