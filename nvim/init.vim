@@ -71,7 +71,7 @@ let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
 function! s:exit_and_run() abort
 	update
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
-		if expand('%:p') ==# s:orig_file && (line('$') > 1 || getline(1) != "")
+		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != "")
 			call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
 		endif
 	endif
@@ -121,7 +121,7 @@ function! s:restore_cursor() abort
 	endif
 endfunction
 
-" For restore_cursor below.
+" For BufReadPost restore_cursor.
 filetype plugin indent on
 augroup aqsnow
 	autocmd!

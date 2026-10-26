@@ -22,6 +22,7 @@ abbr -a --command sudo vi nvim
 abbrali s sudo
 alias sudo='sudo --preserve-env=SSH_TTY'
 abbr -a --position anywhere pbp '"$(pbpaste)"'
+abbrali pbp pbpaste
 fish_hybrid_key_bindings
 set -g fish_color_error normal --italic
 set -g fish_color_quote green
@@ -126,8 +127,6 @@ hl+:reverse:italic,pointer:magenta:bold"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
 function fzf_accept_and_run --argument-names widget
-    set -l AQSNOW_FISH_RENDEZVOUS "$(mktemp)"
-
     set -l action "alt-enter:execute-silent(printf %s {+} > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
     set -l option "--bind=$(string escape -- "$action")"
 
@@ -137,10 +136,10 @@ function fzf_accept_and_run --argument-names widget
     "$widget"
 
     if test -s "$AQSNOW_FISH_RENDEZVOUS"
+        rm "$AQSNOW_FISH_RENDEZVOUS"
         aqsnow_exec
         set -g fish_bind_mode insert
     end
-    rm "$AQSNOW_FISH_RENDEZVOUS"
 end
 function aqsnow_exec
     set -l cmd $(commandline --tokens-expanded)
@@ -152,27 +151,26 @@ function aqsnow_exec
     commandline -f execute
 end
 function aqsnow_edit_command
-    set -lx AQSNOW_FISH_RENDEZVOUS "$(mktemp)"
     edit_command_buffer
     if test -s "$AQSNOW_FISH_RENDEZVOUS"
+        rm "$AQSNOW_FISH_RENDEZVOUS"
         aqsnow_exec
         set -g fish_bind_mode insert
     end
-    rm "$AQSNOW_FISH_RENDEZVOUS"
 end
-bind -M default -m insert enter aqsnow_exec aqsnow_maybe_push
-bind -M insert enter aqsnow_exec aqsnow_maybe_push
-set -gx AQSNOW_FISH_RENDEZVOUS "$(mktemp)"
-function aqsnow_maybe_push
+bind -M default -m insert enter aqsnow_exec
+bind -M insert enter aqsnow_exec
+if not set -q AQSNOW_FISH_RENDEZVOUS
+    set -gx AQSNOW_FISH_RENDEZVOUS "$(mktemp -d)/rendezvous"
+end
+function aqsnow_maybe_push --on-event fish_postexec
     set -l result "$status"
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
-    # Consume the signal, including when the commit failed.
-    printf '' >"$AQSNOW_FISH_RENDEZVOUS"; or return
+    rm "$AQSNOW_FISH_RENDEZVOUS"
     test "$result" -eq 0; or return
 
-    if string match -q 'git commit*' "$(history --max 1)"
-        commandline --replace 'git push'
-        commandline -f execute
+    if string match -q 'git commit*' -- "$argv[1]"
+        git push
     end
 end
 bind -M default -m insert alt-enter accept-autosuggestion execute
