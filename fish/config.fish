@@ -149,6 +149,7 @@ function aqsnow_exec
 end
 function aqsnow_rendezvous
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
+    aqsnow_nvim_fzf_file_widget; and return
     rm "$AQSNOW_FISH_RENDEZVOUS"
     aqsnow_exec
     set -g fish_bind_mode insert
@@ -161,14 +162,17 @@ if not set -q __aqsnow_rendezvous_dir
         rm -rf -- "$rendezvous_dir"
     end
 end
+function aqsnow_nvim_fzf_file_widget
+    if ! grep -qF '<M-v>' "$AQSNOW_FISH_RENDEZVOUS"
+        return 1
+    end
+    rm "$AQSNOW_FISH_RENDEZVOUS"
+    fzf_accept_and_run fzf-file-widget
+end
 function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     set -l code "$status"
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
-    if grep -qF '<M-v>' "$AQSNOW_FISH_RENDEZVOUS"
-        rm "$AQSNOW_FISH_RENDEZVOUS"
-        fzf_accept_and_run fzf-file-widget
-        return
-    end
+    aqsnow_nvim_fzf_file_widget; and return
     rm "$AQSNOW_FISH_RENDEZVOUS"
     test "$code" -eq 0; or return
 
