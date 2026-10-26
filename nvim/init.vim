@@ -82,7 +82,7 @@ inoremap <silent> <nowait> <M-CR> <Esc>:call <SID>exit_and_run()<CR>
 
 inoremap <nowait> <C-a> <C-o>^
 inoremap <nowait> <C-d> <Del>
-inoremap <nowait> <C-k> <C-o>D
+inoremap <nowait> <C-k> <C-\><C-o>D
 cnoremap <nowait> <C-a> <Home>
 cnoremap <nowait> <C-d> <Del>
 
