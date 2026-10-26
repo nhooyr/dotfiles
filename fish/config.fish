@@ -21,7 +21,9 @@ function abbrali --argument-names name
     alias "$name" "$argv[2..]"
 end
 abbrali vi nvim
+abbrali vim nvim
 abbr -a --command sudo vi nvim
+abbr -a --command sudo vim nvim
 abbrali s sudo
 alias sudo='sudo --preserve-env=SSH_TTY'
 abbr -a --position anywhere '$pbp' '"$(pbpaste)"'
@@ -98,6 +100,15 @@ abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
 abbrali socks ssh -ND1080
 abbrali py python3
+abbrali tm tmux
+abbrali tml tmux list-sessions
+abbrali tma tmux attach-session
+abbrali tmq tmux kill-server
+abbrali tmk tmux kill-server
+abbr -a --command tmux l list-sessions
+abbr -a --command tmux a attach-session
+abbr -a --command tmux k kill-server
+abbr -a --command tmux q kill-server
 
 function colors
     for name in black red green yellow blue magenta cyan white
