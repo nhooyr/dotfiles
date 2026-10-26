@@ -282,6 +282,19 @@ end
         self.assertEqual(self.oid(destination), before)
         self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), "main")
 
+    def test_nonempty_fork_does_not_resolve_an_unrelated_local_commit_prefix(self):
+        destination = self.clone()
+        fork = self.new_repository("unrelated-fork")
+        self.commit(fork, "unrelated fork history\n")
+        self.urls["https://github.com/alice/project.git"] = fork.as_uri()
+        local = self.oid(destination)
+
+        result = self.compare_ref(destination, "alice:" + local[:10])
+
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(self.oid(destination), local)
+
     def test_symbolic_comparison_cache_cannot_redirect_to_unrelated_branch(self):
         self.git(self.source, "branch", "topic")
         destination = self.clone()

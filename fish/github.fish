@@ -519,6 +519,12 @@ function __ghe_compare_ref --argument-names remote destination ref
         __ghe_fetch_history "$destination" "$query" $fetch_refs; or return
         if test "$short_oid" = true
             set oid (__gh_commit_prefix "$destination" "$ref")
+            if test "$qualified" = true; and test -n "$oid"
+                # A fork fetch must not validate an unrelated local commit prefix.
+                set -l fetch_head "$(git -C "$destination" rev-parse --path-format=absolute --git-path FETCH_HEAD)"; or return
+                set -l outside (string replace -r '^([^\t]+)\t.*$' '^$1' < "$fetch_head" | git --no-lazy-fetch -C "$destination" rev-list --max-count=1 "$oid" --stdin); or return
+                test -z "$outside"; or set oid ''
+            end
         else
             set oid "$(__gh_commit "$destination" FETCH_HEAD)"
         end
