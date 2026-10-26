@@ -445,6 +445,8 @@ function __ghe_compare_ref --argument-names remote destination ref
     end
     set -l oid
     for candidate in $candidates
+        # Symbolic cache aliases can point at an unrelated branch.
+        git -C "$destination" symbolic-ref -q "$candidate" >/dev/null 2>&1; and continue
         if test "$candidate" = "$ref"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
             set candidate (__gh_commit_prefix "$destination" "$ref"); or continue
         end
@@ -660,6 +662,10 @@ function __ghe_checkout --argument-names remote destination tail line column end
         set -l branch_ref ''
         if string match -qr '^refs/(heads|remotes)/' -- "$full_ref"
             set branch_ref "refs/heads/$ref"
+            if git -C "$destination" symbolic-ref -q "$branch_ref" >/dev/null 2>&1
+                printf '%s: local branch is symbolic: %s\n' "$0" "$branch_ref" >&2
+                return 1
+            end
         end
         set -l checkout_needed true
         if test -n "$branch_ref"
@@ -874,6 +880,10 @@ function gho --argument-names target
             set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
             set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
             test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
+        end
+        if git -C "$dir" symbolic-ref -q "$remote_ref" >/dev/null 2>&1
+            printf '%s: cached remote branch is symbolic: %s\n' "$0" "$remote_ref" >&2
+            return 1
         end
         set commit "$(git -C "$dir" rev-parse --verify "$remote_ref^{commit}" 2>/dev/null)"
         if test -z "$commit"
