@@ -1,0 +1,14 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  github-fish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install --yes fish
+      - run: git --version && fish --version
+      - run: python3 -m unittest discover -s fish/github-tests
