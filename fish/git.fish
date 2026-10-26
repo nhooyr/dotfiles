@@ -33,6 +33,7 @@ abbrali gcl git clone
 abbrali gpl git pull
 abbrali gf git fetch
 abbrali gfa git fetch --all
+abbrali gfp git fetch --prune-tags
 abbrali gro git remote -v
 abbrali gb git branch -vv
 abbrali gba git branch -avv

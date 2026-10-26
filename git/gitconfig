@@ -19,7 +19,6 @@
 
 [fetch]
 	prune = true
-	pruneTags = true
 [pull]
 	ff = only
 [push]
