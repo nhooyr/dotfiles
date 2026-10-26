@@ -1,3 +1,4 @@
+eval $(/opt/homebrew/bin/brew shellenv)
 set -gx GOPATH ~/.local/share/go
 fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     ~/.local/bin \
