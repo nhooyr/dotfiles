@@ -108,7 +108,7 @@ abbrali ne nemail
 
 abbrali chx chmod +x
 abbrali ymp3 yt-dlp --audio-format mp3 -x --embed-thumbnail
-abbrali num shuf -n1 -i 1-999
+abbrali num random 1 999
 
 function noti --wraps time
     time $argv
@@ -142,7 +142,7 @@ function fzf_accept_and_run --argument-names widget
     end
 end
 function aqsnow_exec
-    set -l cmd $(commandline --tokens-expanded)
+    set -l cmd $(commandline --current-process | string trim)
     if test "$(count $cmd)" -eq 1 -a -f "$cmd[1]" && not type -q -- "$cmd[1]"
         if not string match -qr '^\.?/' -- "$cmd[1]"
             fish_commandline_prepend "$EDITOR --"
