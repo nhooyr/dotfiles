@@ -66,3 +66,12 @@ end
 function gapply --wraps 'git apply'
     pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
 end
+
+alias gh='NO_COLOR=1 command gh'
+abbrali ghf gh repo fork --remote
+function ghc --wraps 'gh repo create'
+    gh repo create --private $argv; or return
+    ghe $argv[-1]
+end
+abbrali ghpc gh pr checkout
+abbrali ghpr gh pr create --web
