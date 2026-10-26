@@ -61,7 +61,7 @@ nnoremap <silent> <nowait> <Leader>s :call <SID>update_myvimrc() \| source $MYVI
 nnoremap <silent> <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <nowait> <Leader>r :%s##
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
-vnoremap <nowait> // "zyk/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
+vnoremap <nowait> // "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 vmap <nowait> <Leader>r //<Leader>r
 
 nnoremap <silent> <nowait> q :quit<CR>
