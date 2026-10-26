@@ -5,10 +5,11 @@ abbrali gap git add -p
 abbrali gp git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
-abbrali gcp gcm "&&" gp
-abbrali gacp ga "&&" gcp
+abbrali gcmp gcm '&&' gp
+abbrali gacm ga '&&' gcm
+abbrali gacmp ga '&&' gcmp
 abbrali gcma git commit --amend
-abbrali gcpa gcma "&&" gpf
+abbrali gcmap gcma '&&' gpf
 abbrali gcmf git commit --fixup
 abbrali grb git rebase
 abbrali grbi git rebase -i
