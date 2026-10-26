@@ -3,7 +3,7 @@ set shiftwidth=0
 set ignorecase
 set smartcase
 set mouse=
-set clipboard=unnamedplus
+vnoremap <silent> <nowait> <C-c> "+y
 set laststatus=3
 set textwidth=120
 
