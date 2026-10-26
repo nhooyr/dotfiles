@@ -613,7 +613,21 @@ function __ghe_checkout --argument-names remote destination tail line column end
     end
     if string match -qr '^pull/[1-9][0-9]*(/|$)' -- "$tail"
         set -l request (string split / -- "$tail")
-        if test "$request[3]" = commits; and string match -qr '^[0-9a-fA-F]{40}$' -- "$request[4]"
+        if contains -- "$request[3]" changes files
+            cd -- "$destination"; or return
+            set -l revisions (gh api --hostname github.com "repos/$github[1]/pulls/$request[2]" --jq '.base.sha, .head.sha'); or return
+            if test (count $revisions) -ne 2; or string match -qvr '^[0-9a-fA-F]{40}$' -- $revisions
+                printf '%s: pull request has an invalid base or head commit\n' "$0" >&2
+                return 1
+            end
+            # Cached tips in a shallow clone can still be missing their merge base.
+            if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
+                set -l name (__ghe_remote "$remote" "$destination"); or return
+                git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= --unshallow -- "$name" $revisions; or return
+            end
+            __ghe_compare "$remote" "$destination" "$revisions[1]...$revisions[2]"
+            return $status
+        else if test "$request[3]" = commits; and string match -qr '^[0-9a-fA-F]{40}$' -- "$request[4]"
             set tail "oid/$request[4]"
         else
             set -l revision (__ghe_pull_request "$remote" "$destination" "$request[2]"); or return
