@@ -172,8 +172,11 @@ function aqsnow_maybe_push --on-event fish_postexec
     rm "$AQSNOW_FISH_RENDEZVOUS"
     test "$result" -eq 0; or return
 
-    if string match -q 'git commit*' -- "$argv[1]"
-        git push
+    switch "$argv[1]"
+        case 'git commit --amend*'
+            gpf
+        case 'git commit*'
+            git push
     end
 end
 bind -M default -m insert alt-enter accept-autosuggestion execute
