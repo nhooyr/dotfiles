@@ -151,7 +151,6 @@ function aqsnow_exec
     end
     commandline -f execute
 end
-bind -M replace -m insert enter aqsnow_exec repaint-mode
 function aqsnow_edit_command
     set -lx AQSNOW_FISH_RENDEZVOUS "$(mktemp)"
     edit_command_buffer
@@ -161,8 +160,19 @@ function aqsnow_edit_command
     end
     rm "$AQSNOW_FISH_RENDEZVOUS"
 end
-bind -M default -m insert enter aqsnow_exec
-bind -M insert enter aqsnow_exec
+bind -M default -m insert enter aqsnow_exec aqsnow_maybe_push
+bind -M insert enter aqsnow_exec aqsnow_maybe_push
+set -gx AQSNOW_FISH_RENDEZVOUS "$(mktemp)"
+function aqsnow_maybe_push
+    set -l result $status
+    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
+    # Consume the signal, including when the commit failed.
+    printf '' >"$AQSNOW_FISH_RENDEZVOUS"; or return
+    test "$result" -eq 0; or return
+
+    commandline --replace 'git push'
+    commandline -f execute
+end
 bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
 for mode in default insert
