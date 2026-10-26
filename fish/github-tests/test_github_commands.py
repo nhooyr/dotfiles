@@ -380,6 +380,28 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertTrue(self.checkout.parent.is_dir())
         self.assertEqual(list(self.checkout.parent.iterdir()), [])
 
+    def test_organization_creation_race_preserves_the_other_directory(self):
+        shutil.rmtree(self.checkout.parent)
+        self.env["TEST_CLONE_FAILURE"] = "empty"
+        self.env["TEST_ORG_DIR"] = str(self.checkout.parent)
+        self.env["TEST_REAL_MKDIR"] = shutil.which("mkdir")
+        program = '''import os, pathlib, sys
+if pathlib.Path(sys.argv[-1]) == pathlib.Path(os.environ["TEST_ORG_DIR"]):
+    # Another process creates the organization after ghe's directory check.
+    pathlib.Path(sys.argv[-1]).mkdir(parents=True, exist_ok=True)
+os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.argv[1:]])
+'''
+        mkdir = self.bin / "mkdir"
+        mkdir.write_text("#!" + sys.executable + "\n" + program)
+        mkdir.chmod(0o755)
+
+        result = self.run_fish("ghe", self.url)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.directory, str(self.sandbox))
+        self.assertTrue(self.checkout.parent.is_dir())
+        self.assertEqual(list(self.checkout.parent.iterdir()), [])
+
     def test_failed_clone_retains_new_nonempty_organization_and_clone_exit_status(self):
         shutil.rmtree(self.checkout.parent)
         self.env["TEST_CLONE_FAILURE"] = "nonempty"

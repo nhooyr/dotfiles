@@ -768,7 +768,8 @@ function __ghe_checkout --argument-names remote destination tail line column end
         set -l org_dir "$(path dirname -- "$destination")"
         set -l created_org false
         if not test -d "$org_dir"
-            mkdir -p -- "$org_dir"; or return
+            mkdir -p -- "$(path dirname -- "$org_dir")"; or return
+            mkdir -- "$org_dir"; or return
             set created_org true
         end
         git clone -- "$remote" "$destination"; or begin
