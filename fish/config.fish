@@ -169,6 +169,7 @@ for mode in default insert
 end
 
 abbrali vsce NO_COLOR=1 command vsce
+abbrali gh NO_COLOR=1 command gh
 
 set -gx DOTFILES "$(path resolve "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
