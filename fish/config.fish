@@ -148,8 +148,8 @@ function aqsnow_exec
     commandline -f execute
 end
 function aqsnow_rendezvous
-    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
-    aqsnow_nvim_fzf_file_widget; and return
+    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 0
+    aqsnow_nvim_fzf_file_widget; and return 0
     rm "$AQSNOW_FISH_RENDEZVOUS"
     aqsnow_exec
     set -g fish_bind_mode insert
@@ -171,10 +171,10 @@ function aqsnow_nvim_fzf_file_widget
 end
 function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     set -l code "$status"
-    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
-    aqsnow_nvim_fzf_file_widget; and return
+    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 0
+    aqsnow_nvim_fzf_file_widget; and return 0
     rm "$AQSNOW_FISH_RENDEZVOUS"
-    test "$code" -eq 0; or return
+    test "$code" -eq 0; or return 0
 
     switch "$cmdline"
         case 'git commit --amend*' '* git commit --amend'
