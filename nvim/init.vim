@@ -103,7 +103,7 @@ imap <silent> <nowait> <C-_> <C-o>gcc
 vmap <silent> <nowait> <C-_> gc
 
 set completeopt=menuone,noselect,popup
-set complete+=U,kspell,i,d,f,o
+set complete+=U,k,kspell,s,i,d,f,o
 inoremap <silent><expr> <C-Space> pumvisible() ? "\<C-n>" :
 	   \ strpart(getline('.'), 0, col('.') - 1) =~# '\f*/\f*$'
 	   \ ? "\<C-x>\<C-f>" : "\<C-n>"
