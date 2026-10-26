@@ -138,12 +138,7 @@ function fzf_accept_and_run --argument-names widget
     set -lx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS $option"
 
     $widget
-
-    if test -s "$AQSNOW_FISH_RENDEZVOUS"
-        rm "$AQSNOW_FISH_RENDEZVOUS"
-        aqsnow_exec
-        set -g fish_bind_mode insert
-    end
+    aqsnow_rendezvous
 end
 function aqsnow_exec
     set -l cmd $(commandline --current-process --tokens-expanded)
@@ -152,13 +147,15 @@ function aqsnow_exec
     end
     commandline -f execute
 end
+function aqsnow_rendezvous
+    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return
+    rm "$AQSNOW_FISH_RENDEZVOUS"
+    aqsnow_exec
+    set -g fish_bind_mode insert
+end
 function aqsnow_edit_command
     edit_command_buffer
-    if test -s "$AQSNOW_FISH_RENDEZVOUS"
-        rm "$AQSNOW_FISH_RENDEZVOUS"
-        aqsnow_exec
-        set -g fish_bind_mode insert
-    end
+    aqsnow_rendezvous
 end
 bind -M default -m insert enter aqsnow_exec
 bind -M insert enter aqsnow_exec
