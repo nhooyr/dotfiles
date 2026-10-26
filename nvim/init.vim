@@ -72,6 +72,7 @@ nnoremap <silent> <nowait> <C-s> :xit<CR>
 inoremap <silent> <nowait> <C-s> <Esc>:xit<CR>
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
 function! s:exit_and_run() abort
+	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != "")
 			call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
