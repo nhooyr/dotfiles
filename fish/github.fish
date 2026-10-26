@@ -249,6 +249,11 @@ function __gh_resolve --argument-names remote tail destination cached_only
                     return 0
                 end
             end
+            if test -z "$namespace"; and test "$ref" = HEAD; and test "$cached_only" != true
+                set -l revision (__ghe_compare_ref "$remote" "$destination" HEAD); or return
+                printf '%s\n' "$revision" "$revision" (string trim -r -c / -- "$path") "$revision"
+                return 0
+            end
             if test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
                 # A short hex name may be a branch, such as 2026/fix.
                 if test "$source" = remote; or git --no-lazy-fetch -C "$destination" cat-file -e "$ref^{commit}" 2>/dev/null
@@ -818,6 +823,7 @@ function gho --argument-names target
         if test -n "$github[2]"
             set url "$url/$(string escape --style=url -- "$github[2]")"
         end
+        set url "$url$(string match -r '[?#].*$' -- "$target")"
         printf '%s\n' "$url"
         open "$url"
         return
