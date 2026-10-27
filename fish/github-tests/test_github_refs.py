@@ -406,6 +406,22 @@ end
                     self.assertEqual(result.stdout.strip(), self.initial)
                     self.assertEqual(self.transport, [])
 
+    def test_cached_commit_ancestry_in_shallow_clone_fetches_missing_history(self):
+        parent = self.commit(self.source, "parent\n")
+        tip = self.commit(self.source, "tip\n")
+        for ref in (tip + "~1", tip[:10] + "~1"):
+            with self.subTest(ref=ref):
+                destination = self.clone(depth=1)
+                self.assertEqual(self.git(destination, "rev-parse", "--is-shallow-repository").stdout.strip(), "true")
+
+                result = self.compare_ref(destination, ref)
+
+                self.assert_success(result)
+                self.assertEqual(result.stdout.strip(), parent)
+                self.assertTrue(any(call["command"] == "fetch" for call in self.transport))
+                self.assertEqual(self.oid(destination), tip)
+                self.assertEqual((destination / "file.txt").read_text(), "tip\n")
+
     def test_head_file_open_uses_cached_default_commit_without_transport(self):
         destination = self.clone()
         self.commit(self.source, "new remote default version\n")
