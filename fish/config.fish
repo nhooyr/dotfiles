@@ -152,9 +152,9 @@ function fzf_accept_and_run --argument-names widget
     set -lx FZF_COMPLETION_OPTS "$FZF_COMPLETION_OPTS $option"
     set -lx FZF_EXPANSION_OPTS "$FZF_EXPANSION_OPTS $option"
 
-    if test "$widget" = fzf-file-widget && string match -q './*' -- (commandline -ct)
+    if test "$widget" = fzf-file-widget; and string match -q './*' -- (commandline -ct)
         set -l dir "$(string unescape -- (__fzf_parse_commandline)[1])"
-        if test "$dir" != . && ! string match -q './*' -- "$dir"
+        if test "$dir" != .; and ! string match -q './*' -- "$dir"
             set dir "./$dir"
         end
 
@@ -176,8 +176,8 @@ end
 
 function aqsnow_exec
     set -l cmd $(commandline --current-process --tokens-expanded)
-    if test "$(count $cmd)" -eq 1 && test -f "$cmd[1]" && ! string match -qr '^\.?/' -- "$cmd[1]"
-        if ! type -q -- "$cmd[1]" || test -x "$cmd[1]"
+    if test "$(count $cmd)" -eq 1; and test -f "$cmd[1]"; and ! string match -qr '^\.?/' -- "$cmd[1]"
+        if ! type -q -- "$cmd[1]"; or test -x "$cmd[1]"
             if file -bI -- "$cmd[1]" | grep -q "^text/"
                 fish_commandline_prepend "$EDITOR --"
             end
@@ -191,7 +191,7 @@ bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
 bind -M insert alt-enter accept-autosuggestion aqsnow_exec
 
 if ! set -q __aqsnow_rendezvous_dir
-    set -l rendezvous_dir "$(mktemp -d)" || return
+    set -l rendezvous_dir "$(mktemp -d)"; or return
     set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
     set -gx AQSNOW_FISH_RENDEZVOUS "$rendezvous_dir/rendezvous"
     function aqsnow_rm_rendezvous --on-event fish_exit --inherit-variable rendezvous_dir
@@ -199,8 +199,8 @@ if ! set -q __aqsnow_rendezvous_dir
     end
 end
 function aqsnow_rendezvous
-    test -s "$AQSNOW_FISH_RENDEZVOUS" || return 0
-    aqsnow_nvim_fzf_file_widget && return 0
+    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 0
+    aqsnow_nvim_fzf_file_widget; and return 0
     rm "$AQSNOW_FISH_RENDEZVOUS"
     aqsnow_exec
     set -g fish_bind_mode insert
@@ -214,10 +214,10 @@ function aqsnow_nvim_fzf_file_widget
 end
 function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     set -l code "$status"
-    test -s "$AQSNOW_FISH_RENDEZVOUS" || return 0
-    aqsnow_nvim_fzf_file_widget && return 0
+    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 0
+    aqsnow_nvim_fzf_file_widget; and return 0
     rm "$AQSNOW_FISH_RENDEZVOUS"
-    test "$code" -eq 0 || return 0
+    test "$code" -eq 0; or return 0
 
     switch "$cmdline"
         case 'git commit --amend*' '* git commit --amend'
@@ -231,9 +231,9 @@ abbrali vsce NO_COLOR=1 command vsce
 
 set -gx DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
-    argparse p/prepend -- $argv || return
+    argparse p/prepend -- $argv; or return
     set -l mode --append
-    set -q _flag_prepend && set mode --prepend
+    set -q _flag_prepend; and set mode --prepend
     for path in $argv
         if ! contains -- "$path" $CDPATH
             set $mode --path -g CDPATH "$path"

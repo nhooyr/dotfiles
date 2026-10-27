@@ -11,7 +11,7 @@ function cdc --wraps cd --argument-names dir
     if cd -- "$dir"
         $argv[2..]
         set -l code "$status"
-        cd -- "$prevd" || return
+        cd -- "$prevd"; or return
         return "$code"
     else
         return 1
@@ -33,7 +33,7 @@ function up
     end
 
     if string match -qr '^[0-9]+$' -- "$argv"
-        set -l up "$(string repeat --count "$argv" ../)" || return
+        set -l up "$(string repeat --count "$argv" ../)"; or return
         cd "./$up"
         return
     end
@@ -85,7 +85,7 @@ function cd --description 'Change directory'
     if test "$argv[1]" = --
         set file $argv[2..]
     end
-    if test $(count $file) -eq 1 && test -f "$file"
+    if test "$(count $file)" -eq 1 -a -f "$file"
         cdf "$file"
         return
     end
@@ -93,18 +93,18 @@ function cd --description 'Change directory'
     builtin cd $argv
     set -l cd_status $status
 
-    if test $cd_status -eq 0 -a "$PWD" != "$previous"
-        set -q dirprev || set -l dirprev
-        set -q dirprev[$MAX_DIR_HIST] && set -e dirprev[1]
+    if test "$cd_status" -eq 0 -a "$PWD" != "$previous"
+        set -q dirprev; or set -l dirprev
+        set -q dirprev[$MAX_DIR_HIST]; and set -e dirprev[1]
 
         # If dirprev, dirnext, __fish_cd_direction
         # are set as universal variables, honor their scope.
 
-        set -U -q dirprev && set -U -a dirprev $previous || set -g -a dirprev $previous
+        set -U -q dirprev; and set -U -a dirprev $previous; or set -g -a dirprev $previous
 
-        set -U -q dirnext && set -U -e dirnext || set -e dirnext
+        set -U -q dirnext; and set -U -e dirnext; or set -e dirnext
 
-        set -U -q __fish_cd_direction && set -U __fish_cd_direction prev || set -g __fish_cd_direction prev
+        set -U -q __fish_cd_direction; and set -U __fish_cd_direction prev; or set -g __fish_cd_direction prev
     end
 
     return $cd_status

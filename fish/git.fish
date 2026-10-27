@@ -57,11 +57,11 @@ abbrali gch git checkout
 abbrali gchb git checkout -b
 abbrali gt git tag
 function gcd
-    set -l git_root "$(git rev-parse --show-toplevel)" || return 1
+    set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
 end
 function scd
-    set -l super_root "$(git rev-parse --show-superproject-working-tree)" || return 1
+    set -l super_root "$(git rev-parse --show-superproject-working-tree)"; or return 1
     # Git prints nothing, and still succeeds, outside a submodule.
     if test -z "$super_root"
         echo "scd: not inside a submodule" >&2
@@ -83,7 +83,7 @@ function ghc --wraps 'gh repo create'
         case --help -h
             gh repo create --help
     end
-    set -l url $(gh repo create --private $argv) || return
+    set -l url $(gh repo create --private $argv); or return
     printf '%s\n' $url[1]
     ghe $url[1]
 end
