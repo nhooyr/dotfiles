@@ -1,5 +1,6 @@
 {
     "workbench.colorTheme": "nhooyr",
+    "workbench.startupEditor": "none",
     "explorer.confirmDragAndDrop": false,
     "diffEditor.renderSideBySide": false,
     // ---
@@ -26,5 +27,5 @@
         "comments": "on",
         "strings": "on"
     },
-    "editor.wordBasedSuggestions": "allDocuments"
+    "editor.wordBasedSuggestions": "allDocuments",
 }
