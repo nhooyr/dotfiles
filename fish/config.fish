@@ -220,9 +220,12 @@ abbrali vsce NO_COLOR=1 command vsce
 
 set -gx DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
+    argparse p/prepend -- $argv || return
+    set -l mode --append
+    set -q _flag_prepend && set mode --prepend
     for path in $argv
-        if ! contains "$path" $CDPATH
-            set --append --path -g CDPATH "$path"
+        if ! contains -- "$path" $CDPATH
+            set $mode --path -g CDPATH "$path"
         end
     end
 end
