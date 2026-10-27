@@ -163,10 +163,6 @@ for mode in default insert
     bind -M "$mode" alt-e edit_command_buffer aqsnow_rendezvous
 end
 
-bind -M default -m insert enter aqsnow_exec
-bind -M insert enter aqsnow_exec
-bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
-bind -M insert alt-enter accept-autosuggestion aqsnow_exec
 function aqsnow_exec
     set -l cmd $(commandline --current-process --tokens-expanded)
     if test "$(count $cmd)" -eq 1 && test -f "$cmd[1]" && not type -q -- "$cmd[1]" && not string match -qr '^\.?/' -- "$cmd[1]"
@@ -174,13 +170,11 @@ function aqsnow_exec
     end
     commandline -f execute
 end
-function aqsnow_rendezvous
-    test -s "$AQSNOW_FISH_RENDEZVOUS" || return 0
-    aqsnow_nvim_fzf_file_widget && return 0
-    rm "$AQSNOW_FISH_RENDEZVOUS"
-    aqsnow_exec
-    set -g fish_bind_mode insert
-end
+bind -M default -m insert enter aqsnow_exec
+bind -M insert enter aqsnow_exec
+bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
+bind -M insert alt-enter accept-autosuggestion aqsnow_exec
+
 if not set -q __aqsnow_rendezvous_dir
     set -l rendezvous_dir "$(mktemp -d)" || return
     set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
@@ -188,6 +182,13 @@ if not set -q __aqsnow_rendezvous_dir
     function aqsnow_rm_rendezvous --on-event fish_exit --inherit-variable rendezvous_dir
         rm -rf -- "$rendezvous_dir"
     end
+end
+function aqsnow_rendezvous
+    test -s "$AQSNOW_FISH_RENDEZVOUS" || return 0
+    aqsnow_nvim_fzf_file_widget && return 0
+    rm "$AQSNOW_FISH_RENDEZVOUS"
+    aqsnow_exec
+    set -g fish_bind_mode insert
 end
 function aqsnow_nvim_fzf_file_widget
     if ! echo '<M-v>' | cmp -s - "$AQSNOW_FISH_RENDEZVOUS"
