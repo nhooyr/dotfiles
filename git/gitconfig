@@ -43,7 +43,7 @@
 [difftool]
 	prompt = false
 [color "decorate"]
-	branch = cyan italic ul
+	branch = blue italic ul
 	remoteBranch = magenta italic ul
 	tag = green italic ul
 	stash = cyan italic ul
