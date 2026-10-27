@@ -226,15 +226,18 @@ function add_cdpath
         end
     end
 end
-add_cdpath . ~ "$DOTFILES"
+
+source "$DOTFILES/fish/git.fish"
+source "$DOTFILES/fish/github.fish"
+source "$DOTFILES/fish/prompt.fish"
+source "$DOTFILES/fish/cd.fish"
+
+add_cdpath . "$DOTFILES"
 if test -f "$DOTFILES/secrets/fish/config.fish"
     source "$DOTFILES/secrets/fish/config.fish"
 end
-source "$DOTFILES/fish/git.fish"
-source "$DOTFILES/fish/github.fish"
+add_cdpath ~
 
-source "$DOTFILES/fish/prompt.fish"
-source "$DOTFILES/fish/cd.fish"
 if test "$PWD" = "$HOME"
     cd "$DOTFILES"
 end
