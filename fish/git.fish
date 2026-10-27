@@ -53,6 +53,7 @@ abbrali gbl git blame
 abbrali gshort git rev-parse --short
 abbrali gch git checkout
 abbrali gchb git checkout -b
+abbrali gt git tag
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
@@ -78,7 +79,7 @@ abbrali ghf gh repo fork --remote
 function ghc --wraps 'gh repo create'
     switch "$argv"
         case --help -h
-        gh repo create --help
+            gh repo create --help
     end
     set -l url $(gh repo create --private $argv); or return
     printf '%s\n' $url[1]
