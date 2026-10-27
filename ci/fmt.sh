@@ -12,7 +12,7 @@ find . -type f -name '*.fish' -exec fish_indent -w {} +
 shfmt -s -w .
 
 if [ "${CI-}" ]; then
-	git ls-files --other --exclude-standard | xargs -r git add --intent-to-add
+	git ls-files --other --exclude-standard -z | xargs -0 -r git add --intent-to-add --
 
 	tput() { command tput -Txterm-256color "$@"; }
 	git() { command git -c color.ui=always --no-pager "$@"; }
