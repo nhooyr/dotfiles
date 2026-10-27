@@ -26,7 +26,7 @@ function up
         return
     end
 
-    string match -qr -- "$argv" '' 2>/dev/null
+    string replace -rq -- "$argv" '' '' 2>/dev/null
     if test "$status" -eq 2
         echo "up: invalid regex" >&2
         return 1
@@ -41,7 +41,7 @@ function up
     set -l dir "$PWD"
     while test "$dir" != /
         set dir "$(path dirname -- "$dir")"
-        if string match -qr -- "$argv" "$(path basename -- "$dir")"
+        if string replace -rq -- "$argv" '' "$(path basename -- "$dir")"
             cd -- "$dir"
             return
         end
