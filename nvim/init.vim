@@ -159,7 +159,7 @@ augroup aqsnow
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 	autocmd BufReadPost * call <SID>restore_cursor()
 	autocmd filetype fish setlocal formatprg=fish_indent
-	autocmd filetype sh setlocal formatprg=shfmt
+	autocmd filetype sh let &l:formatprg='shfmt -s'
 	autocmd BufWritePost $MYVIMRC autocmd aqsnow SafeState * ++once source $MYVIMRC
 	autocmd filetype gitcommit nnoremap <buffer> ]c /^@@<CR>
 	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>
