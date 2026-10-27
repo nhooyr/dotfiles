@@ -152,6 +152,17 @@ function fzf_accept_and_run --argument-names widget
     set -lx FZF_COMPLETION_OPTS "$FZF_COMPLETION_OPTS $option"
     set -lx FZF_EXPANSION_OPTS "$FZF_EXPANSION_OPTS $option"
 
+    if test "$widget" = fzf-file-widget && string match -q './*' -- (commandline -ct)
+        set -l dir "$(string unescape -- (__fzf_parse_commandline)[1])"
+        if test "$dir" != . && ! string match -q './*' -- "$dir"
+            set dir "./$dir"
+        end
+
+        set -fx FZF_CTRL_T_COMMAND "find -L $(string escape -- "$dir") -mindepth 1 \
+            -name .git -prune -o -name node_modules -prune -o -print0 \
+            | path filter -zZ -fdx"
+        set -fx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS --read0"
+    end
     $widget
     aqsnow_rendezvous
 end
