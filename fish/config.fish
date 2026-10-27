@@ -152,8 +152,8 @@ function fzf_accept_and_run --argument-names widget
     set -lx FZF_COMPLETION_OPTS "$FZF_COMPLETION_OPTS $option"
     set -lx FZF_EXPANSION_OPTS "$FZF_EXPANSION_OPTS $option"
 
-    if test "$widget" = fzf-file-widget; and string match -q './*' -- (commandline -ct)
-        set -l dir "$(string unescape -- (__fzf_parse_commandline)[1])"
+    if test "$widget" = fzf-file-widget; and string match -q './*' -- "$(commandline -ct)"
+        set -l dir "$(string unescape -- "$(__fzf_parse_commandline)[1]")"
         if test "$dir" != .; and ! string match -q './*' -- "$dir"
             set dir "./$dir"
         end
