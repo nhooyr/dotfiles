@@ -5,12 +5,17 @@ on:
   pull_request:
 
 jobs:
+  fmt:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./.github/workflows/fmt.sh
   lint:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - run: ./.github/workflows/lint.sh
-  github-fish:
+  test:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

@@ -12,7 +12,7 @@ if not status is-interactive
 end
 
 tabs -4
-set -gx LESS -RXF -ix4
+set -gx LESS -RXF -ix4 --use-color # TODO
 set -g fish_greeting
 set -gx MANPAGER nvim +Man!
 set -gx EDITOR nvim
