@@ -56,12 +56,7 @@ noremap <nowait> 0 ^
 noremap <nowait> ^ 0
 inoremap <nowait> <M-BS> <C-w>
 cnoremap <nowait> <M-BS> <C-w>
-function! s:update_myvimrc() abort
-	if expand('%:p') ==# $MYVIMRC
-		update
-	endif
-endfunction
-nnoremap <nowait> <Leader>s :call <SID>update_myvimrc() \| source $MYVIMRC<CR>
+nnoremap <nowait> <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
 
 nnoremap <nowait> <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <nowait> <Leader>r :%s##
