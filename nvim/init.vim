@@ -82,7 +82,7 @@ function! s:quit_and_run() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != "")
-			call writefile([@%], $AQSNOW_FISH_RENDEZVOUS)
+			call writefile(['true'], $AQSNOW_FISH_RENDEZVOUS)
 		endif
 	endif
 	qall
@@ -165,6 +165,8 @@ augroup aqsnow
 	autocmd filetype fish setlocal formatprg=fish_indent
 	autocmd filetype sh setlocal formatprg=shfmt
 	autocmd BufWritePost $MYVIMRC source $MYVIMRC
+	autocmd filetype gitcommit nnoremap <buffer> ]c /^@@<CR>
+	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>
 augroup END
 nnoremap <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
 nnoremap <nowait> <Leader>= :keeppatterns %s/^\s*+//<CR>
