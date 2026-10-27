@@ -198,24 +198,24 @@ if ! set -q __aqsnow_rendezvous_dir
         rm -rf -- "$rendezvous_dir"
     end
 end
-function aqsnow_take_rendezvous
+function aqsnow_run_requested
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 1
     if ! echo '<M-v>' | cmp -s - "$AQSNOW_FISH_RENDEZVOUS"
         rm "$AQSNOW_FISH_RENDEZVOUS"
-        return 1
+        return 0
     end
     rm "$AQSNOW_FISH_RENDEZVOUS"
     fzf_accept_and_run fzf-file-widget
-    return 0
+    return 1
 end
 function aqsnow_rendezvous
-    aqsnow_take_rendezvous; and return
+    aqsnow_run_requested; or return 0
     aqsnow_exec
     set -g fish_bind_mode insert
 end
 function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     set -l code "$status"
-    aqsnow_take_rendezvous; and return
+    aqsnow_run_requested; or return 0
     test "$code" -eq 0; or return 0
 
     switch "$cmdline"
