@@ -505,16 +505,18 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
         test -z "$oid"; or break
     end
     if test -n "$oid"
-        if test "$prefer_cached" = true; or string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
+        if test "$prefer_cached" = true
             __gh_commit "$destination" "$oid$ancestry[1]"
             return $status
+        else if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
+            __gh_commit "$destination" "$oid$ancestry[1]"; and return
         end
     else if test "$qualified" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
         # Only a prefix without a known named ref is immutable and needs no refresh.
         set oid (__gh_commit_prefix "$destination" "$ref")
         if test -n "$oid"
-            __gh_commit "$destination" "$oid$ancestry[1]"
-            return $status
+            __gh_commit "$destination" "$oid$ancestry[1]"; and return
+            set ref "$oid"
         end
     end
 
