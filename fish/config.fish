@@ -32,10 +32,11 @@ fish_hybrid_key_bindings
 set -g fish_color_error normal --italic
 set -g fish_color_quote green
 set -g fish_color_search_match normal --reverse
-set -g fish_pager_color_progress magenta --underline --italic
-set -g fish_pager_color_prefix --italic --underline
+set -g fish_pager_color_progress cyan --underline --italic
+set -g fish_pager_color_description cyan --italic
+set -g fish_pager_color_prefix --underline
 set -g fish_pager_color_selected_background --background=black
-set -g fish_pager_color_selected_prefix white --bold --italic
+set -g fish_pager_color_selected_prefix white --underline --bold
 set -g fish_pager_color_selected_completion white
 set -g fish_pager_color_selected_description white
 function r
@@ -83,8 +84,8 @@ abbr -a fd fd -HL
 function f
     find . -iname "*$argv*"
 end
-set -gx GREP_COLORS 'mt=03;37;44:fn=36:ln=03:bn=03:se=00'
-set -gx GREP_COLOR '03;37;44'
+set -gx GREP_COLORS 'mt=37;44:fn=36:ln=03:bn=03:se=00'
+set -gx GREP_COLOR '37;44'
 abbr -a grep gre
 function gre
     if type -q ggrep
@@ -137,8 +138,8 @@ abbr -a --command noti e eval
 fzf --fish | source
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --no-mouse --scroll-off=0 --info=inline-right \
-    --color=bw,query:regular,info:italic:underline,hl:underline:italic,fg+:regular:reverse,\
-hl+:reverse:italic,pointer:magenta:bold"
+    --color=bw,query:regular,info:italic:underline,hl:underline,fg+:regular:reverse,\
+hl+:reverse:underline,pointer:magenta:bold"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
 function fzf_accept_and_run --argument-names widget

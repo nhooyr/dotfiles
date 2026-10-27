@@ -43,17 +43,18 @@
 [difftool]
 	prompt = false
 [color "decorate"]
-	branch = blue italic ul bold
-	remoteBranch = cyan ul bold
-	tag = magenta italic ul bold
-	stash = magenta italic ul bold
-	head = magenta ul bold
+	branch = cyan italic ul
+	remoteBranch = magenta italic ul
+	tag = green italic ul
+	stash = cyan italic ul
+	head = cyan italic ul
 [color "branch"]
-	current = blue italic bold
-	upstream = cyan ul
-	remote = magenta
+	current = cyan italic bold
+	upstream = magenta italic ul
+	local = cyan italic
+	remote = cyan italic
 [color "diff"]
-	commit = cyan ul italic bold
+	commit = ul bold
 	meta = magenta ul italic
 	frag = magenta ul italic
 	whitespace = white red
@@ -62,17 +63,17 @@
 [color "blame"]
 	repeatedLines = magenta italic
 [color "advice"]
-	hint = cyan ul italic
+	hint = brightblack italic
 [color "interactive"]
 	prompt = bold
-	header = italic bold
-	help = cyan italic
-	error = red bold ul
+	header = cyan italic bold
+	help = brightblack italic
+	error = red
 [color "grep"]
 	filename = cyan
 	lineNumber = normal italic
 	column = normal italic
-	match = white blue italic
+	match = white blue
 	separator = normal
 [blame]
 	date = relative
