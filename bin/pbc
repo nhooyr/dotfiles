@@ -2,7 +2,7 @@
 set -eu
 
 # Nested helpers set PBC_SKIP so only the outermost result reaches the clipboard.
-if [ -n "${PBC_SKIP-}" ]; then
+if [ "${PBC_SKIP-}" ]; then
 	exec cat
 fi
 zsh -o pipefail -c 'tee /dev/fd/3 | perl -pe "chomp if eof" | pbcopy' 3>&1

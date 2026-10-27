@@ -43,6 +43,7 @@ abbrali gb git branch -vv
 abbrali gba git branch -avv
 abbrali gbr git branch -rvv
 abbrali gst git stash push -u
+abbrali gstk git stash push -u --keep-index
 abbrali gsta git stash apply
 abbrali gsts git stash show
 abbrali gstp git stash pop
