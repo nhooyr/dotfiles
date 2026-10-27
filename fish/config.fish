@@ -87,7 +87,7 @@ end
 set -gx GREP_COLORS 'mt=37;44:fn=36:ln=03:bn=03:se=00'
 set -gx GREP_COLOR '37;44'
 abbr -a grep gre
-function gre
+function gre --wraps grep
     if type -q ggrep
         ggrep --color -inIE $argv
     else

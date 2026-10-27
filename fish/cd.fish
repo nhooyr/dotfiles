@@ -53,6 +53,11 @@ end
 abbrali pd prevd
 abbrali bd prevd
 abbrali nd nextd
+function mcd --wraps 'mkdir -p'
+    mkdir -p -- "$argv"
+    cd -- "$argv"
+end
+
 # From embedded:functions/cd.fish @ line 5
 # Only change I made is to use cdf and increase MAX_DIR_HIST to 999.
 function cd --description 'Change directory'
@@ -111,8 +116,4 @@ function cd --description 'Change directory'
     end
 
     return $cd_status
-end
-function mcd --wraps 'mkdir -p'
-    mkdir -p -- "$argv"
-    cd -- "$argv"
 end
