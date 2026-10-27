@@ -85,7 +85,7 @@ function cd --description 'Change directory'
     if test "$argv[1]" = --
         set file $argv[2..]
     end
-    if test "$(count $file)" -eq 1 -a -f "$file"
+    if test "$(count $file)" -eq 1; and test -f "$file"
         cdf "$file"
         return
     end
@@ -93,7 +93,7 @@ function cd --description 'Change directory'
     builtin cd $argv
     set -l cd_status $status
 
-    if test "$cd_status" -eq 0 -a "$PWD" != "$previous"
+    if test "$cd_status" -eq 0; and test "$PWD" != "$previous"
         set -q dirprev; or set -l dirprev
         set -q dirprev[$MAX_DIR_HIST]; and set -e dirprev[1]
 
