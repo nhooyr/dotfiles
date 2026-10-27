@@ -80,7 +80,7 @@ function ls
 end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
-abbr -a fd fd -HL
+abbr -a fd fd -HLE .git
 function f
     find . -iname "*$argv*"
 end
