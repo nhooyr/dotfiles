@@ -33,7 +33,7 @@ function up
     end
 
     if string match -qr '^[0-9]+$' -- "$argv"
-        set -l up (string repeat --count "$argv" ../); or return
+        set -l up "$(string repeat --count "$argv" ../)"; or return
         cd "./$up"
         return
     end
@@ -47,7 +47,7 @@ function up
         end
     end
 
-    printf 'up: no parent dir matches %s\n' "$argv" >&2
+    printf '%s: no parent dir matches %s\n' "$(status function)" "$argv" >&2
     return 1
 end
 abbrali pd prevd
@@ -85,7 +85,7 @@ function cd --description 'Change directory'
     if test "$argv[1]" = --
         set file $argv[2..]
     end
-    if test (count $file) -eq 1; and test -f "$file"
+    if test $(count $file) -eq 1; and test -f "$file"
         cdf "$file"
         return
     end

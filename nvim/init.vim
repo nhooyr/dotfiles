@@ -7,6 +7,7 @@ vnoremap <nowait> <C-c> "+y
 set laststatus=3
 set textwidth=120
 set foldmethod=indent
+set foldlevel=999
 set foldlevelstart=999
 set shortmess+=I
 
@@ -20,13 +21,13 @@ nnoremap <nowait> <Leader>u :Undotree<CR>
 
 set notermguicolors
 colorscheme default
-highlight MatchParen cterm=italic,bold,underline
+highlight MatchParen ctermfg=6
 highlight Comment ctermfg=8 cterm=italic
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
 highlight PreProc ctermfg=6 cterm=italic
 highlight Error cterm=italic,bold
-highlight WinSeparator ctermfg=blue cterm=bold
+highlight WinSeparator ctermfg=4 cterm=bold
 let g:gitcommit_summary_length = &textwidth
 
 set list
