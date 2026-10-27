@@ -48,8 +48,8 @@ abbrali gsta git stash apply
 abbrali gsts git stash show
 abbrali gstp git stash pop
 abbrali gstl git stash list
-abbrali gstd git stash drop
-abbrali gds git diff stash@{0}
+abbrali gstd git diff stash@{0}
+abbrali gstdd git stash drop
 abbrali gbl git blame
 abbrali gshort git rev-parse --short
 abbrali gch git checkout
