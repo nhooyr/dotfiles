@@ -140,6 +140,7 @@ set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-h
     --bind=ctrl-/:toggle-preview --no-mouse --scroll-off=0 --info=inline-right --no-sort \
     --color=bw,query:regular,info:italic:underline,hl:underline,fg+:regular:reverse,\
 hl+:reverse:underline,pointer:magenta:bold"
+set -gx FZF_ALT_C_OPTS "$FZF_ALT_C_OPTS --bind=alt-enter:accept"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
 function fzf_accept_and_run --argument-names widget
@@ -148,10 +149,24 @@ function fzf_accept_and_run --argument-names widget
 
     set -lx FZF_CTRL_R_OPTS "$FZF_CTRL_R_OPTS $option"
     set -lx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS $option"
+    set -lx FZF_COMPLETION_OPTS "$FZF_COMPLETION_OPTS $option"
+    set -lx FZF_EXPANSION_OPTS "$FZF_EXPANSION_OPTS $option"
 
     $widget
     aqsnow_rendezvous
 end
+for mode in default insert
+    bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
+    bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
+    bind -M "$mode" alt-v 'fzf_accept_and_run fzf-file-widget'
+    bind -M "$mode" shift-tab 'fzf_accept_and_run fzf_complete'
+    bind -M "$mode" alt-e edit_command_buffer aqsnow_rendezvous
+end
+
+bind -M default -m insert enter aqsnow_exec
+bind -M insert enter aqsnow_exec
+bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
+bind -M insert alt-enter accept-autosuggestion aqsnow_exec
 function aqsnow_exec
     set -l cmd $(commandline --current-process --tokens-expanded)
     if test "$(count $cmd)" -eq 1 && test -f "$cmd[1]" && not type -q -- "$cmd[1]" && not string match -qr '^\.?/' -- "$cmd[1]"
@@ -194,16 +209,6 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
         case 'git commit*' '* git commit'
             git push
     end
-end
-bind -M default -m insert enter aqsnow_exec
-bind -M insert enter aqsnow_exec
-bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
-bind -M insert alt-enter accept-autosuggestion aqsnow_exec
-for mode in default insert
-    bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
-    bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
-    bind -M "$mode" alt-v 'fzf_accept_and_run fzf-file-widget'
-    bind -M "$mode" alt-e edit_command_buffer aqsnow_rendezvous
 end
 
 abbrali vsce NO_COLOR=1 command vsce
