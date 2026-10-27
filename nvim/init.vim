@@ -160,7 +160,7 @@ augroup aqsnow
 	autocmd BufReadPost * call <SID>restore_cursor()
 	autocmd filetype fish setlocal formatprg=fish_indent
 	autocmd filetype sh setlocal formatprg=shfmt
-	autocmd BufWritePost $MYVIMRC source $MYVIMRC
+	autocmd BufWritePost $MYVIMRC autocmd aqsnow SafeState * ++once source $MYVIMRC
 	autocmd filetype gitcommit nnoremap <buffer> ]c /^@@<CR>
 	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>
 augroup END
