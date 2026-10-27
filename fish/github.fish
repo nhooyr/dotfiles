@@ -551,9 +551,12 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
     end
     if test "$fetch_status" -ne 0
         test -n "$oid"; or return "$fetch_status"
-        printf '%s: could not refresh comparison ref; using cached commit: %s\n' "$0" "$ref" >&2
-        __gh_commit "$destination" "$oid$ancestry[1]"
-        return $status
+        if __gh_commit "$destination" "$oid$ancestry[1]"
+            printf '%s: could not refresh comparison ref; using cached commit: %s\n' "$0" "$ref" >&2
+            return 0
+        end
+        printf '%s: could not fetch the history for comparison ref: %s\n' "$0" "$ref$ancestry[1]" >&2
+        return 1
     end
 
     if not set -q fetch_refs[1]
@@ -577,7 +580,9 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
             git -C "$destination" update-ref --no-deref "$cache_refs[1]" "$oid"; or return
         end
     end
-    __gh_commit "$destination" "$oid$ancestry[1]"
+    __gh_commit "$destination" "$oid$ancestry[1]"; and return
+    printf '%s: no commit matches comparison ref: %s\n' "$0" "$ref$ancestry[1]" >&2
+    return 1
 end
 
 function __ghe_compare --argument-names remote destination comparison
