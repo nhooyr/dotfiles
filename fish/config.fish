@@ -137,10 +137,10 @@ abbr -a --command noti e eval
 
 fzf --fish | source
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
-    --bind=ctrl-/:toggle-preview --no-mouse --scroll-off=0 --info=inline-right --no-sort \
-    --color=bw,query:regular,info:italic:underline,hl:underline,fg+:regular:reverse,\
+    --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
+    --no-sort --color=bw,query:regular,info:italic:underline,hl:underline,fg+:regular:reverse,\
 hl+:reverse:underline,pointer:magenta:bold"
-set -gx FZF_ALT_C_OPTS "$FZF_ALT_C_OPTS --bind=alt-enter:accept"
+set -gx FZF_ALT_C_OPTS --bind=alt-enter:accept
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
 function fzf_accept_and_run --argument-names widget
