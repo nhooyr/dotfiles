@@ -82,6 +82,7 @@ function ghc --wraps 'gh repo create'
     switch "$argv"
         case --help -h
             gh repo create --help
+            return 0
     end
     set -l url $(gh repo create --private $argv); or return
     printf '%s\n' $url[1]
