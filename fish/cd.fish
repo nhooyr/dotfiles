@@ -112,3 +112,7 @@ function cd --description 'Change directory'
 
     return $cd_status
 end
+function mcd --wraps 'mkdir -p'
+    mkdir -p -- "$argv"
+    cd -- "$argv"
+end
