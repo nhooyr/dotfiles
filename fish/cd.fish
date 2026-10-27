@@ -54,7 +54,7 @@ abbrali pd prevd
 abbrali bd prevd
 abbrali nd nextd
 function mcd --wraps 'mkdir -p'
-    mkdir -p -- "$argv"
+    mkdir -p -- "$argv"; or return
     cd -- "$argv"
 end
 
