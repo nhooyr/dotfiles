@@ -55,7 +55,7 @@ function fish_title
     end
 end
 function fish_mode_prompt
-    if not contains -- "$fish_key_bindings" fish_vi_key_bindings fish_hybrid_key_bindings
+    if ! contains -- "$fish_key_bindings" fish_vi_key_bindings fish_hybrid_key_bindings
         return
     end
     set_color --bold

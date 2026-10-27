@@ -21,7 +21,7 @@ function cdf --wraps cd --argument-names file
     CDPATH=. cd -- "$(path dirname -- "$file")"
 end
 function up
-    if not set -q argv[1]
+    if ! set -q argv[1]
         cd ..
         return
     end

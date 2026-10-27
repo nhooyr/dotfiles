@@ -1,4 +1,4 @@
-if not set -q HOMEBREW_PREFIX
+if ! set -q HOMEBREW_PREFIX
     /opt/homebrew/bin/brew shellenv fish | source
 end
 set -gx GOPATH ~/.local/share/go
@@ -7,7 +7,7 @@ fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     /opt/homebrew/share/git-core/contrib/diff-highlight \
     "$GOPATH/bin" \
     /opt/homebrew/bin
-if not status is-interactive
+if ! status is-interactive
     return 0
 end
 
@@ -165,7 +165,7 @@ end
 
 function aqsnow_exec
     set -l cmd $(commandline --current-process --tokens-expanded)
-    if test "$(count $cmd)" -eq 1 && test -f "$cmd[1]" && not type -q -- "$cmd[1]" && not string match -qr '^\.?/' -- "$cmd[1]"
+    if test "$(count $cmd)" -eq 1 && test -f "$cmd[1]" && ! type -q -- "$cmd[1]" && ! string match -qr '^\.?/' -- "$cmd[1]"
         fish_commandline_prepend "$EDITOR --"
     end
     commandline -f execute
@@ -175,7 +175,7 @@ bind -M insert enter aqsnow_exec
 bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
 bind -M insert alt-enter accept-autosuggestion aqsnow_exec
 
-if not set -q __aqsnow_rendezvous_dir
+if ! set -q __aqsnow_rendezvous_dir
     set -l rendezvous_dir "$(mktemp -d)" || return
     set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
     set -gx AQSNOW_FISH_RENDEZVOUS "$rendezvous_dir/rendezvous"
@@ -217,7 +217,7 @@ abbrali vsce NO_COLOR=1 command vsce
 set -gx DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
     for path in $argv
-        if not contains "$path" $CDPATH
+        if ! contains "$path" $CDPATH
             set --append --path -g CDPATH "$path"
         end
     end
