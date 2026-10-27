@@ -9,9 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - run: sudo add-apt-repository --yes ppa:fish-shell/release-4 && sudo apt-get install --yes fish
-      - run: for f in **.fish; do fish --no-execute "$f"; done
-      - run: echo shellcheck bin/* **.sh
+      - run: ./.github/workflows/lint.sh
   github-fish:
     runs-on: ubuntu-24.04
     steps:
