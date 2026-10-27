@@ -9,14 +9,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - run: ./.github/workflows/fmt.sh
+      - run: ./ci/fmt.sh
   lint:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - run: ./.github/workflows/lint.sh
+      - run: ./ci/lint.sh
   test:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      - run: ./.github/workflows/test.sh
+      - run: ./ci/test.sh
