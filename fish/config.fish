@@ -160,14 +160,14 @@ function aqsnow_exec
     commandline -f execute
 end
 function aqsnow_rendezvous
-    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 0
-    aqsnow_nvim_fzf_file_widget; and return 0
+    test -s "$AQSNOW_FISH_RENDEZVOUS" || return 0
+    aqsnow_nvim_fzf_file_widget && return 0
     rm "$AQSNOW_FISH_RENDEZVOUS"
     aqsnow_exec
     set -g fish_bind_mode insert
 end
 if not set -q __aqsnow_rendezvous_dir
-    set -l rendezvous_dir "$(mktemp -d)"; or return
+    set -l rendezvous_dir "$(mktemp -d)" || return
     set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
     set -gx AQSNOW_FISH_RENDEZVOUS "$rendezvous_dir/rendezvous"
     function aqsnow_rm_rendezvous --on-event fish_exit --inherit-variable rendezvous_dir
@@ -183,10 +183,10 @@ function aqsnow_nvim_fzf_file_widget
 end
 function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     set -l code "$status"
-    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 0
-    aqsnow_nvim_fzf_file_widget; and return 0
+    test -s "$AQSNOW_FISH_RENDEZVOUS" || return 0
+    aqsnow_nvim_fzf_file_widget && return 0
     rm "$AQSNOW_FISH_RENDEZVOUS"
-    test "$code" -eq 0; or return 0
+    test "$code" -eq 0 || return 0
 
     switch "$cmdline"
         case 'git commit --amend*' '* git commit --amend'
