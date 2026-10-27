@@ -8,4 +8,4 @@ if [ "${GITHUB_ACTIONS-}" ]; then
 	sudo apt-get install --yes fish
 fi
 
-find . -type f -name '*.fish' -exec fish --no-execute {} \;
+find . -type f -name '*.fish' | xargs -n1 fish --no-execute
