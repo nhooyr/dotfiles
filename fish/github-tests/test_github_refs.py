@@ -509,6 +509,17 @@ end
         self.assertIn("cannot refresh default HEAD", result.stderr)
         self.assertEqual(self.oid(destination), self.initial)
 
+    def test_head_comparison_handles_a_default_mapped_onto_or_under_its_alias(self):
+        for spec in ("+refs/heads/main:refs/remotes/origin/HEAD", "+refs/heads/*:refs/remotes/origin/HEAD/*"):
+            with self.subTest(spec=spec):
+                destination = self.clone()
+                self.git(destination, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+                self.git(destination, "config", "--replace-all", "remote.origin.fetch", spec)
+                newer = self.commit(self.source, spec + "\n")
+                self.assert_resolves(destination, "HEAD", newer)
+                if not spec.endswith("*"):
+                    self.assertEqual(self.oid(destination, "refs/remotes/origin/HEAD"), newer)
+
     def test_changed_default_with_no_safe_mapping_invalidates_the_old_alias(self):
         for restriction in ("unmapped", "excluded", "local_branch", "symbolic"):
             with self.subTest(restriction=restriction):
