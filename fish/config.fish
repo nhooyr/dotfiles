@@ -81,6 +81,7 @@ end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
 abbr -a fd fd -HLE .git
+abbr -a bfs bfs -L -exclude -name .git
 function f
     find . -iname "*$argv*"
 end
