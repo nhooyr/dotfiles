@@ -1,4 +1,4 @@
-if ! set -q HOMEBREW_PREFIX
+if not set -q HOMEBREW_PREFIX
     /opt/homebrew/bin/brew shellenv fish | source
 end
 set -gx GOPATH ~/.local/share/go
@@ -7,7 +7,7 @@ fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     /opt/homebrew/share/git-core/contrib/diff-highlight \
     "$GOPATH/bin" \
     /opt/homebrew/bin
-if ! status is-interactive
+if not status is-interactive
     return 0
 end
 
@@ -185,7 +185,7 @@ end
 
 function aqsnow_exec
     set -l cmd $(commandline --current-process --tokens-expanded)
-    if test "$(count $cmd)" -eq 1; and test -f "$cmd[1]"; and ! string match -qr '^\.{0,2}/' -- "$cmd[1]"
+    if test "$(count $cmd)" -eq 1; and test -f "$cmd[1]"; and not string match -qr '^\.{0,2}/' -- "$cmd[1]"
         if type -q -- "$cmd[1]"
             if test -x "$cmd[1]"; and file -bI -- "$cmd[1]" | grep -q "^text/"
                 fish_commandline_prepend "$EDITOR --"
@@ -201,7 +201,7 @@ bind -M insert enter aqsnow_exec
 bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
 bind -M insert alt-enter accept-autosuggestion aqsnow_exec
 
-if ! set -q __aqsnow_rendezvous_dir
+if not set -q __aqsnow_rendezvous_dir
     set -l rendezvous_dir "$(mktemp -d)"; or return
     set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
     set -gx AQSNOW_FISH_RENDEZVOUS "$rendezvous_dir/rendezvous"
@@ -211,7 +211,7 @@ if ! set -q __aqsnow_rendezvous_dir
 end
 function aqsnow_run_requested
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 1
-    if ! echo '<M-v>' | cmp -s - "$AQSNOW_FISH_RENDEZVOUS"
+    if not echo '<M-v>' | cmp -s - "$AQSNOW_FISH_RENDEZVOUS"
         rm "$AQSNOW_FISH_RENDEZVOUS"
         return 0
     end
@@ -245,7 +245,7 @@ function add_cdpath
     argparse p/prepend -- $argv; or return
     set -q _flag_prepend; and set mode --prepend
     for path in $argv
-        if ! contains -- "$path" $CDPATH
+        if not contains -- "$path" $CDPATH
             set $mode --path -g CDPATH "$path"
         end
     end
