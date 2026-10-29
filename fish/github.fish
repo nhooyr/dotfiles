@@ -788,7 +788,7 @@ function __ghe_open --argument-names target line column end_line end_column
     end
     if test -n "$end_line"
         set -l selection V
-        if test -n "$column"; or test -n "$end_column"
+        if test -n "$column$end_column"
             set selection v
             test -n "$end_column"; or set end_column "max([1, strlen(getline($end_line))])"
         else
@@ -1105,7 +1105,7 @@ function __gho_url --argument-names target
 
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
     set -l default_ref "$(__gh_default_ref "$remote" "$dir" $refspecs)"
-    if test -z "$default_ref"; and test -z "$repo_path"; and test -n "$branch"
+    if test -z "$default_ref$repo_path"; and test -n "$branch"
         # set-head assumes refs/remotes; cache the advertised HEAD using its mapping.
         set -l advertised (git -C "$dir" ls-remote --symref -- "$remote" HEAD 2>/dev/null)
         for line in $advertised
