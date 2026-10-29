@@ -99,7 +99,6 @@ end
 abbrali grer gre -r
 
 abbrali t time
-abbrali mkd 'cd "$(mktemp -d)"'
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
 abbrali ssha ssh-add

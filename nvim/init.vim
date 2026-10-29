@@ -74,7 +74,7 @@ cnoremap <M-BS> <C-w>
 nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
-nnoremap - :edit %:p:h<CR>
+nnoremap <silent> - :execute 'edit' fnameescape(expand('%:p:h'))<CR>
 
 nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
@@ -187,5 +187,6 @@ nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
 nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
 nnoremap <Leader>n :next<CR>
 nnoremap <Leader>p :prev<CR>
+nnoremap <M-z> zz
 nnoremap <M-n> *
 nnoremap <M-p> #

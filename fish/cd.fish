@@ -66,6 +66,7 @@ function mcd --wraps 'mkdir -p'
     mkdir -p -- "$argv"; or return
     cd -- "$argv"
 end
+abbrali mcdt 'cd "$(mktemp -d)"'
 
 # From embedded:functions/cd.fish @ line 5
 # Only change I made is to use cdf and increase MAX_DIR_HIST to 999.
