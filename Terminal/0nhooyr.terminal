@@ -319,7 +319,7 @@
 	A00DWgNdA2oDcwN4A4AAAAAAAAACAQAAAAAAAAAqAAAAAAAAAAAAAAAAAAADgw==
 	</data>
 	<key>BellBounceCritical</key>
-	<true/>
+	<false/>
 	<key>DisableANSIColor</key>
 	<false/>
 	<key>DynamicANSIForegroundColors</key>
@@ -354,6 +354,8 @@
 	<key>ShowRepresentedURLInTitle</key>
 	<false/>
 	<key>UseBrightBold</key>
+	<false/>
+	<key>VisualBellOnlyWhenMuted</key>
 	<false/>
 	<key>WindowTitle</key>
 	<string></string>
