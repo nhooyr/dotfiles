@@ -173,8 +173,6 @@ function fzf_accept_and_run --argument-names widget
                     | path filter -zZ -fdx"
                 set -fx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS --read0"
             end
-        case fzf_complete
-            set -fx FZF_DEFAULT_OPTS "$FZF_DEFAULT_OPTS --no-sort"
     end
     $widget
     aqsnow_rendezvous
