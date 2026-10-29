@@ -41,9 +41,8 @@ highlight! link Folded Comment
 set dictionary=/usr/share/dict/words
 set spell
 set spelllang=en_ca,en_us
-" Toggle spell via the highlight groups to keep it active for 'complete' kspell
-function! s:toggle_spell_visible() abort
-	let s:spell_visible = !get(s:, 'spell_visible', 1)
+function! s:set_spell_highlight() abort
+	let s:spell_visible = get(s:, 'spell_visible', 0)
 	if s:spell_visible ==# 0
 		highlight clear SpellBad
 		highlight clear SpellCap
@@ -56,9 +55,12 @@ function! s:toggle_spell_visible() abort
 		highlight SpellLocal cterm=underline
 	endif
 endfunction
-if !exists('s:spell_visible')
-	call s:toggle_spell_visible()
-endif
+call s:set_spell_highlight()
+" Toggle spell via the highlight groups to keep it active for 'complete' kspell
+function! s:toggle_spell_visible() abort
+	let s:spell_visible = !s:spell_visible
+	call s:set_spell_highlight()
+endfunction
 nnoremap <Leader>z :call <SID>toggle_spell_visible()<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
 
@@ -138,6 +140,7 @@ nnoremap <silent> <M-d> :t.<CR>
 
 set completeopt=menuone,noselect,popup
 set complete+=U,kspell,i,d,f,o
+set pumheight=8
 inoremap <expr> <C-Space> pumvisible() ? "\<C-n>" :
 	   \ strpart(getline('.'), 0, col('.') - 1) =~# '\f*/\f*$'
 	   \ ? "\<C-x>\<C-f>" : "\<C-n>"
