@@ -232,16 +232,18 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     set -l code "$status"
     if test "$code" -ne 0
         printf '\a'
-    else if set -l focused_tty "$(osascript -e 'tell application "Terminal"
-	if frontmost then return tty of selected tab of front window
-	return ""
-end tell')"
-        if set -q TMUX
-            if not contains -- "$focused_tty $TMUX_PANE" $(tmux list-clients -F '#{client_tty} #{pane_id}')
+    else if test "$TERM_PROGRAM" = Apple_Terminal
+        if set -l focused_tty "$(osascript -e 'tell application "Terminal"
+            if frontmost then return tty of selected tab of front window
+                return ""
+            end tell')"
+            if set -q TMUX
+                if not contains -- "$focused_tty $TMUX_PANE" $(tmux list-clients -F '#{client_tty} #{pane_id}')
+                    printf '\a'
+                end
+            else if test "$focused_tty" != "$(tty)"
                 printf '\a'
             end
-        else if test "$focused_tty" != "$(tty)"
-            printf '\a'
         end
     end
     aqsnow_run_requested; or return 0
