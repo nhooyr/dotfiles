@@ -41,7 +41,13 @@ function up
     set -l dir "$PWD"
     while test "$dir" != /
         set dir "$(path dirname -- "$dir")"
-        if string replace -rq -- "$argv" '' "$(path basename -- "$dir")"
+        set -l pattern "$argv"
+        set -l target "$(path basename -- "$dir")"
+        if string match -q '*/*' -- "$argv"
+            set pattern "(?:$argv)\$"
+            set target "$dir"
+        end
+        if string replace -rq -- "$pattern" '' "$target"
             cd -- "$dir"
             return
         end
