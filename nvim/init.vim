@@ -88,12 +88,12 @@ vmap <Leader>r //<Leader>r
 
 nnoremap <M-q> q
 nnoremap q :quit<CR>
-nnoremap <C-s> :xit<CR>
-inoremap <C-s> <Esc>:xit<CR>
-nnoremap <M-w> :wall<CR>
-inoremap <M-w> <Esc>:wall<CR>
 nnoremap <C-q> :qall!<CR>
 inoremap <C-q> <Esc>:qall!<CR>
+nnoremap <M-s> :write<CR>
+inoremap <M-s> <Esc>:write<CR>
+nnoremap <C-s> :xit<CR>
+inoremap <C-s> <Esc>:xit<CR>
 
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
 function! s:quit_and_run() abort
@@ -142,6 +142,7 @@ nnoremap <silent> <M-d> :t.<CR>
 set completeopt=menuone,noselect,popup
 set complete+=U,kspell,i,d,f,o
 set pumheight=8
+
 inoremap <expr> <C-Space> pumvisible() ? "\<C-n>" :
 	   \ strpart(getline('.'), 0, col('.') - 1) =~# '\f*/\f*$'
 	   \ ? "\<C-x>\<C-f>" : "\<C-n>"
@@ -151,7 +152,8 @@ inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
 highlight PmenuMatch cterm=underline
 highlight PmenuSel ctermfg=4
 highlight PmenuMatchSel cterm=underline,bold
-highlight PmenuSbar ctermfg=none
+highlight! link PmenuSbar Pmenu
+highlight! link PmenuThumb Pmenu
 
 command -bar -bang -nargs=0 Mkdirp write<bang> ++p
 nnoremap <Leader>m :Mkdirp<CR>
