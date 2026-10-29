@@ -40,7 +40,25 @@ highlight! link Folded Comment
 
 set dictionary=/usr/share/dict/words
 set spelllang=en_ca,en_us
-nnoremap <Leader>z :set spell!<CR>
+function! s:toggle_spell() abort
+	set spell!
+	if &spell ==# 1
+		highlight SpellBad cterm=underline
+		highlight SpellCap cterm=underline
+		highlight SpellRare cterm=underline
+		highlight SpellLocal cterm=underline
+	else
+		highlight clear SpellBad
+		highlight clear SpellCap
+		highlight clear SpellRare
+		highlight clear SpellLocal
+	endif
+endfunction
+if &spell ==# 0
+	set spell
+	call s:toggle_spell()
+endif
+nnoremap <Leader>z :call <SID>toggle_spell()<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
 
 " https://github.com/neovim/neovim/issues/39337
