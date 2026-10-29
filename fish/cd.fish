@@ -38,14 +38,17 @@ function up
         return
     end
 
+    set -l pattern "$argv"
+    if string match -q '*/*' -- "$pattern"
+        set pattern "(?:$pattern)\$"
+    end
+
     set -l dir "$PWD"
     while test "$dir" != /
         set dir "$(path dirname -- "$dir")"
-        set -l pattern "$argv"
-        set -l target "$(path basename -- "$dir")"
-        if string match -q '*/*' -- "$argv"
-            set pattern "(?:$argv)\$"
-            set target "$dir"
+        set -l target "$dir"
+        if not string match -q '*/*' -- "$pattern"
+            set -l target "$(path basename -- "$dir")"
         end
         if string replace -rq -- "$pattern" '' "$target"
             cd -- "$dir"
