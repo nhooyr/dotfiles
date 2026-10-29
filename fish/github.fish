@@ -380,7 +380,7 @@ function __ghe_pull --argument-names destination remote
                 end
                 if test -n "$target"
                     set -l canonical "$(git -C "$destination" rev-parse --symbolic-full-name "$target" 2>/dev/null)"
-                    if contains -- "$target" $checked_out_refs; or contains -- "$canonical" $checked_out_refs
+                    if string match -iq "$target" -- $checked_out_refs; or string match -iq "$canonical" -- $checked_out_refs
                         set skipped true
                         continue
                     end
@@ -456,8 +456,20 @@ end
 
 function __gh_safe_tracking --argument-names destination ref
     string match -q 'refs/*' -- "$ref"; or return 1
-    string match -qr '^refs/(heads|tags)/' -- "$ref"; and return 1
+    string match -qri '^refs/(heads|tags)/' -- "$ref"; and return 1
     not git -C "$destination" symbolic-ref -q "$ref" >/dev/null 2>&1
+end
+
+function __gh_head_alias_safe --argument-names destination alias
+    # Packed refs also need case-insensitive hierarchy checks.
+    set -l refs (git -C "$destination" for-each-ref --ignore-case \
+        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- refs/remotes); or return
+    for ref in $refs
+        if string match -iq "$alias" -- "$ref"; or string match -iq "$alias/*" -- "$ref"; or string match -iq "$ref/*" -- "$alias"
+            return 1
+        end
+    end
+    return 0
 end
 
 function __ghe_compare_ref --argument-names remote destination ref prefer_cached
@@ -712,7 +724,7 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
             set -l index (contains -i -- "$name" $default_names)
             if test -n "$index"
                 set -l tracking "$default_tracking[$index]"
-                if not string match -iq "$head_alias" -- "$tracking"; and not string match -iq "$head_alias/*" -- "$tracking"; and not string match -iq "$tracking/*" -- "$head_alias"
+                if __gh_head_alias_safe "$destination" "$head_alias"
                     git -C "$destination" symbolic-ref "$head_alias" "$tracking"; or return
                 end
                 set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking")"; or return
@@ -1170,7 +1182,9 @@ function __gho_url --argument-names target
                 set -l source (string sub -s 6 -- "$fields[1]")
                 set default_ref (__gh_tracking_ref "$source" $refspecs)
                 test -n "$default_ref"; or set default_ref "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source")"
-                git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
+                if __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
+                    git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
+                end
                 break
             end
         end
