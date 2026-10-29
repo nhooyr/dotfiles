@@ -25,6 +25,7 @@ set notermguicolors
 colorscheme default
 highlight MatchParen ctermfg=6
 highlight Comment ctermfg=8 cterm=italic
+highlight LineNr ctermfg=8
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
 highlight PreProc ctermfg=6 cterm=italic
@@ -35,7 +36,6 @@ let g:gitcommit_summary_length = &textwidth
 set list
 set listchars+=extends:>,precedes:<
 highlight! link NonText Comment
-highlight! link LineNr Comment
 highlight! link Folded Comment
 
 set dictionary=/usr/share/dict/words
@@ -145,8 +145,8 @@ inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
 inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
 highlight PmenuMatch cterm=underline
-highlight PmenuSel cterm=italic,underline,bold
-highlight PmenuMatchSel cterm=italic,bold
+highlight PmenuSel ctermfg=4
+highlight PmenuMatchSel cterm=underline,bold
 
 command -bar -bang -nargs=0 Mkdirp write<bang> ++p
 nnoremap <Leader>m :Mkdirp<CR>
