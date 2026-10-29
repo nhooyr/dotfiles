@@ -4,6 +4,7 @@ set ignorecase
 set smartcase
 set mouse=
 vnoremap <nowait> <C-c> "+y
+nnoremap <nowait> gp `[v`]
 set laststatus=3
 set textwidth=120
 set foldmethod=indent
