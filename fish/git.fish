@@ -1,3 +1,10 @@
+function git
+    command git $argv
+    set -l code $status
+    # Ignore SIGPIPE. See intro commit.
+    test "$code" -eq 141; and return 0
+    return "$code"
+end
 abbrali g git
 abbrali gsh git show
 abbrali ga git add -A
@@ -33,6 +40,7 @@ abbrali grmc git rm --cached
 abbrali grmcr git rm --cached -r
 abbrali grmcrf git rm --cached -rf
 abbrali gl git log
+abbrali glp git log -p
 abbrali glsf git ls-files
 abbrali gcl git clone
 abbrali gpl git pull
