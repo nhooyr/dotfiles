@@ -884,6 +884,32 @@ end
                 self.assertEqual(self.oid(destination), newer)
                 self.assertEqual(self.transport, [])
 
+    def test_head_file_open_refreshes_a_cached_default_missing_the_path(self):
+        destination = self.clone()
+        newer = self.commit(self.source, "added upstream\n", "new.txt")
+
+        result = self.checkout(destination, "blob/HEAD/new.txt", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("path does not exist", result.stderr)
+        self.assertEqual(self.oid(destination), self.initial)
+
+        self.assert_success(self.checkout(destination, "blob/HEAD/new.txt"))
+        self.assertEqual(self.oid(destination), newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), newer)
+        self.assertEqual((destination / "new.txt").read_text(), "added upstream\n")
+        self.assert_success(self.checkout(destination, "blob/HEAD/new.txt", offline=True))
+        self.assertEqual(self.transport, [])
+
+    def test_head_comparison_refreshes_default_branch_snapshot_offline(self):
+        destination = self.clone()
+        self.assert_resolves(destination, "main", self.initial)
+        newer = self.commit(self.source, "default moved before a HEAD comparison\n")
+        self.assert_resolves(destination, "HEAD", newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), newer)
+        for ref in ("main", "heads/main"):
+            with self.subTest(ref=ref):
+                self.assert_resolves(destination, ref, newer, offline=True)
+
     def test_head_file_open_uses_cached_default_commit_without_transport(self):
         destination = self.clone()
         self.commit(self.source, "new remote default version\n")

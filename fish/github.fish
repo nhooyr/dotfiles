@@ -27,6 +27,10 @@ function __gh_parse --argument-names input
         printf '%s: use a GitHub URL to specify a ref or file\n' "$0" >&2
         return 1
     end
+    # Browsers can display and copy IRIs, but URL unescaping accepts only ASCII.
+    for text in (string match -ar '[^\x00-\x7f]+' -- "$parts[3]")
+        set parts[3] (string replace -- "$text" (string escape --style=url -- "$text") "$parts[3]")
+    end
     set -l tail "$(string unescape --style=url -- "$parts[3]")"; or begin
         printf '%s: invalid URL encoding\n' "$0" >&2
         return 1
@@ -65,6 +69,15 @@ end
 
 function __gh_commit --argument-names destination revision
     git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$revision^{commit}" 2>/dev/null
+end
+
+function __gh_direct_commit --argument-names destination
+    # Print the first direct ref's commit; symbolic refs can point at an unrelated branch.
+    for ref in $argv[2..]
+        git -C "$destination" symbolic-ref -q "$ref" >/dev/null 2>&1; and continue
+        __gh_commit "$destination" "$ref"; and return
+    end
+    return 1
 end
 
 function __gh_local_ref --argument-names name
@@ -161,12 +174,11 @@ function __gh_cached_branches --argument-names name destination
     test (count $prefixes) -gt 0; or return 0
     set -l refs (git -C "$destination" for-each-ref \
         --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $prefixes); or return
-    for ref in $refs
-        set -l source (__gh_source_ref "$ref" $refspecs); or continue
-        set -l target (__gh_tracking_ref "$source" $refspecs); or continue
-        test "$ref" = "$target"; or continue
-        set -l branch (string replace -r '^refs/heads/' '' -- "$source")
-        printf '%s\t%s\n' "refs/remotes/$name/$branch" "$ref"
+    # Check only the candidate names in argv; remotes can cache thousands of branches.
+    for branch in $argv[3..]
+        set -l target (__gh_tracking_ref "refs/heads/$branch" $refspecs); or continue
+        contains -- "$target" $refs; or continue
+        printf '%s\t%s\n' "refs/remotes/$name/$branch" "$target"
     end
 end
 
@@ -236,11 +248,16 @@ function __gh_resolve --argument-names remote tail destination cached_only
     set -l refs (git -C "$destination" for-each-ref \
         --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' $prefixes); or return
     set -l revisions $refs
+    # Ref names can contain slashes, so each leading part of the path may name a branch.
+    set -l names "$route[2]"
+    while test "$exact" = false; and string match -q '*/*' -- "$names[-1]"
+        set -a names (string replace -r '/[^/]*$' '' -- "$names[-1]")
+    end
     set -l remotes (__gh_remotes "$remote" "$destination"); or return
     for name in $remotes
         test "$namespace" != refs/tags; or continue
         set -a prefixes "refs/remotes/$name"
-        set -l cached (__gh_cached_branches "$name" "$destination"); or return
+        set -l cached (__gh_cached_branches "$name" "$destination" $names); or return
         for line in $cached
             set -l fields (string split \t -- "$line")
             set -a refs "$fields[1]"
@@ -277,8 +294,14 @@ function __gh_resolve --argument-names remote tail destination cached_only
                 end
             end
             if test -z "$namespace"; and test "$ref" = HEAD; and test "$cached_only" != true
-                set -l revision (__ghe_compare_ref "$remote" "$destination" HEAD true); or return
-                printf '%s\n' "$revision" "$revision" (string trim -r -c / -- "$path") "$revision"
+                set -l revision (__ghe_compare_ref "$remote" "$destination" HEAD cached); or return
+                set path (string trim -r -c / -- "$path")
+                # A cached default can predate the requested path; try one refresh.
+                if test -n "$path"; and not git --no-lazy-fetch -C "$destination" rev-parse --verify --quiet "$revision:$path" >/dev/null
+                    set -l refreshed (__ghe_compare_ref "$remote" "$destination" HEAD refresh 2>/dev/null)
+                    and set revision $refreshed
+                end
+                printf '%s\n' "$revision" "$revision" "$path" "$revision"
                 return 0
             end
             if test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
@@ -472,7 +495,7 @@ function __gh_head_alias_safe --argument-names destination alias
     return 0
 end
 
-function __ghe_compare_ref --argument-names remote destination ref prefer_cached
+function __ghe_compare_ref --argument-names remote destination ref mode
     # Fork-qualified refs use owner:branch or owner:repository:branch.
     set -l qualified false
     if string match -q '*:*' -- "$ref"
@@ -527,7 +550,7 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
                         end
                         test -n "$tracking"; or continue
                         set -l tracked_source (__gh_source_ref "$tracking" $specs)
-                        if test "$prefer_cached" = true; and test -n "$tracked_source"; and __gh_safe_tracking "$destination" "$tracking"; and __gh_commit "$destination" "$tracking" >/dev/null
+                        if test "$mode" = cached; and test -n "$tracked_source"; and __gh_safe_tracking "$destination" "$tracking"; and __gh_commit "$destination" "$tracking" >/dev/null
                             set -a tracking_names "$name"
                             contains -- "$tracking" $tracking_candidates; or set -a tracking_candidates "$tracking"
                         else
@@ -540,34 +563,24 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
         end
     end
     set -l refresh_default false
-    if test "$prefer_cached" = true; and test "$ref" = HEAD
+    # A refresh request must not fall back to cached commits.
+    test "$mode" != refresh; or set refresh_default true
+    if test "$mode" = cached; and test "$ref" = HEAD
         # Every matching remote needs a usable cached default before staying offline.
         if not set -q tracking_candidates[1]; or test (count $tracking_names) -ne (count $remotes)
             set refresh_default true
         end
     end
-    set candidates $tracking_candidates $candidates
-    set -l oid
-    for candidate in $candidates
-        # Symbolic cache aliases can point at an unrelated branch.
-        git -C "$destination" symbolic-ref -q "$candidate" >/dev/null 2>&1; and continue
-        set oid "$(__gh_commit "$destination" "$candidate")"
-        test -z "$oid"; or break
-    end
-    if test "$prefer_cached" = true; and test "$ref" = HEAD; and test "$refresh_default" = false; and test -n "$oid"
-        set -l snapshot
-        for cached in (__gh_cache_refs "$destination" "$cache" HEAD)
-            git -C "$destination" symbolic-ref -q "$cached" >/dev/null 2>&1; and continue
-            set snapshot "$(__gh_commit "$destination" "$cached")"
-            test -z "$snapshot"; or break
-        end
+    set -l oid "$(__gh_direct_commit "$destination" $tracking_candidates $candidates)"
+    if test "$mode" = cached; and test "$ref" = HEAD; and test "$refresh_default" = false; and test -n "$oid"
+        set -l snapshot "$(__gh_direct_commit "$destination" (__gh_cache_refs "$destination" "$cache" HEAD))"
         set -l observed
         for tracking in $tracking_candidates
             set -l tip "$(__gh_commit "$destination" "$tracking")"
             test "$tip" != "$snapshot"; or continue
             if test -n "$snapshot"
                 set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking")"; or return
-                if git -C "$destination" symbolic-ref -q "$marker" >/dev/null 2>&1; or test "$(__gh_commit "$destination" "$marker")" != "$snapshot"
+                if test "$(__gh_direct_commit "$destination" "$marker")" != "$snapshot"
                     # Independent snapshots have no reliable observation order.
                     set refresh_default true
                 end
@@ -582,7 +595,7 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
         end
     end
     if test -n "$oid"
-        if test "$prefer_cached" = true; and test "$refresh_default" = false
+        if test "$mode" = cached; and test "$refresh_default" = false
             __gh_commit "$destination" "$oid$ancestry[1]"
             return $status
         else if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
@@ -742,6 +755,10 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
         if test "$invalidate_default" = true
             contains -- HEAD $cache_sources; or set -a cache_sources HEAD
         end
+        if test -n "$default_source"
+            # Offline comparisons of the default branch by name read these caches first.
+            set -a cache_sources "$default_source" (string replace -r '^refs/heads/' '' -- "$default_source")
+        end
         for source in $cache_sources
             set -l cache_refs (__gh_cache_refs "$destination" "$cache" "$source"); or return
             git -C "$destination" update-ref --no-deref "$cache_refs[1]" "$oid"; or return
@@ -834,9 +851,7 @@ function __ghe_pull_request --argument-names remote destination number
         printf '%s\n' "$revision"
         return
     end
-    # A symbolic cache would read some other ref, so only a direct one counts.
-    git -C "$destination" symbolic-ref -q "$cache" >/dev/null 2>&1; and return 1
-    __gh_commit "$destination" "$cache"
+    __gh_direct_commit "$destination" "$cache"
 end
 
 function __ghe_open --argument-names target line column end_line end_column
