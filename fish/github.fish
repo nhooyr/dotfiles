@@ -655,7 +655,7 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
     end
     if test -n "$default_tracking"
         set -l head_alias "refs/remotes/$query/HEAD"
-        if test "$default_tracking" != "$head_alias"; and not string match -q "$head_alias/*" -- "$default_tracking"; and not string match -q "$default_tracking/*" -- "$head_alias"
+        if not string match -iq "$head_alias" -- "$default_tracking"; and not string match -iq "$head_alias/*" -- "$default_tracking"; and not string match -iq "$default_tracking/*" -- "$head_alias"
             git -C "$destination" symbolic-ref "$head_alias" "$default_tracking"; or return
         end
         set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$default_tracking")"; or return
