@@ -140,6 +140,7 @@ function noti --wraps time
 end
 abbrali n noti
 abbr -a --command noti e eval
+abbrali bell printf '\a'
 
 fzf --fish | source
 # FZF's builtin file walker is not deterministic. fd isn't either, but at least it tries.
