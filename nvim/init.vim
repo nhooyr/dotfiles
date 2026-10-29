@@ -43,22 +43,22 @@ set spell
 set spelllang=en_ca,en_us
 " Toggle spell via the highlight groups to keep it active for 'complete' kspell
 function! s:toggle_spell() abort
-	if s:spell_toggle ==# 1
-		highlight SpellBad cterm=underline
-		highlight SpellCap cterm=underline
-		highlight SpellRare cterm=underline
-		highlight SpellLocal cterm=underline
-		let s:spell_toggle = 0
-	else
+	let s:spell_toggle = !get(s:, 'spell_toggle', 1)
+	if s:spell_toggle ==# 0
 		highlight clear SpellBad
 		highlight clear SpellCap
 		highlight clear SpellRare
 		highlight clear SpellLocal
-		let s:spell_toggle = 1
+	else
+		highlight SpellBad cterm=underline
+		highlight SpellCap cterm=underline
+		highlight SpellRare cterm=underline
+		highlight SpellLocal cterm=underline
 	endif
 endfunction
-let s:spell_toggle = 0
-call s:toggle_spell()
+if !exists('s:spell_toggle')
+	call s:toggle_spell()
+endif
 nnoremap <Leader>z :call <SID>toggle_spell()<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
 
