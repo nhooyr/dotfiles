@@ -175,3 +175,5 @@ nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
 nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
 nnoremap <Leader>n :next<CR>
 nnoremap <Leader>p :prev<CR>
+nnoremap <M-n> *
+nnoremap <M-p> #
