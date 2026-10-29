@@ -55,6 +55,7 @@ let g:termfeatures.osc52 = v:false
 
 noremap ; :
 noremap : ;
+noremap % *
 noremap 0 ^
 noremap ^ 0
 inoremap <M-BS> <C-w>
@@ -65,7 +66,7 @@ let g:netrw_list_hide = '^\.\.\?\/$'
 nnoremap - :edit %:p:h<CR>
 
 nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>
-nnoremap <Leader>r :%s##
+nnoremap <Leader>r :%s###g<Left><Left>
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
 vnoremap // "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 vmap <Leader>r //<Leader>r
