@@ -100,6 +100,7 @@ abbrali t time
 abbrali mkd 'cd "$(mktemp -d)"'
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
+abbrali ssha ssh-add
 abbrali socks ssh -ND1080
 abbrali py python3
 abbrali b brew
