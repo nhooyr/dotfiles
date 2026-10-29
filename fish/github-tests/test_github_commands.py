@@ -14,7 +14,7 @@ import tempfile
 import unittest
 
 
-SOURCE = Path(__file__).resolve().parents[1] / "github.fish"
+SOURCE = Path(os.environ.get("GITHUB_FISH_TEST_SOURCE", Path(__file__).resolve().parents[1] / "github.fish"))
 FISH = shutil.which("fish")
 GIT = shutil.which("git")
 
