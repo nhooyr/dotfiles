@@ -83,7 +83,7 @@ end
 alias gh='NO_COLOR=1 command gh'
 abbrali ghf gh repo fork --remote
 function ghc --wraps 'gh repo create'
-    argparse --ignore-unknown h/help -- $argv; or return
+    argparse --strict-longopts --ignore-unknown help -- $argv; or return
     if set -q _flag_help
         gh repo create --help
         return 0
