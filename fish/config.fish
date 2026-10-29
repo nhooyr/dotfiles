@@ -32,6 +32,7 @@ fish_hybrid_key_bindings
 set -g fish_color_error normal
 set -g fish_color_quote green
 set -g fish_color_search_match normal --reverse
+set -g fish_color_selection white --background=black
 set -g fish_pager_color_progress cyan --underline --italic
 set -g fish_pager_color_description cyan --italic
 set -g fish_pager_color_prefix --underline
