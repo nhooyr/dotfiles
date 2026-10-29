@@ -48,7 +48,7 @@ function up
         set dir "$(path dirname -- "$dir")"
         set -l target "$dir"
         if not string match -q '*/*' -- "$pattern"
-            set -l target "$(path basename -- "$dir")"
+            set target "$(path basename -- "$dir")"
         end
         if string replace -rq -- "$pattern" '' "$target"
             cd -- "$dir"
