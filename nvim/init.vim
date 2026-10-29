@@ -55,7 +55,6 @@ let g:termfeatures.osc52 = v:false
 
 noremap ; :
 noremap : ;
-noremap % *
 noremap 0 ^
 noremap ^ 0
 inoremap <M-BS> <C-w>
