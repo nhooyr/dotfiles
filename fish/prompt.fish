@@ -35,7 +35,7 @@ function prompt_hostname
     end
 end
 function fish_right_prompt
-    set_color magenta --italic
+    set_color magenta
     date '+%X'
     set_color --reset
 end
