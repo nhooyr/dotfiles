@@ -463,7 +463,7 @@ end
 function __gh_head_alias_safe --argument-names destination alias
     # Packed refs also need case-insensitive hierarchy checks.
     set -l refs (git -C "$destination" for-each-ref --ignore-case \
-        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- refs/remotes); or return
+        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)'); or return
     for ref in $refs
         if string match -iq "$alias" -- "$ref"; or string match -iq "$alias/*" -- "$ref"; or string match -iq "$ref/*" -- "$alias"
             return 1
