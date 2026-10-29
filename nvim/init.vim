@@ -74,6 +74,7 @@ noremap 0 ^
 noremap ^ 0
 inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
+cnoremap <M-v> <C-r>"
 nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
@@ -150,6 +151,7 @@ inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
 highlight PmenuMatch cterm=underline
 highlight PmenuSel ctermfg=4
 highlight PmenuMatchSel cterm=underline,bold
+highlight PmenuSbar ctermfg=none
 
 command -bar -bang -nargs=0 Mkdirp write<bang> ++p
 nnoremap <Leader>m :Mkdirp<CR>
