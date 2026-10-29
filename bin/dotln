@@ -2,7 +2,7 @@
 set -eu
 
 if [ "$#" -ne 2 ]; then
-	echo "Usage: $(basename "$0") src dst" >&2
+	echo "Usage: ${0##*/} src dst" >&2
 	exit 1
 fi
 

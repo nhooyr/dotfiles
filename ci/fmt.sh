@@ -21,7 +21,7 @@ if [ "${CI-}" ]; then
 		tput smul
 		tput sitm
 		tput bold
-		printf "%s %s: unexpected diff\n" "$(printf '%40s' | tr ' ' '^')" "$(basename "$0")"
+		printf "%s %s: unexpected diff\n" "$(printf '%40s' | tr ' ' '^')" "${0##*/}"
 		tput sgr0
 		exit 1
 	fi

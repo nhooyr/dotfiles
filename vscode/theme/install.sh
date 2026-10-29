@@ -2,7 +2,7 @@
 set -eu
 
 help() {
-	echo "Usage: $0 [-f]"
+	printf 'Usage: %s [-f]\n' "${0##*/}"
 }
 
 force=
@@ -24,9 +24,9 @@ publisher=$(jq -r .publisher ./package.json)
 name=$(jq -r .name ./package.json)
 version=$(jq -r .version ./package.json)
 if [ "$force" != true ] && code --list-extensions --show-versions | grep -qFx "$publisher.$name@$version"; then
-	echo "$(basename "$0"): Already installed $publisher.$name@$version: Run with -f to force update." >&2
+	printf '%s: Already installed %s.%s@%s: Run with -f to force update.\n' "${0##*/}" "$publisher" "$name" "$version" >&2
 	exit 0
 fi
-rm -f ./*.vsix
+rm -f -- ./*.vsix
 NO_COLOR=1 vsce package
 code ${force:+--force} --install-extension "./$name-$version.vsix"
