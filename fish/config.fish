@@ -106,7 +106,7 @@ abbrali py python3
 abbrali b brew
 abbrali bi brew install
 abbrali bu brew upgrade
-abbrali bc brew cleanup
+abbrali bcl brew cleanup
 abbrali tm tmux
 abbrali tml tmux list-sessions
 abbrali tma tmux attach-session
@@ -124,9 +124,9 @@ function colors
     set_color reset
 end
 
-abbrali nl nlogin
-abbrali np npass
-abbrali ne nemail
+abbrali nlo nlogin
+abbrali npw npass
+abbrali nem nemail
 
 abbrali chx chmod +x
 abbrali ymp3 yt-dlp --audio-format mp3 -x --embed-thumbnail
