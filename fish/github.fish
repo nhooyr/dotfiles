@@ -343,7 +343,7 @@ function __ghe_pull --argument-names destination remote
     end
     set -l branch "$(git -C "$destination" symbolic-ref -q HEAD)"; or return 0
     set -l upstream (git -C "$destination" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)' -- "$branch"); or return
-    if test -z "$upstream[1]"; or test -z "$upstream[2]"; or test -z "$upstream[3]"
+    if contains -- '' "$upstream[1]" "$upstream[2]" "$upstream[3]"
         printf '%s: no upstream configured; skipping pull\n' "$0" >&2
         return 0
     end
