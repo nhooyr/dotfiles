@@ -126,6 +126,17 @@ class GithubRefsTests(unittest.TestCase):
         text = "tree %s\nauthor %s\ncommitter %s\n\n%s\n" % (tree, identity, identity, message)
         return self.git(repository, "hash-object", "-w", "-t", "commit", "--stdin", input=text).stdout.strip()
 
+    def colliding_hex_commit(self, repository, *, with_paths):
+        if not with_paths:
+            return self.empty_root_commit(repository, "hex branch 6984")
+        blob = self.git(repository, "hash-object", "-w", "--stdin", input="unrelated file\n").stdout.strip()
+        subtree = self.git(repository, "mktree", input="100644 blob %s\tfile.txt\n" % blob).stdout.strip()
+        tree = self.git(repository, "mktree", input="100644 blob %s\tfile.txt\n040000 tree %s\tfix\n" % (blob, subtree)).stdout.strip()
+        identity = "Dotfiles tests <dotfiles-tests@example.invalid> 0 +0000"
+        # Fixed tree and message produce 20269db4..., with file.txt and fix/file.txt.
+        text = "tree %s\nauthor %s\ncommitter %s\n\nhex path 35985\n" % (tree, identity, identity)
+        return self.git(repository, "hash-object", "-w", "-t", "commit", "--stdin", input=text).stdout.strip()
+
     def oid(self, repository, ref="HEAD"):
         return self.git(repository, "rev-parse", "--verify", ref).stdout.strip()
 
@@ -422,6 +433,160 @@ end
                 self.assertEqual(self.oid(destination), tip)
                 self.assertEqual((destination / "file.txt").read_text(), "tip\n")
 
+    def test_head_file_open_follows_pulls_and_comparisons_in_observation_order(self):
+        for mapping in ("+refs/heads/*:refs/remotes/origin/*", "+refs/heads/*:refs/cache/origin/*",
+                        "+refs/heads/*:refs/custom/origin/*"):
+            with self.subTest(mapping=mapping):
+                destination = self.clone()
+                self.git(destination, "config", "--replace-all", "remote.origin.fetch", mapping)
+                self.git(destination, "-c", "url." + self.source.as_uri() + ".insteadOf=" + URL,
+                         "fetch", "--quiet", "origin")
+                self.assert_resolves(destination, "HEAD", self.oid(self.source))
+                pulled = self.commit(self.source, "pulled default version\n")
+                self.git(destination, "-c", "url." + self.source.as_uri() + ".insteadOf=" + URL,
+                         "pull", "--quiet", "--ff-only", "origin", "main")
+                self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
+                self.assertEqual(self.oid(destination), pulled)
+                compared = self.commit(self.source, "comparison default version\n")
+                self.assert_resolves(destination, "HEAD", compared)
+                self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
+                self.assertEqual(self.oid(destination), compared)
+                self.assertEqual(self.transport, [])
+
+    def test_head_comparison_refreshes_tracking_on_force_rewind_and_divergence(self):
+        destination = self.clone()
+        newer = self.commit(self.source, "new remote version\n")
+        self.assert_resolves(destination, "HEAD", newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), newer)
+        self.git(self.source, "reset", "--hard", self.initial)
+        self.git(destination, "-c", "url." + self.source.as_uri() + ".insteadOf=" + URL,
+                 "fetch", "--quiet", "origin")
+        self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
+        self.assertEqual(self.oid(destination), self.initial)
+        divergent = self.commit(self.source, "divergent remote version\n")
+        self.assert_resolves(destination, "HEAD", divergent)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), divergent)
+        self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
+        self.assertEqual(self.oid(destination), divergent)
+
+    def test_head_comparison_updates_default_alias_without_overwriting_old_branch(self):
+        destination = self.clone()
+        self.assert_resolves(destination, "HEAD", self.initial)
+        self.git(self.source, "switch", "--quiet", "--create", "new-default")
+        newer = self.commit(self.source, "new default branch\n")
+        self.assert_resolves(destination, "HEAD", newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), self.initial)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/new-default"), newer)
+        self.assertEqual(self.git(destination, "symbolic-ref", "refs/remotes/origin/HEAD").stdout.strip(),
+                         "refs/remotes/origin/new-default")
+        self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
+        self.assertEqual(self.oid(destination), newer)
+
+    def test_head_open_refreshes_unsafe_mapping_without_modifying_its_target(self):
+        for mapping in ("+refs/heads/main:refs/heads/main", "+refs/heads/main:refs/tags/local-copy"):
+            with self.subTest(mapping=mapping):
+                destination = self.clone()
+                self.git(destination, "config", "--replace-all", "remote.origin.fetch", mapping)
+                before = self.oid(destination)
+                newer = self.commit(self.source, "unsafe mapping comparison " + mapping + "\n")
+                self.assert_resolves(destination, "HEAD", newer)
+                self.assertEqual(self.oid(destination), before)
+                result = self.checkout(destination, "blob/HEAD/file.txt", offline=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("cannot refresh default HEAD", result.stderr)
+                self.assertEqual(self.oid(destination), before)
+                self.assert_success(self.checkout(destination, "blob/HEAD/file.txt"))
+                self.assertEqual(self.oid(destination), newer)
+
+    def test_head_open_does_not_trust_a_negatively_excluded_default(self):
+        destination = self.clone()
+        self.git(destination, "config", "--add", "remote.origin.fetch", "^refs/heads/main")
+        newer = self.commit(self.source, "excluded default comparison\n")
+        self.assert_resolves(destination, "HEAD", newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), self.initial)
+        result = self.checkout(destination, "blob/HEAD/file.txt", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot refresh default HEAD", result.stderr)
+        self.assertEqual(self.oid(destination), self.initial)
+
+    def test_changed_default_with_no_safe_mapping_invalidates_the_old_alias(self):
+        for restriction in ("unmapped", "excluded", "local_branch", "symbolic"):
+            with self.subTest(restriction=restriction):
+                self.git(self.source, "switch", "--quiet", "main")
+                destination = self.clone()
+                self.assert_resolves(destination, "HEAD", self.oid(self.source))
+                self.git(self.source, "switch", "--quiet", "--create", "new-" + restriction)
+                newer = self.commit(self.source, "new unmapped default\n")
+                if restriction == "unmapped":
+                    self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                             "+refs/heads/main:refs/remotes/origin/main")
+                elif restriction == "excluded":
+                    self.git(destination, "config", "--add", "remote.origin.fetch", "^refs/heads/new-" + restriction)
+                elif restriction == "local_branch":
+                    self.git(destination, "config", "--add", "remote.origin.fetch",
+                             "+refs/heads/new-local_branch:refs/heads/local-copy")
+                    self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                             "+refs/heads/main:refs/remotes/origin/main", "refs/heads/\\*")
+                else:
+                    self.git(destination, "symbolic-ref", "refs/remotes/origin/new-symbolic", "refs/heads/main")
+                self.assert_resolves(destination, "HEAD", newer)
+                self.assertNotEqual(self.git(destination, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD", check=False).returncode, 0)
+                result = self.checkout(destination, "blob/HEAD/file.txt", offline=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("cannot refresh default HEAD", result.stderr)
+                self.assertEqual(self.oid(destination), self.oid(destination, "refs/heads/main"))
+
+    def test_comparison_survives_a_stale_tracking_ref_hierarchy(self):
+        self.git(self.source, "branch", "topic")
+        destination = self.clone()
+        self.git(self.source, "branch", "--delete", "topic")
+        self.git(self.source, "switch", "--quiet", "--create", "topic/fix")
+        newer = self.commit(self.source, "new topic hierarchy\n")
+        self.assert_resolves(destination, "heads/topic/fix", newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/topic"), self.initial)
+        self.assertEqual(self.oid(destination), self.initial)
+
+    def test_failed_default_tracking_update_requires_refresh_instead_of_old_head_cache(self):
+        destination = self.clone()
+        self.assert_resolves(destination, "HEAD", self.initial)
+        newer = self.commit(self.source, "locked default tracking\n")
+        lock = destination / ".git/refs/remotes/origin/main.lock"
+        lock.write_text("held by another process\n")
+        self.assert_resolves(destination, "main", newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), self.initial)
+        self.assertNotEqual(self.git(destination, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD", check=False).returncode, 0)
+        result = self.checkout(destination, "blob/HEAD/file.txt", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot refresh default HEAD", result.stderr)
+        self.assertEqual(self.oid(destination), self.initial)
+
+    def test_legacy_head_snapshot_conflict_requires_one_online_synchronization(self):
+        for snapshot_position in ("newer", "older"):
+            with self.subTest(snapshot_position=snapshot_position):
+                destination = self.clone()
+                before = self.oid(destination)
+                newer = self.commit(self.source, "legacy " + snapshot_position + " snapshot\n")
+                if snapshot_position == "newer":
+                    self.git(destination, "fetch", "--quiet", "--refmap=", self.source.as_uri(), "main")
+                    snapshot = newer
+                else:
+                    self.git(destination, "-c", "url." + self.source.as_uri() + ".insteadOf=" + URL,
+                             "pull", "--quiet", "--ff-only", "origin", "main")
+                    snapshot = before
+                    before = newer
+                identity = self.git(destination, "hash-object", "--stdin", input="example/project\n").stdout.strip()
+                key = self.git(destination, "hash-object", "--stdin", input="HEAD\n").stdout.strip()
+                self.git(destination, "update-ref", "refs/gh/compare/" + identity + "/by-ref/" + key, snapshot)
+                result = self.checkout(destination, "blob/HEAD/file.txt", offline=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("cannot refresh default HEAD", result.stderr)
+                self.assertEqual(self.oid(destination), before)
+                self.assert_success(self.checkout(destination, "blob/HEAD/file.txt"))
+                self.assertEqual(self.oid(destination), newer)
+                self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
+                self.assertEqual(self.oid(destination), newer)
+                self.assertEqual(self.transport, [])
+
     def test_head_file_open_uses_cached_default_commit_without_transport(self):
         destination = self.clone()
         self.commit(self.source, "new remote default version\n")
@@ -654,6 +819,85 @@ end
         self.assertEqual(self.git(destination, "rev-parse", "--symbolic-full-name", "@{upstream}").stdout.strip(), "refs/remotes/origin/deadbeef")
         self.assertEqual(self.transport, [])
 
+    def test_new_hex_branches_win_over_cached_abbreviated_commits(self):
+        routes = (("2026/fix", "blob/2026/fix/file.txt"), ("2026/fix", "tree/2026/fix"),
+                  ("2026", "blob/2026/file.txt"), ("2026", "tree/2026"))
+        cases = [(with_paths, ref, route, self.clone())
+                 for with_paths in (False, True) for ref, route in routes]
+        wanted = self.commit(self.source, "new hexadecimal branches\n")
+        advertised_ref = None
+        for with_paths, ref, route, destination in cases:
+            if ref != advertised_ref:
+                if advertised_ref:
+                    self.git(self.source, "branch", "--delete", "--force", advertised_ref)
+                self.git(self.source, "branch", ref)
+                advertised_ref = ref
+            with self.subTest(with_paths=with_paths, route=route):
+                unrelated = self.colliding_hex_commit(destination, with_paths=with_paths)
+                self.assertTrue(unrelated.startswith("2026"))
+                self.git(destination, "update-ref", "refs/heads/unrelated", unrelated)
+
+                result = self.checkout(destination, route)
+
+                self.assert_success(result)
+                self.assertEqual(self.oid(destination), wanted)
+                self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), ref)
+                self.assertEqual((destination / "file.txt").read_text(), "new hexadecimal branches\n")
+                self.assertTrue(any(call["command"] == "ls-remote" for call in self.transport))
+                self.assert_success(self.checkout(destination, route, offline=True))
+                self.assertEqual(self.transport, [])
+
+    def test_cached_short_commit_fails_closed_when_remote_refs_are_unavailable(self):
+        destination = self.clone()
+        unrelated = self.colliding_hex_commit(destination, with_paths=True)
+        self.assertTrue(unrelated.startswith("2026"))
+        self.git(destination, "update-ref", "refs/heads/unrelated", unrelated)
+        before = self.git(destination, "status", "--porcelain").stdout
+        for route in ("blob/2026/fix/file.txt", "tree/2026/fix", "commit/2026"):
+            with self.subTest(route=route):
+                result = self.checkout(destination, route, offline=True)
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("full 40-character commit hash", result.stderr)
+                self.assertEqual(self.oid(destination), self.initial)
+                self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), "main")
+                self.assertEqual(self.git(destination, "status", "--porcelain").stdout, before)
+                self.assertEqual([call["command"] for call in self.transport], ["ls-remote"])
+
+        result = self.checkout(destination, "blob/" + unrelated + "/fix/file.txt", offline=True)
+        self.assert_success(result)
+        self.assertEqual(self.oid(destination), unrelated)
+        self.assertEqual(self.transport, [])
+        self.assert_success(self.checkout(destination, "archive/" + unrelated[:10] + ".zip", offline=True))
+        self.assertEqual(self.transport, [])
+
+    def test_cached_short_commit_checks_remote_refs_before_switching(self):
+        destination = self.clone()
+        result = self.checkout(destination, "blob/" + self.initial[:10] + "/file.txt")
+
+        self.assert_success(result)
+        self.assertEqual(self.oid(destination), self.initial)
+        self.assertNotEqual(self.git(destination, "symbolic-ref", "--quiet", "HEAD", check=False).returncode, 0)
+        self.assertEqual([call["command"] for call in self.transport], ["ls-remote"])
+
+    def test_cached_only_resolution_keeps_short_commits_ambiguous_and_gho_offline(self):
+        destination = self.clone()
+        unrelated = self.colliding_hex_commit(destination, with_paths=True)
+        self.git(destination, "update-ref", "refs/heads/unrelated", unrelated)
+        result = self.fish('__gh_resolve "$argv[1]" blob/2026/fix/file.txt "$argv[2]" true', URL, destination, offline=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(self.transport, [])
+        self.assertEqual(self.oid(destination), self.initial)
+
+        self.git(destination, "switch", "--quiet", "--detach", unrelated)
+        result = self.fish('gho "$argv[1]"', destination / "fix/file.txt", offline=True)
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), "https://github.com/example/project/blob/" + unrelated + "/fix/file.txt")
+        self.assertEqual(self.transport, [])
+
     def test_missing_abbreviated_commit_is_fetched_and_detached(self):
         destination = self.clone()
         requested = self.commit(self.source, "requested commit\n")
@@ -664,7 +908,7 @@ end
         self.assertEqual((destination / "file.txt").read_text(), "requested commit\n")
         self.assertNotEqual(self.git(destination, "symbolic-ref", "--quiet", "HEAD", check=False).returncode, 0)
         self.assertTrue(any(call["command"] == "fetch" for call in self.transport))
-        self.assert_success(self.checkout(destination, "blob/" + requested[:10] + "/file.txt", offline=True))
+        self.assert_success(self.checkout(destination, "blob/" + requested + "/file.txt", offline=True))
         self.assertEqual(self.transport, [])
 
     def test_missing_abbreviated_commit_in_shallow_clone_fetches_history(self):

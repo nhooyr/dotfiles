@@ -457,6 +457,7 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         self.assertEqual(self.head(), self.initial)
         self.assertEqual((self.checkout / "file.txt").read_text(), "keep local edit\n")
         self.assertEqual(self.network_calls(), [])
+        self.assertIn("checkout has local changes; skipping pull", result.stderr)
 
     def test_dirty_checkout_keeps_current_branch_when_visiting_another_ref(self):
         self.seed_commit({"file.txt": "feature\n"}, branch="feature", create=True)

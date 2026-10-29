@@ -245,7 +245,12 @@ function __gh_resolve --argument-names remote tail destination cached_only
             test "$cached_only" != true; or return 1
             set -l query_remote "$remote"
             set -q remotes[1]; and set query_remote "$remotes[1]"
-            set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$query_remote"); or return
+            set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$query_remote"); or begin
+                if test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$commit_path[1]"; and __gh_commit "$destination" "$commit_path[1]" >/dev/null
+                    printf '%s: cannot disambiguate this hexadecimal ref without remote refs; use a full 40-character commit hash for offline access\n' "$0" >&2
+                end
+                return 1
+            end
             set refs (string split -f 2 \t -- $advertised)
             set revisions (string split -f 1 \t -- $advertised)
             set prefixes $source_prefixes
@@ -268,8 +273,8 @@ function __gh_resolve --argument-names remote tail destination cached_only
                 return 0
             end
             if test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
-                # A short hex name may be a branch, such as 2026/fix.
-                if test "$source" = remote; or __gh_commit "$destination" "$ref" >/dev/null
+                # Check advertised refs before treating a hex name as a commit.
+                if test "$source" = remote
                     printf '%s\n' "$ref" "$ref" (string trim -r -c / -- "$path") "$ref"
                     return 0
                 end
@@ -333,6 +338,7 @@ end
 function __ghe_pull --argument-names destination remote
     set -l changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
     if test -n "$changes"
+        printf '%s: checkout has local changes; skipping pull\n' "$0" >&2
         return 0
     end
     set -l branch "$(git -C "$destination" symbolic-ref -q HEAD)"; or return 0
@@ -439,6 +445,12 @@ function __gh_cache_refs --argument-names destination cache source
     end
 end
 
+function __gh_safe_tracking --argument-names destination ref
+    string match -q 'refs/*' -- "$ref"; or return 1
+    string match -qr '^refs/(heads|tags)/' -- "$ref"; and return 1
+    not git -C "$destination" symbolic-ref -q "$ref" >/dev/null 2>&1
+end
+
 function __ghe_compare_ref --argument-names remote destination ref prefer_cached
     # Fork-qualified refs use owner:branch or owner:repository:branch.
     set -l qualified false
@@ -471,6 +483,7 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
     set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
     set -l cache "refs/gh/compare/$identity"
     set -l candidates
+    set -l tracking_candidates
     if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
         set candidates "$ref"
     else
@@ -490,13 +503,25 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
                         else
                             set tracking (__gh_tracking_ref "$source" $specs)
                         end
-                        test -z "$tracking"; or set -a candidates "$tracking"
+                        test -n "$tracking"; or continue
+                        set -l tracked_source (__gh_source_ref "$tracking" $specs)
+                        if test "$prefer_cached" = true; and test "$name" = "$query"; and test -n "$tracked_source"; and __gh_safe_tracking "$destination" "$tracking"; and __gh_commit "$destination" "$tracking" >/dev/null
+                            set -a tracking_candidates "$tracking"
+                        else
+                            set -a candidates "$tracking"
+                        end
                     end
                 case 'refs/tags/*'
                     test "$qualified" != false; or set -a candidates "$source"
             end
         end
     end
+    set -l refresh_default false
+    if test "$prefer_cached" = true; and test "$ref" = HEAD; and not set -q tracking_candidates[1]
+        # A local branch or unsupported mapping cannot be refreshed without side effects.
+        set refresh_default true
+    end
+    set candidates $tracking_candidates $candidates
     set -l oid
     for candidate in $candidates
         # Symbolic cache aliases can point at an unrelated branch.
@@ -504,8 +529,23 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
         set oid "$(__gh_commit "$destination" "$candidate")"
         test -z "$oid"; or break
     end
+    if test "$prefer_cached" = true; and test "$ref" = HEAD; and test "$refresh_default" = false; and test -n "$oid"
+        set -l snapshot
+        for cached in (__gh_cache_refs "$destination" "$cache" HEAD)
+            git -C "$destination" symbolic-ref -q "$cached" >/dev/null 2>&1; and continue
+            set snapshot "$(__gh_commit "$destination" "$cached")"
+            test -z "$snapshot"; or break
+        end
+        if test -n "$snapshot"; and test "$snapshot" != "$oid"
+            set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking_candidates[1]")"; or return
+            if git -C "$destination" symbolic-ref -q "$marker" >/dev/null 2>&1; or test "$(__gh_commit "$destination" "$marker")" != "$snapshot"
+                # Older independent snapshots have no reliable observation order.
+                set refresh_default true
+            end
+        end
+    end
     if test -n "$oid"
-        if test "$prefer_cached" = true
+        if test "$prefer_cached" = true; and test "$refresh_default" = false
             __gh_commit "$destination" "$oid$ancestry[1]"
             return $status
         else if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
@@ -521,12 +561,21 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
     end
 
     set -l fetch_refs "$ref"
+    set -l default_source
     set -l fetch_status 0
     if not string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
         # Status 2 means the remote answered but the requested name is absent.
-        set -l advertised (git -C "$destination" ls-remote --exit-code -- "$query" $sources)
+        set -l advertised (git -C "$destination" ls-remote --symref --exit-code -- "$query" $sources)
         set fetch_status "$status"
         if contains -- "$fetch_status" 0 2
+            if test "$ref" = HEAD
+                for line in $advertised
+                    set -l fields (string split \t -- "$line")
+                    if test "$fields[2]" = HEAD; and string match -q 'ref: refs/heads/*' -- "$fields[1]"
+                        set default_source (string replace 'ref: ' '' -- "$fields[1]")
+                    end
+                end
+            end
             set fetch_refs
             set -l refs (string split -f 2 \t -- $advertised)
             for source in $sources
@@ -545,11 +594,43 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
             set fetch_status 0
         end
     end
+    set -l fetch_specs $fetch_refs
+    set -l fetch_tracking
+    set -l default_tracking
+    set -l invalidate_default false
+    test "$ref" != HEAD; or set invalidate_default true
+    if set -q remotes[1]; and set -q fetch_refs[1]
+        set -l source "$fetch_refs[1]"
+        test -z "$default_source"; or set source "$default_source"
+        if string match -q 'refs/heads/*' -- "$source"
+            set -l specs (__gh_refspecs "$query" "$destination")
+            set -l tracking (__gh_tracking_ref "$source" $specs)
+            if test -n "$tracking"; and __gh_safe_tracking "$destination" "$tracking"
+                set fetch_specs "$source:$tracking"
+                set fetch_tracking "$tracking"
+                test "$ref" != HEAD; or set default_tracking "$tracking"
+            end
+        end
+    end
     if test "$fetch_status" -eq 0
-        __ghe_fetch_history "$destination" "$query" $fetch_refs
+        __ghe_fetch_history "$destination" "$query" $fetch_specs
         set fetch_status "$status"
+        if test "$fetch_status" -ne 0; and test -n "$fetch_tracking"
+            # A stale ref hierarchy or lock must not prevent a read-only comparison.
+            set -l specs (__gh_refspecs "$query" "$destination")
+            if test "$fetch_tracking" = "$(__gh_default_ref "$query" "$destination" $specs)"
+                set invalidate_default true
+            end
+            set default_tracking
+            __ghe_fetch_history "$destination" "$query" $fetch_refs
+            set fetch_status "$status"
+        end
     end
     if test "$fetch_status" -ne 0
+        if test "$refresh_default" = true
+            printf '%s: cannot refresh default HEAD; refusing to use ambiguous cached refs\n' "$0" >&2
+            return 1
+        end
         test -n "$oid"; or return "$fetch_status"
         if __gh_commit "$destination" "$oid$ancestry[1]"
             printf '%s: could not refresh comparison ref; using cached commit: %s\n' "$0" "$ref" >&2
@@ -571,6 +652,20 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
     if test -z "$oid"
         printf '%s: comparison commit is missing or ambiguous: %s\n' "$0" "$ref" >&2
         return 1
+    end
+    if test -n "$default_tracking"
+        git -C "$destination" symbolic-ref "refs/remotes/$query/HEAD" "$default_tracking"; or return
+        set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$default_tracking")"; or return
+        git -C "$destination" update-ref --no-deref "$marker" "$oid"; or return
+    else if test "$invalidate_default" = true; and set -q remotes[1]
+        set -l markers (git -C "$destination" for-each-ref --format='%(refname)' -- "$cache/tracking-synced/"); or return
+        for marker in $markers
+            git -C "$destination" update-ref --no-deref -d "$marker"; or return
+        end
+        # The advertised default no longer has a safe tracking destination.
+        if git -C "$destination" symbolic-ref -q "refs/remotes/$query/HEAD" >/dev/null 2>&1
+            git -C "$destination" symbolic-ref --delete "refs/remotes/$query/HEAD"; or return
+        end
     end
     if set -q fetch_refs[1]
         set -l cache_sources "$ref"
@@ -999,7 +1094,7 @@ function __gho_url --argument-names target
             end
             return 1
         end
-        if test "$kind" != tree; and test "$kind" != blob
+        if not contains -- "$kind" tree blob
             printf '%s: unsupported Git object at path: %s\n' "$0" "$target" >&2
             return 1
         end
