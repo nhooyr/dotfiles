@@ -178,6 +178,7 @@ function __gh_cached_branches --argument-names name destination
     for branch in $argv[3..]
         set -l target (__gh_tracking_ref "refs/heads/$branch" $refspecs); or continue
         contains -- "$target" $refs; or continue
+        test "$(__gh_source_ref "$target" $refspecs)" = "refs/heads/$branch"; or continue
         printf '%s\t%s\n' "refs/remotes/$name/$branch" "$target"
     end
 end

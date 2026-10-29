@@ -1253,6 +1253,24 @@ end
         self.assertNotIn("couldn't find remote ref", result.stderr)
         self.assertEqual(self.oid(destination), before)
 
+    def test_overlapping_fetch_mappings_do_not_invent_a_cached_branch(self):
+        self.git(self.source, "branch", "-m", "main", "release/main")
+        destination = self.clone()
+        self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                 "+refs/heads/release/*:refs/remotes/origin/*")
+        self.git(destination, "config", "--add", "remote.origin.fetch",
+                 "+refs/heads/*:refs/remotes/origin/*")
+        self.assert_success(self.fish('git -C "$argv[1]" fetch --quiet origin', destination))
+
+        result = self.checkout(destination, "blob/main/file.txt")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no branch, tag, or commit matches", result.stderr)
+        self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), "release/main")
+        self.assertNotEqual(self.git(destination, "show-ref", "--verify", "--quiet",
+                                    "refs/heads/main", check=False).returncode, 0)
+        self.assert_success(self.checkout(destination, "blob/release/main/file.txt", offline=True))
+
     def test_custom_cached_fetch_destinations_set_a_working_upstream(self):
         self.git(self.source, "branch", "topic")
         for spec, tracking in (
