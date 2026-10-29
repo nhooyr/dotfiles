@@ -11,9 +11,10 @@ abbrali ga git add -A
 abbrali gap git add -p
 abbrali gai git add -i
 abbrali gp git push
+abbrali gps git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
-abbrali gcmp gcm '&&' gp
+abbrali gcmp gcm '&&' gps
 abbrali gacm ga '&&' gcm
 abbrali gacmp ga '&&' gcmp
 abbrali gcma git commit --amend
