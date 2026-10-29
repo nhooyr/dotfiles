@@ -162,7 +162,8 @@ function fzf_accept_and_run --argument-names widget
 
     switch "$widget"
         case fzf-file-widget
-            if string match -q './*' -- "$(commandline --current-token --tokens-expanded)"
+            if test -z "$(commandline --cut-at-cursor --current-process --tokens-expanded)"
+                and string match -q './*' -- "$(commandline --current-token --tokens-expanded)"
                 set -l dir "$(string unescape -- "$(__fzf_parse_commandline)[1]")"
                 if test "$dir" != .; and not string match -q './*' -- "$dir"
                     set dir "./$dir"
