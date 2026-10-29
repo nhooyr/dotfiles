@@ -479,6 +479,39 @@ end
         self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
         self.assertEqual(self.oid(destination), divergent)
 
+    def test_head_comparison_updates_tracking_after_force_push_without_local_fetch(self):
+        destination = self.clone()
+        tracking = self.matching_remote(destination, tracking="refs/cache/aaa/main")
+        pushed = self.commit(self.source, "default before force push\n")
+        self.assert_resolves(destination, "HEAD", pushed)
+        self.git(self.source, "reset", "--hard", self.initial)
+        rewritten = self.commit(self.source, "force-pushed default\n")
+
+        self.assert_resolves(destination, "HEAD", rewritten)
+
+        self.assertEqual([call["command"] for call in self.transport], ["ls-remote", "fetch"])
+        for remote, target in (("aaa", tracking), ("origin", "refs/remotes/origin/main")):
+            self.assertEqual(self.oid(destination, target), rewritten)
+            self.assertEqual(self.git(destination, "symbolic-ref", "refs/remotes/" + remote + "/HEAD").stdout.strip(), target)
+        self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
+        self.assertEqual(self.oid(destination), rewritten)
+        self.assertEqual(self.transport, [])
+
+    def test_topic_comparison_updates_tracking_after_force_push_without_local_fetch(self):
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        self.commit(self.source, "topic before force push\n", "topic.txt")
+        self.git(self.source, "switch", "--quiet", "main")
+        destination = self.clone()
+        self.git(self.source, "switch", "--quiet", "topic")
+        self.git(self.source, "reset", "--hard", self.initial)
+        rewritten = self.commit(self.source, "force-pushed topic\n", "topic.txt")
+        self.git(self.source, "switch", "--quiet", "main")
+
+        self.assert_resolves(destination, "topic", rewritten)
+
+        self.assertEqual([call["command"] for call in self.transport], ["ls-remote", "fetch"])
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/topic"), rewritten)
+
     def test_head_open_follows_updates_through_each_matching_remote(self):
         for remote in ("aaa", "origin"):
             with self.subTest(remote=remote):

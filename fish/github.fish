@@ -649,7 +649,8 @@ function __ghe_compare_ref --argument-names remote destination ref prefer_cached
                 if test -n "$tracking"; and __gh_safe_tracking "$destination" "$tracking"
                     if not contains -- "$tracking" $fetch_tracking
                         set -q fetch_tracking[1]; or set fetch_specs
-                        set -a fetch_specs "$source:$tracking"
+                        # Remote-tracking refs follow force pushes, like the default fetch refspec.
+                        set -a fetch_specs "+$source:$tracking"
                         set -a fetch_tracking "$tracking"
                     end
                     if test "$ref" = HEAD
