@@ -42,9 +42,9 @@ set dictionary=/usr/share/dict/words
 set spell
 set spelllang=en_ca,en_us
 " Toggle spell via the highlight groups to keep it active for 'complete' kspell
-function! s:toggle_spell() abort
-	let s:spell_toggle = !get(s:, 'spell_toggle', 1)
-	if s:spell_toggle ==# 0
+function! s:toggle_spell_visible() abort
+	let s:spell_visible = !get(s:, 'spell_visible', 1)
+	if s:spell_visible ==# 0
 		highlight clear SpellBad
 		highlight clear SpellCap
 		highlight clear SpellRare
@@ -56,10 +56,10 @@ function! s:toggle_spell() abort
 		highlight SpellLocal cterm=underline
 	endif
 endfunction
-if !exists('s:spell_toggle')
-	call s:toggle_spell()
+if !exists('s:spell_visible')
+	call s:toggle_spell_visible()
 endif
-nnoremap <Leader>z :call <SID>toggle_spell()<CR>
+nnoremap <Leader>z :call <SID>toggle_spell_visible()<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
 
 " https://github.com/neovim/neovim/issues/39337
