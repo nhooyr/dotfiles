@@ -142,6 +142,8 @@ abbrali n noti
 abbr -a --command noti e eval
 
 fzf --fish | source
+# FZF's builtin file walker is not deterministic. fd isn't either, but at least it tries.
+set -gx FZF_DEFAULT_COMMAND 'fd -HLE .git'
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
     --no-sort --color=bw,query:regular,info:italic:underline,hl:underline,fg+:regular:reverse,\
