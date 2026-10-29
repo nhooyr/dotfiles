@@ -143,11 +143,9 @@ abbr -a --command noti e eval
 abbrali bell printf '\a'
 
 fzf --fish | source
-# FZF's builtin file walker is not deterministic. fd isn't either, but at least it tries.
-set -gx FZF_DEFAULT_COMMAND 'fd -HLE .git'
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
-    --no-sort --color=bw,query:regular,info:italic:underline,hl:underline,fg+:regular:reverse,\
+    --color=bw,query:regular,info:italic:underline,hl:underline,fg+:regular:reverse,\
 hl+:reverse:underline,pointer:magenta:bold"
 set -gx FZF_ALT_C_OPTS --bind=alt-enter:accept
 # Display no prefix by default in history view.
@@ -161,16 +159,21 @@ function fzf_accept_and_run --argument-names widget
     set -lx FZF_COMPLETION_OPTS "$FZF_COMPLETION_OPTS $option"
     set -lx FZF_EXPANSION_OPTS "$FZF_EXPANSION_OPTS $option"
 
-    if test "$widget" = fzf-file-widget; and string match -q './*' -- "$(commandline -ct)"
-        set -l dir "$(string unescape -- "$(__fzf_parse_commandline)[1]")"
-        if test "$dir" != .; and ! string match -q './*' -- "$dir"
-            set dir "./$dir"
-        end
+    switch "$widget"
+        case fzf-file-widget
+            if string match -q './*' -- "$(commandline -ct)"
+                set -l dir "$(string unescape -- "$(__fzf_parse_commandline)[1]")"
+                if test "$dir" != .; and not string match -q './*' -- "$dir"
+                    set dir "./$dir"
+                end
 
-        set -fx FZF_CTRL_T_COMMAND "find -L $(string escape -- "$dir") -mindepth 1 \
-            -name .git -prune -o -name node_modules -prune -o -print0 \
-            | path filter -zZ -fdx"
-        set -fx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS --read0"
+                set -fx FZF_CTRL_T_COMMAND "find -L $(string escape -- "$dir") -mindepth 1 \
+                    -name .git -prune -o -name node_modules -prune -o -print0 \
+                    | path filter -zZ -fdx"
+                set -fx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS --read0"
+            end
+        case fzf_complete
+            set -fx FZF_DEFAULT_OPTS "$FZF_DEFAULT_OPTS --no-sort"
     end
     $widget
     aqsnow_rendezvous
