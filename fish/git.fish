@@ -67,8 +67,8 @@ abbrali gchb git checkout -b
 abbrali gt git tag
 abbrali grs git restore
 abbrali grsp git restore -p
-abbrali grss git restore --staged
-abbrali grssp git restore --staged -p
+abbrali grss git restore -S
+abbrali grsw git restore -W
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
