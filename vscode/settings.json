@@ -1,6 +1,7 @@
 {
     "workbench.colorTheme": "nhooyr",
     "workbench.startupEditor": "none",
+    "update.showReleaseNotes": false,
     "explorer.confirmDragAndDrop": false,
     "diffEditor.renderSideBySide": false,
     // ---

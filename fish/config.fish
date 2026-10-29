@@ -94,6 +94,7 @@ function gre --wraps grep
         command grep --color -inIE $argv
     end
 end
+abbrali grer gre -r
 
 abbrali t time
 abbrali mkd 'cd "$(mktemp -d)"'
@@ -101,6 +102,10 @@ abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
 abbrali socks ssh -ND1080
 abbrali py python3
+abbrali b brew
+abbrali bi brew install
+abbrali bu brew upgrade
+abbrali bc brew cleanup
 abbrali tm tmux
 abbrali tml tmux list-sessions
 abbrali tma tmux attach-session

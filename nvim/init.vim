@@ -165,4 +165,4 @@ augroup aqsnow
 	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>
 augroup END
 nnoremap <nowait> <Leader>w :keeppatterns %s/\s\+$//<CR>
-nnoremap <nowait> <Leader>= :keeppatterns %s/^\s*+//<CR>
+nnoremap <nowait> <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
