@@ -231,7 +231,7 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     if test "$code" -ne 0
         printf '\a'
     else if contains -- "$TERM_PROGRAM" Apple_Terminal tmux
-        if set -l focused_tty "$(osascript -e 'tell application "Terminal"
+        if test "$CMD_DURATION" -gt 4000; and set -l focused_tty "$(osascript -e 'tell application "Terminal"
             if frontmost then return tty of selected tab of front window
                 return ""
             end tell')"
