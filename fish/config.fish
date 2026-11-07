@@ -6,6 +6,7 @@ fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     ~/.local/bin \
     /opt/homebrew/share/git-core/contrib/diff-highlight \
     "$GOPATH/bin" \
+    /opt/homebrew/share/google-cloud-sdk/bin \
     /opt/homebrew/bin
 if not status is-interactive
     return 0
@@ -100,6 +101,7 @@ abbrali grer gre -r
 
 abbrali o open
 abbrali e vi
+abbrali ec e '"$DOTFILES/fish/config.fish"'
 abbrali t time
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none

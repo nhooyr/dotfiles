@@ -75,6 +75,7 @@ inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
 nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
+nnoremap <Leader>e :e $MYVIMRC<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 nnoremap <silent> - :execute 'edit' fnameescape(expand('%:p:h'))<CR>
@@ -87,6 +88,8 @@ vmap <Leader>r //<Leader>r
 
 nnoremap <M-q> q
 nnoremap q :quit<CR>
+nnoremap <M-q> :bd<CR>
+inoremap <M-q> <Esc>:bd<CR>
 nnoremap <C-q> :qall!<CR>
 inoremap <C-q> <Esc>:qall!<CR>
 nnoremap <M-s> :write<CR>
