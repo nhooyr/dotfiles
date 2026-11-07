@@ -98,6 +98,8 @@ function gre --wraps grep
 end
 abbrali grer gre -r
 
+abbrali o open
+abbrali e vi
 abbrali t time
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none

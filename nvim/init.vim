@@ -3,7 +3,6 @@ set tabstop=4
 set shiftwidth=0
 set ignorecase
 set smartcase
-set mouse=
 vnoremap <C-c> "+y
 nnoremap gp `[v`]
 set laststatus=3
