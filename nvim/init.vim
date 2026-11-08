@@ -4,6 +4,7 @@ set shiftwidth=0
 set ignorecase
 set smartcase
 vnoremap <C-c> "+y
+nnoremap <Leader>y "+yy
 nnoremap gp `[v`]
 set laststatus=3
 set textwidth=120
