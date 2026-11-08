@@ -277,7 +277,7 @@ function tex --argument-names texfile
     end
     latexmk -pdf -silent -pv "$texfile"
     fswatch -r0 -e '.*' -i '\.tex$' . | while read -l -z path
-        printf "%s+%s%s\n" "$(set_color --bold --underline)" "$path" "$(set_color reset)"
+        printf '%s+%s%s\n' "$(set_color --bold --underline)" "$path" "$(set_color reset)"
         latexmk -pdf -silent "$texfile"
     end
 end
