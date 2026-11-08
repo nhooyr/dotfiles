@@ -268,7 +268,7 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
 end
 
 abbrali vsce NO_COLOR=1 command vsce
-abbrali fmti format-invoice.sh
+abbrali fmti format-invoice
 
 set -gx DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
