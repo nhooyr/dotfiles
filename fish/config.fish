@@ -260,9 +260,9 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     test "$code" -eq 0; or return 0
 
     switch "$cmdline"
-        case 'git commit --amend*' '* git commit --amend'
+        case 'git commit --amend*' '* git commit --amend' 'gcma*' '* gcma'
             gpf
-        case 'git commit*' '* git commit'
+        case 'git commit*' '* git commit' 'gcm*' '* gcm'
             git push
     end
 end
