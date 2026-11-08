@@ -104,6 +104,7 @@ abbrali e vi
 abbrali ec e '"$DOTFILES/fish/config.fish"'
 abbrali t time
 abbrali m math
+abbrali sshak ssh-add --apple-load-keychain
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
 abbrali ssha ssh-add
