@@ -68,6 +68,7 @@ format_invoice() {
                 sub(/[[:blank:]]+hours?$/, "", value)
             }
 
+            if (value == "") fail("missing value on line " NR)
             if (length(value) > width) width = length(value)
 
             if (key == "total hours" || key == "total due") {
@@ -131,6 +132,7 @@ is_formatted_invoice() {
 render_rtf() {
 	osascript -l JavaScript -e '
 ObjC.import("Foundation");
+ObjC.import("AppKit");
 
 function escapeRTF(text) {
     return text.replace(/[\\{}\t\u0080-\uFFFF]/g, function (character) {
@@ -166,8 +168,9 @@ function run() {
     if (input.isNil()) throw Error("Invoice text must be UTF-8.");
 
     var lines = ObjC.unwrap(input).split(/\r?\n/);
+    var font = $.NSFont.fontWithNameSize("SFMono-Regular", 13).isNil() ? "Menlo" : "SF Mono";
     return "{\\rtf1\\ansi\\deff0\\uc1\n" +
-        "{\\fonttbl{\\f0\\fmodern\\fprq1\\fcharset0 SF Mono;}}\n" +
+        "{\\fonttbl{\\f0\\fmodern\\fprq1\\fcharset0 " + font + ";}}\n" +
         "\\pard\\f0\\fs26 " + lines.map(formatLine).join("\\par \n") + "\n}";
 }
 '
@@ -182,11 +185,7 @@ case $# in
 	invoice=$(pbpaste) || exit 1
 	;;
 1)
-	if [ "$1" = - ]; then
-		invoice=$(cat) || exit 1
-	else
-		invoice=$(cat <"$1") || exit 1
-	fi
+	invoice=$(cat -- "$1") || exit 1
 	;;
 *)
 	printf 'Usage: %s [file.tsv|-]\n' "${0##*/}" >&2
@@ -194,6 +193,8 @@ case $# in
 	;;
 esac
 
+# Strip an optional UTF-8 BOM before detecting the input format.
+invoice=${invoice#"$(printf '\357\273\277')"}
 rtf=
 case $invoice in
 '{\rtf'*)
@@ -214,11 +215,8 @@ case $invoice in
 	;;
 esac
 
-printf '%s\n' "$plain"
+printf '%s\n' "$plain" || exit 1
 
-if [ -n "$rtf" ] && [ "$#" -eq 0 ]; then
-	exit 0
-fi
 if [ -z "$rtf" ]; then
 	rtf=$(printf '%s' "$plain" | render_rtf) || exit 1
 	case $rtf in
@@ -228,5 +226,7 @@ if [ -z "$rtf" ]; then
 		exit 1
 		;;
 	esac
+elif [ "$#" -eq 0 ]; then
+	exit 0
 fi
 printf '%s' "$rtf" | pbcopy
