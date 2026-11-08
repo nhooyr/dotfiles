@@ -114,30 +114,39 @@ is_formatted_invoice() {
     '
 }
 
-render_html() {
+render_rtf() {
     LC_ALL=C awk '
-        function escape(text) {
-            gsub(/&/, "\\&amp;", text)
-            gsub(/</, "\\&lt;", text)
-            gsub(/>/, "\\&gt;", text)
-            return text
+        function escape(text, result, i, char) {
+            for (i = 1; i <= length(text); i++) {
+                char = substr(text, i, 1)
+                if (char == "\t") {
+                    result = result "\\tab "
+                } else {
+                    if (char ~ /[\\{}]/) result = result "\\"
+                    result = result char
+                }
+            }
+            return result
         }
 
         function bold(text) {
-            return "<b>" escape(text) "</b>"
+            return "{\\b " escape(text) "}"
         }
 
         BEGIN {
-            printf "%s", "<!doctype html><html><head><meta charset=\"utf-8\"></head><body>"
-            printf "%s", "<pre style=\"font-family: &quot;SF Mono&quot;, Menlo, monospace; font-size: 14pt; margin: 0;\">"
+            print "{\\rtf1\\ansi\\deff0\\uc1"
+            print "{\\fonttbl{\\f0\\fmodern\\fprq1\\fcharset0 SFMono-Regular;}}"
+            # RTF font sizes are in half-points.
+            print "\\pard\\f0\\fs28"
         }
 
         { sub(/\r$/, "") }
+        NR > 1 { print "\\par " }
         NR == 1 {
             if (match($0, / \([^()]+\)$/)) {
                 start = RSTART
-                print bold(substr($0, 1, start - 1)) " (<i>" \
-                    escape(substr($0, start + 2, RLENGTH - 3)) "</i>)"
+                print bold(substr($0, 1, start - 1)) " ({\\i " \
+                    escape(substr($0, start + 2, RLENGTH - 3)) "})"
             } else {
                 print bold($0)
             }
@@ -149,9 +158,37 @@ render_html() {
             next
         }
         { print escape($0) }
-        END { print "</pre></body></html>" }
+        END { print "}" }
     '
 }
+
+encode_rtf_unicode() (
+    # RTF Unicode escapes take signed UTF-16 code units.
+    utf16=$(mktemp "${TMPDIR:-/tmp}/invoice.XXXXXXXX") || exit 1
+    trap 'rm -f "$utf16"' 0
+    iconv -f UTF-8 -t UTF-16LE > "$utf16" || exit 1
+    bytes=$(od -A n -v -t u1 "$utf16") || exit 1
+    printf '%s\n' "$bytes" | LC_ALL=C awk '
+        {
+            for (i = 1; i <= NF; i++) {
+                if (!have_low) {
+                    low = $i
+                    have_low = 1
+                    continue
+                }
+                unit = low + 256 * $i
+                have_low = 0
+                if (unit < 128) {
+                    printf "%c", unit
+                } else {
+                    signed_unit = (unit > 32767 ? unit - 65536 : unit)
+                    printf "\\u%d?", signed_unit
+                }
+            }
+        }
+        END { if (have_low) exit 1 }
+    '
+)
 
 case $# in
     0)
@@ -198,16 +235,13 @@ else
 fi
 printf '%s\n' "$plain"
 
-if ! command -v textutil >/dev/null 2>&1 || ! command -v pbcopy >/dev/null 2>&1; then
-    printf '%s\n' 'format-invoice: copying rich text requires macOS textutil and pbcopy.' >&2
+if ! command -v pbcopy >/dev/null 2>&1; then
+    printf '%s\n' 'format-invoice: copying rich text requires macOS pbcopy.' >&2
     exit 1
 fi
 
-html=$(printf '%s\n' "$plain" | render_html) || exit 1
-rtf=$(printf '%s\n' "$html" | textutil -stdin -format html -convert rtf -stdout) || exit 1
+rtf=$(printf '%s\n' "$plain" | render_rtf) || exit 1
+rtf=$(printf '%s' "$rtf" | encode_rtf_unicode) || exit 1
 
 # pbcopy recognizes the RTF header and copies it as rich text.
-case $rtf in
-    '{\rtf'*) printf '%s' "$rtf" | pbcopy ;;
-    *) printf '%s\n' 'format-invoice: expected RTF from textutil.' >&2; exit 1 ;;
-esac
+printf '%s' "$rtf" | pbcopy
