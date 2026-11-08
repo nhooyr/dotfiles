@@ -13,7 +13,38 @@ format_invoice() {
             exit 1
         }
 
-        function format_note(note, ranges, count, i, times, result) {
+        function read_quoted_note(note, line, continuation) {
+            while (note ~ /^"([^"]|"")*$/) {
+                if ((getline continuation) <= 0)
+                    fail("unterminated quoted note on line " line)
+                sub(/\r$/, "", continuation)
+                note = note "\n" continuation
+            }
+            if (!match(note, /^"([^"]|"")*"/) || substr(note, RLENGTH + 1) !~ /^[[:blank:]]*$/)
+                fail("unexpected text after quoted note on line " NR)
+            note = substr(note, 2, RLENGTH - 2)
+            gsub(/""/, "\"", note)
+            return note
+        }
+
+        function print_row(label, value, note) {
+            printf "%-12s%*s", label, width, value
+            if (note != "") {
+                gsub(/\n/, "\n" sprintf("%*s", width + 14, ""), note)
+                printf "  %s", note
+            }
+            printf "\n"
+        }
+
+        function format_note(note, lines, count, i) {
+            count = split(note, lines, "\n")
+            note = format_note_line(lines[1])
+            for (i = 2; i <= count; i++)
+                note = note "\n" format_note_line(lines[i])
+            return note
+        }
+
+        function format_note_line(note, ranges, count, i, times, result) {
             # Invoice-specific wording. Other notes keep their original text.
             if (note == "ammar meeting") return "Meeting with Ammar"
             if (note == "weekly meeting") return "Weekly meeting"
@@ -42,13 +73,22 @@ format_invoice() {
         /^[[:space:]]*$/ { next }
 
         {
-            for (i = 4; i <= NF; i++) {
-                if (trim($i) != "") fail("unexpected extra column on line " NR)
-            }
-
+            line = NR
             label = trim($1)
             value = trim($2)
             note = trim($3)
+
+            if (row >= 2 && note ~ /^"([^"]|"")*$/) {
+                # Read from the original record so tabs inside the note are retained.
+                note = substr($0, length($1) + length($2) + 3)
+                sub(/^ +/, "", note)
+                sub(/\r$/, "", note)
+                note = read_quoted_note(note, line)
+            } else {
+                for (i = 4; i <= NF; i++) {
+                    if (trim($i) != "") fail("unexpected extra column on line " line)
+                }
+            }
 
             if (++row == 1) {
                 title = label
@@ -62,24 +102,24 @@ format_invoice() {
             }
 
             key = tolower(label)
-            if (key == "total due" && value ~ /^\$[0-9][0-9,]*(\.[0-9])?$/) {
+            if (key == "total due" && value ~ /^\$[0-9][0-9,]*(\.[0-9])?$/)
                 value = value (value ~ /\./ ? "0" : ".00")
-            } else if (key != "total due") {
-                sub(/[[:blank:]]+hours?$/, "", value)
-            }
 
-            if (value == "") fail("missing value on line " NR)
+            if (value == "") fail("missing value on line " line)
+            if (value ~ /^#(DIV\/0!|ERROR!|N\/A|NAME\?|NULL!|NUM!|REF!|VALUE!)$/)
+                fail("spreadsheet error " value " on line " line)
             if (length(value) > width) width = length(value)
 
             if (key == "total hours" || key == "total due") {
-                if (key in totals) fail("duplicate " key " on line " NR)
+                if (key in totals) fail("duplicate " key " on line " line)
                 totals[key] = value
+                total_notes[key] = note
             } else if (label ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) {
                 dates[++count] = label
                 hours[count] = value
                 notes[count] = format_note(note)
             } else {
-                fail("unexpected row " NR)
+                fail("unexpected row " line)
             }
         }
 
@@ -87,7 +127,7 @@ format_invoice() {
             if (error == "" && (row < 2 || title == ""))
                 error = "expected an invoice title and header"
             if (error != "") {
-                print ENVIRON["FMTINV_NAME"] ": " error | "cat >&2"
+                print ENVIRON["FMTINV_NAME"] ": " error > "/dev/stderr"
                 exit 1
             }
 
@@ -95,17 +135,14 @@ format_invoice() {
             print title
             printf "%-10s  %*s  %s\n", "date", width, "hours", "notes"
             printf "----------  %s  --------------------------------\n", rule
-            for (i = 1; i <= count; i++) {
-                printf "%-10s  %*s", dates[i], width, hours[i]
-                if (notes[i] != "") printf "  %s", notes[i]
-                printf "\n"
-            }
-            if (totals["total hours"] != "" || totals["total due"] != "")
+            for (i = 1; i <= count; i++)
+                print_row(dates[i], hours[i], notes[i])
+            if ("total hours" in totals || "total due" in totals)
                 printf "----------  %s\n", rule
-            if (totals["total hours"] != "")
-                printf "%-12s%*s\n", "total hours:", width, totals["total hours"]
-            if (totals["total due"] != "")
-                printf "%-12s%*s\n", "total due:", width, totals["total due"]
+            if ("total hours" in totals)
+                print_row("total hours:", totals["total hours"], total_notes["total hours"])
+            if ("total due" in totals)
+                print_row("total due:", totals["total due"], total_notes["total due"])
         }
     '
 }
@@ -131,8 +168,7 @@ is_formatted_invoice() {
 
 render_rtf() {
 	osascript -l JavaScript -e '
-ObjC.import("Foundation");
-ObjC.import("AppKit");
+ObjC.import("Cocoa");
 
 function escapeRTF(text) {
     return text.replace(/[\\{}\t\u0080-\uFFFF]/g, function (character) {
@@ -215,8 +251,6 @@ case $invoice in
 	;;
 esac
 
-printf '%s\n' "$plain" || exit 1
-
 if [ -z "$rtf" ]; then
 	rtf=$(printf '%s' "$plain" | render_rtf) || exit 1
 	case $rtf in
@@ -227,6 +261,10 @@ if [ -z "$rtf" ]; then
 		;;
 	esac
 elif [ "$#" -eq 0 ]; then
-	exit 0
+	rtf=
 fi
-printf '%s' "$rtf" | pbcopy
+
+printf '%s\n' "$plain" || exit 1
+if [ -n "$rtf" ]; then
+	printf '%s' "$rtf" | pbcopy
+fi
