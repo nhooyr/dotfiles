@@ -1,7 +1,7 @@
 #!/bin/sh
 
 format_invoice() {
-    LC_ALL=C awk '
+	LC_ALL=C FMTINV_NAME="${0##*/}" awk '
         function trim(text) {
             sub(/^[[:space:]]+/, "", text)
             sub(/[[:space:]]+$/, "", text)
@@ -86,7 +86,7 @@ format_invoice() {
             if (error == "" && (row < 2 || title == ""))
                 error = "expected an invoice title and header"
             if (error != "") {
-                print "format-invoice: " error | "cat >&2"
+                print ENVIRON["FMTINV_NAME"] ": " error | "cat >&2"
                 exit 1
             }
 
@@ -110,8 +110,8 @@ format_invoice() {
 }
 
 is_formatted_invoice() {
-    # Match the heading and separator, including the variable hours width.
-    printf '%s\n' "$1" | LC_ALL=C awk '
+	# Match the heading and separator, including the variable hours width.
+	printf '%s\n' "$1" | LC_ALL=C awk '
         NR <= 3 { sub(/\r$/, ""); gsub(/ /, " ") }
         NR == 1 { has_title = $0 ~ /[^[:space:]]/ }
         NR == 2 { header = $0 }
@@ -129,7 +129,7 @@ is_formatted_invoice() {
 }
 
 render_rtf() {
-    osascript -l JavaScript -e '
+	osascript -l JavaScript -e '
 ObjC.import("Foundation");
 
 function escapeRTF(text) {
@@ -174,56 +174,59 @@ function run() {
 }
 
 case $# in
-    0)
-        if ! command -v pbpaste >/dev/null 2>&1; then
-            printf '%s\n' 'format-invoice: pbpaste is unavailable; pass a TSV file or - for stdin.' >&2
-            exit 1
-        fi
-        invoice=$(pbpaste) || exit 1
-        ;;
-    1)
-        if [ "$1" = - ]; then
-            invoice=$(cat) || exit 1
-        else
-            invoice=$(cat < "$1") || exit 1
-        fi
-        ;;
-    *)
-        printf 'Usage: %s [file.tsv|-]\n' "${0##*/}" >&2
-        exit 2
-        ;;
+0)
+	if ! command -v pbpaste >/dev/null 2>&1; then
+		printf '%s: pbpaste is unavailable; pass a TSV file or - for stdin.\n' "${0##*/}" >&2
+		exit 1
+	fi
+	invoice=$(pbpaste) || exit 1
+	;;
+1)
+	if [ "$1" = - ]; then
+		invoice=$(cat) || exit 1
+	else
+		invoice=$(cat <"$1") || exit 1
+	fi
+	;;
+*)
+	printf 'Usage: %s [file.tsv|-]\n' "${0##*/}" >&2
+	exit 2
+	;;
 esac
 
 rtf=
 case $invoice in
-    '{\rtf'*)
-        rtf=$invoice
-        plain=$(printf '%s' "$rtf" |
-            textutil -stdin -format rtf -convert txt -encoding UTF-8 -stdout) || exit 1
-        if ! is_formatted_invoice "$plain"; then
-            printf '%s\n' 'format-invoice: rich text does not contain a formatted invoice.' >&2
-            exit 1
-        fi
-        ;;
-    *)
-        if is_formatted_invoice "$invoice"; then
-            plain=$invoice
-        else
-            plain=$(printf '%s\n' "$invoice" | format_invoice) || exit 1
-        fi
-        ;;
+'{\rtf'*)
+	rtf=$invoice
+	plain=$(printf '%s' "$rtf" |
+		textutil -stdin -format rtf -convert txt -encoding UTF-8 -stdout) || exit 1
+	if ! is_formatted_invoice "$plain"; then
+		printf '%s: rich text does not contain a formatted invoice.\n' "${0##*/}" >&2
+		exit 1
+	fi
+	;;
+*)
+	if is_formatted_invoice "$invoice"; then
+		plain=$invoice
+	else
+		plain=$(printf '%s\n' "$invoice" | format_invoice) || exit 1
+	fi
+	;;
 esac
 
 printf '%s\n' "$plain"
 
 if [ -n "$rtf" ] && [ "$#" -eq 0 ]; then
-    exit 0
+	exit 0
 fi
 if [ -z "$rtf" ]; then
-    rtf=$(printf '%s' "$plain" | render_rtf) || exit 1
-    case $rtf in
-        '{\rtf'*) ;;
-        *) printf '%s\n' 'format-invoice: osascript did not return RTF.' >&2; exit 1 ;;
-    esac
+	rtf=$(printf '%s' "$plain" | render_rtf) || exit 1
+	case $rtf in
+	'{\rtf'*) ;;
+	*)
+		printf '%s: osascript did not return RTF.\n' "${0##*/}" >&2
+		exit 1
+		;;
+	esac
 fi
 printf '%s' "$rtf" | pbcopy
