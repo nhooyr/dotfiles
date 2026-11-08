@@ -2,7 +2,7 @@
 set -eu
 
 if [ "$#" -ne 2 ]; then
-	echo "Usage: ${0##*/} src dst" >&2
+	printf "Usage: %s <src> <dst>\n" "${0##*/}" >&2
 	exit 1
 fi
 
@@ -10,19 +10,19 @@ src="$1"
 dst="$2"
 
 if [ ! -e "$src" ]; then
-	echo "$src does not exist" >&2
+	printf "%s: %s does not exist\n" "${0##*/}" "$src" >&2
 	exit 1
 fi
 src=$(realpath -- "$src")
 
 if [ -L "$dst" ]; then
-	echo "overwriting symlink $dst"
+	printf "%s: overwriting symlink %s\n" "${0##*/}" "$dst"
 	rm -- "$dst"
 elif [ -e "$dst" ]; then
-	echo "$dst exists and is not a symlink" >&2
+	printf "%s: %s exists and is not a symlink\n" "${0##*/}" "$dst" >&2
 	exit 1
 else
-	echo "linking $dst"
+	printf "%s: linking %s\n" "${0##*/}" "$dst"
 fi
 
 mkdir -p -- "$(dirname -- "$dst")"

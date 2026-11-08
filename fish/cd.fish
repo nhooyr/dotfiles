@@ -4,7 +4,7 @@ end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
     if test "$(count $argv)" -lt 2
-        echo "cdc: <dir> <cmd>" >&2
+        printf '%s: <dir> <cmd>\n' "$(status function)" >&2
         return 1
     end
     set -l prevd "$PWD"
@@ -28,7 +28,7 @@ function up
 
     string replace -rq -- "$argv" '' '' 2>/dev/null
     if test "$status" -eq 2
-        echo "up: invalid regex" >&2
+        printf '%s: invalid regex\n' "$(status function)" >&2
         return 1
     end
 
