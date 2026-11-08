@@ -270,6 +270,13 @@ end
 abbrali vsce NO_COLOR=1 command vsce
 abbrali fi fmtinv
 
+function tex
+    fswatch -r0 -e '.*' -i '\.tex$' . | while read -l -z path
+        echo "+$path"
+        latexmk -pdf main.tex "$1"
+    end
+end
+
 set -gx DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
     set -l mode --append
