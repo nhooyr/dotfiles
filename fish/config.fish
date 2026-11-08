@@ -105,9 +105,10 @@ abbrali ec e '"$DOTFILES/fish/config.fish"'
 abbrali t time
 abbrali m math
 abbrali sshak ssh-add --apple-load-keychain
-if not test -f /tmp/__aqsnow_ssh_keychain_loaded
+set -q TMPDIR; or set -gx TMPDIR "$(mktemp -d)"
+if not test -f "$TMPDIR/__aqsnow_ssh_keychain_loaded"
     sshak -q
-    touch /tmp/__aqsnow_ssh_keychain_loaded
+    touch "$TMPDIR/__aqsnow_ssh_keychain_loaded"
 end
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
