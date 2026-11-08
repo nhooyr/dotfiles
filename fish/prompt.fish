@@ -82,10 +82,10 @@ function fish_mode_prompt
     set_color --reset
     echo -n ' '
 end
-set -g __fish_git_prompt_showdirtystate true
-set -g __fish_git_prompt_showuntrackedfiles true
+set -g __fish_git_prompt_showdirtystate 1
+set -g __fish_git_prompt_showuntrackedfiles 1
 set -g __fish_git_prompt_showupstream informative
-set -g __fish_git_prompt_showstashstate true
+set -g __fish_git_prompt_showstashstate 1
 set -g __fish_git_prompt_color_branch --underline
 set -g __fish_git_prompt_color_flags cyan
 set -g __fish_git_prompt_color_upstream cyan

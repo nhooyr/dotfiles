@@ -103,7 +103,7 @@ function! s:quit_and_run() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != "")
-			call writefile(['true'], $AQSNOW_FISH_RENDEZVOUS)
+			call writefile(['exec'], $AQSNOW_FISH_RENDEZVOUS)
 		endif
 	endif
 	qall
