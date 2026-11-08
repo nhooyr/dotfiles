@@ -1,7 +1,7 @@
 #!/bin/sh
 
 format_invoice() {
-    LC_ALL=C awk -v rich="$1" '
+    LC_ALL=C awk '
         function trim(text) {
             sub(/^[[:space:]]+/, "", text)
             sub(/[[:space:]]+$/, "", text)
@@ -25,34 +25,6 @@ format_invoice() {
                 result = result (i == 1 ? "" : ", ") times[1] "–" times[2]
             }
             return result
-        }
-
-        function render_text(text) {
-            if (rich) {
-                gsub(/&/, "\\&amp;", text)
-                gsub(/</, "\\&lt;", text)
-                gsub(/>/, "\\&gt;", text)
-            }
-            return text
-        }
-
-        function bold(text) {
-            text = render_text(text)
-            return rich ? "<b>" text "</b>" : text
-        }
-
-        function format_title(text, start) {
-            if (rich && match(text, / \([^()]+\)$/)) {
-                start = RSTART
-                return bold(substr(text, 1, start - 1)) " (<i>" \
-                    render_text(substr(text, start + 2, RLENGTH - 3)) "</i>)"
-            }
-            return bold(text)
-        }
-
-        function print_total(label, value) {
-            printf "%s%s\n", bold(sprintf("%-12s", label)), \
-                render_text(sprintf("%*s", width, value))
         }
 
         BEGIN {
@@ -109,23 +81,75 @@ format_invoice() {
             }
 
             for (i = 0; i < width; i++) rule = rule "-"
-            if (rich) {
-                printf "%s", "<!doctype html><html><head><meta charset=\"utf-8\"></head><body>"
-                printf "%s", "<pre style=\"font-family: Menlo, monospace; font-size: 12pt; margin: 0;\">"
-            }
-            print format_title(title)
-            print bold(sprintf("%-10s  %*s  %s", "date", width, "hours", "notes"))
+            print title
+            printf "%-10s  %*s  %s\n", "date", width, "hours", "notes"
             printf "----------  %s  --------------------------------\n", rule
             for (i = 1; i <= count; i++) {
-                printf "%s", render_text(sprintf("%-10s  %*s", dates[i], width, hours[i]))
-                if (notes[i] != "") printf "  %s", render_text(notes[i])
+                printf "%-10s  %*s", dates[i], width, hours[i]
+                if (notes[i] != "") printf "  %s", notes[i]
                 printf "\n"
             }
             if (total_hours != "" || total_due != "") printf "----------  %s\n", rule
-            if (total_hours != "") print_total("total hours:", total_hours)
-            if (total_due != "") print_total("total due:", total_due)
-            if (rich) print "</pre></body></html>"
+            if (total_hours != "") printf "%-12s%*s\n", "total hours:", width, total_hours
+            if (total_due != "") printf "%-12s%*s\n", "total due:", width, total_due
         }
+    '
+}
+
+is_formatted_invoice() {
+    # Match the heading and separator, including the variable hours width.
+    printf '%s\n' "$1" | LC_ALL=C awk '
+        NR <= 3 { sub(/\r$/, ""); gsub(/ /, " ") }
+        NR == 2 { header = $0 }
+        NR == 3 {
+            columns = split($0, rule, /  /)
+            width = length(rule[2])
+            formatted = columns == 3 && rule[1] == "----------" &&
+                width >= 7 && rule[2] ~ /^-+$/ &&
+                rule[3] == "--------------------------------" &&
+                header == sprintf("%-10s  %*s  %s", "date", width, "hours", "notes")
+            exit
+        }
+        END { exit !formatted }
+    '
+}
+
+render_html() {
+    LC_ALL=C awk '
+        function escape(text) {
+            gsub(/&/, "\\&amp;", text)
+            gsub(/</, "\\&lt;", text)
+            gsub(/>/, "\\&gt;", text)
+            return text
+        }
+
+        function bold(text) {
+            return "<b>" escape(text) "</b>"
+        }
+
+        BEGIN {
+            printf "%s", "<!doctype html><html><head><meta charset=\"utf-8\"></head><body>"
+            printf "%s", "<pre style=\"font-family: &quot;SF Mono&quot;, Menlo, monospace; font-size: 14pt; margin: 0;\">"
+        }
+
+        { sub(/\r$/, "") }
+        NR == 1 {
+            if (match($0, / \([^()]+\)$/)) {
+                start = RSTART
+                print bold(substr($0, 1, start - 1)) " (<i>" \
+                    escape(substr($0, start + 2, RLENGTH - 3)) "</i>)"
+            } else {
+                print bold($0)
+            }
+            next
+        }
+        NR == 2 { print bold($0); next }
+        match($0, /^total (hours|due): */) {
+            print bold(substr($0, 1, RLENGTH)) escape(substr($0, RLENGTH + 1))
+            next
+        }
+        { print escape($0) }
+        END { print "</pre></body></html>" }
     '
 }
 
@@ -150,14 +174,36 @@ case $# in
         ;;
 esac
 
-printf '%s\n' "$invoice" | format_invoice 0 || exit 1
+case $invoice in
+    '{\rtf'*)
+        plain=$(printf '%s' "$invoice" |
+            textutil -stdin -format rtf -convert txt -encoding UTF-8 -stdout) || exit 1
+        if ! is_formatted_invoice "$plain"; then
+            printf '%s\n' 'format-invoice: rich text does not contain a formatted invoice.' >&2
+            exit 1
+        fi
+        printf '%s\n' "$plain"
+        if [ "$#" -eq 0 ]; then
+            exit 0
+        fi
+        printf '%s' "$invoice" | pbcopy
+        exit "$?"
+        ;;
+esac
+
+if is_formatted_invoice "$invoice"; then
+    plain=$invoice
+else
+    plain=$(printf '%s\n' "$invoice" | format_invoice) || exit 1
+fi
+printf '%s\n' "$plain"
 
 if ! command -v textutil >/dev/null 2>&1 || ! command -v pbcopy >/dev/null 2>&1; then
     printf '%s\n' 'format-invoice: copying rich text requires macOS textutil and pbcopy.' >&2
     exit 1
 fi
 
-html=$(printf '%s\n' "$invoice" | format_invoice 1) || exit 1
+html=$(printf '%s\n' "$plain" | render_html) || exit 1
 rtf=$(printf '%s\n' "$html" | textutil -stdin -format html -convert rtf -stdout) || exit 1
 
 # pbcopy recognizes the RTF header and copies it as rich text.
