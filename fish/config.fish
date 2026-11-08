@@ -105,9 +105,9 @@ abbrali ec e '"$DOTFILES/fish/config.fish"'
 abbrali t time
 abbrali m math
 abbrali sshak ssh-add --apple-load-keychain
-if not set -q __aqsnow_ssh_keychain
+if not test -f /tmp/__aqsnow_ssh_keychain_loaded
     sshak -q
-    set __aqsnow_ssh_keychain 1
+    touch /tmp/__aqsnow_ssh_keychain_loaded
 end
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
@@ -267,6 +267,7 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
 end
 
 abbrali vsce NO_COLOR=1 command vsce
+abbrali fmti format-invoice.sh
 
 set -gx DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
