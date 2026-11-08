@@ -270,10 +270,15 @@ end
 abbrali vsce NO_COLOR=1 command vsce
 abbrali fi fmtinv
 
-function tex
+function tex --argument-names texfile
+    if test -z "$texfile"; or not test -f "$texfile"
+        printf 'Usage: %s %s\n' "$(status function)" '<main.tex>' >&2
+        return 1
+    end
+    latexmk -pdf -silent -pv "$texfile"
     fswatch -r0 -e '.*' -i '\.tex$' . | while read -l -z path
-        echo "+$path"
-        latexmk -pdf main.tex "$1"
+        printf "%s+%s%s\n" "$(set_color --bold --underline)" "$path" "$(set_color reset)"
+        latexmk -pdf -silent "$texfile"
     end
 end
 
