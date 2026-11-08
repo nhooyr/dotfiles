@@ -105,6 +105,10 @@ abbrali ec e '"$DOTFILES/fish/config.fish"'
 abbrali t time
 abbrali m math
 abbrali sshak ssh-add --apple-load-keychain
+if not set -q __aqsnow_ssh_keychain
+    sshak -q
+    set __aqsnow_ssh_keychain 1
+end
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
 abbrali ssha ssh-add
