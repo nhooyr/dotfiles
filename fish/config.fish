@@ -323,8 +323,8 @@ function fair --argument-names n
         set matches '' 0
     end
     set -l msgn "$matches[2]"
-    if not string match -qr '^[0-9]+$' -- "$n"; or test "$n" -lt 0
-        printf '%s: %s is not a non-negative integer\n' "$(status function)" "$n" >&2
+    if not string match -qr '^[0-9]+$' -- "$n"; or test "$n" -lt 1
+        printf '%s: %s is not a positive integer\n' "$(status function)" "$n" >&2
         return 1
     end
     for i in $(seq 1 "$n")
