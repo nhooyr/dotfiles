@@ -14,7 +14,7 @@ otpauth://totp/*\?*)
         | map(split("=") | {
             key: (.[0] // ""),
             value: (.[1:] | join("="))
-        } | map_values(@urid))
+        } | map_values(try @urid catch error("invalid percent encoding in otpauth URL")))
         | if any(.[];
             (.key == "algorithm" and .value != "SHA1") or
             (.key == "digits" and .value != "6") or
