@@ -107,8 +107,8 @@ abbrali ghch gh pr checkout
 abbrali ghpr gh pr create --web --fill-verbose
 abbrali ghopr gh pr view --web
 
-abbrali dty gdirty
-function gdirty --description 'List dirty git repos'
+abbrali dty dirty
+function dirty --description 'List dirty repos'
     for dir in ~/code/* ~/code/*/*
         if not test -e "$dir/.git"
             continue
