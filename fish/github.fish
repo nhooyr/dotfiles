@@ -67,6 +67,20 @@ function __gh_remotes --argument-names remote destination
     end
 end
 
+function __gh_ref_case_aliases --argument-names destination ref
+    set -l existing (git -C "$destination" for-each-ref --ignore-case --format='%(refname)' -- "$ref"); or return
+    set -l aliases (string match -i -- "$ref" $existing | string match -v -- "$ref")
+    set -q aliases[1]; or return 0
+    # A reftable stores ref names independently of filesystem case folding.
+    set -l storage "$(git -C "$destination" config --local --get extensions.refStorage)"; or test "$status" -eq 1; or return
+    test "$storage" != reftable; or return 0
+    set -l refs_dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs)"; or return
+    test -d "$refs_dir"; or return 1
+    if test "$refs_dir" -ef "$refs_dir/../REFS"
+        printf '%s\n' $aliases
+    end
+end
+
 function __gh_commit --argument-names destination revision
     git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$revision^{commit}" 2>/dev/null
 end
@@ -359,6 +373,11 @@ function __ghe_tracking_ref --argument-names name destination ref
     else if test -z "$tracking_ref"
         set tracking_ref "refs/remotes/$name/$ref"
     end
+    set -l aliases (__gh_ref_case_aliases "$destination" "$tracking_ref"); or return
+    if set -q aliases[1]
+        printf '%s: tracking ref differs only by case from %s: %s\n' "$0" "$aliases[1]" "$tracking_ref" >&2
+        return 1
+    end
     set -l source_ref (__gh_source_ref "$tracking_ref" $refspecs)
     if test -n "$source_ref"; and test "$source_ref" != "$branch_ref"
         printf '%s: fetch destination is mapped from another branch: %s\n' "$0" "$tracking_ref" >&2
@@ -578,6 +597,8 @@ function __ghe_compare_ref --argument-names remote destination ref mode
                             set tracking (__gh_tracking_ref "$source" $specs)
                         end
                         test -n "$tracking"; or continue
+                        set -l aliases (__gh_ref_case_aliases "$destination" "$tracking"); or return
+                        set -q aliases[1]; and continue
                         set -l tracked_source (__gh_source_ref "$tracking" $specs)
                         if test "$source" != HEAD; and test "$tracked_source" != "$source"
                             continue
@@ -692,6 +713,8 @@ function __ghe_compare_ref --argument-names remote destination ref mode
                 set -l specs (__gh_refspecs "$name" "$destination")
                 set -l tracking (__gh_tracking_ref "$source" $specs)
                 if test -n "$tracking"; and test "$(__gh_source_ref "$tracking" $specs)" = "$source"; and __gh_safe_tracking "$destination" "$tracking"
+                    set -l aliases (__gh_ref_case_aliases "$destination" "$tracking"); or return
+                    set -q aliases[1]; and continue
                     if not contains -- "$tracking" $fetch_tracking
                         set -q fetch_tracking[1]; or set fetch_specs
                         # Remote-tracking refs follow force pushes, like the default fetch refspec.
@@ -930,6 +953,11 @@ function __ghe_switch --argument-names remote destination full_ref ref revision
     set -l branch_ref ''
     if string match -qr '^refs/(heads|remotes)/' -- "$full_ref"
         set branch_ref "refs/heads/$ref"
+        set -l aliases (__gh_ref_case_aliases "$destination" "$branch_ref"); or return
+        if set -q aliases[1]
+            printf '%s: local branch differs only by case from %s: %s\n' "$0" "$aliases[1]" "$branch_ref" >&2
+            return 1
+        end
         if git -C "$destination" symbolic-ref -q "$branch_ref" >/dev/null 2>&1
             printf '%s: local branch is symbolic: %s\n' "$0" "$branch_ref" >&2
             return 1
@@ -1189,6 +1217,11 @@ function __gho_url --argument-names target
                 printf '%s: cached remote branch is mapped from another branch: %s\n' "$0" "$remote_ref" >&2
                 return 1
             end
+        end
+        set -l aliases (__gh_ref_case_aliases "$dir" "$remote_ref"); or return
+        if set -q aliases[1]
+            printf '%s: cached remote branch differs only by case from %s: %s\n' "$0" "$aliases[1]" "$remote_ref" >&2
+            return 1
         end
         if git -C "$dir" symbolic-ref -q "$remote_ref" >/dev/null 2>&1
             printf '%s: cached remote branch is symbolic: %s\n' "$0" "$remote_ref" >&2

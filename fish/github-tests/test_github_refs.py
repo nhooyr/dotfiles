@@ -497,6 +497,54 @@ end
         self.assertEqual(self.oid(destination), rewritten)
         self.assertEqual(self.transport, [])
 
+    def test_case_distinct_branches_do_not_shadow_existing_tracking_refs(self):
+        self.git(self.source, "switch", "--quiet", "--create", "Topic")
+        earlier = self.commit(self.source, "uppercase branch\n", "upper.txt")
+        self.git(self.source, "switch", "--quiet", "main")
+        destinations = [self.clone(), self.clone()]
+        self.git(self.source, "pack-refs", "--all", "--prune")
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        newer = self.commit(self.source, "lowercase branch\n")
+        for packed, destination in zip((True, False), destinations):
+            with self.subTest(packed=packed):
+                tracking = "refs/remotes/origin/Topic"
+                if not packed:
+                    self.git(destination, "update-ref", "-d", tracking)
+                    self.git(destination, "update-ref", tracking, earlier)
+                refs = destination / ".git" / "refs"
+                upper_refs = refs.with_name("REFS")
+                folds_case = upper_refs.exists() and refs.samefile(upper_refs)
+                offline = self.compare_ref(destination, "topic", offline=True)
+                self.assertNotEqual(offline.returncode, 0)
+                self.assert_resolves(destination, "topic", newer)
+                self.assertEqual(self.oid(destination, tracking), earlier)
+
+                result = self.checkout(destination, "blob/topic/file.txt")
+                if folds_case:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("tracking ref differs only by case", result.stderr)
+                    self.assertEqual(self.oid(destination), self.initial)
+                else:
+                    self.assert_success(result)
+                    self.assertEqual(self.oid(destination), newer)
+                self.assertEqual(self.oid(destination, tracking), earlier)
+
+                if folds_case and not packed:
+                    self.git(destination, "branch", "Topic", self.initial)
+                    result = self.checkout(destination, "blob/topic/file.txt")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("local branch differs only by case", result.stderr)
+                    self.assertEqual(self.oid(destination), self.initial)
+                    self.git(destination, "branch", "--delete", "Topic")
+
+                    self.git(destination, "switch", "--quiet", "--create", "topic", earlier)
+                    self.git(destination, "config", "branch.topic.remote", "origin")
+                    self.git(destination, "config", "branch.topic.merge", "refs/heads/topic")
+                    result = self.fish('__gho_url "$argv[1]"', destination / "upper.txt", offline=True)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("cached remote branch differs only by case", result.stderr)
+                    self.assertEqual(self.transport, [])
+
     def test_topic_comparison_updates_tracking_after_force_push_without_local_fetch(self):
         self.git(self.source, "switch", "--quiet", "--create", "topic")
         self.commit(self.source, "topic before force push\n", "topic.txt")
