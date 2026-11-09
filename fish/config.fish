@@ -304,7 +304,7 @@ function noise
     end
     git add -A; or return
     set -l commit_args
-    if test "$(git diff --cached --name-only)" = 'fish/fish_history'
+    if test "$(git diff --cached --name-only)" = fish/fish_history
         set commit_args -m 'fish_history: Update' -e
     end
     git commit $commit_args; or return

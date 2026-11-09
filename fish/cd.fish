@@ -32,7 +32,7 @@ function up
         return 1
     end
 
-    if string match -qr '^[0-9]{1,4}$' -- "$argv";
+    if string match -qr '^[0-9]{1,4}$' -- "$argv"
         test "$argv" -eq 0; and return 0
         set -l up "$(string repeat --count "$argv" ../)"; or return
         cd "./$up"
