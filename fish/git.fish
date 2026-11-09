@@ -107,7 +107,7 @@ abbrali ghpr gh pr create --web --fill-verbose
 abbrali ghopr gh pr view --web
 
 abbrali dty gdirty
-function gdirty --description 'List dirty Git repositories under ~/code'
+function gdirty --description 'List dirty git repos'
     set -l result 0
     for dir in ~/code/* ~/code/*/*
         if not test -e "$dir/.git"
