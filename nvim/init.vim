@@ -34,8 +34,8 @@ highlight Comment ctermfg=8 cterm=italic
 highlight LineNr ctermfg=8
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
-highlight PreProc ctermfg=6 cterm=italic
-highlight Error cterm=italic,bold
+highlight PreProc ctermfg=6
+highlight Error cterm=bold
 highlight WinSeparator cterm=bold
 let g:gitcommit_summary_length = &textwidth
 
@@ -84,7 +84,6 @@ cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
 nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
 			\:echo 'source' $MYVIMRC<CR>
-command Sft doautoall FileType
 nnoremap <Leader>e :e $MYVIMRC<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
