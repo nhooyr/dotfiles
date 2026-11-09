@@ -49,14 +49,14 @@
 	stash = cyan italic ul
 	head = cyan italic ul
 [color "branch"]
-	current = cyan italic bold
-	upstream = magenta italic ul
-	local = cyan italic
-	remote = cyan italic
+	current = cyan bold
+	upstream = magenta
+	local = cyan
+	remote = cyan
 [color "diff"]
-	commit = ul bold
-	meta = magenta ul
-	frag = magenta ul
+	commit = bold
+	meta = magenta
+	frag = magenta
 	whitespace = white red
 	oldMoved = red italic
 	newMoved = green italic
