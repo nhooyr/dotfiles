@@ -12,6 +12,12 @@ set foldmethod=indent
 set foldlevel=999
 set foldlevelstart=999
 set shortmess+=I
+set splitbelow
+set splitright
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
 
 set backup
 set backupdir-=.
@@ -60,6 +66,7 @@ call s:set_spell_highlight()
 function! s:toggle_spell_visible() abort
 	let s:spell_visible = !s:spell_visible
 	call s:set_spell_highlight()
+	echo 's:spell_visible =' s:spell_visible
 endfunction
 nnoremap <Leader>z :call <SID>toggle_spell_visible()<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
@@ -76,16 +83,18 @@ inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
 nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
+			\:echo 'source' $MYVIMRC<CR>
 nnoremap <Leader>e :e $MYVIMRC<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 nnoremap <silent> - :execute 'edit' fnameescape(expand('%:p:h'))<CR>
 
-nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>
+nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>:echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
-vnoremap // "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
-vmap <Leader>r //<Leader>r
+vnoremap / "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
+vnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
+vmap <Leader>r /<Leader>r
 
 nnoremap q :quit<CR>
 nnoremap <M-Q> q

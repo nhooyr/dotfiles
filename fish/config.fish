@@ -102,6 +102,7 @@ abbrali grer gre -r
 abbrali o open
 abbrali e vi
 abbrali ec e '"$DOTFILES/fish/config.fish"'
+abbrali ei e '"$DOTFILES/nvim/init.vim"'
 abbrali t time
 abbrali m math
 abbrali sshak ssh-add --apple-load-keychain
@@ -269,6 +270,7 @@ end
 abbrali vsce NO_COLOR=1 command vsce
 abbrali shf shfmt -s -w .
 abbrali fi fmtinv
+abbrali dnsq 'sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder'
 
 function tex --argument-names texfile
     if test -z "$texfile"; or not test -f "$texfile"
