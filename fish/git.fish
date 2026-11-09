@@ -113,6 +113,9 @@ function gdirty --description 'List dirty Git repositories under ~/code'
         if not test -e "$dir/.git"
             continue
         end
+        if test "$dir" = ~/code/nhooyr/noise; or test "$dir" = ~/code/nhooyr/testing
+            continue
+        end
         set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or return
         set -l flags "$(string split --right --max 1 --fields 2 -- ' ' "$prompt")"
         if test -n "$flags"
