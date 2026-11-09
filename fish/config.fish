@@ -323,7 +323,7 @@ function fair --argument-names n
         set matches '' 0
     end
     set -l msgn "$matches[2]"
-    if not string match -qr '^[0-9]+$' -- "$n"; or test "$n" -lt 1; or test "$n" -gt 9999
+    if not string match -qr '^[0-9]{1,4}$' -- "$n"; or test "$n" -lt 1
         printf '%s: 1 <= n <= 9999\n' "$(status function)" >&2
         return 1
     end
