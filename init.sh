@@ -12,6 +12,7 @@ dotln ./tmux/tmux.conf ~/.tmux.conf
 dotln ./fish/config.fish ~/.config/fish/config.fish
 dotln ./vscode/settings.json ~/Library/Application\ Support/Code/User/settings.json
 dotln ./ssh/config ~/.ssh/config
+dotln ./ssh/allowed_signers ~/.ssh/allowed_signers
 mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/config

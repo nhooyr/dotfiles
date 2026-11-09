@@ -4,7 +4,9 @@ set shiftwidth=0
 set ignorecase
 set smartcase
 vnoremap <C-c> "+y
+vnoremap <M-c> "+ygv"_d
 nnoremap <Leader>y m`^"+y$``
+nnoremap <Leader>d m`^"+y$``"_dd
 nnoremap gp `[v`]
 set laststatus=3
 set textwidth=120
@@ -150,7 +152,6 @@ nnoremap <BS> "_d
 vnoremap <BS> "_d
 nnoremap Y "+y
 vnoremap Y "+y
-nnoremap <silent> <Leader>d :t.<CR>
 nnoremap <silent> <M-d> :t.<CR>
 
 set completeopt=menuone,noselect,popup
