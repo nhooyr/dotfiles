@@ -1160,6 +1160,13 @@ function __gho_url --argument-names target
             set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
             test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
         end
+        if test -n "$ref"
+            set -l tracked_source (__gh_source_ref "$remote_ref" $refspecs)
+            if test -n "$tracked_source"; and test "$tracked_source" != "refs/heads/$ref"
+                printf '%s: cached remote branch is mapped from another branch: %s\n' "$0" "$remote_ref" >&2
+                return 1
+            end
+        end
         if git -C "$dir" symbolic-ref -q "$remote_ref" >/dev/null 2>&1
             printf '%s: cached remote branch is symbolic: %s\n' "$0" "$remote_ref" >&2
             return 1
@@ -1207,7 +1214,10 @@ function __gho_url --argument-names target
                 set -l source (string sub -s 6 -- "$fields[1]")
                 set default_ref (__gh_tracking_ref "$source" $refspecs)
                 test -n "$default_ref"; or set default_ref "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source")"
-                if __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
+                set -l tracked_source (__gh_source_ref "$default_ref" $refspecs)
+                if test -n "$tracked_source"; and test "$tracked_source" != "$source"
+                    set default_ref ''
+                else if __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
                     git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
                 end
                 break

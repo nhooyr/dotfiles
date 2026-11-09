@@ -1271,6 +1271,20 @@ end
                                     "refs/heads/main", check=False).returncode, 0)
         self.assert_success(self.checkout(destination, "blob/release/main/file.txt", offline=True))
 
+        self.git(self.source, "switch", "--quiet", "--create", "main")
+        main = self.commit(self.source, "different main contents\n")
+        result = self.checkout(destination, "blob/main/file.txt")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("fetch destination is mapped from another branch", result.stderr)
+        self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), "release/main")
+        self.assertNotEqual(self.git(destination, "show-ref", "--verify", "--quiet",
+                                    "refs/heads/main", check=False).returncode, 0)
+
+        self.assertNotEqual(self.compare_ref(destination, "main", offline=True).returncode, 0)
+        self.assert_resolves(destination, "main", main)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), self.initial)
+        self.assert_resolves(destination, "main", main, offline=True)
+
     def test_custom_cached_fetch_destinations_set_a_working_upstream(self):
         self.git(self.source, "branch", "topic")
         for spec, tracking in (

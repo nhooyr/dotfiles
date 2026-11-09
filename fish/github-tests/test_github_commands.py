@@ -316,6 +316,35 @@ elif kind not in ("editor", "open", "dispatch"):
                     self.assertEqual(self.calls("gh"), [])
                     self.assertEqual(self.network_calls(), [])
 
+    def test_gho_ignores_tracking_refs_mapped_from_a_different_branch(self):
+        self.seed_commit({"release-only.txt": "only on release\n"}, branch="release/topic", create=True)
+        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
+                 "+refs/heads/release/*:refs/remotes/origin/*")
+        self.git(self.checkout, "config", "--add", "remote.origin.fetch",
+                 "+refs/heads/*:refs/remotes/origin/*")
+        self.fetch_fixture()
+        self.seed_commit({"topic-only.txt": "only on topic\n"}, branch="topic", create=True)
+        self.git(self.checkout, "switch", "--quiet", "--create", "topic", "refs/remotes/origin/topic")
+        self.git(self.checkout, "config", "branch.topic.remote", "origin")
+        self.git(self.checkout, "config", "branch.topic.merge", "refs/heads/topic")
+
+        result = self.run_fish("gho", self.checkout / "release-only.txt", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("mapped from another branch", result.stderr)
+        self.assertEqual(self.calls("open"), [])
+
+        self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/topic")
+        self.git(self.checkout, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+        self.git(self.checkout, "switch", "--quiet", "--create", "release/topic", "refs/remotes/origin/topic")
+        self.git(self.checkout, "config", "branch.release/topic.remote", "origin")
+        self.git(self.checkout, "config", "branch.release/topic.merge", "refs/heads/release/topic")
+
+        result = self.run_fish("gho", self.checkout)
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/release/topic"])
+        alias = self.git(self.checkout, "symbolic-ref", "-q", "refs/remotes/origin/HEAD", check=False)
+        self.assertNotEqual(alias.returncode, 0)
+
     def test_local_ahead_branch_uses_remote_paths_and_rejects_new_paths(self):
         (self.checkout / "file.txt").write_text("local update\n")
         (self.checkout / "new-local.txt").write_text("not pushed\n")
