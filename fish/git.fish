@@ -88,8 +88,8 @@ function gg --wraps 'git grep -iIE --recurse-submodules'
     git grep -iIE --recurse-submodules $argv
 end
 abbrali ggf gg -F
-abbrali ap git apply
-function pbap --wraps 'git apply'
+abbrali app git apply
+function papp --wraps 'git apply'
     pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
 end
 
