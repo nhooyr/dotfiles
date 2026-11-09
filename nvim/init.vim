@@ -3,11 +3,6 @@ set tabstop=4
 set shiftwidth=0
 set ignorecase
 set smartcase
-vnoremap <C-c> "+y
-vnoremap <M-d> "+ygv"_d
-nnoremap <Leader>y m`^"+y$``
-nnoremap <M-d> m`^"+y$``"_dd
-nnoremap gp `[v`]
 set laststatus=3
 set textwidth=120
 set foldmethod=indent
@@ -150,8 +145,15 @@ vnoremap C "_C
 nnoremap <BS><BS> "_dd
 nnoremap <BS> "_d
 vnoremap <BS> "_d
+vnoremap <M-c> "+y
+vnoremap <M-d> "+ygv"_d
+nnoremap <M-c> m`^"+y$``
+nnoremap <M-d> m`^"+y$``"_dd
+nnoremap gp `[v`]
 nnoremap Y "+y
 vnoremap Y "+y
+nnoremap D "+d
+vnoremap D "+d
 nnoremap <silent> <Leader>d :t.<CR>
 
 set completeopt=menuone,noselect,popup
