@@ -611,7 +611,10 @@ function __ghe_compare_ref --argument-names remote destination ref mode
                         end
                     end
                 case 'refs/tags/*'
-                    test "$qualified" != false; or set -a candidates "$source"
+                    test "$qualified" = false; or continue
+                    set -l aliases (__gh_ref_case_aliases "$destination" "$source"); or return
+                    set -q aliases[1]; and continue
+                    set -a candidates "$source"
             end
         end
     end
@@ -841,7 +844,15 @@ function __ghe_compare --argument-names remote destination comparison
     set -l base (__ghe_compare_ref "$remote" "$destination" "$range[1]"); or return
     set -l head (__ghe_compare_ref "$remote" "$destination" "$range[2]"); or return
     if test "$dots" = ...
-        if not git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" >/dev/null 2>&1
+        set -l merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
+        if test -z "$merge_base"; and test (count (string match -r '^[0-9a-fA-F]{40}$' -- $range)) -eq 2
+            and test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
+            if set -l name (__ghe_remote "$remote" "$destination")
+                and __ghe_fetch_history "$destination" "$name" "$base" "$head"
+                set merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
+            end
+        end
+        if test -z "$merge_base"
             printf '%s: comparison has no local merge base; fetch more history or use a two-dot comparison\n' "$0" >&2
             return 1
         end
@@ -1273,7 +1284,8 @@ function __gho_url --argument-names target
                 set -l tracked_source (__gh_source_ref "$default_ref" $refspecs)
                 if test -n "$tracked_source"; and test "$tracked_source" != "$source"
                     set default_ref ''
-                else if __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
+                else if set -l aliases (__gh_ref_case_aliases "$dir" "$default_ref")
+                    and not set -q aliases[1]; and __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
                     git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
                 end
                 break

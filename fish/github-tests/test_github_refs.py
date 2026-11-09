@@ -427,6 +427,38 @@ end
                     self.assertEqual(result.stdout.strip(), self.initial)
                     self.assertEqual(self.transport, [])
 
+    def test_cached_comparison_tips_fetch_a_missing_shallow_merge_base(self):
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        head = self.commit(self.source, "topic change\n", "topic.txt")
+        self.git(self.source, "switch", "--quiet", "main")
+        base = self.commit(self.source, "main change\n", "main.txt")
+        destination = self.clone(depth=1)
+        self.git(destination, "fetch", "--quiet", "--depth=1", self.source.as_uri(), "refs/heads/topic")
+        before = self.git(destination, "for-each-ref").stdout
+        compare = '__ghe_compare "$argv[1]" "$argv[2]" "$argv[3]"'
+
+        two_dot = self.fish(compare, URL, destination, f"{base}..{head}", offline=True)
+        self.assert_success(two_dot)
+        self.assertEqual(self.transport, [])
+
+        range_spec = f"{base}...{head}"
+        offline = self.fish(compare, URL, destination, range_spec, offline=True)
+        self.assertEqual(offline.returncode, 1)
+        self.assertIn("comparison has no local merge base", offline.stderr)
+        self.assertEqual([call["command"] for call in self.transport], ["fetch"])
+
+        online = self.fish(compare, URL, destination, range_spec)
+        self.assert_success(online)
+        self.assertIn("+topic change", online.stdout)
+        self.assertNotIn("main.txt", online.stdout)
+        self.assertEqual([call["command"] for call in self.transport], ["fetch"])
+        self.assertEqual(self.git(destination, "for-each-ref").stdout, before)
+
+        cached = self.fish(compare, URL, destination, range_spec, offline=True)
+        self.assert_success(cached)
+        self.assertEqual(cached.stdout, online.stdout)
+        self.assertEqual(self.transport, [])
+
     def test_cached_commit_ancestry_in_shallow_clone_fetches_missing_history(self):
         parent = self.commit(self.source, "parent\n")
         tip = self.commit(self.source, "tip\n")
@@ -544,6 +576,23 @@ end
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("cached remote branch differs only by case", result.stderr)
                     self.assertEqual(self.transport, [])
+
+    def test_offline_tag_comparison_does_not_reuse_a_differently_cased_tag(self):
+        self.git(self.source, "tag", "Release")
+        destination = self.clone()
+        self.git(destination, "update-ref", "-d", "refs/tags/Release")
+        self.git(destination, "update-ref", "refs/tags/Release", self.initial)
+        self.assert_resolves(destination, "tags/Release", self.initial, offline=True)
+        result = self.compare_ref(destination, "tags/release", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+
+        self.git(self.source, "pack-refs", "--all", "--prune")
+        newer = self.commit(self.source, "lowercase release\n")
+        self.git(self.source, "tag", "release")
+        self.assert_resolves(destination, "tags/release", newer)
+        self.assertEqual(self.oid(destination, "refs/tags/Release"), self.initial)
+        self.assert_resolves(destination, "tags/release", newer, offline=True)
+        self.assert_resolves(destination, "tags/Release", self.initial, offline=True)
 
     def test_topic_comparison_updates_tracking_after_force_push_without_local_fetch(self):
         self.git(self.source, "switch", "--quiet", "--create", "topic")

@@ -383,6 +383,30 @@ elif kind not in ("editor", "open", "dispatch"):
                     self.assertEqual(self.calls("gh"), [])
                     self.assertEqual(self.network_calls(), [])
 
+    def test_gho_does_not_cache_default_through_a_case_folded_tracking_ref(self):
+        upper = self.seed_commit({"file.txt": "uppercase branch\n"}, branch="Topic", create=True)
+        self.fetch_fixture()
+        self.git(self.seed, "pack-refs", "--all", "--prune")
+        self.git(self.remote, "pack-refs", "--all", "--prune")
+        self.seed_commit({"file.txt": "lowercase branch\n"}, branch="topic", create=True)
+        self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/topic")
+        alias = "refs/remotes/origin/HEAD"
+        self.git(self.checkout, "symbolic-ref", "--delete", alias)
+        refs = self.checkout / ".git" / "refs"
+        upper_refs = refs.with_name("REFS")
+        folds_case = upper_refs.exists() and refs.samefile(upper_refs)
+
+        result = self.run_fish("gho", cwd=self.checkout)
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), self.url + "/tree/main")
+        self.assertEqual(self.git(self.checkout, "rev-parse", "refs/remotes/origin/Topic").stdout.strip(), upper)
+        cached = self.git(self.checkout, "symbolic-ref", "--quiet", alias, check=False)
+        if folds_case:
+            self.assertNotEqual(cached.returncode, 0)
+        else:
+            self.assertEqual(cached.stdout.strip(), "refs/remotes/origin/topic")
+
     def test_gho_ignores_tracking_refs_mapped_from_a_different_branch(self):
         self.seed_commit({"release-only.txt": "only on release\n"}, branch="release/topic", create=True)
         self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
