@@ -105,6 +105,10 @@ abbrali ec e '"$DOTFILES/fish/config.fish"'
 abbrali ei e '"$DOTFILES/nvim/init.vim"'
 abbrali t time
 abbrali m math
+function man
+    command man $argv 2>/dev/null
+end
+abbrali to touch
 abbrali sshak ssh-add --apple-load-keychain
 set -q TMPDIR; or set -gx TMPDIR "$(mktemp -d)"
 if not test -f "$TMPDIR/__aqsnow_ssh_keychain_loaded"

@@ -11,13 +11,13 @@ find . -type f -name '*.fish' -exec fish_indent -w {} +
 shfmt -s -w .
 
 if [ "${CI-}" ]; then
-	git ls-files --other --exclude-standard -z | xargs -0 -r git add --intent-to-add --
+	git add --intent-to-add --ignore-removal .
 
 	tput() { command tput -Txterm-256color "$@"; }
 	git() { command git -c color.ui=always --no-pager "$@"; }
 
 	git diff --stat
-	if ! git diff --exit-code; then
+	if ! git --no-pager diff --color=always --stat --patch --exit-code; then
 		tput smul
 		tput sitm
 		tput bold

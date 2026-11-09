@@ -5,7 +5,7 @@ cd ~/code
 result=0
 
 for dir in ./* ./*/*; do
-    if ! [ -e "$dir/.git" ]; then
+	if ! [ -e "$dir/.git" ]; then
 		continue
 	fi
 	changes=$(git -C "$dir" status --porcelain)
