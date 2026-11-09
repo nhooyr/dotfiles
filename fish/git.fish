@@ -108,7 +108,6 @@ abbrali ghopr gh pr view --web
 
 abbrali dty gdirty
 function gdirty --description 'List dirty git repos'
-    set -l result 0
     for dir in ~/code/* ~/code/*/*
         if not test -e "$dir/.git"
             continue
@@ -119,10 +118,8 @@ function gdirty --description 'List dirty git repos'
         set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or return
         set -l flags "$(string split --right --max 1 --fields 2 -- ' ' "$prompt")"
         if test -n "$flags"
-            set result 1
             set -l name "$(string replace ~/code/ '' "$dir")"
             printf '%s\t%s\n' "$name" "$flags"
         end
     end
-    return "$result"
 end
