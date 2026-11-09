@@ -55,24 +55,24 @@
 	remote = cyan italic
 [color "diff"]
 	commit = ul bold
-	meta = magenta ul italic
-	frag = magenta ul italic
+	meta = magenta ul
+	frag = magenta ul
 	whitespace = white red
 	oldMoved = red italic
 	newMoved = green italic
 [color "blame"]
-	repeatedLines = magenta italic
+	repeatedLines = brightblack italic
 [color "advice"]
 	hint = brightblack italic
 [color "interactive"]
 	prompt = bold
-	header = cyan italic bold
+	header = cyan bold
 	help = brightblack italic
 	error = red
 [color "grep"]
 	filename = cyan
-	lineNumber = normal italic
-	column = normal italic
+	lineNumber = magenta
+	column = magenta
 	match = white blue
 	separator = normal
 [blame]

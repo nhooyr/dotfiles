@@ -87,7 +87,7 @@ abbr -a bfs bfs -L -exclude -name .git
 function f
     find . -iname "*$argv*"
 end
-set -gx GREP_COLORS 'mt=37;44:fn=36:ln=03:bn=03:se=00'
+set -gx GREP_COLORS 'mt=37;44:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '37;44'
 abbr -a grep gre
 function gre --wraps grep
@@ -157,7 +157,7 @@ abbrali bell printf '\a'
 fzf --fish | source
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
-    --color=bw,query:regular,info:italic:underline,hl:underline,fg+:regular:reverse,\
+    --color=bw,query:regular,info:italic,hl:underline,fg+:regular:reverse,\
 hl+:reverse:underline,pointer:magenta:bold"
 set -gx FZF_ALT_C_OPTS --bind=alt-enter:accept
 # Display no prefix by default in history view.
