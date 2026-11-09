@@ -89,11 +89,11 @@ function f
 end
 set -gx GREP_COLORS 'mt=37;44:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '37;44'
-abbrali gre grep -E
-abbrali grf grep -F
-abbrali grer grep -ER
-abbrali grfr grep -FR
-function grep
+abbrali gre _grep -E
+abbrali grf _grep -F
+abbrali grer _grep -ER
+abbrali grfr _grep -FR
+function _grep
     if type -q ggrep
         ggrep --color -inI $argv
     else
@@ -121,6 +121,9 @@ abbrali sshu ssh -oControlPath=none
 abbrali ssha ssh-add
 abbrali socks ssh -ND1080
 abbrali py python3
+function pyc --wraps 'python3 -c'
+    python3 -c "print($argv)"
+end
 abbrali b brew
 abbrali bi brew install
 abbrali bu brew upgrade
