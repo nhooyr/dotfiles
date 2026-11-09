@@ -310,11 +310,12 @@ function __gh_resolve --argument-names remote tail destination cached_only
         if test "$source" = remote
             # gho only needs to check ambiguity among locally known refs.
             test "$cached_only" != true; or return 1
-            if test "$route[1]" = tag
+            if test "$namespace" = refs/tags
                 set -l cache (__gh_compare_cache "$remote" "$destination"); or return
-                set -l revision (__gh_direct_commit "$destination" (__gh_cache_refs "$destination" "$cache" "refs/tags/$route[2]"))
-                if set -q revision[1]
-                    printf '%s\n' "$revision" "$revision" '' "$revision"
+                for ref in $names
+                    set -l revision (__gh_direct_commit "$destination" (__gh_cache_refs "$destination" "$cache" "refs/tags/$ref")); or continue
+                    set -l path "$(string split -m 1 -f 2 -- "$ref/" "$requested_path")"
+                    printf '%s\n' "$revision" "$revision" "$path" "$revision"
                     return 0
                 end
             end
@@ -867,7 +868,7 @@ function __ghe_compare --argument-names remote destination comparison
     end
 
     set -l merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
-    if test -z "$merge_base"; and test (count (string match -r '^[0-9a-fA-F]{4,40}$' -- $range)) -eq 2
+    if test -z "$merge_base"; and test (count (string match -r '^[0-9a-fA-F]{4,40}(?:[~^][0-9]*)*$' -- $range)) -eq 2
         and test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
         and set -l name (__ghe_remote "$remote" "$destination")
         and __ghe_fetch_history "$destination" "$name" "$base" "$head"
@@ -968,7 +969,6 @@ function __ghe_open --argument-names target line column end_line end_column
 end
 
 function __ghe_switch --argument-names remote destination full_ref ref revision
-    set -l advertised "$revision"
     if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$full_ref"
         set revision (__gh_commit_prefix "$destination" "$full_ref")
     else
@@ -1025,15 +1025,7 @@ function __ghe_switch --argument-names remote destination full_ref ref revision
                 end
             else
                 git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$fetch_remote" "$full_ref"; or return
-                set revision FETCH_HEAD
-                if string match -q 'refs/tags/*' -- "$full_ref"
-                    and test "$(git -C "$destination" rev-parse --verify FETCH_HEAD)" = "$advertised"
-                    # Cache the fetched tag object without creating or shadowing a local tag.
-                    set -l cache (__gh_compare_cache "$remote" "$destination"); or return
-                    set -l refs (__gh_cache_refs "$destination" "$cache" "$full_ref"); or return
-                    git -C "$destination" update-ref --no-deref "$refs[1]" "$advertised"; or return
-                    set revision "$advertised"
-                end
+                set revision "$(git -C "$destination" rev-parse --verify FETCH_HEAD)"; or return
             end
         end
         # A commit expression prevents choosing a branch named after the OID.
@@ -1109,6 +1101,16 @@ function __ghe_checkout --argument-names remote destination tail line column end
     set -l resolved (__gh_resolve "$remote" "$tail" "$destination")
     test (count $resolved) -eq 4; or return 1
     __ghe_switch "$remote" "$destination" "$resolved[1]" "$resolved[2]" "$resolved[4]"; or return
+
+    # Remember a remote tag only when its advertised object matches the checkout.
+    if string match -q 'refs/tags/*' -- "$resolved[1]"
+        and string match -qr '^[0-9a-fA-F]{40}$' -- "$resolved[4]"
+        and set -l commit (__gh_commit "$destination" "$resolved[4]")
+        and test "$commit" = "$(__gh_commit "$destination" HEAD)"
+        and set -l cache (__gh_compare_cache "$remote" "$destination")
+        and set -l refs (__gh_cache_refs "$destination" "$cache" "$resolved[1]")
+        git -C "$destination" update-ref --no-deref "$refs[1]" "$resolved[4]" >/dev/null 2>&1
+    end
 
     set -l requested_path "$resolved[3]"
     if test -z "$requested_path"

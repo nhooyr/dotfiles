@@ -769,6 +769,32 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         self.assert_success(self.run_fish("ghe", url, offline=True))
         self.assertEqual(self.head(), revision)
         self.assertEqual(self.network_calls(), [])
+        result = self.run_fish("ghe", self.url + "/blob/refs/tags/v2/file.txt", offline=True)
+        self.assert_success(result)
+        self.assertEqual(self.calls("editor")[0]["args"], [str(self.checkout / "file.txt")])
+        self.assertEqual(self.network_calls(), [])
+
+    def test_release_checkout_caches_a_tag_at_an_existing_commit(self):
+        self.git(self.seed, "tag", "v2")
+        self.publish("refs/tags/v2")
+        url = self.url + "/releases/tag/v2"
+
+        self.assert_success(self.run_fish("ghe", url))
+        self.assertEqual([call["command"] for call in self.network_calls()], ["ls-remote"])
+        self.assert_success(self.run_fish("ghe", url, offline=True))
+        self.assertEqual(self.network_calls(), [])
+        self.assertEqual(self.head(), self.initial)
+
+    def test_release_checkout_succeeds_when_its_cache_is_blocked(self):
+        revision = self.seed_commit({"file.txt": "new release\n"})
+        self.git(self.seed, "tag", "--annotate", "--message", "Release v2", "v2")
+        self.publish("refs/tags/v2")
+        self.git(self.checkout, "update-ref", "refs/gh/compare", self.initial)
+
+        self.assert_success(self.run_fish("ghe", self.url + "/releases/tag/v2"))
+        self.assertEqual(self.head(), revision)
+        self.assertEqual(self.git(self.checkout, "show-ref", "--hash", "--verify",
+                                  "refs/gh/compare").stdout.strip(), self.initial)
 
     def test_pull_request_head_and_offline_cache(self):
         revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)

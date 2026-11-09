@@ -482,6 +482,25 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
                 self.assertEqual(cached.stdout, online.stdout)
                 self.assertEqual(self.transport, [])
 
+    def test_cached_comparison_ancestors_fetch_a_missing_shallow_merge_base(self):
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        self.commit(self.source, "topic parent\n", "topic.txt")
+        head = self.commit(self.source, "topic change\n", "topic.txt")
+        self.git(self.source, "switch", "--quiet", "main")
+        parent = self.commit(self.source, "main parent\n", "main.txt")
+        tip = self.commit(self.source, "main tip\n", "main.txt")
+        destination = self.clone(depth=2)
+        self.git(destination, "fetch", "--quiet", "--depth=2", self.source.as_uri(), "refs/heads/topic")
+        self.assertEqual(self.oid(destination, tip + "~1"), parent)
+        self.assertEqual(self.git(destination, "merge-base", parent, head, check=False).returncode, 1)
+
+        compare = '__ghe_compare "$argv[1]" "$argv[2]" "$argv[3]"'
+        range_spec = f"{tip[:10]}~1...{head}"
+        result = self.fish(compare, URL, destination, range_spec)
+        self.assert_success(result)
+        self.assertIn("+topic change", result.stdout)
+        self.assertEqual([call["command"] for call in self.transport], ["fetch"])
+
     def test_cached_commit_ancestry_in_shallow_clone_fetches_missing_history(self):
         parent = self.commit(self.source, "parent\n")
         tip = self.commit(self.source, "tip\n")
