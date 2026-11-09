@@ -373,6 +373,51 @@ end
                         self.assertEqual(self.git(destination, "status", "--porcelain").stdout, "")
                 self.git(repository, "switch", "--quiet", "main")
 
+    def test_named_comparison_works_when_a_snapshot_ref_is_locked(self):
+        destination = self.clone()
+        self.assert_resolves(destination, "main", self.initial)
+        newer = self.commit(self.source, "updated main\n")
+        identity = self.git(destination, "hash-object", "--stdin", input="example/project\n").stdout.strip()
+        cache = f"refs/gh/compare/{identity}/by-ref"
+        keys = [self.git(destination, "hash-object", "--stdin", input=ref + "\n").stdout.strip()
+                for ref in ("main", "refs/heads/main")]
+        lock = destination / ".git" / f"{cache}/{keys[1]}.lock"
+        lock.write_text("held by another process\n")
+
+        self.assert_resolves(destination, "main", newer)
+
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), newer)
+        for key in keys:
+            self.assertEqual(self.oid(destination, f"{cache}/{key}"), self.initial)
+
+    def test_delayed_comparison_keeps_a_newer_tracked_snapshot(self):
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        first = self.commit(self.source, "first topic tip\n")
+        second = self.commit(self.source, "second topic tip\n")
+        self.git(self.source, "switch", "--quiet", "main")
+        self.git(self.source, "branch", "--force", "topic", first)
+        destination = self.clone()
+
+        result = self.fish("""set -g repository "$argv[1]"
+set -g checkout "$argv[2]"
+set -g source "$argv[3]"
+set -g newer "$argv[4]"
+function git
+    command git $argv; or return
+    if not set -q interleaved; and contains -- fetch $argv; and contains -- --stdin $argv
+        set -g interleaved true
+        command git -C "$source" update-ref refs/heads/topic "$newer"; or return
+        __ghe_compare_ref "$repository" "$checkout" topic >/dev/null; or return
+    end
+end
+__ghe_compare_ref "$repository" "$checkout" topic""", URL, destination, self.source, second)
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), first)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/topic"), second)
+        for ref in ("topic", "heads/topic"):
+            self.assert_resolves(destination, ref, second, offline=True)
+
     def test_moved_tag_and_branch_to_tag_comparison_keep_latest_snapshot(self):
         self.git(self.source, "tag", "release")
         self.git(self.source, "branch", "release")
@@ -1227,6 +1272,48 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
         self.assertEqual(result.stdout, "")
         self.assertEqual(self.oid(destination), self.initial)
 
+    def test_comparison_uses_its_own_fetch_result(self):
+        destination = self.clone()
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        tip = self.commit(self.source, "topic change\n")
+        compare = """function git
+    command git $argv; or return
+    if contains -- fetch $argv; and contains -- --stdin $argv
+        command git -C "$argv[2]" fetch --quiet --no-tags --refmap= -- origin refs/heads/main
+    end
+end
+__ghe_compare_ref "$argv[1]" "$argv[2]" "$argv[3]"
+"""
+        for attempt in range(2):
+            with self.subTest(attempt=attempt):
+                result = self.fish(compare, URL, destination, "topic")
+                self.assert_success(result)
+                self.assertEqual(result.stdout.strip(), tip)
+                self.assertEqual(self.oid(destination, "FETCH_HEAD"), self.initial)
+        self.assert_resolves(destination, "topic", tip, offline=True)
+
+    def test_fork_prefix_uses_its_own_fetched_histories(self):
+        destination = self.clone()
+        fork = self.new_repository("racing-fork")
+        self.urls["https://github.com/alice/project.git"] = fork.as_uri()
+        wanted = self.commit(fork, "fork commit\n")
+
+        result = self.fish(
+            """function git
+    command git $argv; or return
+    if contains -- fetch $argv; and contains -- --stdin $argv
+        command git -C "$argv[2]" fetch --quiet --no-tags --refmap= -- origin refs/heads/main
+    end
+end
+__ghe_compare_ref "$argv[1]" "$argv[2]" "$argv[3]"
+""",
+            URL, destination, "alice:" + wanted[:10],
+        )
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), wanted)
+        self.assertEqual(self.oid(destination, "FETCH_HEAD"), self.initial)
+
     def test_symbolic_comparison_cache_cannot_redirect_to_unrelated_branch(self):
         self.git(self.source, "branch", "topic")
         destination = self.clone()
@@ -1492,6 +1579,35 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
         self.assertEqual(self.oid(destination), main)
         self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), self.initial)
 
+    def test_nonbranch_fetch_source_does_not_claim_a_tracking_destination(self):
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        topic = self.commit(self.source, "topic branch\n")
+        self.git(self.source, "switch", "--quiet", "--create", "other", "main")
+        other = self.commit(self.source, "other branch\n")
+        self.git(self.source, "tag", "other-tag")
+        self.git(self.source, "switch", "--quiet", "main")
+        tracking = "refs/remotes/origin/topic"
+        for source in ("other", "refs/tags/other-tag"):
+            with self.subTest(source=source):
+                destination = self.clone()
+                spec = f"+{source}:{tracking}"
+                self.git(destination, "config", "--replace-all", "remote.origin.fetch", spec)
+                self.git(destination, "fetch", "--quiet", self.source.as_uri(), spec)
+                self.assertEqual(self.oid(destination, tracking), other)
+
+                result = self.checkout(destination, "blob/topic/file.txt")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("mapped from another branch", result.stderr)
+                self.assertEqual(self.oid(destination), self.initial)
+                self.assertEqual(self.git(destination, "config", "--get-all",
+                                          "remote.origin.fetch").stdout.strip(), spec)
+
+                self.git(destination, "config", "--add", "remote.origin.fetch",
+                         f"+refs/heads/topic:{tracking}")
+                self.assertNotEqual(self.compare_ref(destination, "topic", offline=True).returncode, 0)
+                self.assert_resolves(destination, "topic", topic)
+                self.assertEqual(self.oid(destination, tracking), other)
+
     def test_custom_cached_fetch_destinations_set_a_working_upstream(self):
         self.git(self.source, "branch", "topic")
         for spec, tracking in (
@@ -1509,6 +1625,29 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
                 self.assertEqual(self.git(destination, "rev-parse", "--symbolic-full-name", "@{upstream}").stdout.strip(), tracking)
                 self.assertEqual(self.git(destination, "config", "--get-all", "remote.origin.fetch").stdout.strip(), spec)
                 self.assertEqual(self.transport, [])
+
+    def test_new_branch_starts_from_its_own_fetch_result(self):
+        destination = self.clone(single_branch=True)
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        tip = self.commit(self.source, "topic change\n")
+        self.git(self.source, "switch", "--quiet", "main")
+        tracking = "refs/remotes/origin/topic"
+
+        result = self.fish(
+            """function git
+    command git $argv; or return
+    if contains -- +refs/heads/topic:refs/remotes/origin/topic $argv
+        command git -C "$argv[2]" fetch --quiet --no-tags --refmap= -- origin +refs/heads/main:refs/remotes/origin/topic
+    end
+end
+__ghe_checkout "$argv[1]" "$argv[2]" tree/topic "" "" "" ""
+""",
+            URL, destination,
+        )
+
+        self.assert_success(result)
+        self.assertEqual(self.oid(destination), tip)
+        self.assertEqual(self.oid(destination, tracking), self.initial)
 
     def test_single_branch_clone_adds_tracking_for_new_branch_and_future_fetches(self):
         self.git(self.source, "branch", "topic")

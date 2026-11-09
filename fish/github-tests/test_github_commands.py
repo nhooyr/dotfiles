@@ -383,6 +383,31 @@ elif kind not in ("editor", "open", "dispatch"):
                     self.assertEqual(self.calls("gh"), [])
                     self.assertEqual(self.network_calls(), [])
 
+    def test_gho_uses_branch_when_default_alias_replacement_was_blocked(self):
+        self.git(self.seed, "branch", "topic")
+        self.publish("topic")
+        self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/topic")
+        alias = "refs/remotes/origin/HEAD"
+        lock = self.checkout / ".git" / (alias + ".lock")
+        lock.write_text("held by another process\n")
+        compared = self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout, "HEAD")
+        self.assert_success(compared)
+        self.assertEqual(compared.stdout.strip(), self.initial)
+        self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), "refs/remotes/origin/main")
+
+        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url + "/tree/main")
+        self.assertEqual(self.network_calls(), [])
+
+        lock.unlink()
+        self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/main")
+        self.assert_success(self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout, "HEAD"))
+        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url)
+        self.assertEqual(self.network_calls(), [])
+
     def test_gho_does_not_cache_default_through_a_case_folded_tracking_ref(self):
         upper = self.seed_commit({"file.txt": "uppercase branch\n"}, branch="Topic", create=True)
         self.fetch_fixture()
@@ -789,6 +814,26 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         self.assertEqual(self.calls("editor")[0]["args"], [str(self.checkout / "file.txt")])
         self.assertEqual(self.network_calls(), [])
 
+    def test_exact_tag_checkout_uses_packed_ref_despite_loose_case_alias(self):
+        self.git(self.seed, "tag", "Release")
+        self.publish("refs/tags/Release")
+        self.fetch_fixture()
+        self.git(self.checkout, "pack-refs", "--all", "--prune")
+        newer = self.seed_commit({"file.txt": "other version\n"}, branch="feature", create=True)
+        self.fetch_fixture()
+        self.git(self.checkout, "update-ref", "refs/tags/release", newer)
+
+        for tag, expected in (("Release", self.initial), ("release", newer)):
+            with self.subTest(tag=tag):
+                result = self.run_fish("ghe", f"{self.url}/releases/tag/{tag}", offline=True)
+                self.assert_success(result)
+                self.assertEqual(self.head(), expected)
+                self.assertEqual(self.network_calls(), [])
+                result = self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout,
+                                       "tags/" + tag, offline=True)
+                self.assert_success(result)
+                self.assertEqual(result.stdout.strip(), expected)
+
     def test_release_checkout_caches_a_tag_at_an_existing_commit(self):
         self.git(self.seed, "tag", "v2")
         self.publish("refs/tags/v2")
@@ -810,6 +855,27 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         self.assertEqual(self.head(), revision)
         self.assertEqual(self.git(self.checkout, "show-ref", "--hash", "--verify",
                                   "refs/gh/compare").stdout.strip(), self.initial)
+
+    def test_release_checkout_uses_its_own_fetch_result(self):
+        revision = self.seed_commit({"file.txt": "new release\n"})
+        self.git(self.seed, "tag", "--annotate", "--message", "Release v2", "v2")
+        self.publish("refs/tags/v2")
+
+        result = self.run_fish(
+            """function git
+    command git $argv; or return
+    if contains -- fetch $argv; and contains -- refs/tags/v2 $argv
+        command git -C "$argv[2]" fetch --quiet --no-tags --refmap= -- origin refs/tags/v1
+    end
+end
+__ghe_checkout""",
+            self.url + ".git", self.checkout, "releases/tag/v2", "", "", "", "",
+        )
+
+        self.assert_success(result)
+        self.assertEqual(self.git(self.checkout, "rev-parse", "FETCH_HEAD").stdout.strip(), self.initial)
+        self.assertEqual(self.head(), revision)
+        self.assert_success(self.run_fish("ghe", self.url + "/releases/tag/v2", offline=True))
 
     def test_pull_request_head_and_offline_cache(self):
         revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)
@@ -853,6 +919,27 @@ __ghe_checkout""",
         self.assertEqual(self.head(), revision)
         self.assert_success(self.run_fish("ghe", self.url + "/pull/7", offline=True))
         self.assertEqual(self.head(), revision)
+
+    def test_missing_file_pull_uses_its_own_fetch_result(self):
+        self.git(self.seed, "branch", "other")
+        self.publish("other")
+        revision = self.seed_commit({"new.txt": "new upstream file\n"})
+
+        result = self.run_fish(
+            """function git
+    command git $argv; or return
+    if contains -- fetch $argv; and contains -- refs/heads/main $argv
+        command git -C "$argv[2]" fetch --quiet --no-tags --refmap= -- origin refs/heads/other
+    end
+end
+__ghe_checkout""",
+            self.url + ".git", self.checkout, "blob/main/new.txt", "", "", "", "",
+        )
+
+        self.assert_success(result)
+        self.assertEqual(self.git(self.checkout, "rev-parse", "FETCH_HEAD").stdout.strip(), self.initial)
+        self.assertEqual(self.head(), revision)
+        self.assertEqual(self.calls("editor")[0]["args"], [str(self.checkout / "new.txt")])
 
     def test_pull_request_files_uses_mocked_api_without_switching(self):
         revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)
