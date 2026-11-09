@@ -329,7 +329,7 @@ function fair --argument-names n
     end
     for i in $(seq 1 "$n")
         set msgn "$(math "$msgn" + 1)"
-        git commit --allow-empty -m "count: $msgn"; or return
+        git commit --allow-empty --only -m "count: $msgn"; or return
     end
     git push
 end
