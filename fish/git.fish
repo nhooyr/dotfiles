@@ -107,7 +107,8 @@ abbrali ghch gh pr checkout
 abbrali ghpr gh pr create --web --fill-verbose
 abbrali ghopr gh pr view --web
 
-abbrali dt dirt
+abbrali tabt column -ts '\t'
+abbrali dt dirt '|' tabt
 function dirt --description 'List repos with dirt'
     for dir in ~/code/* ~/code/*/*
         if not test -e "$dir/.git"
