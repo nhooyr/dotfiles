@@ -116,7 +116,7 @@ function gdirty --description 'List dirty git repos'
         if contains -- "$dir" $gdirty_ignore
             continue
         end
-        set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or return
+        set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or continue
         set -l flags "$(string split --max 1 --fields 2 -- ' ' "$prompt")"
         if test -n "$flags"
             set -l name "$(string replace ~/code/ '' "$dir")"
