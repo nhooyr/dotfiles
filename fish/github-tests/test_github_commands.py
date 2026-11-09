@@ -292,6 +292,17 @@ elif kind not in ("editor", "open", "dispatch"):
                     self.assertEqual(self.network_calls(), [])
                     self.assertEqual(self.calls("open") + self.calls("editor"), [])
 
+    def test_ghe_rejects_git_metadata_paths(self):
+        self.git(None, "init", "--quiet", self.checkout / "nested")
+        for suffix in ("blob/main/.git/config", "tree/main/nested/%2egit", "raw/main/.GiT/config"):
+            with self.subTest(suffix=suffix):
+                result = self.run_fish("ghe", self.url + "/" + suffix, offline=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("cannot address Git metadata", result.stderr)
+                self.assertEqual(result.directory, str(self.sandbox))
+                self.assertEqual(self.calls("editor"), [])
+                self.assertEqual(self.network_calls(), [])
+
     def test_local_default_root_and_escaped_file_urls(self):
         result = self.run_fish("gho", cwd=self.checkout)
         self.assert_success(result)
@@ -366,6 +377,68 @@ elif kind not in ("editor", "open", "dispatch"):
                                                      tracking, check=False).returncode, 0)
                         self.git(self.checkout, "-c", rule, "fetch", "--quiet", "aaa")
                         self.assertEqual(self.head(), self.initial)
+
+    def test_alias_writes_leave_reserved_fetch_destinations_available(self):
+        topic = self.seed_commit({"file.txt": "topic branch\n"}, branch="topic", create=True)
+        alias = "refs/remotes/origin/HEAD"
+        rule = "url." + self.remote.as_uri() + ".insteadOf=" + self.url + ".git"
+        cases = [(writer, name, alias) for writer in ("gho", "__ghe_compare_ref") for name in ("origin", "other")]
+        cases += [("gho", "other", "refs/remotes/origin/head"),
+                  ("__ghe_compare_ref", "origin", alias + "/topic")]
+        for index, (writer, name, target) in enumerate(cases):
+            with self.subTest(writer=writer, remote=name, target=target):
+                self.alias_checkout("reserved-%d" % index)
+                if name == "other":
+                    self.git(self.checkout, "remote", "add", name, self.url + ".git")
+                    self.git(self.checkout, "config", "--unset-all", "remote.other.fetch")
+                self.git(self.checkout, "config", "--add", f"remote.{name}.fetch",
+                         "+refs/heads/topic:" + target)
+                if writer == "gho":
+                    result = self.run_fish(writer, cwd=self.checkout)
+                else:
+                    result = self.run_fish(writer, self.url + ".git", self.checkout, "HEAD")
+                self.assert_success(result)
+                self.assertNotEqual(self.git(self.checkout, "show-ref", "--verify", "--quiet",
+                                             alias, check=False).returncode, 0)
+                self.git(self.checkout, "-c", rule, "fetch", "--quiet", name, "topic")
+                self.assertEqual(self.git(self.checkout, "rev-parse", target).stdout.strip(), topic)
+                self.assertEqual(self.git(self.checkout, "rev-parse",
+                                          "refs/remotes/origin/main").stdout.strip(), self.initial)
+
+    def test_default_refresh_releases_a_reserved_existing_symbolic_alias(self):
+        topic = self.seed_commit({"file.txt": "topic branch\n"}, branch="topic", create=True)
+        tracking = "refs/remotes/origin/main"
+        for name in ("origin", "aaa"):
+            with self.subTest(remote=name):
+                self.alias_checkout("reserved-existing-" + name)
+                if name != "origin":
+                    self.git(self.checkout, "remote", "add", name, self.url + ".git")
+                    self.git(self.checkout, "config", "--replace-all", f"remote.{name}.fetch",
+                             "+refs/heads/main:" + tracking)
+                alias = f"refs/remotes/{name}/HEAD"
+                self.git(self.checkout, "symbolic-ref", alias, tracking)
+                self.git(self.checkout, "remote", "add", "other", self.seed.as_uri())
+                self.git(self.checkout, "config", "--replace-all", "remote.other.fetch", "+refs/heads/topic:" + alias)
+                self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), tracking)
+                self.git(self.checkout, "fetch", "--quiet", "other", "topic")
+                self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), topic)
+
+                result = self.run_fish("gho", self.checkout / "file.txt", offline=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"mapped symbolic ref {alias}", result.stderr)
+                self.assertEqual(self.calls("open"), [])
+                result = self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout, "heads/main", offline=True)
+                self.assertNotEqual(result.returncode, 0)
+
+                result = self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout, "HEAD", "cached")
+                self.assert_success(result)
+                self.assertEqual(result.stdout.strip(), self.initial)
+                self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), self.initial)
+                self.assertNotEqual(self.git(self.checkout, "show-ref", "--verify", "--quiet",
+                                             alias, check=False).returncode, 0)
+                self.git(self.checkout, "fetch", "--quiet", "other", "topic")
+                self.assertEqual(self.git(self.checkout, "rev-parse", alias).stdout.strip(), topic)
+                self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), self.initial)
 
     def test_gho_roots_open_the_homepage_or_branch_without_pr_detection(self):
         for branch, expected in (("main", self.url), ("topic", self.url + "/tree/topic")):
@@ -523,6 +596,99 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertIn("mapped from another branch", result.stderr)
         self.assertEqual(self.calls("open"), [])
 
+    def test_tracking_destination_shared_by_different_remotes_is_not_trusted(self):
+        topic = self.seed_commit({"topic-only.txt": "origin topic\n"}, branch="topic", create=True)
+        (self.seed / "other-only.txt").write_text("other topic\n")
+        self.git(self.seed, "add", "other-only.txt")
+        self.git(self.seed, "commit", "-qm", "other remote only")
+        other = self.git(self.seed, "rev-parse", "HEAD").stdout.strip()
+        spec = "+refs/heads/*:refs/remotes/shared/*"
+        tracking = "refs/remotes/shared/topic"
+        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch", spec)
+        self.git(self.checkout, "remote", "add", "other", self.seed.as_uri())
+        self.git(self.checkout, "config", "--replace-all", "remote.other.fetch", spec)
+        self.git(self.checkout, "fetch", "--quiet", "other", "topic")
+        self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), other)
+
+        result = self.run_fish("ghe", self.url + "/blob/topic/other-only.txt", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.head(), self.initial)
+        self.assertEqual(self.calls("editor"), [])
+
+        args = self.url + ".git", self.checkout, "refs/heads/topic"
+        result = self.run_fish("__ghe_compare_ref", *args, offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        result = self.run_fish("__ghe_compare_ref", *args)
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), topic)
+        self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), other)
+
+        self.git(self.checkout, "switch", "--quiet", "--create", "topic")
+        self.git(self.checkout, "config", "branch.topic.remote", "origin")
+        self.git(self.checkout, "config", "branch.topic.merge", "refs/heads/topic")
+        result = self.run_fish("ghe", self.url + "/blob/topic/topic-only.txt")
+        self.assert_success(result)
+        self.assertEqual(self.head(), topic)
+        self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), other)
+
+        target = self.checkout / "other-only.txt"
+        target.write_text("local only\n")
+        result = self.run_fish("gho", target, offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("remote other", result.stderr)
+        self.assertEqual(self.calls("open"), [])
+        result = self.run_fish("gho", self.checkout)
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/topic"])
+
+        self.git(self.checkout, "config", "--remove-section", "remote.other")
+        self.git(self.checkout, "update-ref", tracking, topic)
+        self.git(self.checkout, "remote", "add", "mirror", "git@github.com:TEST-OWNER/TEST-REPO.git")
+        self.git(self.checkout, "config", "--replace-all", "remote.mirror.fetch", spec)
+        result = self.run_fish("gho", self.checkout / "topic-only.txt", offline=True)
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/topic/topic-only.txt"])
+        self.assertEqual(self.network_calls(), [])
+
+    def test_case_aliased_tracking_destinations_are_distinct_only_when_refs_are(self):
+        topic = self.seed_commit({"topic-only.txt": "origin topic\n"}, branch="topic", create=True)
+        (self.seed / "other-only.txt").write_text("other topic\n")
+        self.git(self.seed, "add", "other-only.txt")
+        self.git(self.seed, "commit", "-qm", "other remote only")
+        other = self.git(self.seed, "rev-parse", "HEAD").stdout.strip()
+        rule = "url." + self.remote.as_uri() + ".insteadOf=" + self.url + ".git"
+        tracking = "refs/remotes/shared/topic"
+        for index, spec in enumerate(("+refs/heads/topic:refs/remotes/Shared/topic",
+                                     "+refs/heads/*:refs/remotes/Shared/*")):
+            with self.subTest(spec=spec):
+                self.alias_checkout("case-destination-%d" % index)
+                self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
+                         "+refs/heads/*:refs/remotes/shared/*")
+                self.git(self.checkout, "-c", rule, "fetch", "--quiet", "origin", "topic")
+                self.git(self.checkout, "switch", "--quiet", "--create", "topic", "--track", tracking)
+                self.git(self.checkout, "remote", "add", "other", self.seed.as_uri())
+                self.git(self.checkout, "config", "--replace-all", "remote.other.fetch", spec)
+                self.git(self.checkout, "fetch", "--quiet", "other", "topic")
+
+                refs = self.checkout / ".git" / "refs"
+                upper_refs = refs.with_name("REFS")
+                folds_case = upper_refs.exists() and refs.samefile(upper_refs)
+                tip = self.git(self.checkout, "rev-parse", tracking).stdout.strip()
+                target = self.checkout / ("other-only.txt" if folds_case else "topic-only.txt")
+                if folds_case:
+                    target.write_text("local only\n")
+                result = self.run_fish("gho", target, offline=True)
+                if folds_case:
+                    self.assertEqual(tip, other)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("case-folded destination", result.stderr)
+                    self.assertEqual(self.calls("open"), [])
+                else:
+                    self.assertEqual(tip, topic)
+                    self.assert_success(result)
+                    self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/topic/topic-only.txt"])
+                self.assertEqual(self.network_calls(), [])
+
     def test_local_ahead_branch_uses_remote_paths_and_rejects_new_paths(self):
         (self.checkout / "file.txt").write_text("local update\n")
         (self.checkout / "new-local.txt").write_text("not pushed\n")
@@ -535,6 +701,42 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("cached remote branch", result.stderr)
         self.assertEqual(self.calls("open"), [])
+
+    def test_gho_does_not_treat_local_branches_or_tags_as_remote_tracking(self):
+        target = self.checkout / "local-only.txt"
+        target.write_text("unpublished\n")
+        self.git(self.checkout, "add", target)
+        self.git(self.checkout, "commit", "-qm", "local commit")
+        self.git(self.checkout, "tag", "local-copy")
+        for tracking in ("refs/heads/main", "refs/tags/local-copy"):
+            with self.subTest(tracking=tracking):
+                self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
+                         "+refs/heads/main:" + tracking)
+                result = self.run_fish("gho", target, offline=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("not a dedicated tracking ref", result.stderr)
+                self.assertEqual(self.calls("open"), [])
+                self.assertEqual(self.network_calls(), [])
+
+    def test_implicit_head_mapping_cannot_prove_topic_tracking(self):
+        self.seed_commit({"file.txt": "topic branch\n"}, branch="topic", create=True)
+        tracking = "refs/remotes/origin/topic"
+        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch", "+:" + tracking)
+        self.fetch_fixture()
+        self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), self.initial)
+
+        result = self.run_fish("ghe", self.url + "/blob/topic/file.txt")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("mapped from another branch or ref: HEAD", result.stderr)
+        self.assertEqual(self.calls("editor"), [])
+        self.assertEqual(self.head(), self.initial)
+
+        self.git(self.checkout, "switch", "--quiet", "--create", "topic")
+        result = self.run_fish("gho", self.checkout / "file.txt", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("mapped from another branch or ref: HEAD", result.stderr)
+        self.assertEqual(self.calls("open"), [])
+        self.assertEqual(self.network_calls(), [])
 
     def test_gho_uses_the_git_tree_spelling_for_a_decomposed_filename(self):
         name = "Café.txt"
