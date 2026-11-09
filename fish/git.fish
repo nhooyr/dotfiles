@@ -14,13 +14,13 @@ abbrali gp git push
 abbrali gps git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
-abbrali gcmp gcm '&&' gps
-abbrali gacm ga '&&' gcm
-abbrali gacmp ga '&&' gcmp
+abbr -a gcmp gcm '&&' gps
+abbr -a gacm ga '&&' gcm
+abbr -a gacmp ga '&&' gcm '&&' gp
 abbrali gcma git commit --amend
-abbrali gacma ga '&&' gcma
-abbrali gcmap gcma '&&' gpf
-abbrali gacmap ga '&&' gcmap
+abbr -a gcmap gcma '&&' gpf
+abbr -a gacma ga '&&' gcma
+abbr -a gacmap ga '&&' gcma '&&' gpf
 abbrali gcmf git commit --fixup
 abbrali grb git rebase
 abbrali grbi git rebase -i
