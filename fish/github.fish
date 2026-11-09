@@ -8,9 +8,8 @@ function __gh_parse --argument-names input
     # Accept GitHub's standard ports and its alternate SSH endpoint.
     set -l http_userinfo '(?:[A-Za-z0-9._~!$&\'()*+,;=:-]|%[0-9a-f]{2})+'
     set -l http_host '(?:github\.com|raw\.githubusercontent\.com)'
-    set -l path (string replace -ri "^(https://(?:$http_userinfo@)?$http_host(:443)?/|http://(?:$http_userinfo@)?$http_host(:80)?/|ssh://git@(github\\.com(:22)?|ssh\\.github\\.com:443)/|git@github\\.com:|github\\.com(:443)?/)" '' -- "$input")
-    set -l is_url false
-    test "$path" != "$input"; and set is_url true
+    set -l is_url true
+    set -l path (string replace -ri "^(https://(?:$http_userinfo@)?$http_host(:443)?/|http://(?:$http_userinfo@)?$http_host(:80)?/|ssh://git@(github\\.com(:22)?|ssh\\.github\\.com:443)/|git@github\\.com:|github\\.com(:443)?/)" '' -- "$input"); or set is_url false
     set path (string replace -r '[?#].*$' '' -- "$path")
     set path (string trim -r -c / -- "$path")
     set -l parts (string split -m 2 / -- "$path")
@@ -86,10 +85,16 @@ function __gh_commit --argument-names destination revision
 end
 
 function __gh_direct_commit --argument-names destination
-    # Print the first direct ref's commit; symbolic refs can point at an unrelated branch.
+    # Use the first direct ref's commit with the requested spelling.
     for ref in $argv[2..]
         git -C "$destination" symbolic-ref -q "$ref" >/dev/null 2>&1; and continue
-        __gh_commit "$destination" "$ref"; and return
+        set -l oid (__gh_commit "$destination" "$ref"); or continue
+        if string match -q 'refs/*' -- "$ref"
+            set -l aliases (__gh_ref_case_aliases "$destination" "$ref"); or return
+            set -q aliases[1]; and continue
+        end
+        printf '%s\n' "$oid"
+        return
     end
     return 1
 end
@@ -110,7 +115,7 @@ function __gh_refspecs --argument-names name destination
     for spec in (git -C "$destination" config --get-all "remote.$name.fetch")
         set -l fields (string split -m 1 : -- "$spec")
         # Git uses pattern destinations as written.
-        if test (count $fields) -eq 2; and test -n "$fields[2]"; and not string match -q '*\**' -- "$fields[2]"
+        if test -n "$fields[2]"; and not string match -q '*\**' -- "$fields[2]"
             set spec "$fields[1]:$(__gh_local_ref "$fields[2]")"
         end
         printf '%s\n' "$spec"
@@ -141,13 +146,11 @@ function __gh_tracking_ref --argument-names ref
     end
     for spec in $argv[2..]
         set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
-        if test (count $fields) -eq 2; and test -n "$fields[2]"
-            set -l target (__gh_map_ref "$fields[1]" "$fields[2]" "$ref")
-            if test -n "$target"
-                printf '%s\n' "$target"
-                return 0
-            end
-        end
+        test -n "$fields[2]"; or continue
+        set -l target (__gh_map_ref "$fields[1]" "$fields[2]" "$ref")
+        test -n "$target"; or continue
+        printf '%s\n' "$target"
+        return 0
     end
     return 1
 end
@@ -156,9 +159,7 @@ function __gh_source_ref --argument-names ref
     set -l fallback
     for spec in $argv[2..]
         set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
-        if test (count $fields) -ne 2; or test -z "$fields[2]"
-            continue
-        end
+        test -n "$fields[2]"; or continue
         set -l source (__gh_map_ref "$fields[2]" "$fields[1]" "$ref")
         string match -q 'refs/heads/*' -- "$source"; or continue
         set -l target (__gh_tracking_ref "$source" $argv[2..]); or continue
@@ -169,11 +170,8 @@ function __gh_source_ref --argument-names ref
         test -n "$fallback"; or set fallback "$source"
     end
     # A cached HEAD alias may still point at a secondary fetch destination.
-    if test -n "$fallback"
-        printf '%s\n' "$fallback"
-        return 0
-    end
-    return 1
+    test -n "$fallback"; or return 1
+    printf '%s\n' "$fallback"
 end
 
 function __gh_cached_branches --argument-names name destination
@@ -181,11 +179,11 @@ function __gh_cached_branches --argument-names name destination
     set -l prefixes
     for spec in $refspecs
         set -l fields (string split -m 1 : -- "$spec")
-        if test (count $fields) -eq 2; and test -n "$fields[2]"
+        if test -n "$fields[2]"
             set -a prefixes (string replace -r '[^/]*\*.*$' '' -- "$fields[2]")
         end
     end
-    test (count $prefixes) -gt 0; or return 0
+    set -q prefixes[1]; or return 0
     set -l refs (git -C "$destination" for-each-ref \
         --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $prefixes); or return
     # Check only the candidate names in argv; remotes can cache thousands of branches.
@@ -197,12 +195,29 @@ function __gh_cached_branches --argument-names name destination
     end
 end
 
+function __gh_head_alias_case_safe --argument-names destination alias
+    # Dangling symbolic refs do not appear in for-each-ref.
+    set -l dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs)"; or return
+    for component in (string split / -- (string replace 'refs/' '' -- "$alias"))
+        set -l entry "$dir/$component"
+        if not test -e "$entry"; and not test -L "$entry"
+            return 0
+        end
+        set -l entries "$dir"/*
+        contains -- "$entry" $entries; or return 1
+        set dir "$entry"
+    end
+    return 0
+end
+
 function __gh_default_ref --argument-names name destination
     # Resolve the cached remote HEAD through the configured fetch mapping.
     set -l specs $argv[3..]
-    set -l ref "$(git -C "$destination" symbolic-ref -q "refs/remotes/$name/HEAD" 2>/dev/null)"; or begin
+    set -l alias "refs/remotes/$name/HEAD"
+    __gh_head_alias_case_safe "$destination" "$alias"; or return
+    set -l ref "$(git -C "$destination" symbolic-ref -q "$alias" 2>/dev/null)"; or begin
         # An exact fetch mapping can use the default name as a direct destination.
-        set ref "refs/remotes/$name/HEAD"
+        set ref "$alias"
         __gh_commit "$destination" "$ref" >/dev/null; or return
         set -l source (__gh_source_ref "$ref" $specs); or return
         contains -- "$source:$ref" (string replace -r '^\+' '' -- $specs); or return 1
@@ -220,7 +235,11 @@ function __gh_default_ref --argument-names name destination
 end
 
 function __gh_is_ref_route --argument-names tail
-    string match -qr '^(blob|tree|commits?|blame|tag|branch|tagfile|branchfile|oid)/.+' -- "$tail"
+    string match -qr '^(blob|tree|commits?|blame|tag|branch|oid)/.+' -- "$tail"
+end
+
+function __gh_advertised_head
+    string match -rg '^ref: (refs/heads/[^\t]+)\tHEAD$' -- $argv
 end
 
 function __gh_resolve --argument-names remote tail destination cached_only
@@ -232,9 +251,9 @@ function __gh_resolve --argument-names remote tail destination cached_only
     end
     set -l namespace ''
     switch "$route[1]"
-        case tag tagfile
+        case tag
             set namespace refs/tags
-        case branch branchfile
+        case branch
             set namespace refs/heads
         case blob tree blame commits
             if string match -qr '^refs/(heads|tags)/.' -- "$route[2]"
@@ -271,21 +290,19 @@ function __gh_resolve --argument-names remote tail destination cached_only
     set -l revisions $refs
     # Ref names can contain slashes, so each leading part of the path may name a branch.
     set -l names "$route[2]"
-    while test "$exact" = false; and string match -q '*/*' -- "$names[-1]"
-        set -a names (string replace -r '/[^/]*$' '' -- "$names[-1]")
+    while test "$exact" = false; and set -l shorter (string split -r -m 1 -f 1 / -- "$names[-1]")
+        set -a names "$shorter"
     end
     set -l remotes (__gh_remotes "$remote" "$destination"); or return
     for name in $remotes
         test "$namespace" != refs/tags; or continue
         set -a prefixes "refs/remotes/$name"
         set -l cached (__gh_cached_branches "$name" "$destination" $names); or return
-        for line in $cached
-            set -l fields (string split \t -- "$line")
-            set -a refs "$fields[1]"
-            set -a revisions "$fields[2]"
-        end
+        set -a refs (string split -f 1 \t -- $cached)
+        set -a revisions (string split -f 2 \t -- $cached)
     end
 
+    set -l requested_path "$(string trim -r -c / -- "$route[2]")"
     for source in cached remote
         if test "$source" = remote
             # gho only needs to check ambiguity among locally known refs.
@@ -303,20 +320,17 @@ function __gh_resolve --argument-names remote tail destination cached_only
             set prefixes $source_prefixes
         end
 
-        # Ref names can contain slashes. Try the longest known name first.
-        set -l ref "$route[2]"
-        set -l path ''
-        while true
+        for ref in $names
+            set -l path "$(string split -m 1 -f 2 -- "$ref/" "$requested_path")"
             for prefix in $prefixes
                 set -l index (contains -i -- "$prefix/$ref" $refs)
                 if test -n "$index"
-                    printf '%s\n' "$prefix/$ref" "$ref" (string trim -r -c / -- "$path") "$revisions[$index]"
+                    printf '%s\n' "$prefix/$ref" "$ref" "$path" "$revisions[$index]"
                     return 0
                 end
             end
             if test -z "$namespace"; and test "$ref" = HEAD; and test "$cached_only" != true
                 set -l revision (__ghe_compare_ref "$remote" "$destination" HEAD cached); or return
-                set path (string trim -r -c / -- "$path")
                 # A cached default can predate the requested path; try one refresh.
                 if test -n "$path"; and not git --no-lazy-fetch -C "$destination" rev-parse --verify --quiet "$revision:$path" >/dev/null
                     set -l refreshed (__ghe_compare_ref "$remote" "$destination" HEAD refresh 2>/dev/null)
@@ -325,20 +339,11 @@ function __gh_resolve --argument-names remote tail destination cached_only
                 printf '%s\n' "$revision" "$revision" "$path" "$revision"
                 return 0
             end
-            if test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
-                # Check advertised refs before treating a hex name as a commit.
-                if test "$source" = remote
-                    printf '%s\n' "$ref" "$ref" (string trim -r -c / -- "$path") "$ref"
-                    return 0
-                end
+            # Check advertised refs before treating a hex name as a commit.
+            if test "$source" = remote; and test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
+                printf '%s\n' "$ref" "$ref" "$path" "$ref"
+                return 0
             end
-            test "$exact" = false; or break
-            set -l parts (string split -r -m 1 / -- "$ref")
-            if test (count $parts) -ne 2
-                break
-            end
-            set ref "$parts[1]"
-            set path "$parts[2]/$path"
         end
     end
     printf '%s: no branch, tag, or commit matches this URL\n' "$0" >&2
@@ -425,43 +430,38 @@ function __ghe_pull --argument-names destination remote
         set -l mappings (string replace -r '^\+' '' -- $refspecs | LC_ALL=C sort -u)
         set -l abbreviated_targets (string match -rg '^(?!refs/)[^:]+:([^*]+)$' -- $mappings)
         set -l refmap_options
-        set -l skipped false
         for spec in $refspecs
             set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
-            if test (count $fields) -eq 2; and test -n "$fields[2]"
-                # Exact targets need no source match, including abbreviated sources.
-                set -l target "$fields[2]"
-                if string match -q '*\**' -- "$target"
-                    set target (__gh_map_ref "$fields[1]" "$target" "$upstream[2]")
-                end
-                if test -n "$target"
-                    set -l tracked_source (__gh_source_ref "$target" $refspecs)
-                    if test -n "$tracked_source"
-                        if test "$tracked_source" != "$upstream[2]"; or contains -- "$target" $abbreviated_targets
-                            set skipped true
-                            continue
-                        end
-                    end
-                    # A loose ref can shadow a differently cased ref even for an abbreviated source.
-                    set -l existing (git -C "$destination" for-each-ref --ignore-case --format='%(refname)' -- "$target"); or return
-                    set -l same_name (string match -i -- "$target" $existing)
-                    set -l canonical "$(git -C "$destination" rev-parse --symbolic-full-name "$target" 2>/dev/null)"
-                    set -l abbreviated_matches (string match -- "$target" $abbreviated_targets)
-                    if set -q abbreviated_matches[2]
-                        or string match -vq -- "$target" $same_name
-                        or string match -iq "$target" -- $checked_out_refs
-                        or string match -iq "$canonical" -- $checked_out_refs
-                        or git -C "$destination" symbolic-ref --quiet --no-recurse "$target" >/dev/null 2>&1
-                        set skipped true
+            set -l target "$fields[2]"
+            # Exact targets need no source match, including abbreviated sources.
+            if string match -q '*\**' -- "$target"
+                set target (__gh_map_ref "$fields[1]" "$target" "$upstream[2]")
+            end
+            if test -n "$target"
+                set -l tracked_source (__gh_source_ref "$target" $refspecs)
+                if test -n "$tracked_source"
+                    if test "$tracked_source" != "$upstream[2]"; or contains -- "$target" $abbreviated_targets
                         continue
                     end
+                end
+                # A loose ref can shadow a differently cased ref even for an abbreviated source.
+                set -l existing (git -C "$destination" for-each-ref --ignore-case --format='%(refname)' -- "$target"); or return
+                set -l same_name (string match -i -- "$target" $existing)
+                set -l canonical "$(git -C "$destination" rev-parse --symbolic-full-name "$target" 2>/dev/null)"
+                set -l abbreviated_matches (string match -- "$target" $abbreviated_targets)
+                if set -q abbreviated_matches[2]
+                    or string match -vq -- "$target" $same_name
+                    or string match -iq "$target" -- $checked_out_refs
+                    or string match -iq "$canonical" -- $checked_out_refs
+                    or git -C "$destination" symbolic-ref --quiet --no-recurse "$target" >/dev/null 2>&1
+                    continue
                 end
             end
             set -a refmap_options "--refmap=$spec"
         end
-        if test "$skipped" = false
+        if test (count $refmap_options) -eq (count $refspecs)
             set refmap_options
-        else if test (count $refmap_options) -eq 0
+        else if not set -q refmap_options[1]
             set refmap_options --refmap=
         end
         git -C "$destination" fetch --quiet --no-recurse-submodules $refmap_options -- "$upstream[1]" "$upstream[2]"; or return
@@ -531,16 +531,45 @@ function __gh_safe_tracking --argument-names destination ref
     not git -C "$destination" symbolic-ref -q "$ref" >/dev/null 2>&1
 end
 
+function __gh_refs_overlap --argument-names ref
+    set -q argv[2]; or return 1
+    string match -iq -- "$ref" $argv[2..]; and return
+    string match -iq -- "$ref/*" $argv[2..]; and return
+    set -l parts (string split / -- "$ref")
+    while set -q parts[2]
+        set -e parts[-1]
+        string match -iq -- (string join / -- $parts) $argv[2..]; and return
+    end
+    return 1
+end
+
 function __gh_head_alias_safe --argument-names destination alias
+    __gh_head_alias_case_safe "$destination" "$alias"; or return
     # Packed refs also need case-insensitive hierarchy checks.
     set -l refs (git -C "$destination" for-each-ref \
         --format='%(if)%(symref)%(then)%(else)%(refname)%(end)'); or return
-    for ref in $refs
-        if string match -iq "$alias" -- "$ref"; or string match -iq "$alias/*" -- "$ref"; or string match -iq "$ref/*" -- "$alias"
-            return 1
+    not __gh_refs_overlap "$alias" $refs
+end
+
+function __ghe_cached_default --argument-names destination cache oid
+    set -l snapshot "$(__gh_direct_commit "$destination" (__gh_cache_refs "$destination" "$cache" HEAD))"
+    set -l observed
+    for tracking in $argv[4..]
+        set -l tip "$(__gh_commit "$destination" "$tracking")"
+        test "$tip" != "$snapshot"; or continue
+        if test -n "$snapshot"
+            set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking")"; or return
+            # An independent snapshot has no reliable observation order.
+            test "$(__gh_direct_commit "$destination" "$marker")" = "$snapshot"; or return 0
         end
+        # Multiple later observations cannot be ordered, including force pushes.
+        if set -q observed[1]; and test "$tip" != "$observed"
+            return 0
+        end
+        set observed "$tip"
     end
-    return 0
+    set -q observed[1]; or set observed "$oid"
+    printf '%s\n' "$observed"
 end
 
 function __ghe_compare_ref --argument-names remote destination ref mode
@@ -611,10 +640,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
                         end
                     end
                 case 'refs/tags/*'
-                    test "$qualified" = false; or continue
-                    set -l aliases (__gh_ref_case_aliases "$destination" "$source"); or return
-                    set -q aliases[1]; and continue
-                    set -a candidates "$source"
+                    test "$qualified" != false; or set -a candidates "$source"
             end
         end
     end
@@ -629,25 +655,11 @@ function __ghe_compare_ref --argument-names remote destination ref mode
     end
     set -l oid "$(__gh_direct_commit "$destination" $tracking_candidates $candidates)"
     if test "$mode" = cached; and test "$ref" = HEAD; and test "$refresh_default" = false; and test -n "$oid"
-        set -l snapshot "$(__gh_direct_commit "$destination" (__gh_cache_refs "$destination" "$cache" HEAD))"
-        set -l observed
-        for tracking in $tracking_candidates
-            set -l tip "$(__gh_commit "$destination" "$tracking")"
-            test "$tip" != "$snapshot"; or continue
-            if test -n "$snapshot"
-                set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking")"; or return
-                if test "$(__gh_direct_commit "$destination" "$marker")" != "$snapshot"
-                    # Independent snapshots have no reliable observation order.
-                    set refresh_default true
-                end
-            end
-            contains -- "$tip" $observed; or set -a observed "$tip"
-        end
-        if test (count $observed) -gt 1
-            # Multiple later observations cannot be ordered, including force pushes.
+        set -l observed (__ghe_cached_default "$destination" "$cache" "$oid" $tracking_candidates); or return
+        if set -q observed[1]
+            set oid "$observed"
+        else
             set refresh_default true
-        else if set -q observed[1]
-            set oid "$observed[1]"
         end
     end
     if test -n "$oid"
@@ -675,12 +687,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
         set fetch_status "$status"
         if contains -- "$fetch_status" 0 2
             if test "$ref" = HEAD
-                for line in $advertised
-                    set -l fields (string split \t -- "$line")
-                    if test "$fields[2]" = HEAD; and string match -q 'ref: refs/heads/*' -- "$fields[1]"
-                        set default_source (string replace 'ref: ' '' -- "$fields[1]")
-                    end
-                end
+                set default_source (__gh_advertised_head $advertised)
             end
             set fetch_refs
             set -l refs (string split -f 2 \t -- $advertised)
@@ -700,37 +707,34 @@ function __ghe_compare_ref --argument-names remote destination ref mode
             set fetch_status 0
         end
     end
-    set -l fetch_specs $fetch_refs
     set -l fetch_tracking
     set -l default_tracking
     set -l default_names
     set -l invalidate_default false
     test "$ref" != HEAD; or set invalidate_default true
-    if set -q remotes[1]; and set -q fetch_refs[1]
-        set -l source "$fetch_refs[1]"
-        test -z "$default_source"; or set source "$default_source"
-        if string match -q 'refs/heads/*' -- "$source"
-            set -l names "$query"
-            test "$ref" != HEAD; or set names $remotes
-            for name in $names
-                set -l specs (__gh_refspecs "$name" "$destination")
-                set -l tracking (__gh_tracking_ref "$source" $specs)
-                if test -n "$tracking"; and test "$(__gh_source_ref "$tracking" $specs)" = "$source"; and __gh_safe_tracking "$destination" "$tracking"
-                    set -l aliases (__gh_ref_case_aliases "$destination" "$tracking"); or return
-                    set -q aliases[1]; and continue
-                    if not contains -- "$tracking" $fetch_tracking
-                        set -q fetch_tracking[1]; or set fetch_specs
-                        # Remote-tracking refs follow force pushes, like the default fetch refspec.
-                        set -a fetch_specs "+$source:$tracking"
-                        set -a fetch_tracking "$tracking"
-                    end
-                    if test "$ref" = HEAD
-                        set -a default_tracking "$tracking"
-                        set -a default_names "$name"
-                    end
-                end
+    set -l source "$fetch_refs[1]"
+    test -z "$default_source"; or set source "$default_source"
+    if set -q remotes[1]; and string match -q 'refs/heads/*' -- "$source"
+        set -l names "$query"
+        test "$ref" != HEAD; or set names $remotes
+        for name in $names
+            set -l specs (__gh_refspecs "$name" "$destination")
+            set -l tracking (__gh_tracking_ref "$source" $specs); or continue
+            test "$(__gh_source_ref "$tracking" $specs)" = "$source"; or continue
+            __gh_safe_tracking "$destination" "$tracking"; or continue
+            set -l aliases (__gh_ref_case_aliases "$destination" "$tracking"); or return
+            set -q aliases[1]; and continue
+            contains -- "$tracking" $fetch_tracking; or set -a fetch_tracking "$tracking"
+            if test "$ref" = HEAD
+                set -a default_tracking "$tracking"
+                set -a default_names "$name"
             end
         end
+    end
+    set -l fetch_specs $fetch_refs
+    if set -q fetch_tracking[1]
+        # Remote-tracking refs follow force pushes, like the default fetch refspec.
+        set fetch_specs "+$source:"$fetch_tracking
     end
     if test "$fetch_status" -eq 0
         __ghe_fetch_history "$destination" "$query" $fetch_specs
@@ -777,14 +781,11 @@ function __ghe_compare_ref --argument-names remote destination ref mode
     # Cross-remote alias collisions cannot represent every synchronized default.
     for index in (seq (count $default_names))
         set -l head_alias "refs/remotes/$default_names[$index]/HEAD"
-        for tracking in $fetch_tracking
-            test "$tracking" != "$default_tracking[$index]"; or continue
-            if string match -iq "$head_alias" -- "$tracking"; or string match -iq "$head_alias/*" -- "$tracking"; or string match -iq "$tracking/*" -- "$head_alias"
-                set default_names
-                break
-            end
+        set -l other_tracking (string match -v -- "$default_tracking[$index]" $fetch_tracking)
+        if __gh_refs_overlap "$head_alias" $other_tracking
+            set default_names
+            break
         end
-        set -q default_names[1]; or break
     end
     if test "$invalidate_default" = true; and set -q remotes[1]
         set -l markers (git -C "$destination" for-each-ref --format='%(refname)' -- "$cache/tracking-synced/"); or return
@@ -797,11 +798,13 @@ function __ghe_compare_ref --argument-names remote destination ref mode
             if test -n "$index"
                 set -l tracking "$default_tracking[$index]"
                 if __gh_head_alias_safe "$destination" "$head_alias"
-                    git -C "$destination" symbolic-ref "$head_alias" "$tracking"; or return
+                    # A dangling symref or lock may block this optional alias.
+                    git -C "$destination" symbolic-ref "$head_alias" "$tracking" >/dev/null 2>&1
                 end
                 set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking")"; or return
                 git -C "$destination" update-ref --no-deref "$marker" "$oid"; or return
-            else if git -C "$destination" symbolic-ref -q "$head_alias" >/dev/null 2>&1
+            else if __gh_head_alias_case_safe "$destination" "$head_alias"
+                and git -C "$destination" symbolic-ref -q "$head_alias" >/dev/null 2>&1
                 # No safe destination was synchronized for this cached default.
                 git -C "$destination" symbolic-ref --delete "$head_alias"; or return
             end
@@ -829,45 +832,45 @@ end
 
 function __ghe_compare --argument-names remote destination comparison
     test -n "$comparison"; or return 0
-    set -l range (string split -m 1 ... -- "$comparison")
+    set -l range
     set -l dots ...
-    if test (count $range) -ne 2
-        set range (string split -m 1 .. -- "$comparison")
-        set dots ..
-    end
-    if test (count $range) -ne 2
-        set range HEAD "$comparison"
-        set dots ...
+    switch "$comparison"
+        case '*...*'
+            set range (string split -m 1 ... -- "$comparison")
+        case '*..*'
+            set range (string split -m 1 .. -- "$comparison")
+            set dots ..
+        case '*'
+            set range HEAD "$comparison"
     end
     test -n "$range[1]"; or set range[1] HEAD
     test -n "$range[2]"; or set range[2] HEAD
     set -l base (__ghe_compare_ref "$remote" "$destination" "$range[1]"); or return
     set -l head (__ghe_compare_ref "$remote" "$destination" "$range[2]"); or return
-    if test "$dots" = ...
-        set -l merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
-        if test -z "$merge_base"; and test (count (string match -r '^[0-9a-fA-F]{40}$' -- $range)) -eq 2
-            and test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
-            if set -l name (__ghe_remote "$remote" "$destination")
-                and __ghe_fetch_history "$destination" "$name" "$base" "$head"
-                set merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
-            end
-        end
-        if test -z "$merge_base"
-            printf '%s: comparison has no local merge base; fetch more history or use a two-dot comparison\n' "$0" >&2
-            return 1
-        end
-        git -C "$destination" diff "$base...$head" --
-    else
+    if test "$dots" = ..
         git -C "$destination" diff "$base" "$head" --
+        return
     end
+
+    set -l merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
+    if test -z "$merge_base"; and test (count (string match -r '^[0-9a-fA-F]{40}$' -- $range)) -eq 2
+        and test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
+        and set -l name (__ghe_remote "$remote" "$destination")
+        and __ghe_fetch_history "$destination" "$name" "$base" "$head"
+        set merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
+    end
+    if test -z "$merge_base"
+        printf '%s: comparison has no local merge base; fetch more history or use a two-dot comparison\n' "$0" >&2
+        return 1
+    end
+    git -C "$destination" diff "$base...$head" --
 end
 
 function __ghe_url_route --argument-names repository tail
     switch "$tail"
-        case 'raw/refs/heads/*'
-            string replace -r '^raw/refs/heads/' branchfile/ -- "$tail"
-        case 'raw/refs/tags/*'
-            string replace -r '^raw/refs/tags/' tagfile/ -- "$tail"
+        case 'tag/*' 'branch/*' 'oid/*' raw/refs/heads/ raw/refs/tags/
+            # Internal routes and bare namespaces do not identify GitHub refs.
+            return 0
         case 'raw/*' 'edit/*'
             string replace -r '^(raw|edit)/' blob/ -- "$tail"
         case 'releases/tag/*'
@@ -880,8 +883,7 @@ function __ghe_url_route --argument-names repository tail
             end
             printf 'tag/%s\n' "$tag"
         case 'archive/*'
-            set -l ref (string sub -s 9 -- "$tail")
-            set ref (string replace -r '\.(zip|tar\.gz)$' '' -- "$ref"); or return 0
+            set -l ref (string match -rg '^archive/(.*)\.(?:zip|tar\.gz)$' -- "$tail"); or return 0
             switch "$ref"
                 case 'refs/heads/*'
                     string replace -r '^refs/heads/' branch/ -- "$ref"
@@ -895,9 +897,6 @@ function __ghe_url_route --argument-names repository tail
                         printf 'tree/%s\n' "$ref"
                     end
             end
-        case 'tag/*' 'branch/*' 'tagfile/*' 'branchfile/*' 'oid/*'
-            # These routes are internal results, not GitHub page URLs.
-            return 0
         case '*'
             printf '%s\n' "$tail"
     end
@@ -932,7 +931,7 @@ function __ghe_open --argument-names target line column end_line end_column
     end
     # Respect quoted arguments in EDITOR without evaluating shell commands.
     printf '%s\n' "$EDITOR" | read --tokenize --array --local editor; or return
-    if test (count $editor) -eq 0
+    if not set -q editor[1]
         printf '%s: EDITOR is empty\n' "$0" >&2
         return 1
     end
@@ -1085,19 +1084,19 @@ function __ghe_checkout --argument-names remote destination tail line column end
         end
     end
     # Other GitHub pages, such as issues, open the repository.
-    __gh_is_ref_route "$tail"; or set tail ''
-
-    set -l requested_path ''
-    if test -n "$tail"
-        set -l resolved (__gh_resolve "$remote" "$tail" "$destination")
-        test (count $resolved) -eq 4; or return 1
-        set requested_path "$resolved[3]"
-        __ghe_switch "$remote" "$destination" "$resolved[1]" "$resolved[2]" "$resolved[4]"; or return
+    if not __gh_is_ref_route "$tail"
+        cd -- "$destination"
+        return
     end
 
+    set -l resolved (__gh_resolve "$remote" "$tail" "$destination")
+    test (count $resolved) -eq 4; or return 1
+    __ghe_switch "$remote" "$destination" "$resolved[1]" "$resolved[2]" "$resolved[4]"; or return
+
+    set -l requested_path "$resolved[3]"
     if test -z "$requested_path"
         cd -- "$destination"
-        return $status
+        return
     end
     set -l target "$destination/$requested_path"
     if not test -e "$target"; and not test -L "$target"
@@ -1274,21 +1273,16 @@ function __gho_url --argument-names target
     set -l default_ref "$(__gh_default_ref "$remote" "$dir" $refspecs)"
     if test -z "$default_ref$repo_path"; and test -n "$branch"
         # set-head assumes refs/remotes; cache the advertised HEAD using its mapping.
-        set -l advertised (git -C "$dir" ls-remote --symref -- "$remote" HEAD 2>/dev/null)
-        for line in $advertised
-            set -l fields (string split \t -- "$line")
-            if test "$fields[2]" = HEAD; and string match -q 'ref: refs/heads/*' -- "$fields[1]"
-                set -l source (string sub -s 6 -- "$fields[1]")
-                set default_ref (__gh_tracking_ref "$source" $refspecs)
-                test -n "$default_ref"; or set default_ref "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source")"
-                set -l tracked_source (__gh_source_ref "$default_ref" $refspecs)
-                if test -n "$tracked_source"; and test "$tracked_source" != "$source"
-                    set default_ref ''
-                else if set -l aliases (__gh_ref_case_aliases "$dir" "$default_ref")
-                    and not set -q aliases[1]; and __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
-                    git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
-                end
-                break
+        set -l source (__gh_advertised_head (git -C "$dir" ls-remote --symref -- "$remote" HEAD 2>/dev/null))
+        if set -q source[1]
+            set default_ref (__gh_tracking_ref "$source" $refspecs)
+            test -n "$default_ref"; or set default_ref "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source")"
+            set -l tracked_source (__gh_source_ref "$default_ref" $refspecs)
+            if test -n "$tracked_source"; and test "$tracked_source" != "$source"
+                set default_ref ''
+            else if set -l aliases (__gh_ref_case_aliases "$dir" "$default_ref")
+                and not set -q aliases[1]; and __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
+                git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
             end
         end
     end

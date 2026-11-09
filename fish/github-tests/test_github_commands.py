@@ -407,6 +407,37 @@ elif kind not in ("editor", "open", "dispatch"):
         else:
             self.assertEqual(cached.stdout.strip(), "refs/remotes/origin/topic")
 
+    def test_default_alias_does_not_read_or_replace_a_case_folded_symref(self):
+        refs = self.checkout / ".git" / "refs"
+        upper_refs = refs.with_name("REFS")
+        if not (upper_refs.exists() and refs.samefile(upper_refs)):
+            self.skipTest("requires case-folding ref paths")
+        self.seed_commit({"file.txt": "topic branch\n"}, branch="topic", create=True)
+        self.fetch_fixture()
+        self.git(self.checkout, "switch", "--quiet", "--track", "origin/topic")
+        self.git(self.checkout, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+        alias = "refs/remotes/origin/head"
+        dangling = "refs/remotes/origin/missing"
+        for target in ("refs/remotes/origin/topic", dangling):
+            with self.subTest(target=target):
+                self.git(self.checkout, "symbolic-ref", alias, target)
+                opened = self.run_fish("gho", cwd=self.checkout)
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), self.url + "/tree/topic")
+                self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), target)
+
+                compared = self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout, "HEAD")
+                self.assert_success(compared)
+                self.assertEqual(compared.stdout.strip(), self.initial)
+                self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), target)
+
+        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
+                 "+refs/heads/topic:refs/remotes/origin/topic")
+        compared = self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout, "HEAD")
+        self.assert_success(compared)
+        self.assertEqual(compared.stdout.strip(), self.initial)
+        self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), dangling)
+
     def test_gho_ignores_tracking_refs_mapped_from_a_different_branch(self):
         self.seed_commit({"release-only.txt": "only on release\n"}, branch="release/topic", create=True)
         self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",

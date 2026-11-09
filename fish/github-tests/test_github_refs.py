@@ -272,7 +272,7 @@ end
 
     def test_preexisting_comparison_cache_formats_work_offline(self):
         for namespace in ("heads", "tags"):
-            source_ref = "refs/" + namespace + "/topic"
+            source_ref = "refs/" + namespace + "/Topic"
             for cache_format in ("hierarchical", "escaped", "hashed"):
                 with self.subTest(namespace=namespace, cache_format=cache_format):
                     destination = self.empty_checkout()
@@ -280,11 +280,12 @@ end
                     identity = self.git(destination, "hash-object", "--stdin", input="example/project\n").stdout.strip()
                     key = {
                         "hierarchical": source_ref,
-                        "escaped": "refs_2F_" + namespace + "_2F_topic",
+                        "escaped": "refs_2F_" + namespace + "_2F_Topic",
                         "hashed": "by-ref/" + self.git(destination, "hash-object", "--stdin", input=source_ref + "\n").stdout.strip(),
                     }[cache_format]
                     self.git(destination, "update-ref", "refs/gh/compare/" + identity + "/" + key, self.initial)
-                    self.assert_resolves(destination, namespace + "/topic", self.initial, offline=True)
+                    self.assert_resolves(destination, namespace + "/Topic", self.initial, offline=True)
+                    self.assertNotEqual(self.compare_ref(destination, namespace + "/topic", offline=True).returncode, 0)
 
     def test_comparison_request_cannot_alias_another_cache_key(self):
         main_key = self.git(self.source, "hash-object", "--stdin", input="main\n").stdout.strip()
@@ -741,6 +742,19 @@ end
                          "refs/remotes/origin/new-default")
         self.assert_success(self.checkout(destination, "blob/HEAD/file.txt", offline=True))
         self.assertEqual(self.oid(destination), newer)
+
+    def test_head_comparison_succeeds_when_a_dangling_symref_blocks_its_alias(self):
+        destination = self.clone()
+        alias = "refs/remotes/origin/HEAD"
+        self.git(destination, "symbolic-ref", "--delete", alias)
+        blocker = alias + "/marker"
+        target = "refs/heads/missing"
+        self.git(destination, "symbolic-ref", blocker, target)
+        newer = self.commit(self.source, "blocked default alias\n")
+
+        self.assert_resolves(destination, "HEAD", newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), newer)
+        self.assertEqual(self.git(destination, "symbolic-ref", blocker).stdout.strip(), target)
 
     def test_head_comparison_preserves_direct_and_overlapping_tracking_destinations(self):
         for target in ("refs/remotes/origin/HEAD", "refs/remotes/origin/HEAD/main", "refs/remotes/origin"):
