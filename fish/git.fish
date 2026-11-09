@@ -89,6 +89,10 @@ function gg --wraps 'git grep -iIE --recurse-submodules'
 end
 abbrali ggf gg -F
 function gapply --wraps 'git apply'
+    if test -f "$argv[-1]"
+        git apply $argv
+        return
+    end
     pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
 end
 
