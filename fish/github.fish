@@ -442,7 +442,7 @@ function __ghe_pull --argument-names destination remote
         return 0
     end
     set -l branch "$(git -C "$destination" symbolic-ref -q HEAD)"; or return 0
-    set -l upstream (git -C "$destination" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)' -- "$branch"); or return
+    set -l upstream (git -C "$destination" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)%0a%(objectname)' -- "$branch"); or return
     if contains -- '' "$upstream[1]" "$upstream[2]" "$upstream[3]"
         printf '%s: no upstream configured; skipping pull\n' "$0" >&2
         return 0
@@ -503,6 +503,19 @@ function __ghe_pull --argument-names destination remote
             set refmap_options --refmap=
         end
         set merge_ref (__ghe_fetch_head "$destination" $refmap_options -- "$upstream[1]" "$upstream[2]"); or return
+        set changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
+        if test "$upstream[4]" != "$(git -C "$destination" rev-parse --verify HEAD)"
+            printf '%s: checkout commit changed while fetching; skipping pull\n' "$0" >&2
+            return 1
+        end
+        if test "$branch" != "$(git -C "$destination" symbolic-ref -q HEAD)"
+            printf '%s: checkout branch changed while fetching; skipping pull\n' "$0" >&2
+            return 1
+        end
+        if test -n "$changes"
+            printf '%s: checkout has local changes; skipping pull\n' "$0" >&2
+            return 0
+        end
     end
     git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
 end
@@ -734,6 +747,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
 
     set -l fetch_refs "$ref"
     set -l default_source
+    set -l default_oid
     set -l fetch_status 0
     if not string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
         # Status 2 means the remote answered but the requested name is absent.
@@ -742,6 +756,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
         if contains -- "$fetch_status" 0 2
             if test "$ref" = HEAD
                 set default_source (__gh_advertised_head $advertised)
+                set default_oid (string match -rg '^([0-9a-f]+)\tHEAD$' -- $advertised)
             end
             set fetch_refs
             set -l refs (string split -f 2 \t -- $advertised)
@@ -873,8 +888,10 @@ function __ghe_compare_ref --argument-names remote destination ref mode
             contains -- HEAD $cache_sources; or set -a cache_sources HEAD
         end
         if test -n "$default_source"
-            # Offline comparisons of the default branch by name read these caches first.
-            set -a cache_sources "$default_source" (string replace -r '^refs/heads/' '' -- "$default_source")
+            # Without an explicit branch fetch, HEAD may have changed since advertisement.
+            if set -q fetch_tracking[1]; or test "$fetched[1]" = "$default_oid"
+                set -a cache_sources "$default_source" (string replace -r '^refs/heads/' '' -- "$default_source")
+            end
         end
         set -l updates
         if test "$invalidate_default" = false
@@ -1058,6 +1075,7 @@ function __ghe_switch --argument-names remote destination full_ref ref revision
     end
     set -l switch_args
     set -l name
+    set -l fetch_remote
     if test -n "$branch_ref"
         set switch_args -- "$ref"
         if not git -C "$destination" show-ref --verify --quiet "$branch_ref"
@@ -1071,7 +1089,7 @@ function __ghe_switch --argument-names remote destination full_ref ref revision
     else
         # Cached tags and commits need no refresh.
         if test -z "$revision"
-            set -l fetch_remote (__ghe_remote "$remote" "$destination"); or return
+            set fetch_remote (__ghe_remote "$remote" "$destination"); or return
             if string match -qr '^[0-9a-fA-F]{4,39}$' -- "$full_ref"
                 __ghe_fetch_history "$destination" "$fetch_remote" >/dev/null; or return
                 set revision (__gh_commit_prefix "$destination" "$full_ref")
@@ -1085,6 +1103,13 @@ function __ghe_switch --argument-names remote destination full_ref ref revision
         end
         # A commit expression prevents choosing a branch named after the OID.
         set switch_args --detach "$revision^{commit}"
+    end
+    if test -n "$name$fetch_remote"
+        set changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
+        if test -n "$changes"
+            printf '%s: keeping the current ref because the checkout has local changes\n' "$0" >&2
+            return 0
+        end
     end
     git -C "$destination" switch --quiet --no-overwrite-ignore $switch_args; or return
     if test -n "$name"
@@ -1338,7 +1363,12 @@ function __gho_url --argument-names target
 
     set -l kind tree
     if test -n "$repo_path"
-        set kind "$(git -C "$dir" --literal-pathspecs ls-tree --full-tree --format='%(objecttype)' "$commit" -- "$repo_path")"; or return
+        set -l record (
+            git -C "$dir" --literal-pathspecs ls-tree -z --full-tree "$commit" -- "$repo_path" | string split0
+            test "$pipestatus[1]" -eq 0
+        ); or return
+        set -l fields (string split -m 1 \t -- "$record")
+        set kind (string split -f 2 " " -- "$fields[1]")
         if test -z "$kind"
             if test -n "$branch"
                 printf '%s: path is not in the cached remote branch; push or fetch first: %s\n' "$0" "$target" >&2
@@ -1351,6 +1381,7 @@ function __gho_url --argument-names target
             printf '%s: unsupported Git object at path: %s\n' "$0" "$target" >&2
             return 1
         end
+        set repo_path "$fields[2]"
     end
 
     # The default-branch homepage needs no ref; other ambiguous links use the commit.

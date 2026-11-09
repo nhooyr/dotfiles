@@ -505,6 +505,25 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertIn("cached remote branch", result.stderr)
         self.assertEqual(self.calls("open"), [])
 
+    def test_gho_uses_the_git_tree_spelling_for_a_decomposed_filename(self):
+        name = "Café.txt"
+        local_name = "Cafe\u0301.txt"
+        self.seed_commit({name: "unicode filename\n"})
+        self.fetch_fixture()
+        self.git(self.checkout, "merge", "--ff-only", "origin/main")
+        temporary = self.checkout / "temporary-name"
+        (self.checkout / name).rename(temporary)
+        target = self.checkout / local_name
+        temporary.rename(target)
+        if self.git(self.checkout, "ls-tree", "-z", "--name-only", "origin/main",
+                    "--", local_name).stdout != name + "\0":
+            self.skipTest("requires Git to precompose the path argument")
+
+        result = self.run_fish("gho", target, offline=True)
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/main/Caf%C3%A9.txt"])
+        self.assertEqual(self.network_calls(), [])
+
     def test_unpushed_new_branch_has_a_clear_error(self):
         self.git(self.checkout, "switch", "--quiet", "--create", "unpublished")
         result = self.run_fish("gho", self.checkout, offline=True)
@@ -940,6 +959,77 @@ __ghe_checkout""",
         self.assertEqual(self.git(self.checkout, "rev-parse", "FETCH_HEAD").stdout.strip(), self.initial)
         self.assertEqual(self.head(), revision)
         self.assertEqual(self.calls("editor")[0]["args"], [str(self.checkout / "new.txt")])
+
+    def test_missing_file_pull_stops_if_the_checked_out_branch_changes(self):
+        self.git(self.checkout, "branch", "side")
+        revision = self.seed_commit({"new.txt": "new upstream file\n"})
+
+        result = self.run_fish(
+            """function git
+    command git $argv; or return
+    if contains -- fetch $argv; and contains -- refs/heads/main $argv
+        command git -C "$argv[2]" switch --quiet side; or return
+        printf '%s\\n' 'side worktree file' > "$argv[2]/new.txt"
+    end
+end
+__ghe_checkout""",
+            self.url + ".git", self.checkout, "blob/main/new.txt", "", "", "", "",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("checkout branch changed while fetching", result.stderr)
+        self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "side")
+        self.assertEqual(self.head(), self.initial)
+        self.assertEqual(self.git(self.checkout, "rev-parse", "main").stdout.strip(), self.initial)
+        self.assertEqual(self.git(self.checkout, "rev-parse", "origin/main").stdout.strip(), revision)
+        self.assertEqual((self.checkout / "new.txt").read_text(), "side worktree file\n")
+        self.assertEqual(self.calls("editor"), [])
+
+    def test_missing_file_pull_stops_if_the_branch_tip_changes(self):
+        self.seed_commit({"middle.txt": "intermediate commit\n"})
+        self.fetch_fixture()
+        self.git(self.checkout, "merge", "--ff-only", "origin/main")
+        revision = self.seed_commit({"new.txt": "new upstream file\n"})
+
+        result = self.run_fish(
+            f"""set -g original {self.initial}
+function git
+    command git $argv; or return
+    if contains -- fetch $argv; and contains -- refs/heads/main $argv
+        command git -C "$argv[2]" reset --quiet --hard "$original"
+    end
+end
+__ghe_checkout""",
+            self.url + ".git", self.checkout, "blob/main/new.txt", "", "", "", "",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("checkout commit changed while fetching", result.stderr)
+        self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "main")
+        self.assertEqual(self.head(), self.initial)
+        self.assertEqual(self.git(self.checkout, "rev-parse", "origin/main").stdout.strip(), revision)
+        self.assertEqual(self.calls("editor"), [])
+
+    def test_missing_file_pull_stops_if_the_worktree_becomes_dirty(self):
+        revision = self.seed_commit({"new.txt": "new upstream file\n"})
+
+        result = self.run_fish(
+            """function git
+    command git $argv; or return
+    if contains -- fetch $argv; and contains -- refs/heads/main $argv
+        echo "worktree edit during fetch" >> "$argv[2]/file.txt"
+    end
+end
+__ghe_checkout""",
+            self.url + ".git", self.checkout, "blob/main/new.txt", "", "", "", "",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("checkout has local changes; skipping pull", result.stderr)
+        self.assertEqual(self.head(), self.initial)
+        self.assertEqual(self.git(self.checkout, "rev-parse", "origin/main").stdout.strip(), revision)
+        self.assertIn("worktree edit during fetch", (self.checkout / "file.txt").read_text())
+        self.assertEqual(self.calls("editor"), [])
 
     def test_pull_request_files_uses_mocked_api_without_switching(self):
         revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)

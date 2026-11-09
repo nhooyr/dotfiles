@@ -1145,6 +1145,30 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
         self.assert_success(self.checkout(destination, "blob/HEAD/new.txt", offline=True))
         self.assertEqual(self.transport, [])
 
+    def test_unmapped_head_refresh_does_not_cache_a_new_default_under_the_old_branch(self):
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        topic = self.commit(self.source, "new default branch\n")
+        self.git(self.source, "switch", "--quiet", "main")
+        destination = self.clone()
+        self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                 "+refs/heads/topic:refs/remotes/origin/topic")
+        self.assert_resolves(destination, "main", self.initial)
+
+        result = self.fish("""set -g source "$argv[3]"
+function git
+    command git $argv; or return
+    if contains -- ls-remote $argv; and contains -- HEAD $argv
+        command git -C "$source" symbolic-ref HEAD refs/heads/topic; or return
+    end
+end
+__ghe_compare_ref "$argv[1]" "$argv[2]" HEAD""", URL, destination, self.source)
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), topic)
+        self.assert_resolves(destination, "HEAD", topic, offline=True)
+        for ref in ("main", "heads/main"):
+            self.assert_resolves(destination, ref, self.initial, offline=True)
+
     def test_head_comparison_refreshes_default_branch_snapshot_offline(self):
         destination = self.clone()
         self.assert_resolves(destination, "main", self.initial)
@@ -1625,6 +1649,29 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" "$argv[3]"
                 self.assertEqual(self.git(destination, "rev-parse", "--symbolic-full-name", "@{upstream}").stdout.strip(), tracking)
                 self.assertEqual(self.git(destination, "config", "--get-all", "remote.origin.fetch").stdout.strip(), spec)
                 self.assertEqual(self.transport, [])
+
+    def test_checkout_preserves_edits_made_during_fetch(self):
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        self.commit(self.source, "topic change\n", "topic.txt")
+        self.git(self.source, "tag", "--annotate", "--message", "Release", "v2")
+        self.git(self.source, "switch", "--quiet", "main")
+        for tail in ("tree/topic", "releases/tag/v2"):
+            with self.subTest(tail=tail):
+                destination = self.clone(single_branch=True)
+                result = self.fish("""function git
+    command git $argv; or return
+    if contains -- fetch $argv
+        printf '%s\\n' 'late edit' > "$argv[2]/file.txt"
+    end
+end
+__ghe_checkout "$argv[1]" "$argv[2]" "$argv[3]" "" "" "" ""
+""", URL, destination, tail)
+
+                self.assert_success(result)
+                self.assertIn("keeping the current ref because the checkout has local changes", result.stderr)
+                self.assertEqual(self.oid(destination), self.initial)
+                self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), "main")
+                self.assertEqual((destination / "file.txt").read_text(), "late edit\n")
 
     def test_new_branch_starts_from_its_own_fetch_result(self):
         destination = self.clone(single_branch=True)
