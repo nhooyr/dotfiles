@@ -353,6 +353,11 @@ function __ghe_tracking_ref --argument-names name destination ref
     else if test -z "$tracking_ref"
         set tracking_ref "refs/remotes/$name/$ref"
     end
+    set -l source_ref (__gh_source_ref "$tracking_ref" $refspecs)
+    if test -n "$source_ref"; and test "$source_ref" != "$branch_ref"
+        printf '%s: fetch destination is mapped from another branch: %s\n' "$0" "$tracking_ref" >&2
+        return 1
+    end
     if git -C "$destination" symbolic-ref -q "$tracking_ref" >/dev/null 2>&1
         printf '%s: fetch destination is symbolic: %s\n' "$0" "$tracking_ref" >&2
         return 1
@@ -551,6 +556,9 @@ function __ghe_compare_ref --argument-names remote destination ref mode
                         end
                         test -n "$tracking"; or continue
                         set -l tracked_source (__gh_source_ref "$tracking" $specs)
+                        if test "$source" != HEAD; and test "$tracked_source" != "$source"
+                            continue
+                        end
                         if test "$mode" = cached; and test -n "$tracked_source"; and __gh_safe_tracking "$destination" "$tracking"; and __gh_commit "$destination" "$tracking" >/dev/null
                             set -a tracking_names "$name"
                             contains -- "$tracking" $tracking_candidates; or set -a tracking_candidates "$tracking"
@@ -660,7 +668,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
             for name in $names
                 set -l specs (__gh_refspecs "$name" "$destination")
                 set -l tracking (__gh_tracking_ref "$source" $specs)
-                if test -n "$tracking"; and __gh_safe_tracking "$destination" "$tracking"
+                if test -n "$tracking"; and test "$(__gh_source_ref "$tracking" $specs)" = "$source"; and __gh_safe_tracking "$destination" "$tracking"
                     if not contains -- "$tracking" $fetch_tracking
                         set -q fetch_tracking[1]; or set fetch_specs
                         # Remote-tracking refs follow force pushes, like the default fetch refspec.
