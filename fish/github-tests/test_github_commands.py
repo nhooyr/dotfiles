@@ -464,7 +464,7 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), dangling)
 
     def test_gho_ignores_tracking_refs_mapped_from_a_different_branch(self):
-        self.seed_commit({"release-only.txt": "only on release\n"}, branch="release/topic", create=True)
+        release = self.seed_commit({"release-only.txt": "only on release\n"}, branch="release/topic", create=True)
         self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
                  "+refs/heads/release/*:refs/remotes/origin/*")
         self.git(self.checkout, "config", "--add", "remote.origin.fetch",
@@ -491,6 +491,11 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/release/topic"])
         alias = self.git(self.checkout, "symbolic-ref", "-q", "refs/remotes/origin/HEAD", check=False)
         self.assertNotEqual(alias.returncode, 0)
+
+        self.git(self.remote, "update-ref", "refs/tags/release/topic", self.initial)
+        result = self.run_fish("gho", self.checkout)
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/" + release])
 
     def test_local_ahead_branch_uses_remote_paths_and_rejects_new_paths(self):
         (self.checkout / "file.txt").write_text("local update\n")

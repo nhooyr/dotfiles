@@ -157,28 +157,25 @@ function __gh_tracking_ref --argument-names ref
 end
 
 function __gh_source_ref --argument-names ref
-    set -l primary
-    set -l fallback
+    set -l owner
     for spec in $argv[2..]
         set -l fields (string split -m 1 : -- (string replace -r '^\+' '' -- "$spec"))
         test -n "$fields[2]"; or continue
         set -l source (__gh_map_ref "$fields[2]" "$fields[1]" "$ref"); or continue
-        set -l target (__gh_tracking_ref "$source" $argv[2..]); or continue
+        __gh_tracking_ref "$source" $argv[2..] >/dev/null; or continue
         # A tag or abbreviated source prevents this destination proving branch ownership.
         if not string match -q 'refs/heads/*' -- "$source"
             printf '%s\n' "$source"
             return 0
         end
-        if test "$target" = "$ref"
-            set -q primary[1]; or set primary "$source"
-        else
-            set -q fallback[1]; or set fallback "$source"
+        if set -q owner[1]; and test "$source" != "$owner"
+            printf 'both %s and %s\n' "$owner" "$source"
+            return 2
         end
+        set owner "$source"
     end
-    # A cached HEAD alias may still point at a secondary fetch destination.
-    set -q primary[1]; or set primary $fallback
-    set -q primary[1]; or return 1
-    printf '%s\n' "$primary"
+    set -q owner[1]; or return 1
+    printf '%s\n' "$owner"
 end
 
 function __gh_cached_branches --argument-names name destination
@@ -435,17 +432,26 @@ function __ghe_fetch_head --argument-names destination
     __gh_fetched_oids FETCH_HEAD $fetched
 end
 
-function __ghe_pull --argument-names destination remote
+function __ghe_pull --argument-names destination remote requested_branch
     set -l changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
     if test -n "$changes"
         printf '%s: checkout has local changes; skipping pull\n' "$0" >&2
         return 0
     end
     set -l branch "$(git -C "$destination" symbolic-ref -q HEAD)"; or return 0
+    if test "$branch" != "refs/heads/$requested_branch"
+        printf '%s: checkout branch does not match the requested branch: %s\n' "$0" "$requested_branch" >&2
+        return 1
+    end
     set -l upstream (git -C "$destination" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)%0a%(objectname)' -- "$branch"); or return
     if contains -- '' "$upstream[1]" "$upstream[2]" "$upstream[3]"
         printf '%s: no upstream configured; skipping pull\n' "$0" >&2
         return 0
+    end
+    set -l source_ref "refs/heads/$requested_branch"
+    if not contains -- "$upstream[2]" "$source_ref" "heads/$requested_branch" "$requested_branch"
+        printf '%s: upstream branch does not match the requested branch: %s\n' "$0" "$upstream[2]" >&2
+        return 1
     end
 
     set -l merge_ref "$upstream[3]"
@@ -459,10 +465,14 @@ function __ghe_pull --argument-names destination remote
         set -l checked_out_refs (git -C "$destination" for-each-ref \
             --format='%(if)%(worktreepath)%(then)%(refname)%(end)' refs/heads); or return
         set -l refspecs (__gh_refspecs "$upstream[1]" "$destination")
-        __gh_tracking_ref "$upstream[2]" $refspecs >/dev/null
-        if test "$status" -eq 2
-            printf '%s: upstream is excluded by the remote fetch configuration: %s %s\n' "$0" "$upstream[1]" "$upstream[2]" >&2
-            return 1
+        set -l sources "$source_ref"
+        contains -- "$upstream[2]" $sources; or set -a sources "$upstream[2]"
+        for source in $sources
+            __gh_tracking_ref "$source" $refspecs >/dev/null
+            if test "$status" -eq 2
+                printf '%s: upstream is excluded by the remote fetch configuration: %s %s\n' "$0" "$upstream[1]" "$source" >&2
+                return 1
+            end
         end
         set -l mappings (string replace -r '^\+' '' -- $refspecs | LC_ALL=C sort -u)
         set -l abbreviated_targets (string match -rg '^(?!refs/)[^:]+:([^*]+)$' -- $mappings)
@@ -472,12 +482,12 @@ function __ghe_pull --argument-names destination remote
             set -l target "$fields[2]"
             # Exact targets need no source match, including abbreviated sources.
             if string match -q '*\**' -- "$target"
-                set target (__gh_map_ref "$fields[1]" "$target" "$upstream[2]")
+                set target (__gh_map_ref "$fields[1]" "$target" "$source_ref")
             end
             if test -n "$target"
                 set -l tracked_source (__gh_source_ref "$target" $refspecs)
                 if test -n "$tracked_source"
-                    if test "$tracked_source" != "$upstream[2]"; or contains -- "$target" $abbreviated_targets
+                    if test "$tracked_source" != "$source_ref"; or contains -- "$target" $abbreviated_targets
                         continue
                     end
                 end
@@ -502,7 +512,7 @@ function __ghe_pull --argument-names destination remote
         else if not set -q refmap_options[1]
             set refmap_options --refmap=
         end
-        set merge_ref (__ghe_fetch_head "$destination" $refmap_options -- "$upstream[1]" "$upstream[2]"); or return
+        set merge_ref (__ghe_fetch_head "$destination" $refmap_options -- "$upstream[1]" "$source_ref"); or return
         set changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
         if test "$upstream[4]" != "$(git -C "$destination" rev-parse --verify HEAD)"
             printf '%s: checkout commit changed while fetching; skipping pull\n' "$0" >&2
@@ -1199,8 +1209,10 @@ function __ghe_checkout --argument-names remote destination tail line column end
     end
     set -l target "$destination/$requested_path"
     if not test -e "$target"; and not test -L "$target"
-        # Pull only when a path is missing; existing paths open offline.
-        __ghe_pull "$destination" "$remote"; or return
+        # Only branch checkouts can gain a missing path by pulling.
+        if string match -qr '^refs/(heads|remotes)/' -- "$resolved[1]"
+            __ghe_pull "$destination" "$remote" "$resolved[2]"; or return
+        end
         if not test -e "$target"; and not test -L "$target"
             printf '%s: path does not exist in this checkout: %s\n' "$0" "$requested_path" >&2
             return 1
@@ -1332,8 +1344,22 @@ function __gho_url --argument-names target
             test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
         end
         if test -n "$ref"
+            set -l branch_ref "refs/heads/$ref"
             set -l tracked_source (__gh_source_ref "$remote_ref" $refspecs)
-            if test -n "$tracked_source"; and test "$tracked_source" != "refs/heads/$ref"
+            set -l source_status "$status"
+            if test -n "$tracked_source"; and test "$tracked_source" != "$branch_ref"
+                # A branch page can be opened without trusting the shared tracking ref.
+                if test "$source_status" -eq 2; and test -z "$repo_path"
+                    set -l advertised (git -C "$dir" ls-remote --refs -- "$remote" "$branch_ref" "refs/tags/$ref" 2>/dev/null)
+                    set -l revision (string match -rg "^([0-9a-f]+)\t$(string escape --style=regex -- "$branch_ref")\$" -- $advertised)
+                    if set -q revision[1]
+                        if test (count $advertised) -ne 1; or string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
+                            set ref "$revision"
+                        end
+                        printf '%s/tree/%s\n' "$url" (string escape --style=url -- "$ref")
+                        return 0
+                    end
+                end
                 printf '%s: cached remote branch is mapped from another branch or ref: %s -> %s\n' "$0" "$tracked_source" "$remote_ref" >&2
                 return 1
             end

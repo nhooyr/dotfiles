@@ -682,8 +682,9 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
 
         self.git(destination, "config", "--replace-all", "remote.origin.fetch",
                  "+refs/heads/MÜNCHEN:refs/remotes/origin/MÜNCHEN")
-        self.git(destination, "config", "branch.main.merge", "refs/heads/MÜNCHEN")
-        result = self.fish('__ghe_pull "$argv[1]" "$argv[2]"', destination, URL)
+        self.git(destination, "branch", "--move", "MÜNCHEN")
+        self.git(destination, "config", "branch.MÜNCHEN.merge", "refs/heads/MÜNCHEN")
+        result = self.fish('__ghe_pull "$argv[1]" "$argv[2]" MÜNCHEN', destination, URL)
         self.assert_success(result)
         self.assertEqual(self.oid(destination), newer)
         self.assertEqual(self.oid(destination, tracking), older)
@@ -1632,6 +1633,36 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" "$argv[3]"
                 self.assert_resolves(destination, "topic", topic)
                 self.assertEqual(self.oid(destination, tracking), other)
 
+    def test_two_sources_do_not_claim_the_same_tracking_destination(self):
+        self.git(self.source, "switch", "--quiet", "--create", "release/topic")
+        release = self.commit(self.source, "release branch\n")
+        self.git(self.source, "switch", "--quiet", "--create", "topic", "main")
+        topic = self.commit(self.source, "topic branch\n")
+        self.git(self.source, "switch", "--quiet", "main")
+        tracking = "refs/remotes/origin/topic"
+        for first, second in (
+            (f"+refs/heads/release/topic:{tracking}", f"+refs/heads/topic:{tracking}"),
+            ("+refs/heads/release/*:refs/remotes/origin/*", "+refs/heads/*:refs/remotes/origin/*"),
+        ):
+            with self.subTest(first=first, second=second):
+                destination = self.clone(single_branch=True)
+                self.git(destination, "config", "--replace-all", "remote.origin.fetch", first)
+                self.git(destination, "config", "--add", "remote.origin.fetch", second)
+                self.assert_success(self.fish('git -C "$argv[1]" fetch --quiet origin topic', destination))
+                self.assertEqual(self.oid(destination, tracking), topic)
+
+                result = self.checkout(destination, "blob/release/topic/file.txt", offline=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.oid(destination), self.initial)
+                self.assertNotEqual(self.compare_ref(destination, "release/topic", offline=True).returncode, 0)
+                self.assert_resolves(destination, "release/topic", release)
+                self.assertEqual(self.oid(destination, tracking), topic)
+
+                self.git(destination, "config", "--add", "remote.origin.fetch", "^refs/heads/topic")
+                self.assert_success(self.fish('git -C "$argv[1]" fetch --quiet origin', destination))
+                self.assert_success(self.checkout(destination, "blob/release/topic/file.txt", offline=True))
+                self.assertEqual(self.oid(destination), release)
+
     def test_custom_cached_fetch_destinations_set_a_working_upstream(self):
         self.git(self.source, "branch", "topic")
         for spec, tracking in (
@@ -1731,6 +1762,75 @@ __ghe_checkout "$argv[1]" "$argv[2]" tree/topic "" "" "" ""
         self.assertEqual(self.oid(destination), self.initial)
         self.assertFalse((destination / "new.txt").exists())
 
+    def test_missing_file_does_not_pull_a_different_upstream_branch(self):
+        self.git(self.source, "branch", "topic")
+        self.git(self.source, "switch", "--quiet", "--create", "other")
+        self.commit(self.source, "other branch only\n", "new.txt")
+        self.git(self.source, "switch", "--quiet", "main")
+
+        for upstream in ("origin/other", "other"):
+            with self.subTest(upstream=upstream):
+                destination = self.clone()
+                if upstream == "other":
+                    self.git(destination, "branch", "other", "origin/other")
+                self.git(destination, "switch", "--quiet", "--create", "topic", "--track", upstream)
+                self.git(destination, "reset", "--hard", self.initial)
+
+                self.assert_success(self.checkout(destination, "blob/topic/file.txt", offline=True))
+                self.assertEqual(self.transport, [])
+                result = self.checkout(destination, "blob/topic/new.txt")
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("upstream branch does not match the requested branch", result.stderr)
+                self.assertEqual(self.transport, [])
+                self.assertEqual(self.oid(destination), self.initial)
+                self.assertFalse((destination / "new.txt").exists())
+
+    def test_missing_file_does_not_fetch_a_tag_for_an_abbreviated_upstream(self):
+        self.git(self.source, "branch", "topic")
+        destination = self.clone()
+        self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                 "+topic:refs/remotes/origin/topic")
+        self.git(destination, "switch", "--quiet", "--create", "topic", "--no-track")
+        self.git(destination, "config", "branch.topic.remote", "origin")
+        self.git(destination, "config", "branch.topic.merge", "topic")
+        self.git(self.source, "branch", "--delete", "topic")
+        self.commit(self.source, "tag only\n", "new.txt")
+        self.git(self.source, "tag", "topic")
+
+        result = self.checkout(destination, "blob/topic/new.txt")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual([call["args"][-1] for call in self.transport], ["refs/heads/topic"])
+        self.assertEqual(self.oid(destination), self.initial)
+        self.assertFalse((destination / "new.txt").exists())
+
+    def test_missing_file_does_not_pull_after_a_skipped_switch(self):
+        self.git(self.source, "branch", "topic")
+        self.git(self.source, "tag", "release")
+        destinations = [self.clone(), self.clone()]
+        self.commit(self.source, "main branch only\n", "new.txt")
+        for tail, destination in zip(("blob/topic/new.txt", "blob/release/new.txt"), destinations):
+            with self.subTest(tail=tail):
+                dirty_file = destination / "untracked"
+                dirty_file.touch()
+
+                result = self.fish("""function git
+    command git $argv; or return
+    if contains -- status $argv; and test -f "$argv[2]/untracked"
+        rm -- "$argv[2]/untracked"
+    end
+end
+__ghe_checkout "$argv[1]" "$argv[2]" "$argv[3]" "" "" "" ""
+""", URL, destination, tail)
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("keeping the current ref", result.stderr)
+                self.assertEqual(self.transport, [])
+                self.assertEqual(self.oid(destination), self.initial)
+                self.assertFalse((destination / "new.txt").exists())
+                self.assertFalse(dirty_file.exists())
+
     def test_symbolic_fetch_destination_is_rejected_without_overwriting_it(self):
         self.git(self.source, "branch", "topic")
         destination = self.clone()
@@ -1772,7 +1872,7 @@ __ghe_checkout "$argv[1]" "$argv[2]" tree/topic "" "" "" ""
                 filename = "new-%d.txt" % index
                 newer = self.commit(self.source, "new file\n", filename)
 
-                result = self.fish('__ghe_pull "$argv[1]" "$argv[2]"', destination, URL)
+                result = self.fish('__ghe_pull "$argv[1]" "$argv[2]" main', destination, URL)
 
                 self.assert_success(result)
                 self.assertEqual(self.oid(destination), newer)
@@ -1855,7 +1955,7 @@ __ghe_checkout "$argv[1]" "$argv[2]" tree/topic "" "" "" ""
         destination = self.clone()
         self.git(destination, "config", "--replace-all", "remote.origin.fetch", "+refs/heads/main:refs/heads/main")
         newer = self.commit(self.source, "new upstream\n")
-        result = self.fish('__ghe_pull "$argv[1]" "$argv[2]"', destination, URL)
+        result = self.fish('__ghe_pull "$argv[1]" "$argv[2]" main', destination, URL)
         self.assert_success(result)
         self.assertEqual(self.oid(destination), newer)
         self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), "main")
