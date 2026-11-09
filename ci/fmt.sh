@@ -18,8 +18,6 @@ if [ "${CI-}" ]; then
 
 	git diff --stat
 	if ! git --no-pager diff --color=always --stat --patch --exit-code; then
-		tput smul
-		tput sitm
 		tput bold
 		printf '%s %s: unexpected diff\n' "$(printf '%40s' | tr ' ' '^')" "${0##*/}"
 		tput sgr0
