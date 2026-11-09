@@ -84,6 +84,7 @@ cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
 nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
 			\:echo 'source' $MYVIMRC<CR>
+command Sft doautoall FileType
 nnoremap <Leader>e :e $MYVIMRC<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
@@ -201,8 +202,8 @@ augroup aqsnow
 	autocmd filetype fish setlocal formatprg=fish_indent
 	autocmd filetype sh let &l:formatprg='shfmt -s'
 	autocmd BufWritePost $MYVIMRC autocmd aqsnow SafeState * ++once source $MYVIMRC
-	autocmd filetype gitcommit nnoremap <buffer> ]c /^@@<CR>
-	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>
+	autocmd filetype gitcommit nnoremap <buffer> ]c /^@@<CR>zz
+	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>zz
 	autocmd filetype netrw nnoremap <buffer> <nowait> q :quit<CR>
 augroup END
 nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
