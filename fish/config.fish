@@ -318,11 +318,7 @@ function fair --argument-names n
     end
     test -n "$n"; or set n 1
     set -l msg "$(git show -s --format=%s)"
-    set -l matches $(string match -r ': ([0-9]+)$' -- "$msg")
-    if test "$(count $matches)" -ne 2
-        set matches '' 0
-    end
-    set -l msgn "$matches[2]"
+    set -l msgn "$(string match -rg ': ([0-9]+)$' -- "$msg")"; or set msgn 0
     if not string match -qr '^[0-9]{1,4}$' -- "$n"; or test "$n" -lt 1
         printf '%s: 1 <= n <= 9999\n' "$(status function)" >&2
         return 1
