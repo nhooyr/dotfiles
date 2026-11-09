@@ -97,7 +97,7 @@ function _grep
     if type -q ggrep
         ggrep --color -inI $argv
     else
-        command grep --color -inI -SE $argv
+        grep --color -inI -SE $argv
     end
 end
 
