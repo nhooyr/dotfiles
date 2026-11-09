@@ -93,7 +93,7 @@ abbrali gre _grep -E
 abbrali grf _grep -F
 abbrali grer _grep -ER
 abbrali grfr _grep -FR
-function _grep --wraps 'ggrep --color -inI'
+function _grep --wraps 'grep --color -inI'
     if type -q ggrep
         ggrep --color -inI $argv
     else
