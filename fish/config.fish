@@ -75,7 +75,7 @@ set -gx LS_COLORS "di=34:ln=3;36:so=3;32:pi=3;32:ex=3;35:bd=3;37;42:\
 cd=3;37;42:su=3;37;45:sg=3;37;45:tw=3;37;44:ow=3;37;44:st=34"
 function ls
     if type -q gls
-        gls --group-directories-first $argv
+        command gls --group-directories-first $argv
     else
         command ls $argv
     end

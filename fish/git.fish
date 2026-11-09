@@ -42,7 +42,8 @@ abbrali grmcr git rm --cached -r
 abbrali grmcrf git rm --cached -rf
 abbrali gl git log
 abbrali glp git log -p
-abbrali glsf git ls-files
+abbrali glss git log --show-signature
+abbrali gls git ls-files
 abbrali gcl git clone
 abbrali gpl git pull
 abbrali gf git fetch
@@ -104,3 +105,21 @@ end
 abbrali ghch gh pr checkout
 abbrali ghpr gh pr create --web --fill-verbose
 abbrali ghopr gh pr view --web
+
+abbrali dty gdirty
+function gdirty --description 'List dirty Git repositories under ~/code'
+    set -l result 0
+    for dir in ~/code/* ~/code/*/*
+        if not test -e "$dir/.git"
+            continue
+        end
+        set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or return
+        set -l flags "$(string split --right --max 1 --fields 2 -- ' ' "$prompt")"
+        if test -n "$flags"
+            set -l name "$(string replace -- ~/code/ '' "$dir")"
+            printf '%s\t%s\n' "$name" "$flags"
+            set result 1
+        end
+    end
+    return $result
+end
