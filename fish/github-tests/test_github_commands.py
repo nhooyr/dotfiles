@@ -823,6 +823,37 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         self.assert_success(result)
         self.assertEqual(self.head(), revision)
 
+    def test_pull_request_checkout_succeeds_when_its_cache_is_blocked(self):
+        revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)
+        self.publish(revision + ":refs/pull/7/head")
+        self.git(self.checkout, "update-ref", "refs/gh/pull", self.initial)
+
+        self.assert_success(self.run_fish("ghe", self.url + "/pull/7"))
+        self.assertEqual(self.head(), revision)
+        self.assertEqual(self.git(self.checkout, "show-ref", "--hash", "--verify",
+                                  "refs/gh/pull").stdout.strip(), self.initial)
+
+    def test_pull_request_checkout_uses_its_own_fetch_result(self):
+        revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)
+        self.publish(revision + ":refs/pull/7/head")
+
+        result = self.run_fish(
+            """function git
+    command git $argv; or return
+    if contains -- refs/pull/7/head $argv
+        command git -C "$argv[2]" fetch --quiet --no-tags --refmap= -- origin refs/heads/main
+    end
+end
+__ghe_checkout""",
+            self.url + ".git", self.checkout, "pull/7", "", "", "", "",
+        )
+
+        self.assert_success(result)
+        self.assertEqual(self.git(self.checkout, "rev-parse", "FETCH_HEAD").stdout.strip(), self.initial)
+        self.assertEqual(self.head(), revision)
+        self.assert_success(self.run_fish("ghe", self.url + "/pull/7", offline=True))
+        self.assertEqual(self.head(), revision)
+
     def test_pull_request_files_uses_mocked_api_without_switching(self):
         revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)
         self.fetch_fixture()

@@ -930,9 +930,11 @@ function __ghe_pull_request --argument-names remote destination number
     set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
     set -l cache "refs/gh/pull/$identity/$number/head"
     # Pull requests move, so refresh the head before falling back to the cache.
-    if git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --refmap= -- "$name" "refs/pull/$number/head"
-        set -l revision "$(__gh_commit "$destination" FETCH_HEAD)"; or return
-        git -C "$destination" update-ref --no-deref "$cache" "$revision"; or return
+    if set -l fetched (git -C "$destination" fetch --porcelain --no-progress --no-tags --no-recurse-submodules --refmap= -- "$name" "refs/pull/$number/head")
+        # Use this fetch's output rather than FETCH_HEAD, which another fetch can replace.
+        set -l object (string match -rg '^. [0-9a-f]+ ([0-9a-f]+) FETCH_HEAD$' -- $fetched); or return
+        set -l revision (__gh_commit "$destination" "$object"); or return
+        git -C "$destination" update-ref --no-deref "$cache" "$revision" >/dev/null 2>&1
         printf '%s\n' "$revision"
         return
     end
