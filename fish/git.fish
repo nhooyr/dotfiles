@@ -107,13 +107,13 @@ abbrali ghch gh pr checkout
 abbrali ghpr gh pr create --web --fill-verbose
 abbrali ghopr gh pr view --web
 
-abbrali dty dirty
-function dirty --description 'List dirty repos'
+abbrali dt dirt
+function dirt --description 'List dirty repos'
     for dir in ~/code/* ~/code/*/*
         if not test -e "$dir/.git"
             continue
         end
-        if contains -- "$dir" $gdirty_ignore
+        if contains -- "$dir" $dirt_ignore
             continue
         end
         set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or continue
