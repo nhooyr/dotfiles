@@ -275,10 +275,10 @@ function tex --argument-names texfile
         printf 'Usage: %s %s\n' "$(status function)" '<main.tex>' >&2
         return 1
     end
-    latexmk -pdf -silent -pv "$texfile"
-    fswatch -r0 -e '.*' -i '\.tex$' . | while read -l -z path
+    cdc "$texfile" latexmk -pdf -silent -pv "$(path basename "$texfile")"
+    fswatch -r0 -e '.*' -i '\.tex$' "$(dirname "$texfile")" | while read -l -z path
         printf '%s+%s%s\n' "$(set_color --bold --underline)" "$path" "$(set_color reset)"
-        latexmk -pdf -silent "$texfile"
+        cdc "$texfile" latexmk -pdf -silent "$(path basename "$texfile")"
     end
 end
 
