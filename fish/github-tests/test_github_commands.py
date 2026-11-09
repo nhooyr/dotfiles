@@ -753,6 +753,23 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         self.assertEqual(self.head(), self.initial)
         self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "")
 
+    def test_release_checkout_caches_the_fetched_annotated_tag(self):
+        revision = self.seed_commit({"file.txt": "new release\n"})
+        self.git(self.seed, "tag", "--annotate", "--message", "Release v2", "v2")
+        self.publish("refs/tags/v2")
+        tag = self.git(self.seed, "rev-parse", "refs/tags/v2").stdout.strip()
+        url = self.url + "/releases/tag/v2"
+
+        self.assert_success(self.run_fish("ghe", url))
+        self.assertEqual(self.head(), revision)
+        cache = self.git(self.checkout, "for-each-ref", "--format=%(objectname)", "refs/gh/compare")
+        self.assertEqual(cache.stdout.strip(), tag)
+        self.assertNotEqual(self.git(self.checkout, "show-ref", "--verify", "--quiet",
+                                     "refs/tags/v2", check=False).returncode, 0)
+        self.assert_success(self.run_fish("ghe", url, offline=True))
+        self.assertEqual(self.head(), revision)
+        self.assertEqual(self.network_calls(), [])
+
     def test_pull_request_head_and_offline_cache(self):
         revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)
         self.publish(revision + ":refs/pull/7/head")

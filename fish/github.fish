@@ -80,6 +80,10 @@ function __gh_ref_spelling_safe --argument-names destination ref
 end
 
 function __gh_commit --argument-names destination revision
+    if string match -q 'refs/*' -- "$revision"
+        # Even a fully qualified name can fall back to Git's revision shorthand.
+        set revision "$(git --no-lazy-fetch -C "$destination" show-ref --hash --verify -- "$revision" 2>/dev/null)"; or return
+    end
     git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$revision^{commit}" 2>/dev/null
 end
 
@@ -306,6 +310,14 @@ function __gh_resolve --argument-names remote tail destination cached_only
         if test "$source" = remote
             # gho only needs to check ambiguity among locally known refs.
             test "$cached_only" != true; or return 1
+            if test "$route[1]" = tag
+                set -l cache (__gh_compare_cache "$remote" "$destination"); or return
+                set -l revision (__gh_direct_commit "$destination" (__gh_cache_refs "$destination" "$cache" "refs/tags/$route[2]"))
+                if set -q revision[1]
+                    printf '%s\n' "$revision" "$revision" '' "$revision"
+                    return 0
+                end
+            end
             set -l query_remote "$remote"
             set -q remotes[1]; and set query_remote "$remotes[1]"
             set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$query_remote"); or begin
@@ -514,6 +526,12 @@ function __ghe_fetch_history --argument-names destination remote
     printf '%s\n' $refs | git -C "$destination" fetch --quiet --no-tags --no-recurse-submodules --no-prune-tags --refmap= $options --stdin -- "$remote"
 end
 
+function __gh_compare_cache --argument-names remote destination
+    set -l github (__gh_parse "$remote"); or return
+    set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
+    printf 'refs/gh/compare/%s\n' "$identity"
+end
+
 function __gh_cache_refs --argument-names destination cache source
     # Request names only have hashed keys; old formats stored canonical sources.
     set -l key "$(printf '%s\n' "$source" | git -C "$destination" hash-object --stdin)"; or return
@@ -599,9 +617,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
     set -l remotes (__gh_remotes "$remote" "$destination"); or return
     set -l query "$remote"
     set -q remotes[1]; and set query "$remotes[1]"
-    set -l github (__gh_parse "$remote"); or return
-    set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
-    set -l cache "refs/gh/compare/$identity"
+    set -l cache (__gh_compare_cache "$remote" "$destination"); or return
     set -l candidates
     set -l tracking_candidates
     set -l tracking_names
@@ -851,7 +867,7 @@ function __ghe_compare --argument-names remote destination comparison
     end
 
     set -l merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
-    if test -z "$merge_base"; and test (count (string match -r '^[0-9a-fA-F]{40}$' -- $range)) -eq 2
+    if test -z "$merge_base"; and test (count (string match -r '^[0-9a-fA-F]{4,40}$' -- $range)) -eq 2
         and test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
         and set -l name (__ghe_remote "$remote" "$destination")
         and __ghe_fetch_history "$destination" "$name" "$base" "$head"
@@ -952,6 +968,7 @@ function __ghe_open --argument-names target line column end_line end_column
 end
 
 function __ghe_switch --argument-names remote destination full_ref ref revision
+    set -l advertised "$revision"
     if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$full_ref"
         set revision (__gh_commit_prefix "$destination" "$full_ref")
     else
@@ -1009,6 +1026,14 @@ function __ghe_switch --argument-names remote destination full_ref ref revision
             else
                 git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$fetch_remote" "$full_ref"; or return
                 set revision FETCH_HEAD
+                if string match -q 'refs/tags/*' -- "$full_ref"
+                    and test "$(git -C "$destination" rev-parse --verify FETCH_HEAD)" = "$advertised"
+                    # Cache the fetched tag object without creating or shadowing a local tag.
+                    set -l cache (__gh_compare_cache "$remote" "$destination"); or return
+                    set -l refs (__gh_cache_refs "$destination" "$cache" "$full_ref"); or return
+                    git -C "$destination" update-ref --no-deref "$refs[1]" "$advertised"; or return
+                    set revision "$advertised"
+                end
             end
         end
         # A commit expression prevents choosing a branch named after the OID.

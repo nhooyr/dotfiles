@@ -453,32 +453,34 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
         head = self.commit(self.source, "topic change\n", "topic.txt")
         self.git(self.source, "switch", "--quiet", "main")
         base = self.commit(self.source, "main change\n", "main.txt")
-        destination = self.clone(depth=1)
-        self.git(destination, "fetch", "--quiet", "--depth=1", self.source.as_uri(), "refs/heads/topic")
-        before = self.git(destination, "for-each-ref").stdout
-        compare = '__ghe_compare "$argv[1]" "$argv[2]" "$argv[3]"'
+        for length in (40, 10):
+            with self.subTest(length=length):
+                destination = self.clone(depth=1)
+                self.git(destination, "fetch", "--quiet", "--depth=1", self.source.as_uri(), "refs/heads/topic")
+                before = self.git(destination, "for-each-ref").stdout
+                compare = '__ghe_compare "$argv[1]" "$argv[2]" "$argv[3]"'
 
-        two_dot = self.fish(compare, URL, destination, f"{base}..{head}", offline=True)
-        self.assert_success(two_dot)
-        self.assertEqual(self.transport, [])
+                two_dot = self.fish(compare, URL, destination, f"{base[:length]}..{head[:length]}", offline=True)
+                self.assert_success(two_dot)
+                self.assertEqual(self.transport, [])
 
-        range_spec = f"{base}...{head}"
-        offline = self.fish(compare, URL, destination, range_spec, offline=True)
-        self.assertEqual(offline.returncode, 1)
-        self.assertIn("comparison has no local merge base", offline.stderr)
-        self.assertEqual([call["command"] for call in self.transport], ["fetch"])
+                range_spec = f"{base[:length]}...{head[:length]}"
+                offline = self.fish(compare, URL, destination, range_spec, offline=True)
+                self.assertEqual(offline.returncode, 1)
+                self.assertIn("comparison has no local merge base", offline.stderr)
+                self.assertEqual([call["command"] for call in self.transport], ["fetch"])
 
-        online = self.fish(compare, URL, destination, range_spec)
-        self.assert_success(online)
-        self.assertIn("+topic change", online.stdout)
-        self.assertNotIn("main.txt", online.stdout)
-        self.assertEqual([call["command"] for call in self.transport], ["fetch"])
-        self.assertEqual(self.git(destination, "for-each-ref").stdout, before)
+                online = self.fish(compare, URL, destination, range_spec)
+                self.assert_success(online)
+                self.assertIn("+topic change", online.stdout)
+                self.assertNotIn("main.txt", online.stdout)
+                self.assertEqual([call["command"] for call in self.transport], ["fetch"])
+                self.assertEqual(self.git(destination, "for-each-ref").stdout, before)
 
-        cached = self.fish(compare, URL, destination, range_spec, offline=True)
-        self.assert_success(cached)
-        self.assertEqual(cached.stdout, online.stdout)
-        self.assertEqual(self.transport, [])
+                cached = self.fish(compare, URL, destination, range_spec, offline=True)
+                self.assert_success(cached)
+                self.assertEqual(cached.stdout, online.stdout)
+                self.assertEqual(self.transport, [])
 
     def test_cached_commit_ancestry_in_shallow_clone_fetches_missing_history(self):
         parent = self.commit(self.source, "parent\n")
@@ -625,6 +627,26 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
         self.git(destination, "update-ref", "refs/tags/café", older)
         self.assert_resolves(destination, "tags/café", older, offline=True)
         self.assertNotEqual(self.compare_ref(destination, "tags/cafe\u0301", offline=True).returncode, 0)
+
+    def test_missing_full_tag_does_not_resolve_through_a_nested_tag(self):
+        destination = self.clone()
+        self.git(destination, "tag", "--annotate", "--message", "nested tag", "refs/tags/release")
+        self.assert_resolves(destination, "tags/refs/tags/release", self.initial, offline=True)
+
+        result = self.compare_ref(destination, "tags/release", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
+    def test_gho_does_not_use_a_tag_in_place_of_a_missing_tracking_ref(self):
+        destination = self.clone()
+        tracking = "refs/remotes/origin/main"
+        self.git(destination, "update-ref", "-d", tracking)
+        self.git(destination, "tag", tracking, self.initial)
+
+        result = self.fish('__gho_url "$argv[1]"', destination / "file.txt", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("branch has not been pushed or fetched", result.stderr)
+        self.assertEqual(self.transport, [])
 
     def test_offline_tag_comparison_does_not_reuse_a_differently_cased_tag(self):
         self.git(self.source, "tag", "Release")
