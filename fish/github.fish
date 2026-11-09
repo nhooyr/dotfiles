@@ -66,7 +66,8 @@ function __gh_remotes --argument-names remote destination
     end
 end
 
-function __gh_ref_case_aliases --argument-names destination ref
+function __gh_ref_spelling_safe --argument-names destination ref
+    __gh_ref_path_exact "$destination" "$ref"; or return
     set -l existing (git -C "$destination" for-each-ref --ignore-case --format='%(refname)' -- "$ref"); or return
     set -l aliases (string match -i -- "$ref" $existing | string match -v -- "$ref")
     set -q aliases[1]; or return 0
@@ -75,9 +76,7 @@ function __gh_ref_case_aliases --argument-names destination ref
     test "$storage" != reftable; or return 0
     set -l refs_dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs)"; or return
     test -d "$refs_dir"; or return 1
-    if test "$refs_dir" -ef "$refs_dir/../REFS"
-        printf '%s\n' $aliases
-    end
+    not test "$refs_dir" -ef "$refs_dir/../REFS"
 end
 
 function __gh_commit --argument-names destination revision
@@ -90,8 +89,7 @@ function __gh_direct_commit --argument-names destination
         git -C "$destination" symbolic-ref -q "$ref" >/dev/null 2>&1; and continue
         set -l oid (__gh_commit "$destination" "$ref"); or continue
         if string match -q 'refs/*' -- "$ref"
-            set -l aliases (__gh_ref_case_aliases "$destination" "$ref"); or return
-            set -q aliases[1]; and continue
+            __gh_ref_spelling_safe "$destination" "$ref"; or continue
         end
         printf '%s\n' "$oid"
         return
@@ -195,15 +193,16 @@ function __gh_cached_branches --argument-names name destination
     end
 end
 
-function __gh_head_alias_case_safe --argument-names destination alias
-    # Dangling symbolic refs do not appear in for-each-ref.
+function __gh_ref_path_exact --argument-names destination ref
+    # Filesystems can alias paths that Git's case-insensitive matching misses.
+    string match -q 'refs/*' -- "$ref"; or return 0
     set -l dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs)"; or return
-    for component in (string split / -- (string replace 'refs/' '' -- "$alias"))
+    for component in (string split / -- (string sub -s 6 -- "$ref"))
         set -l entry "$dir/$component"
         if not test -e "$entry"; and not test -L "$entry"
             return 0
         end
-        set -l entries "$dir"/*
+        set -l entries "$dir/$component"*
         contains -- "$entry" $entries; or return 1
         set dir "$entry"
     end
@@ -214,7 +213,7 @@ function __gh_default_ref --argument-names name destination
     # Resolve the cached remote HEAD through the configured fetch mapping.
     set -l specs $argv[3..]
     set -l alias "refs/remotes/$name/HEAD"
-    __gh_head_alias_case_safe "$destination" "$alias"; or return
+    __gh_ref_path_exact "$destination" "$alias"; or return
     set -l ref "$(git -C "$destination" symbolic-ref -q "$alias" 2>/dev/null)"; or begin
         # An exact fetch mapping can use the default name as a direct destination.
         set ref "$alias"
@@ -378,9 +377,8 @@ function __ghe_tracking_ref --argument-names name destination ref
     else if test -z "$tracking_ref"
         set tracking_ref "refs/remotes/$name/$ref"
     end
-    set -l aliases (__gh_ref_case_aliases "$destination" "$tracking_ref"); or return
-    if set -q aliases[1]
-        printf '%s: tracking ref differs only by case from %s: %s\n' "$0" "$aliases[1]" "$tracking_ref" >&2
+    if not __gh_ref_spelling_safe "$destination" "$tracking_ref"
+        printf '%s: tracking ref conflicts with a differently spelled ref: %s\n' "$0" "$tracking_ref" >&2
         return 1
     end
     set -l source_ref (__gh_source_ref "$tracking_ref" $refspecs)
@@ -453,6 +451,7 @@ function __ghe_pull --argument-names destination remote
                     or string match -vq -- "$target" $same_name
                     or string match -iq "$target" -- $checked_out_refs
                     or string match -iq "$canonical" -- $checked_out_refs
+                    or not __gh_ref_path_exact "$destination" "$target"
                     or git -C "$destination" symbolic-ref --quiet --no-recurse "$target" >/dev/null 2>&1
                     continue
                 end
@@ -544,7 +543,7 @@ function __gh_refs_overlap --argument-names ref
 end
 
 function __gh_head_alias_safe --argument-names destination alias
-    __gh_head_alias_case_safe "$destination" "$alias"; or return
+    __gh_ref_path_exact "$destination" "$alias"; or return
     # Packed refs also need case-insensitive hierarchy checks.
     set -l refs (git -C "$destination" for-each-ref \
         --format='%(if)%(symref)%(then)%(else)%(refname)%(end)'); or return
@@ -626,8 +625,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
                             set tracking (__gh_tracking_ref "$source" $specs)
                         end
                         test -n "$tracking"; or continue
-                        set -l aliases (__gh_ref_case_aliases "$destination" "$tracking"); or return
-                        set -q aliases[1]; and continue
+                        __gh_ref_spelling_safe "$destination" "$tracking"; or continue
                         set -l tracked_source (__gh_source_ref "$tracking" $specs)
                         if test "$source" != HEAD; and test "$tracked_source" != "$source"
                             continue
@@ -722,8 +720,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
             set -l tracking (__gh_tracking_ref "$source" $specs); or continue
             test "$(__gh_source_ref "$tracking" $specs)" = "$source"; or continue
             __gh_safe_tracking "$destination" "$tracking"; or continue
-            set -l aliases (__gh_ref_case_aliases "$destination" "$tracking"); or return
-            set -q aliases[1]; and continue
+            __gh_ref_spelling_safe "$destination" "$tracking"; or continue
             contains -- "$tracking" $fetch_tracking; or set -a fetch_tracking "$tracking"
             if test "$ref" = HEAD
                 set -a default_tracking "$tracking"
@@ -779,8 +776,9 @@ function __ghe_compare_ref --argument-names remote destination ref mode
         return 1
     end
     # Cross-remote alias collisions cannot represent every synchronized default.
-    for index in (seq (count $default_names))
-        set -l head_alias "refs/remotes/$default_names[$index]/HEAD"
+    for name in $default_names
+        set -l index (contains -i -- "$name" $default_names)
+        set -l head_alias "refs/remotes/$name/HEAD"
         set -l other_tracking (string match -v -- "$default_tracking[$index]" $fetch_tracking)
         if __gh_refs_overlap "$head_alias" $other_tracking
             set default_names
@@ -803,7 +801,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
                 end
                 set -l marker "$(__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking")"; or return
                 git -C "$destination" update-ref --no-deref "$marker" "$oid"; or return
-            else if __gh_head_alias_case_safe "$destination" "$head_alias"
+            else if __gh_ref_path_exact "$destination" "$head_alias"
                 and git -C "$destination" symbolic-ref -q "$head_alias" >/dev/null 2>&1
                 # No safe destination was synchronized for this cached default.
                 git -C "$destination" symbolic-ref --delete "$head_alias"; or return
@@ -963,9 +961,8 @@ function __ghe_switch --argument-names remote destination full_ref ref revision
     set -l branch_ref ''
     if string match -qr '^refs/(heads|remotes)/' -- "$full_ref"
         set branch_ref "refs/heads/$ref"
-        set -l aliases (__gh_ref_case_aliases "$destination" "$branch_ref"); or return
-        if set -q aliases[1]
-            printf '%s: local branch differs only by case from %s: %s\n' "$0" "$aliases[1]" "$branch_ref" >&2
+        if not __gh_ref_spelling_safe "$destination" "$branch_ref"
+            printf '%s: local branch conflicts with a differently spelled ref: %s\n' "$0" "$branch_ref" >&2
             return 1
         end
         if git -C "$destination" symbolic-ref -q "$branch_ref" >/dev/null 2>&1
@@ -1068,11 +1065,6 @@ function __ghe_checkout --argument-names remote destination tail line column end
             if test (count $revisions) -ne 2; or string match -qvr '^[0-9a-fA-F]{40}$' -- $revisions
                 printf '%s: pull request has an invalid base or head commit\n' "$0" >&2
                 return 1
-            end
-            # Cached tips in a shallow clone can still be missing their merge base.
-            if test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
-                set -l name (__ghe_remote "$remote" "$destination"); or return
-                __ghe_fetch_history "$destination" "$name" $revisions; or return
             end
             __ghe_compare "$remote" "$destination" "$revisions[1]...$revisions[2]"
             return $status
@@ -1228,9 +1220,8 @@ function __gho_url --argument-names target
                 return 1
             end
         end
-        set -l aliases (__gh_ref_case_aliases "$dir" "$remote_ref"); or return
-        if set -q aliases[1]
-            printf '%s: cached remote branch differs only by case from %s: %s\n' "$0" "$aliases[1]" "$remote_ref" >&2
+        if not __gh_ref_spelling_safe "$dir" "$remote_ref"
+            printf '%s: cached remote branch conflicts with a differently spelled ref: %s\n' "$0" "$remote_ref" >&2
             return 1
         end
         if git -C "$dir" symbolic-ref -q "$remote_ref" >/dev/null 2>&1
@@ -1280,8 +1271,8 @@ function __gho_url --argument-names target
             set -l tracked_source (__gh_source_ref "$default_ref" $refspecs)
             if test -n "$tracked_source"; and test "$tracked_source" != "$source"
                 set default_ref ''
-            else if set -l aliases (__gh_ref_case_aliases "$dir" "$default_ref")
-                and not set -q aliases[1]; and __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
+            else if __gh_ref_spelling_safe "$dir" "$default_ref"
+                and __gh_head_alias_safe "$dir" "refs/remotes/$remote/HEAD"
                 git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
             end
         end

@@ -776,6 +776,21 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "main")
         self.assertEqual(self.network_calls(), [])
 
+    def test_shallow_pull_request_files_uses_a_cached_merge_base(self):
+        base = self.seed_commit({"file.txt": "base\n"})
+        revision = self.seed_commit({"file.txt": "pull request\n"}, branch="feature", create=True)
+        self.git(self.checkout, "fetch", "--depth=2", self.remote.as_uri(), "refs/heads/feature")
+        self.assertEqual(self.git(self.checkout, "rev-parse", "--is-shallow-repository").stdout.strip(), "true")
+        self.assertEqual(self.git(self.checkout, "merge-base", base, revision).stdout.strip(), base)
+
+        endpoint = "repos/test-owner/test-repo/pulls/7"
+        result = self.run_fish("ghe", self.url + "/pull/7/files",
+                               responses={endpoint: base + "\n" + revision}, offline=True)
+        self.assert_success(result)
+        self.assertIn("+pull request", result.stdout)
+        self.assertEqual(self.head(), self.initial)
+        self.assertEqual(self.network_calls(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

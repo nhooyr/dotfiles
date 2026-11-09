@@ -418,6 +418,26 @@ end
         self.assertTrue(any(call["command"] == "fetch" for call in self.transport))
         self.assert_resolves(destination, "2026", newer, offline=True)
 
+    def test_named_comparison_has_no_array_index_errors_with_bsd_seq(self):
+        destination = self.clone()
+        newer = self.commit(self.source, "updated main\n")
+
+        result = self.fish(
+            """function seq
+    if test "$argv" = 0
+        printf '%s\\n' 1 0
+    else
+        command seq $argv
+    end
+end
+__ghe_compare_ref "$argv[1]" "$argv[2]" main""",
+            URL, destination,
+        )
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), newer)
+        self.assertEqual(result.stderr, "")
+
     def test_cached_comparison_commit_ids_do_not_attempt_transport(self):
         destination = self.clone()
         for ref in (self.initial, self.initial[:10]):
@@ -555,7 +575,7 @@ end
                 result = self.checkout(destination, "blob/topic/file.txt")
                 if folds_case:
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("tracking ref differs only by case", result.stderr)
+                    self.assertIn("tracking ref conflicts with a differently spelled ref", result.stderr)
                     self.assertEqual(self.oid(destination), self.initial)
                 else:
                     self.assert_success(result)
@@ -566,7 +586,7 @@ end
                     self.git(destination, "branch", "Topic", self.initial)
                     result = self.checkout(destination, "blob/topic/file.txt")
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("local branch differs only by case", result.stderr)
+                    self.assertIn("local branch conflicts with a differently spelled ref", result.stderr)
                     self.assertEqual(self.oid(destination), self.initial)
                     self.git(destination, "branch", "--delete", "Topic")
 
@@ -575,8 +595,36 @@ end
                     self.git(destination, "config", "branch.topic.merge", "refs/heads/topic")
                     result = self.fish('__gho_url "$argv[1]"', destination / "upper.txt", offline=True)
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("cached remote branch differs only by case", result.stderr)
+                    self.assertIn("cached remote branch conflicts with a differently spelled ref", result.stderr)
                     self.assertEqual(self.transport, [])
+
+    def test_compare_does_not_read_or_overwrite_a_unicode_loose_ref_alias(self):
+        self.git(self.source, "switch", "--quiet", "--create", "münchen")
+        older = self.commit(self.source, "lowercase branch\n")
+        self.git(self.source, "switch", "--quiet", "main")
+        destination = self.clone()
+        tracking = "refs/remotes/origin/münchen"
+        self.git(destination, "update-ref", "-d", tracking)
+        self.git(destination, "update-ref", tracking, older)
+        self.git(self.source, "pack-refs", "--all", "--prune")
+        self.git(self.source, "switch", "--quiet", "--create", "MÜNCHEN")
+        newer = self.commit(self.source, "uppercase branch\n")
+
+        self.assertNotEqual(self.compare_ref(destination, "MÜNCHEN", offline=True).returncode, 0)
+        self.assert_resolves(destination, "MÜNCHEN", newer)
+        self.assertEqual(self.oid(destination, tracking), older)
+
+        self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                 "+refs/heads/MÜNCHEN:refs/remotes/origin/MÜNCHEN")
+        self.git(destination, "config", "branch.main.merge", "refs/heads/MÜNCHEN")
+        result = self.fish('__ghe_pull "$argv[1]" "$argv[2]"', destination, URL)
+        self.assert_success(result)
+        self.assertEqual(self.oid(destination), newer)
+        self.assertEqual(self.oid(destination, tracking), older)
+
+        self.git(destination, "update-ref", "refs/tags/café", older)
+        self.assert_resolves(destination, "tags/café", older, offline=True)
+        self.assertNotEqual(self.compare_ref(destination, "tags/cafe\u0301", offline=True).returncode, 0)
 
     def test_offline_tag_comparison_does_not_reuse_a_differently_cased_tag(self):
         self.git(self.source, "tag", "Release")
