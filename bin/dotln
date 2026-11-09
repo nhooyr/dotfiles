@@ -16,13 +16,13 @@ fi
 src=$(realpath -- "$src")
 
 if [ -L "$dst" ]; then
-	printf '%s: overwriting symlink %s\n' "${0##*/}" "$dst"
+	printf '%s: %s: overwriting symlink %s\n' "${0##*/}" "$(basename "$PWD")" "$dst" | hpath
 	rm -- "$dst"
 elif [ -e "$dst" ]; then
 	printf '%s: %s exists and is not a symlink\n' "${0##*/}" "$dst" >&2
 	exit 1
 else
-	printf '%s: linking %s\n' "${0##*/}" "$dst"
+	printf '%s: %s: linking %s\n' "${0##*/}" "$(basename "$PWD")" "$dst" | hpath
 fi
 
 mkdir -p -- "$(dirname -- "$dst")"

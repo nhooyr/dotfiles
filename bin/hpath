@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+perl -pe 's/\Q$ENV{HOME}\E/~/g'
