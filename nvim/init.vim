@@ -87,8 +87,8 @@ nnoremap <Leader>r :%s###g<Left><Left>
 vnoremap // "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 vmap <Leader>r //<Leader>r
 
-nnoremap <M-q> q
 nnoremap q :quit<CR>
+nnoremap <M-Q> q
 nnoremap <M-q> :bd<CR>
 inoremap <M-q> <Esc>:bd<CR>
 nnoremap <C-q> :qall!<CR>

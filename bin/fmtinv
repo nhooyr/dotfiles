@@ -231,7 +231,7 @@ function run() {
 
     return "{\\rtf1\\ansi\\deff0\\uc1\n" +
         "{\\fonttbl{\\f0\\fmodern\\fprq1\\fcharset0 " + ObjC.unwrap(font.familyName) + ";}}\n" +
-        "\\pard\\f0\\fs26 " + paragraphs.join("\\par \n") + "\n}";
+        "\\pard\\f0\\fs" + (font.pointSize * 2) + " " + paragraphs.join("\\par \n") + "\n}";
 }
 '
 }

@@ -107,8 +107,7 @@ abbrali m math
 abbrali sshak ssh-add --apple-load-keychain
 set -q TMPDIR; or set -gx TMPDIR "$(mktemp -d)"
 if not test -f "$TMPDIR/__aqsnow_ssh_keychain_loaded"
-    sshak -q
-    touch "$TMPDIR/__aqsnow_ssh_keychain_loaded"
+    sshak -q; and touch "$TMPDIR/__aqsnow_ssh_keychain_loaded"
 end
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
