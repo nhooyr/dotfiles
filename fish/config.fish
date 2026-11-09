@@ -74,7 +74,7 @@ set -gx LSCOLORS "$(string join '' $LSCOLORS)"
 set -gx LS_COLORS "di=34:ln=36:so=32:pi=32:ex=35:bd=37;42:\
 cd=37;42:su=37;45:sg=37;45:tw=37;44:ow=37;44:st=34"
 function ls
-    if type -q gls
+    if command -q gls
         command gls --group-directories-first $argv
     else
         command ls $argv
