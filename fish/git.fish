@@ -126,3 +126,5 @@ function dirt --description 'List repos with dirt'
         end
     end
 end
+
+abbrali imps ga '&&' gcm -em "'imps: Chat'" '&&' gp
