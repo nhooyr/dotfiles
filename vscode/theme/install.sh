@@ -27,6 +27,5 @@ if [ "$force" != true ] && code --list-extensions --show-versions | grep -qFx "$
 	printf '%s: Already installed %s.%s@%s: Run with -f to force update.\n' "${0##*/}" "$publisher" "$name" "$version" >&2
 	exit 0
 fi
-rm -f -- ./*.vsix
 NO_COLOR=1 vsce package
 code ${force:+--force} --install-extension "./$name-$version.vsix"
