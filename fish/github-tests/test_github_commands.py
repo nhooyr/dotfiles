@@ -300,6 +300,73 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assert_success(result)
         self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/main/a%20b%23.txt"])
 
+    def alias_checkout(self, name):
+        self.checkout = self.sandbox / "code" / "test-owner" / name
+        self.git(None, "clone", "--quiet", self.remote, self.checkout)
+        self.git(self.checkout, "remote", "set-url", "origin", self.url + ".git")
+        self.git(self.checkout, "update-ref", "--no-deref", "-d", "refs/remotes/origin/HEAD")
+
+    def test_alias_writes_preserve_overlapping_loose_and_packed_tracking_refs(self):
+        mappings = (
+            ("+refs/heads/main:refs/remotes/origin/HEAD", "refs/remotes/origin/HEAD"),
+            ("+refs/heads/*:refs/remotes/origin/HEAD/*", "refs/remotes/origin/HEAD/main"),
+            ("+refs/heads/main:refs/remotes/origin", "refs/remotes/origin"),
+            ("+refs/heads/main:refs/remotes/origin/head", "refs/remotes/origin/head"),
+            ("+refs/heads/*:refs/remotes/origin/head/*", "refs/remotes/origin/head/main"),
+            ("+refs/heads/main:refs/remotes/Origin", "refs/remotes/Origin"),
+        )
+        for writer in ("gho", "__ghe_compare_ref"):
+            for packed in (False, True):
+                for index, (spec, tracking) in enumerate(mappings):
+                    with self.subTest(writer=writer, packed=packed, spec=spec):
+                        self.alias_checkout("overlap-%s-%s-%d" % (writer, packed, index))
+                        self.git(self.checkout, "update-ref", "-d", "refs/remotes/origin/main")
+                        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch", spec)
+                        self.fetch_fixture()
+                        if packed:
+                            self.git(self.checkout, "pack-refs", "--all", "--prune")
+                        if writer == "gho":
+                            result = self.run_fish("gho", cwd=self.checkout)
+                        else:
+                            result = self.run_fish(writer, self.url + ".git", self.checkout, "HEAD")
+
+                        self.assert_success(result)
+                        after = self.git(self.checkout, "rev-parse", "--verify", tracking, check=False)
+                        self.assertEqual(after.returncode, 0, after.stderr)
+                        self.assertEqual(after.stdout.strip(), self.initial)
+                        self.assertNotEqual(self.git(self.checkout, "symbolic-ref", "--quiet",
+                                                     tracking, check=False).returncode, 0)
+                        self.fetch_fixture()
+                        self.assertEqual(self.head(), self.initial)
+
+    def test_alias_writes_preserve_another_remotes_loose_and_packed_tracking_ref(self):
+        topic = self.seed_commit({"file.txt": "another branch\n"}, branch="topic", create=True)
+        for writer in ("gho", "__ghe_compare_ref"):
+            for packed in (False, True):
+                for index, tracking in enumerate(("refs/remotes/origin/HEAD", "refs/remotes/origin/head")):
+                    with self.subTest(writer=writer, packed=packed, tracking=tracking):
+                        self.alias_checkout("other-%s-%s-%d" % (writer, packed, index))
+                        self.git(self.checkout, "remote", "add", "aaa", self.url + ".git")
+                        self.git(self.checkout, "config", "--replace-all", "remote.aaa.fetch",
+                                 "+refs/heads/topic:" + tracking)
+                        rule = "url." + self.remote.as_uri() + ".insteadOf=" + self.url + ".git"
+                        self.git(self.checkout, "-c", rule, "fetch", "--quiet", "aaa")
+                        if packed:
+                            self.git(self.checkout, "pack-refs", "--all", "--prune")
+                        if writer == "gho":
+                            result = self.run_fish("gho", cwd=self.checkout)
+                        else:
+                            result = self.run_fish(writer, self.url + ".git", self.checkout, "HEAD")
+
+                        self.assert_success(result)
+                        after = self.git(self.checkout, "rev-parse", "--verify", tracking, check=False)
+                        self.assertEqual(after.returncode, 0, after.stderr)
+                        self.assertEqual(after.stdout.strip(), topic)
+                        self.assertNotEqual(self.git(self.checkout, "symbolic-ref", "--quiet",
+                                                     tracking, check=False).returncode, 0)
+                        self.git(self.checkout, "-c", rule, "fetch", "--quiet", "aaa")
+                        self.assertEqual(self.head(), self.initial)
+
     def test_gho_roots_open_the_homepage_or_branch_without_pr_detection(self):
         for branch, expected in (("main", self.url), ("topic", self.url + "/tree/topic")):
             if branch == "topic":

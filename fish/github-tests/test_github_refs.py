@@ -1335,6 +1335,45 @@ end
         self.assertEqual(self.git(destination, "symbolic-ref", "refs/remotes/origin/topic").stdout.strip(), "refs/remotes/origin/main")
         self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), "main")
 
+    def test_comparisons_preserve_case_folded_local_branch_and_tag_namespaces(self):
+        for target in ("refs/Heads/main", "refs/Tags/local-tag"):
+            with self.subTest(target=target):
+                destination = self.clone()
+                self.git(destination, "tag", "local-tag")
+                self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                         "+refs/heads/main:" + target)
+                before = self.oid(destination)
+                before_tag = self.oid(destination, "refs/tags/local-tag")
+                before_target = self.git(destination, "rev-parse", "--verify", "--quiet",
+                                         target, check=False)
+                tip = self.commit(self.source, target + "\n")
+
+                self.assert_resolves(destination, "HEAD", tip)
+                self.assertEqual(self.oid(destination), before)
+                self.assertEqual(self.oid(destination, "refs/tags/local-tag"), before_tag)
+                self.assertEqual(self.git(destination, "status", "--porcelain").stdout, "")
+                after_target = self.git(destination, "rev-parse", "--verify", "--quiet",
+                                        target, check=False)
+                self.assertEqual((after_target.returncode, after_target.stdout),
+                                 (before_target.returncode, before_target.stdout))
+
+    def test_pull_handles_case_folded_checked_out_branch_destinations(self):
+        for index, target in enumerate(("refs/Heads/main", "refs/heads/Main")):
+            with self.subTest(target=target):
+                destination = self.clone()
+                self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                         "+refs/heads/main:" + target)
+                filename = "new-%d.txt" % index
+                newer = self.commit(self.source, "new file\n", filename)
+
+                result = self.fish('__ghe_pull "$argv[1]" "$argv[2]"', destination, URL)
+
+                self.assert_success(result)
+                self.assertEqual(self.oid(destination), newer)
+                self.assertTrue((destination / filename).is_file())
+                self.assertEqual((destination / filename).read_text(), "new file\n")
+                self.assertEqual(self.git(destination, "status", "--porcelain").stdout, "")
+
     def test_pull_can_fast_forward_when_fetch_mapping_targets_current_branch(self):
         destination = self.clone()
         self.git(destination, "config", "--replace-all", "remote.origin.fetch", "+refs/heads/main:refs/heads/main")
