@@ -163,11 +163,6 @@ function __gh_source_ref --argument-names ref
         test -n "$fields[2]"; or continue
         set -l source (__gh_map_ref "$fields[2]" "$fields[1]" "$ref"); or continue
         __gh_tracking_ref "$source" $argv[2..] >/dev/null; or continue
-        # A tag or abbreviated source prevents this destination proving branch ownership.
-        if not string match -q 'refs/heads/*' -- "$source"
-            printf '%s\n' "$source"
-            return 0
-        end
         if set -q owner[1]; and test "$source" != "$owner"
             printf 'both %s and %s\n' "$owner" "$source"
             return 2
@@ -454,7 +449,6 @@ function __ghe_pull --argument-names destination remote requested_branch
         return 1
     end
 
-    set -l merge_ref "$upstream[3]"
     if test "$upstream[1]" != .
         set -l remotes (__gh_remotes "$remote" "$destination"); or return
         if not contains -- "$upstream[1]" $remotes
@@ -512,7 +506,7 @@ function __ghe_pull --argument-names destination remote requested_branch
         else if not set -q refmap_options[1]
             set refmap_options --refmap=
         end
-        set merge_ref (__ghe_fetch_head "$destination" $refmap_options -- "$upstream[1]" "$source_ref"); or return
+        set -l merge_ref (__ghe_fetch_head "$destination" $refmap_options -- "$upstream[1]" "$source_ref"); or return
         set changes "$(git -C "$destination" status --porcelain --untracked-files=all)"; or return
         if test "$upstream[4]" != "$(git -C "$destination" rev-parse --verify HEAD)"
             printf '%s: checkout commit changed while fetching; skipping pull\n' "$0" >&2
@@ -526,8 +520,8 @@ function __ghe_pull --argument-names destination remote requested_branch
             printf '%s: checkout has local changes; skipping pull\n' "$0" >&2
             return 0
         end
+        git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
     end
-    git -C "$destination" merge --quiet --ff-only --no-squash --no-autostash --no-overwrite-ignore -- "$merge_ref"
 end
 
 function __gh_commit_prefix --argument-names destination prefix
@@ -928,6 +922,17 @@ function __ghe_compare_ref --argument-names remote destination ref mode
     return 1
 end
 
+function __ghe_merge_base --argument-names destination base head shallow
+    set -l merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"; or return 1
+    if test -s "$shallow"; and not contains -- "$merge_base" "$base" "$head"
+        # A shallow boundary outside the known base's ancestry can hide a closer common commit.
+        git --no-lazy-fetch -C "$destination" rev-list "$base" "$head" "^$merge_base" | command grep -Fxf "$shallow" >/dev/null
+        set -l checks $pipestatus
+        test "$checks[1]" -eq 0; and test "$checks[2]" -eq 1; or return 2
+    end
+    printf '%s\n' "$merge_base"
+end
+
 function __ghe_compare --argument-names remote destination comparison
     test -n "$comparison"; or return 0
     set -l range
@@ -950,12 +955,19 @@ function __ghe_compare --argument-names remote destination comparison
         return
     end
 
-    set -l merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
-    if test -z "$merge_base"; and test (count (string match -r '^[0-9a-fA-F]{4,40}(?:[~^][0-9]*)*$' -- $range)) -eq 2
-        and test "$(git -C "$destination" rev-parse --is-shallow-repository)" = true
+    set -l shallow "$(git -C "$destination" rev-parse --path-format=absolute --git-path shallow)"; or return
+    set -l merge_base (__ghe_merge_base "$destination" "$base" "$head" "$shallow")
+    set -l merge_status "$status"
+    if test "$merge_status" -ne 0; and test -s "$shallow"
+        and test (count (string match -r '^[0-9a-fA-F]{4,40}(?:[~^][0-9]*)*$' -- $range)) -eq 2
         and set -l name (__ghe_remote "$remote" "$destination")
         and __ghe_fetch_history "$destination" "$name" "$base" "$head" >/dev/null
-        set merge_base "$(git --no-lazy-fetch -C "$destination" merge-base "$base" "$head" 2>/dev/null)"
+        set merge_base (__ghe_merge_base "$destination" "$base" "$head" "$shallow")
+        set merge_status "$status"
+    end
+    if test "$merge_status" -eq 2
+        printf '%s: shallow history may hide a closer comparison merge base; fetch more history or use a two-dot comparison\n' "$0" >&2
+        return 1
     end
     if test -z "$merge_base"
         printf '%s: comparison has no local merge base; fetch more history or use a two-dot comparison\n' "$0" >&2
@@ -1301,6 +1313,7 @@ function __gho_url --argument-names target
     # Named branches open the cached remote version, including when local commits are ahead.
     set -l remote
     set -l remote_ref
+    set -l source_ref
     set -l ref
     set -l commit
     set -l branch "$(git -C "$dir" symbolic-ref -q HEAD)"
@@ -1309,8 +1322,9 @@ function __gho_url --argument-names target
         if test -n "$upstream[1]"; and test "$upstream[1]" != .
             set remote "$upstream[1]"
             set remote_ref "$upstream[3]"
-            if test -n "$remote_ref"; and string match -q 'refs/heads/*' -- "$upstream[2]"
-                set ref (string replace -r '\Arefs/heads/' '' -- "$upstream[2]")
+            set source_ref "$upstream[2]"
+            if test -n "$remote_ref"; and string match -q 'refs/heads/*' -- "$source_ref"
+                set ref (string replace -r '\Arefs/heads/' '' -- "$source_ref")
             end
         end
     end
@@ -1340,20 +1354,21 @@ function __gho_url --argument-names target
         test -z "$remote_ref"; or set remote_ref (__gh_local_ref "$remote_ref")
         if test -z "$remote_ref"
             set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
-            set remote_ref (__gh_tracking_ref "refs/heads/$ref" $refspecs)
+            set source_ref "refs/heads/$ref"
+            set remote_ref (__gh_tracking_ref "$source_ref" $refspecs)
             test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
         end
-        if test -n "$ref"
-            set -l branch_ref "refs/heads/$ref"
+        if test -n "$source_ref"
             set -l tracked_source (__gh_source_ref "$remote_ref" $refspecs)
             set -l source_status "$status"
-            if test -n "$tracked_source"; and test "$tracked_source" != "$branch_ref"
+            if test -n "$tracked_source"; and test "$tracked_source" != "$source_ref"
                 # A branch page can be opened without trusting the shared tracking ref.
-                if test "$source_status" -eq 2; and test -z "$repo_path"
-                    set -l advertised (git -C "$dir" ls-remote --refs -- "$remote" "$branch_ref" "refs/tags/$ref" 2>/dev/null)
-                    set -l revision (string match -rg "^([0-9a-f]+)\t$(string escape --style=regex -- "$branch_ref")\$" -- $advertised)
+                if test "$source_status" -eq 2; and test -n "$ref"; and test -z "$repo_path"
+                    set -l advertised (git -C "$dir" ls-remote --refs -- "$remote" "$source_ref" "refs/tags/$ref" 2>/dev/null)
+                    set -l revision (string match -rg "^([0-9a-f]+)\t$(string escape --style=regex -- "$source_ref")\$" -- $advertised)
                     if set -q revision[1]
-                        if test (count $advertised) -ne 1; or string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
+                        if test (count $advertised) -ne 1
+                            or string match -qr '^(?:[0-9a-fA-F]{40}$|refs/(?:heads|tags)/)' -- "$ref"
                             set ref "$revision"
                         end
                         printf '%s/tree/%s\n' "$url" (string escape --style=url -- "$ref")

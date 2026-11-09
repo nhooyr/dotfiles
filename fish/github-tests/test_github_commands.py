@@ -497,6 +497,32 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assert_success(result)
         self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/" + release])
 
+    def test_gho_does_not_use_a_shared_abbreviated_tracking_destination(self):
+        topic = self.seed_commit({"topic-only.txt": "topic\n"}, branch="topic", create=True)
+        other = self.seed_commit({"other-only.txt": "other\n"}, branch="other", create=True)
+        tracking = "refs/remotes/origin/shared"
+        rule = "url." + self.remote.as_uri() + ".insteadOf=" + self.url + ".git"
+        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch", f"+topic:{tracking}")
+        self.git(self.checkout, "-c", rule, "fetch", "--quiet", "origin", "topic")
+        self.git(self.checkout, "switch", "--quiet", "--create", "topic", "--no-track", tracking)
+        self.git(self.checkout, "config", "branch.topic.remote", "origin")
+        self.git(self.checkout, "config", "branch.topic.merge", "topic")
+
+        result = self.run_fish("gho", self.checkout / "topic-only.txt", offline=True)
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/" + topic + "/topic-only.txt"])
+
+        self.git(self.checkout, "config", "--add", "remote.origin.fetch", f"+refs/heads/other:{tracking}")
+        self.git(self.checkout, "-c", rule, "fetch", "--quiet", "origin", "other")
+        self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), other)
+        target = self.checkout / "other-only.txt"
+        target.write_text("local only\n")
+
+        result = self.run_fish("gho", target, offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("mapped from another branch", result.stderr)
+        self.assertEqual(self.calls("open"), [])
+
     def test_local_ahead_branch_uses_remote_paths_and_rejects_new_paths(self):
         (self.checkout / "file.txt").write_text("local update\n")
         (self.checkout / "new-local.txt").write_text("not pushed\n")
@@ -807,6 +833,12 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         self.assert_success(result)
         self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/" + self.head() + "/qualified.txt"])
         self.assertEqual(self.network_calls(), [])
+
+        self.git(self.checkout, "config", "--add", "remote.origin.fetch",
+                 "+refs/heads/main:refs/remotes/origin/" + branch)
+        result = self.run_fish("gho", self.checkout)
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/" + self.head()])
 
     def test_latest_release_uses_mocked_api_and_checks_out_its_tag(self):
         endpoint = "repos/test-owner/test-repo/releases/latest"

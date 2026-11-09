@@ -546,6 +546,59 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
         self.assertIn("+topic change", result.stdout)
         self.assertEqual([call["command"] for call in self.transport], ["fetch"])
 
+    def test_shallow_three_dot_comparison_checks_for_a_closer_merge_base(self):
+        for generation in range(3):
+            anchor = self.commit(self.source, f"ancestor {generation}\n", "ancestor.txt")
+        for side in ("left-side", "right-side"):
+            self.git(self.source, "switch", "--quiet", "--create", side, "main")
+            self.commit(self.source, side + "\n", side + ".txt")
+        self.git(self.source, "switch", "--quiet", "main")
+        common = self.commit(self.source, "already shared\n", "shared.txt")
+        self.git(self.source, "branch", "topic")
+        tips = []
+        for branch, side in (("topic", "right-side"), ("main", "left-side")):
+            self.git(self.source, "switch", "--quiet", branch)
+            self.commit(self.source, branch + " parent\n", branch + ".txt")
+            self.commit(self.source, branch + " change\n", branch + ".txt")
+            self.git(self.source, "merge", "--quiet", "--no-edit", "--no-ff", side)
+            tips.append(self.oid(self.source))
+        head, base = tips
+        range_spec = f"{base}...{head}"
+        compare = '__ghe_compare "$argv[1]" "$argv[2]" "$argv[3]"'
+        expected = self.git(self.source, "diff", range_spec, "--").stdout
+        self.assertNotIn("shared.txt", expected)
+
+        for depth, local_base in ((3, anchor), (5, common)):
+            with self.subTest(depth=depth):
+                destination = self.clone(depth=depth)
+                self.git(destination, "fetch", "--quiet", f"--depth={depth}", self.source.as_uri(), "refs/heads/topic")
+                self.assertEqual(self.git(destination, "merge-base", base, head).stdout.strip(), local_base)
+                self.assertEqual(self.git(destination, "rev-parse", "--is-shallow-repository").stdout.strip(), "true")
+                offline = self.fish(compare, URL, destination, range_spec, offline=True)
+                if depth == 5:
+                    self.assert_success(offline)
+                    self.assertEqual(offline.stdout, expected)
+                    self.assertEqual(self.transport, [])
+                    continue
+
+                self.assertNotEqual(offline.returncode, 0)
+                self.assertIn("shallow history may hide a closer comparison merge base", offline.stderr)
+                self.assertEqual(offline.stdout, "")
+                self.assertEqual([call["command"] for call in self.transport], ["fetch"])
+
+                self.git(destination, "config", "--add", "remote.origin.fetch",
+                         "+refs/heads/topic:refs/remotes/origin/topic")
+                self.git(destination, "update-ref", "refs/remotes/origin/topic", head)
+                mixed = self.fish(compare, URL, destination, f"{base}...topic", offline=True)
+                self.assertNotEqual(mixed.returncode, 0)
+                self.assertIn("shallow history may hide a closer comparison merge base", mixed.stderr)
+                self.assertEqual(mixed.stdout, "")
+
+                online = self.fish(compare, URL, destination, range_spec)
+                self.assert_success(online)
+                self.assertEqual(online.stdout, expected)
+                self.assertEqual([call["command"] for call in self.transport], ["fetch"])
+
     def test_cached_commit_ancestry_in_shallow_clone_fetches_missing_history(self):
         parent = self.commit(self.source, "parent\n")
         tip = self.commit(self.source, "tip\n")
@@ -1802,6 +1855,23 @@ __ghe_checkout "$argv[1]" "$argv[2]" tree/topic "" "" "" ""
 
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual([call["args"][-1] for call in self.transport], ["refs/heads/topic"])
+        self.assertEqual(self.oid(destination), self.initial)
+        self.assertFalse((destination / "new.txt").exists())
+
+    def test_missing_file_does_not_merge_a_tag_for_an_abbreviated_local_upstream(self):
+        destination = self.clone()
+        self.git(destination, "switch", "--quiet", "--create", "topic", "--no-track")
+        tagged = self.commit(destination, "tag only\n", "new.txt")
+        self.git(destination, "tag", "topic", tagged)
+        self.git(destination, "reset", "--hard", self.initial)
+        self.git(destination, "config", "branch.topic.remote", ".")
+        self.git(destination, "config", "branch.topic.merge", "topic")
+
+        result = self.checkout(destination, "blob/refs/heads/topic/new.txt", offline=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("path does not exist in this checkout", result.stderr)
+        self.assertEqual(self.transport, [])
         self.assertEqual(self.oid(destination), self.initial)
         self.assertFalse((destination / "new.txt").exists())
 
