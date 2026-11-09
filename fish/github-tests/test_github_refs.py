@@ -1272,7 +1272,7 @@ end
         self.assert_success(self.checkout(destination, "blob/release/main/file.txt", offline=True))
 
         self.git(self.source, "switch", "--quiet", "--create", "main")
-        main = self.commit(self.source, "different main contents\n")
+        main = self.commit(self.source, "different main contents\n", "main-only.txt")
         result = self.checkout(destination, "blob/main/file.txt")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("fetch destination is mapped from another branch", result.stderr)
@@ -1284,6 +1284,13 @@ end
         self.assert_resolves(destination, "main", main)
         self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), self.initial)
         self.assert_resolves(destination, "main", main, offline=True)
+
+        self.git(destination, "switch", "--quiet", "--create", "main", "refs/remotes/origin/main")
+        self.git(destination, "config", "branch.main.remote", "origin")
+        self.git(destination, "config", "branch.main.merge", "refs/heads/main")
+        self.assert_success(self.checkout(destination, "blob/main/main-only.txt"))
+        self.assertEqual(self.oid(destination), main)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), self.initial)
 
     def test_custom_cached_fetch_destinations_set_a_working_upstream(self):
         self.git(self.source, "branch", "topic")
@@ -1373,6 +1380,23 @@ end
                 self.assertTrue((destination / filename).is_file())
                 self.assertEqual((destination / filename).read_text(), "new file\n")
                 self.assertEqual(self.git(destination, "status", "--porcelain").stdout, "")
+
+    def test_pull_does_not_update_another_branch_through_a_symbolic_fetch_destination(self):
+        destination = self.clone()
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        newer = self.commit(self.source, "topic file\n", "topic-only.txt")
+        self.git(destination, "config", "--replace-all", "remote.origin.fetch",
+                 "+refs/heads/topic:refs/remotes/origin/HEAD")
+        self.git(destination, "switch", "--quiet", "--create", "topic")
+        self.git(destination, "config", "branch.topic.remote", "origin")
+        self.git(destination, "config", "branch.topic.merge", "refs/heads/topic")
+
+        self.assert_success(self.checkout(destination, "blob/topic/topic-only.txt"))
+
+        self.assertEqual(self.oid(destination), newer)
+        self.assertEqual(self.oid(destination, "refs/remotes/origin/main"), self.initial)
+        alias = self.git(destination, "symbolic-ref", "refs/remotes/origin/HEAD").stdout.strip()
+        self.assertEqual(alias, "refs/remotes/origin/main")
 
     def test_pull_can_fast_forward_when_fetch_mapping_targets_current_branch(self):
         destination = self.clone()

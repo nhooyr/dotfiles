@@ -658,6 +658,37 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
                 self.assertEqual(branch, "" if detached else "main")
                 self.assertEqual(self.network_calls(), [])
 
+    def test_explicit_ref_namespaces_in_file_and_tree_urls(self):
+        branch_tip = self.seed_commit({"file.txt": "branch with the tag name\n"}, branch="topic", create=True)
+        self.git(self.seed, "tag", "topic", self.initial)
+        self.publish("refs/tags/topic")
+        self.fetch_fixture()
+        for page in ("blob", "tree", "blame", "commits"):
+            for namespace, expected, branch in (("heads", branch_tip, "topic"), ("tags", self.initial, "")):
+                with self.subTest(page=page, namespace=namespace):
+                    tail = "dir" if page == "tree" else "file.txt"
+                    result = self.run_fish("ghe", f"{self.url}/{page}/refs/{namespace}/topic/{tail}", offline=True)
+                    self.assert_success(result)
+                    self.assertEqual(self.head(), expected)
+                    self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), branch)
+                    self.assertEqual(self.network_calls(), [])
+
+    def test_gho_uses_commit_link_when_branch_name_looks_like_a_qualified_ref(self):
+        branch = "refs/heads/main"
+        self.git(self.seed, "switch", "--quiet", "--create", branch)
+        (self.seed / "qualified.txt").write_text("only on the nested branch\n")
+        self.git(self.seed, "add", "qualified.txt")
+        self.git(self.seed, "commit", "--quiet", "-m", "fixture update")
+        self.publish("refs/heads/" + branch)
+        self.fetch_fixture()
+        self.git(self.checkout, "switch", "--quiet", "--create", branch, "--track", "origin/" + branch)
+
+        result = self.run_fish("gho", self.checkout / "qualified.txt", offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/" + self.head() + "/qualified.txt"])
+        self.assertEqual(self.network_calls(), [])
+
     def test_latest_release_uses_mocked_api_and_checks_out_its_tag(self):
         endpoint = "repos/test-owner/test-repo/releases/latest"
         result = self.run_fish("ghe", self.url + "/releases/latest", responses={endpoint: "v1"})

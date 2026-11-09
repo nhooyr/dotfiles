@@ -222,6 +222,12 @@ function __gh_resolve --argument-names remote tail destination cached_only
             set namespace refs/tags
         case branch branchfile
             set namespace refs/heads
+        case blob tree blame commits
+            if string match -qr '^refs/(heads|tags)/.' -- "$route[2]"
+                set -l qualified (string split -m 2 / -- "$route[2]")
+                set namespace "refs/$qualified[2]"
+                set route[2] "$qualified[3]"
+            end
         case oid
             string match -qr '^[0-9a-fA-F]{4,40}$' -- "$route[2]"; or return 1
             printf '%s\n' "$route[2]" "$route[2]" '' "$route[2]"
@@ -393,7 +399,7 @@ function __ghe_pull --argument-names destination remote
             printf '%s: upstream remote does not match the requested repository: %s\n' "$0" "$upstream[1]" >&2
             return 1
         end
-        # Skip mappings into checked-out branches; merge updates this worktree safely.
+        # Skip checked-out branches, symbolic refs, and tracking refs mapped from another branch.
         set -l checked_out_refs (git -C "$destination" for-each-ref \
             --format='%(if)%(worktreepath)%(then)%(refname)%(end)' refs/heads); or return
         set -l refspecs (__gh_refspecs "$upstream[1]" "$destination")
@@ -408,8 +414,15 @@ function __ghe_pull --argument-names destination remote
                     set target (__gh_map_ref "$fields[1]" "$target" "$upstream[2]")
                 end
                 if test -n "$target"
+                    set -l tracked_source (__gh_source_ref "$target" $refspecs)
+                    if test -n "$tracked_source"; and test "$tracked_source" != "$upstream[2]"
+                        set skipped true
+                        continue
+                    end
                     set -l canonical "$(git -C "$destination" rev-parse --symbolic-full-name "$target" 2>/dev/null)"
-                    if string match -iq "$target" -- $checked_out_refs; or string match -iq "$canonical" -- $checked_out_refs
+                    if string match -iq "$target" -- $checked_out_refs
+                        or string match -iq "$canonical" -- $checked_out_refs
+                        or git -C "$destination" symbolic-ref --quiet --no-recurse "$target" >/dev/null 2>&1
                         set skipped true
                         continue
                     end
