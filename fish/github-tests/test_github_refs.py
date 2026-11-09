@@ -1398,6 +1398,38 @@ end
         alias = self.git(destination, "symbolic-ref", "refs/remotes/origin/HEAD").stdout.strip()
         self.assertEqual(alias, "refs/remotes/origin/main")
 
+    def test_pull_preserves_tracking_refs_with_ambiguous_fetch_mappings(self):
+        self.git(self.source, "branch", "-m", "main", "release/topic")
+        self.git(self.source, "switch", "--quiet", "--create", "topic")
+        newer = self.commit(self.source, "topic file\n", "topic-only.txt")
+        self.git(self.source, "switch", "--quiet", "release/topic")
+        mappings = (
+            ("release/topic", "refs/remotes/origin/topic", "refs/remotes/origin/*", "refs/remotes/origin/topic"),
+            ("refs/heads/release/topic", "refs/remotes/origin/Topic", "refs/remotes/origin/*", "refs/remotes/origin/Topic"),
+            ("refs/heads/release/*", "refs/remotes/origin/Topic/*", "refs/remotes/origin/topic/*", "refs/remotes/origin/Topic/topic"),
+        )
+        for source, target, wildcard, tracking in mappings:
+            for packed in (False, True):
+                with self.subTest(source=source, target=target, packed=packed):
+                    destination = self.clone()
+                    self.git(destination, "update-ref", "-d", "refs/remotes/origin/topic")
+                    self.git(destination, "update-ref", tracking, self.initial)
+                    if packed:
+                        self.git(destination, "pack-refs", "--all", "--prune")
+                    self.git(destination, "config", "--replace-all", "remote.origin.fetch", f"+{source}:{target}")
+                    self.git(destination, "config", "--add", "remote.origin.fetch", f"+refs/heads/*:{wildcard}")
+                    self.git(destination, "switch", "--quiet", "--create", "topic", self.initial)
+                    self.git(destination, "config", "branch.topic.remote", "origin")
+                    self.git(destination, "config", "branch.topic.merge", "refs/heads/topic")
+
+                    self.assert_success(self.checkout(destination, "blob/topic/topic-only.txt"))
+
+                    self.assertEqual(self.oid(destination), newer)
+                    self.assertEqual(self.oid(destination, tracking), self.initial)
+                    refs = self.git(destination, "for-each-ref", "--ignore-case",
+                                    "--format=%(refname)", tracking).stdout.splitlines()
+                    self.assertEqual(refs, [tracking])
+
     def test_pull_can_fast_forward_when_fetch_mapping_targets_current_branch(self):
         destination = self.clone()
         self.git(destination, "config", "--replace-all", "remote.origin.fetch", "+refs/heads/main:refs/heads/main")

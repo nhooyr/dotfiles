@@ -403,6 +403,8 @@ function __ghe_pull --argument-names destination remote
         set -l checked_out_refs (git -C "$destination" for-each-ref \
             --format='%(if)%(worktreepath)%(then)%(refname)%(end)' refs/heads); or return
         set -l refspecs (__gh_refspecs "$upstream[1]" "$destination")
+        set -l mappings (string replace -r '^\+' '' -- $refspecs)
+        set -l abbreviated_targets (string match -rg '^(?!refs/)[^:]+:([^*]+)$' -- $mappings)
         set -l refmap_options
         set -l skipped false
         for spec in $refspecs
@@ -415,9 +417,16 @@ function __ghe_pull --argument-names destination remote
                 end
                 if test -n "$target"
                     set -l tracked_source (__gh_source_ref "$target" $refspecs)
-                    if test -n "$tracked_source"; and test "$tracked_source" != "$upstream[2]"
-                        set skipped true
-                        continue
+                    if test -n "$tracked_source"
+                        # The config may name an opaque source, or a loose ref may shadow a differently cased ref.
+                        set -l existing (git -C "$destination" for-each-ref --ignore-case --format='%(refname)' -- "$target"); or return
+                        set -l same_name (string match -i -- "$target" $existing)
+                        if test "$tracked_source" != "$upstream[2]"
+                            or contains -- "$target" $abbreviated_targets
+                            or string match -vq -- "$target" $same_name
+                            set skipped true
+                            continue
+                        end
                     end
                     set -l canonical "$(git -C "$destination" rev-parse --symbolic-full-name "$target" 2>/dev/null)"
                     if string match -iq "$target" -- $checked_out_refs
