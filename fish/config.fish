@@ -267,6 +267,7 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
 end
 
 abbrali vsce NO_COLOR=1 command vsce
+abbrali shf shfmt -s -w .
 abbrali fi fmtinv
 
 function tex --argument-names texfile

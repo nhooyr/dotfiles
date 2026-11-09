@@ -139,6 +139,8 @@ vnoremap C "_C
 nnoremap <BS><BS> "_dd
 nnoremap <BS> "_d
 vnoremap <BS> "_d
+nnoremap Y "+y
+vnoremap Y "+y
 nnoremap <silent> <Leader>d :t.<CR>
 nnoremap <silent> <M-d> :t.<CR>
 
