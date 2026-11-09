@@ -103,8 +103,8 @@ end
 
 abbrali o open
 abbrali e vi
-abbrali ec e '"$DOTFILES/fish/config.fish"'
-abbrali ei e '"$DOTFILES/nvim/init.vim"'
+abbrali ec e '"$dotfiles/fish/config.fish"'
+abbrali ei e '"$dotfiles/nvim/init.vim"'
 abbrali t time
 abbrali m math
 function man
@@ -297,7 +297,44 @@ function tex --argument-names texfile
     end
 end
 
-set -g DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
+function noise
+    if test "$PWD" != "$(path resolve -- "$noise")"
+        cdc "$noise" noise $argv
+        return
+    end
+    git add -A; or return
+    set -l commit_args
+    if cmp -s "$(echo 'fish/fish_history' | psub)" "$(git diff --cached --name-only | psub)"
+        set commit_args -m 'fish_history: Update' -e
+    end
+    git commit $commit_args; or return
+    git push
+end
+
+function fair --argument-names n
+    if test "$PWD" != "$(path resolve -- "$fair_repo")"
+        cdc "$fair_repo" fair $argv
+        return
+    end
+    test -n "$n"; or set n 1
+    set -l msg "$(git show -s --format=%s)"
+    set -l matches $(string match -r ': ([0-9]+)$' -- "$msg")
+    if test "$(count $matches)" -ne 2
+        set matches '' 0
+    end
+    set -l msgn "$matches[2]"
+    if not string match -qr '^[0-9]+$' -- "$n"; or test "$n" -lt 0
+        printf '%s: %s is not a non-negative integer\n' "$(status function)" "$n" >&2
+        return 1
+    end
+    for i in $(seq 1 "$n")
+        set msgn "$(math "$msgn" + 1)"
+        git commit --allow-empty -m "count: $msgn"; or return
+    end
+    git push
+end
+
+set -g dotfiles "$(path resolve -- "$(status filename)/../..")"
 function add_cdpath
     set -l mode --append
     argparse p/prepend -- $argv; or return
@@ -309,17 +346,13 @@ function add_cdpath
     end
 end
 
-source "$DOTFILES/fish/git.fish"
-source "$DOTFILES/fish/github.fish"
-source "$DOTFILES/fish/prompt.fish"
-source "$DOTFILES/fish/cd.fish"
+source "$dotfiles/fish/git.fish"
+source "$dotfiles/fish/github.fish"
+source "$dotfiles/fish/prompt.fish"
+source "$dotfiles/fish/cd.fish"
 
-add_cdpath . "$DOTFILES"
-if test -f "$DOTFILES/../secrets/fish/config.fish"
-    source "$DOTFILES/../secrets/fish/config.fish"
-end
-add_cdpath ~
+add_cdpath . "$dotfiles" ~
 
 if test "$PWD" = "$HOME"
-    cd "$DOTFILES"
+    cd "$dotfiles"
 end

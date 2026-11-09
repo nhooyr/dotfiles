@@ -113,7 +113,7 @@ function gdirty --description 'List dirty git repos'
         if not test -e "$dir/.git"
             continue
         end
-        if test "$dir" = ~/code/nhooyr/noise; or test "$dir" = ~/code/nhooyr/testing
+        if contains -- "$dir" $gdirty_ignore
             continue
         end
         set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or return
