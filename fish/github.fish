@@ -357,13 +357,13 @@ function __ghe_tracking_ref --argument-names name destination ref
         printf '%s: fetch destination is symbolic: %s\n' "$0" "$tracking_ref" >&2
         return 1
     end
-    if test "$mapping_status" -ne 0
-        # Single-branch clones need a mapping for future fetches, too.
-        git -C "$destination" remote set-branches --add -- "$name" "$ref"; or return
-    end
     # A known commit can still be missing its remote-tracking ref.
     if not __gh_commit "$destination" "$tracking_ref" >/dev/null
         git -C "$destination" fetch --quiet --no-recurse-submodules --refmap= -- "$name" "+$branch_ref:$tracking_ref"; or return
+    end
+    if test "$mapping_status" -ne 0
+        # Single-branch clones need a mapping for future fetches, too.
+        git -C "$destination" remote set-branches --add -- "$name" "$ref"; or return
     end
     printf '%s\n' "$tracking_ref"
 end

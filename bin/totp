@@ -2,10 +2,6 @@
 set -eu
 
 secret="${*:-$(pbpaste)}"
-if [ -z "$secret" ]; then
-	printf '%s: no secret in $1 or clipboard\n' "${0##*/}" >&2
-	exit 1
-fi
 
 case "$secret" in
 otpauth://totp/*\?*)
@@ -35,6 +31,14 @@ otpauth://totp/*\?*)
 	;;
 totp:* | TOTP:*)
 	secret="$(printf %s "$secret" | sed 's/^totp:[[:space:]]*//i')"
+	;;
+esac
+
+case "$secret" in
+*[![:space:]]*) ;;
+*)
+	printf '%s: no secret in $1 or clipboard\n' "${0##*/}" >&2
+	exit 1
 	;;
 esac
 
