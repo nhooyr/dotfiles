@@ -49,30 +49,30 @@ set -gx LSCOLORS \
     # dir
     ex \
     # symlink
-    Gx \
+    gx \
     # socket
-    Cx \
+    cx \
     # pipe
-    Cx \
+    cx \
     # exec
-    Fx \
+    fx \
     # block special
-    Hc \
+    hc \
     # character special
-    Hc \
+    hc \
     # setuid exec
-    Hf \
+    hf \
     # setgid exec
-    Hf \
+    hf \
     # directory writable to others, with sticky bit
-    He \
+    he \
     # directory writable to others, without sticky bit
-    He \
+    he \
     # dataless file
     ha
 set -gx LSCOLORS "$(string join '' $LSCOLORS)"
-set -gx LS_COLORS "di=34:ln=3;36:so=3;32:pi=3;32:ex=3;35:bd=3;37;42:\
-cd=3;37;42:su=3;37;45:sg=3;37;45:tw=3;37;44:ow=3;37;44:st=34"
+set -gx LS_COLORS "di=34:ln=36:so=32:pi=32:ex=35:bd=37;42:\
+cd=37;42:su=37;45:sg=37;45:tw=37;44:ow=37;44:st=34"
 function ls
     if type -q gls
         command gls --group-directories-first $argv
