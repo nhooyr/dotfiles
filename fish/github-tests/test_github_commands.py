@@ -520,6 +520,21 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertEqual(self.calls("editor"), [])
         self.assertEqual(self.network_calls(), [])
 
+    def test_url_does_not_traverse_a_symlink_in_its_path(self):
+        outside = self.checkout.parent / "outside"
+        (outside / "subdir").mkdir(parents=True)
+        link = self.checkout / "linked-dir"
+        link.symlink_to("../outside", target_is_directory=True)
+        self.git(self.checkout, "add", "linked-dir")
+        self.git(self.checkout, "commit", "-qm", "add directory symlink")
+
+        result = self.run_fish("ghe", self.url + "/tree/main/linked-dir/subdir", offline=True)
+        self.assertNotEqual(result.returncode, 0, result.directory)
+        self.assertIn("path traverses a symlink", result.stderr)
+        self.assertEqual(result.directory, str(self.sandbox))
+        self.assertEqual(self.calls("editor"), [])
+        self.assertEqual(self.network_calls(), [])
+
     def test_new_clone_is_not_fetched_again(self):
         shutil.rmtree(self.checkout)
         result = self.run_fish("ghe", self.url)

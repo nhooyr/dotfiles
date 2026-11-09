@@ -438,6 +438,11 @@ function __ghe_pull --argument-names destination remote
         set -l checked_out_refs (git -C "$destination" for-each-ref \
             --format='%(if)%(worktreepath)%(then)%(refname)%(end)' refs/heads); or return
         set -l refspecs (__gh_refspecs "$upstream[1]" "$destination")
+        __gh_tracking_ref "$upstream[2]" $refspecs >/dev/null
+        if test "$status" -eq 2
+            printf '%s: upstream is excluded by the remote fetch configuration: %s %s\n' "$0" "$upstream[1]" "$upstream[2]" >&2
+            return 1
+        end
         set -l mappings (string replace -r '^\+' '' -- $refspecs | LC_ALL=C sort -u)
         set -l abbreviated_targets (string match -rg '^(?!refs/)[^:]+:([^*]+)$' -- $mappings)
         set -l refmap_options
@@ -1123,6 +1128,17 @@ function __ghe_checkout --argument-names remote destination tail line column end
         __ghe_pull "$destination" "$remote"; or return
         if not test -e "$target"; and not test -L "$target"
             printf '%s: path does not exist in this checkout: %s\n' "$0" "$requested_path" >&2
+            return 1
+        end
+    end
+    # A Git tree can contain a symlink, but has no entries beneath one.
+    set -l components (string split / -- "$requested_path")
+    set -e components[-1]
+    set -l parent "$destination"
+    for component in $components
+        set parent "$parent/$component"
+        if test -L "$parent"
+            printf '%s: path traverses a symlink: %s\n' "$0" "$requested_path" >&2
             return 1
         end
     end

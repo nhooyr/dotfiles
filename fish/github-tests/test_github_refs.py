@@ -1532,6 +1532,19 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
         self.assertEqual(self.git(destination, "config", "--get-all", "remote.origin.fetch").stdout, before)
         self.assertFalse(any(call["command"] == "fetch" for call in self.transport))
 
+    def test_missing_file_does_not_pull_a_negatively_excluded_upstream(self):
+        destination = self.clone()
+        self.git(destination, "config", "--add", "remote.origin.fetch", "^refs/heads/main")
+        self.commit(self.source, "new file\n", "new.txt")
+
+        result = self.checkout(destination, "blob/main/new.txt")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("upstream is excluded", result.stderr)
+        self.assertEqual(self.transport, [])
+        self.assertEqual(self.oid(destination), self.initial)
+        self.assertFalse((destination / "new.txt").exists())
+
     def test_symbolic_fetch_destination_is_rejected_without_overwriting_it(self):
         self.git(self.source, "branch", "topic")
         destination = self.clone()
