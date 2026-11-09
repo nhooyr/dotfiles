@@ -403,7 +403,7 @@ function __ghe_pull --argument-names destination remote
         set -l checked_out_refs (git -C "$destination" for-each-ref \
             --format='%(if)%(worktreepath)%(then)%(refname)%(end)' refs/heads); or return
         set -l refspecs (__gh_refspecs "$upstream[1]" "$destination")
-        set -l mappings (string replace -r '^\+' '' -- $refspecs)
+        set -l mappings (string replace -r '^\+' '' -- $refspecs | LC_ALL=C sort -u)
         set -l abbreviated_targets (string match -rg '^(?!refs/)[^:]+:([^*]+)$' -- $mappings)
         set -l refmap_options
         set -l skipped false
@@ -418,18 +418,19 @@ function __ghe_pull --argument-names destination remote
                 if test -n "$target"
                     set -l tracked_source (__gh_source_ref "$target" $refspecs)
                     if test -n "$tracked_source"
-                        # The config may name an opaque source, or a loose ref may shadow a differently cased ref.
-                        set -l existing (git -C "$destination" for-each-ref --ignore-case --format='%(refname)' -- "$target"); or return
-                        set -l same_name (string match -i -- "$target" $existing)
-                        if test "$tracked_source" != "$upstream[2]"
-                            or contains -- "$target" $abbreviated_targets
-                            or string match -vq -- "$target" $same_name
+                        if test "$tracked_source" != "$upstream[2]"; or contains -- "$target" $abbreviated_targets
                             set skipped true
                             continue
                         end
                     end
+                    # A loose ref can shadow a differently cased ref even for an abbreviated source.
+                    set -l existing (git -C "$destination" for-each-ref --ignore-case --format='%(refname)' -- "$target"); or return
+                    set -l same_name (string match -i -- "$target" $existing)
                     set -l canonical "$(git -C "$destination" rev-parse --symbolic-full-name "$target" 2>/dev/null)"
-                    if string match -iq "$target" -- $checked_out_refs
+                    set -l abbreviated_matches (string match -- "$target" $abbreviated_targets)
+                    if set -q abbreviated_matches[2]
+                        or string match -vq -- "$target" $same_name
+                        or string match -iq "$target" -- $checked_out_refs
                         or string match -iq "$canonical" -- $checked_out_refs
                         or git -C "$destination" symbolic-ref --quiet --no-recurse "$target" >/dev/null 2>&1
                         set skipped true

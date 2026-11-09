@@ -1404,23 +1404,45 @@ end
         newer = self.commit(self.source, "topic file\n", "topic-only.txt")
         self.git(self.source, "switch", "--quiet", "release/topic")
         mappings = (
-            ("release/topic", "refs/remotes/origin/topic", "refs/remotes/origin/*", "refs/remotes/origin/topic"),
-            ("refs/heads/release/topic", "refs/remotes/origin/Topic", "refs/remotes/origin/*", "refs/remotes/origin/Topic"),
-            ("refs/heads/release/*", "refs/remotes/origin/Topic/*", "refs/remotes/origin/topic/*", "refs/remotes/origin/Topic/topic"),
+            (
+                "+release/topic:refs/remotes/origin/topic",
+                "+refs/heads/*:refs/remotes/origin/*",
+                "refs/heads/topic", "refs/remotes/origin/topic",
+            ),
+            (
+                "+refs/heads/release/topic:refs/remotes/origin/Topic",
+                "+refs/heads/*:refs/remotes/origin/*",
+                "refs/heads/topic", "refs/remotes/origin/Topic",
+            ),
+            (
+                "+refs/heads/release/*:refs/remotes/origin/Topic/*",
+                "+refs/heads/*:refs/remotes/origin/topic/*",
+                "refs/heads/topic", "refs/remotes/origin/Topic/topic",
+            ),
+            (
+                "+release/topic:refs/remotes/origin/topic",
+                "+topic:refs/remotes/origin/topic",
+                "topic", "refs/remotes/origin/topic",
+            ),
+            (
+                "+release/topic:refs/remotes/origin/Topic",
+                "+topic:refs/remotes/origin/topic",
+                "topic", "refs/remotes/origin/Topic",
+            ),
         )
-        for source, target, wildcard, tracking in mappings:
+        for first, second, upstream, tracking in mappings:
             for packed in (False, True):
-                with self.subTest(source=source, target=target, packed=packed):
+                with self.subTest(first=first, second=second, packed=packed):
                     destination = self.clone()
                     self.git(destination, "update-ref", "-d", "refs/remotes/origin/topic")
                     self.git(destination, "update-ref", tracking, self.initial)
                     if packed:
                         self.git(destination, "pack-refs", "--all", "--prune")
-                    self.git(destination, "config", "--replace-all", "remote.origin.fetch", f"+{source}:{target}")
-                    self.git(destination, "config", "--add", "remote.origin.fetch", f"+refs/heads/*:{wildcard}")
+                    self.git(destination, "config", "--replace-all", "remote.origin.fetch", first)
+                    self.git(destination, "config", "--add", "remote.origin.fetch", second)
                     self.git(destination, "switch", "--quiet", "--create", "topic", self.initial)
                     self.git(destination, "config", "branch.topic.remote", "origin")
-                    self.git(destination, "config", "branch.topic.merge", "refs/heads/topic")
+                    self.git(destination, "config", "branch.topic.merge", upstream)
 
                     self.assert_success(self.checkout(destination, "blob/topic/topic-only.txt"))
 
