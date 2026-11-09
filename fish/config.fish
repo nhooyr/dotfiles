@@ -93,7 +93,7 @@ abbrali gre _grep -E
 abbrali grf _grep -F
 abbrali grer _grep -ER
 abbrali grfr _grep -FR
-function _grep
+function _grep --wraps 'ggrep --color -inI'
     if type -q ggrep
         ggrep --color -inI $argv
     else
@@ -315,8 +315,8 @@ source "$DOTFILES/fish/prompt.fish"
 source "$DOTFILES/fish/cd.fish"
 
 add_cdpath . "$DOTFILES"
-if test -f "$DOTFILES/secrets/fish/config.fish"
-    source "$DOTFILES/secrets/fish/config.fish"
+if test -f "$DOTFILES/../secrets/fish/config.fish"
+    source "$DOTFILES/../secrets/fish/config.fish"
 end
 add_cdpath ~
 
