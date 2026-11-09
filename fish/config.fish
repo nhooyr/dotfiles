@@ -89,15 +89,17 @@ function f
 end
 set -gx GREP_COLORS 'mt=37;44:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '37;44'
-abbr -a grep gre
-function gre --wraps grep
+abbrali gre grep -E
+abbrali grf grep -F
+abbrali grer grep -ER
+abbrali grfr grep -FR
+function grep
     if type -q ggrep
-        ggrep --color -inIE $argv
+        ggrep --color -inI $argv
     else
         command grep --color -inIE $argv
     end
 end
-abbrali grer gre -r
 
 abbrali o open
 abbrali e vi
@@ -292,7 +294,7 @@ function tex --argument-names texfile
     end
 end
 
-set -gx DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
+set -g DOTFILES "$(path resolve -- "$__fish_config_dir/config.fish/../..")"
 function add_cdpath
     set -l mode --append
     argparse p/prepend -- $argv; or return

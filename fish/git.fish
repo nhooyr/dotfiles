@@ -84,16 +84,17 @@ function scd
     end
     cd "$super_root"
 end
-function gg --wraps 'git grep'
+function gg --wraps 'git grep -iIE --recurse-submodules'
     git grep -iIE --recurse-submodules $argv
 end
+abbrali ggf gg -F
 function gapply --wraps 'git apply'
     pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
 end
 
 alias gh='NO_COLOR=1 command gh'
 abbrali ghf gh repo fork --remote
-function ghc --wraps 'gh repo create'
+function ghc --wraps 'gh repo create --private'
     if contains -- --help $argv
         gh repo create --help
         return 0
@@ -116,7 +117,7 @@ function gdirty --description 'List dirty git repos'
             continue
         end
         set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or return
-        set -l flags "$(string split --right --max 1 --fields 2 -- ' ' "$prompt")"
+        set -l flags "$(string split --max 1 --fields 2 -- ' ' "$prompt")"
         if test -n "$flags"
             set -l name "$(string replace ~/code/ '' "$dir")"
             printf '%s\t%s\n' "$name" "$flags"

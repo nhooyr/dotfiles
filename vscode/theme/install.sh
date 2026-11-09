@@ -24,7 +24,7 @@ publisher=$(jq -r .publisher ./package.json)
 name=$(jq -r .name ./package.json)
 version=$(jq -r .version ./package.json)
 if [ "$force" != true ] && code --list-extensions --show-versions | grep -qFx "$publisher.$name@$version"; then
-	printf '%s: Already installed %s.%s@%s: Run with -f to force update.\n' "${0##*/}" "$publisher" "$name" "$version" >&2
+	printf 'dotfiles: vscode/theme/install.sh: Already installed %s.%s@%s: Run with -f to force update.\n' "$publisher" "$name" "$version" >&2
 	exit 0
 fi
 NO_COLOR=1 vsce package

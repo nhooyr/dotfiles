@@ -16,10 +16,4 @@ mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/config
 
-if [ ! -e secrets/.git ]; then
-	git submodule update --init
-	git -C secrets switch "$(git config --file .gitmodules submodule.secrets.branch)"
-fi
-./secrets/init.sh
-
 ./vscode/theme/install.sh
