@@ -14,9 +14,7 @@ if [ "${CI-}" ]; then
 	git add --intent-to-add --ignore-removal .
 
 	tput() { command tput -Txterm-256color "$@"; }
-	git() { command git -c color.ui=always --no-pager "$@"; }
 
-	git diff --stat
 	if ! git --no-pager diff --color=always --stat --patch --exit-code; then
 		tput bold
 		printf '%s %s: unexpected diff\n' "$(printf '%40s' | tr ' ' '^')" "${0##*/}"
