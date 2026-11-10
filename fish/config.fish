@@ -102,7 +102,7 @@ function _grep --wraps 'grep --color -inI'
 end
 
 abbrali o open
-abbrali e vi
+abbrali e nvim
 abbrali ec e '"$dotfiles/fish/config.fish"'
 abbrali ei e '"$dotfiles/nvim/init.vim"'
 abbrali t time
@@ -277,6 +277,10 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
 end
 
 abbrali vsce NO_COLOR=1 command vsce
+abbrali bun NO_COLOR=1 command bun
+if test -f ~/.codex/config.toml; and test "$(yq '.tui.theme' ~/.codex/config.toml)" != "ansi"
+    yq -i '.tui.theme = "ansi"' ~/.codex/config.toml
+end
 abbrali shf shfmt -s -w .
 abbrali fi fmtinv
 abbrali dnsq 'sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder'
