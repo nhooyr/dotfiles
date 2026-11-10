@@ -100,6 +100,7 @@ function _grep --wraps 'grep --color -inI'
         grep --color -inI -SE $argv
     end
 end
+abbrali ws gg "'[[:space:]]+\$'"
 
 abbrali o open
 abbrali e nvim
