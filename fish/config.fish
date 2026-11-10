@@ -279,8 +279,13 @@ end
 
 abbrali vsce NO_COLOR=1 command vsce
 abbrali bun NO_COLOR=1 command bun
-if test -f ~/.codex/config.toml; and test "$(yq '.tui.theme' ~/.codex/config.toml)" != "ansi"
-    yq -i '.tui.theme = "ansi"' ~/.codex/config.toml
+if test -f ~/.codex/config.toml
+    if test "$(yq '.tui.theme' ~/.codex/config.toml)" != "ansi"
+        yq -i '.tui.theme = "ansi"' ~/.codex/config.toml
+    end
+    if test "$(yq '.tui.vim_mode_default' ~/.codex/config.toml)" != "true"
+        yq -i '.tui.vim_mode_default = true' ~/.codex/config.toml
+    end
 end
 abbrali shf shfmt -s -w .
 abbrali fi fmtinv
