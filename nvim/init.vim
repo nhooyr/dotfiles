@@ -4,7 +4,7 @@ set shiftwidth=0
 set ignorecase
 set smartcase
 set laststatus=3
-set textwidth=120
+set textwidth=110
 set foldmethod=indent
 set foldlevel=999
 set foldlevelstart=999
@@ -200,7 +200,7 @@ filetype plugin indent on
 augroup aqsnow
 	autocmd!
 	autocmd FocusLost * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | endif
-	autocmd filetype gitcommit setlocal tabstop=4 textwidth=120
+	autocmd filetype gitcommit setlocal tabstop=4 textwidth=110
 	autocmd filetype html,jsonc,fish setlocal expandtab
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 	autocmd BufReadPost * call <SID>restore_cursor()
