@@ -60,6 +60,8 @@
 	whitespace = white red
 	oldMoved = red italic
 	newMoved = green italic
+[color "diff-highlight"]
+	newHighlight = green reverse
 [color "blame"]
 	repeatedLines = brightblack italic
 [color "advice"]
