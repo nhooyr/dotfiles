@@ -138,6 +138,9 @@ nmap <C-_> gcc
 imap <C-_> <C-o>gcc
 vmap <C-_> gc
 
+nnoremap ]p ]p=`]
+nnoremap [p [p=`]
+nnoremap ]P ]P=`]
 nnoremap c "_c
 vnoremap c "_c
 nnoremap s "_s
