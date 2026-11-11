@@ -32,6 +32,7 @@ function gcmap
     gcma $argv; and gpf
 end
 abbr -a gacma 'ga; and gcma'
+abbr -a fcm 'ga; and gcma'
 function gacma
     ga; and gcma $argv
 end
