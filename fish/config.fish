@@ -21,6 +21,9 @@ function abbrali --argument-names name
     abbr -a "$name" $argv[2..]
     alias "$name" "$argv[2..]"
 end
+abbr -a --position anywhere '&&' '; and'
+abbr -a --position anywhere '||' '; or'
+abbr -a '!' not
 abbrali vi nvim
 abbrali vim nvim
 abbr -a --command sudo vi nvim
