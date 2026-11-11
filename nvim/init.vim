@@ -140,8 +140,6 @@ vmap <C-_> gc
 
 nnoremap c "_c
 vnoremap c "_c
-nnoremap C "_C
-vnoremap C "_C
 nnoremap s "_s
 vnoremap s "_s
 nnoremap S "_S
@@ -149,20 +147,14 @@ vnoremap S "_S
 nnoremap <BS><BS> "_dd
 nnoremap <BS> "_d
 vnoremap <BS> "_d
-vnoremap <M-c> "+y
-vnoremap <M-d> "+ygv"_d
-nnoremap <M-c> m`^"+y$``
-nnoremap <M-d> m`^"+y$``"_dd
 nnoremap gp `[v`]
 nnoremap Y "+y
-nnoremap YY ^"+y$
+nnoremap YY m`^"+y$``
 vnoremap Y "+y
-nnoremap D "+d
-nnoremap DD ^"+d$
-vnoremap D "+d
-nnoremap C "+c
-nnoremap CC ^"+c$
 vnoremap C "+c
+nnoremap D "+d
+nnoremap DD m`^"+y$``"_dd
+vnoremap D "+d
 nnoremap <silent> <Leader>d :t.<CR>
 
 set completeopt=menuone,noselect,popup
