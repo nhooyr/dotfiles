@@ -3,12 +3,9 @@ function multicd
 end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
-    if test "$(count $argv)" -lt 2
-        printf '%s: <dir> <cmd>\n' "$(status function)" >&2
-        return 1
-    end
     set -l prevd "$PWD"
     if cd -- "$dir"
+        test "$(count $argv)" -lt 2; and return 0
         $argv[2..]
         set -l code "$status"
         cd -- "$prevd"; or return
