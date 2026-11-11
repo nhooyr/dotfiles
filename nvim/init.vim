@@ -155,9 +155,14 @@ nnoremap <M-c> m`^"+y$``
 nnoremap <M-d> m`^"+y$``"_dd
 nnoremap gp `[v`]
 nnoremap Y "+y
+nnoremap YY ^"+y$
 vnoremap Y "+y
 nnoremap D "+d
+nnoremap DD ^"+d$
 vnoremap D "+d
+nnoremap C "+c
+nnoremap CC ^"+c$
+vnoremap C "+c
 nnoremap <silent> <Leader>d :t.<CR>
 
 set completeopt=menuone,noselect,popup

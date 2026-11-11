@@ -29,6 +29,7 @@ abbrali s sudo
 alias sudo='sudo --preserve-env=SSH_TTY'
 abbr -a --position anywhere '$pbp' '"$(pbpaste)"'
 abbrali pbp pbpaste
+abbrali pbn 'pbp | pbc'
 fish_hybrid_key_bindings
 set -g fish_color_error normal
 set -g fish_color_quote green
