@@ -94,9 +94,7 @@ vnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
 vmap <Leader>r /<Leader>r
 
 nnoremap q :quit<CR>
-nnoremap <M-Q> q
-nnoremap <M-q> :bd<CR>
-inoremap <M-q> <Esc>:bd<CR>
+nnoremap <M-q> q
 nnoremap <C-q> :qall!<CR>
 inoremap <C-q> <Esc>:qall!<CR>
 nnoremap <M-s> :write<CR>
@@ -142,6 +140,8 @@ nnoremap c "_c
 vnoremap c "_c
 nnoremap C "_C
 vnoremap C "_C
+nnoremap S "_S
+vnoremap S "_S
 nnoremap <BS><BS> "_dd
 nnoremap <BS> "_d
 vnoremap <BS> "_d
@@ -212,6 +212,6 @@ nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
 nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
 nnoremap <Leader>n :next<CR>
 nnoremap <Leader>p :prev<CR>
-nnoremap <M-z> zz
+nnoremap Z zz
 nnoremap <M-n> *
 nnoremap <M-p> #
