@@ -224,19 +224,19 @@ end
 
 function __gh_cached_branches --argument-names name destination
     set -l refspecs (__gh_refspecs "$name" "$destination")
-    set -l prefixes
-    for spec in $refspecs
-        set -l fields (string split -m 1 : -- "$spec")
-        if test -n "$fields[2]"
-            set -a prefixes (string replace -r '[^/]*\*.*$' '' -- "$fields[2]")
-        end
-    end
-    set -q prefixes[1]; or return 0
-    set -l refs (git -C "$destination" for-each-ref \
-        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $prefixes); or return
-    # Check only the candidate names in argv; remotes can cache thousands of branches.
+    set -l mappings
     for branch in $argv[3..]
         set -l target (__gh_tracking_ref "refs/heads/$branch" $refspecs); or continue
+        set -a mappings "$branch"\t"$target"
+    end
+    set -q mappings[1]; or return 0
+    set -l targets (string split -f 2 \t -- $mappings)
+    set -l refs (git -C "$destination" for-each-ref \
+        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $targets); or return
+    for mapping in $mappings
+        set -l fields (string split -m 1 \t -- "$mapping")
+        set -l branch "$fields[1]"
+        set -l target "$fields[2]"
         contains -- "$target" $refs; or continue
         __gh_mapped_alias_for "$destination" "$target" >/dev/null; and continue
         test "$(__gh_tracking_source "$name" "$destination" "$target" $refspecs)" = "refs/heads/$branch"; or continue
@@ -339,20 +339,26 @@ function __gh_resolve --argument-names remote tail destination cached_only
     set -l prefixes refs/tags refs/heads
     test -z "$namespace"; or set prefixes "$namespace"
     set -l source_prefixes $prefixes
-    # Symbolic aliases such as origin/HEAD aren't branch names to check out.
-    set -l refs (git -C "$destination" for-each-ref \
-        --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' $prefixes); or return
-    set -l revisions $refs
     # Ref names can contain slashes, so each leading part of the path may name a branch.
     set -l names "$route[2]"
     while test "$exact" = false; and set -l shorter (string split -r -m 1 -f 1 / -- "$names[-1]")
         set -a names "$shorter"
     end
+    # These glob characters can occur in a path, but never in a ref.
+    set -l ref_names (string match -vr '[*?\x5b\x5c]' -- $names)
+    set -l patterns $prefixes/$ref_names
+    set -l refs
+    if set -q patterns[1]
+        # Symbolic aliases such as origin/HEAD aren't branch names to check out.
+        set refs (git -C "$destination" for-each-ref \
+            --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $patterns); or return
+    end
+    set -l revisions $refs
     set -l remotes (__gh_remotes "$remote" "$destination"); or return
     for name in $remotes
         test "$namespace" != refs/tags; or continue
         set -a prefixes "refs/remotes/$name"
-        set -l cached (__gh_cached_branches "$name" "$destination" $names); or return
+        set -l cached (__gh_cached_branches "$name" "$destination" $ref_names); or return
         set -a refs (string split -f 1 \t -- $cached)
         set -a revisions (string split -f 2 \t -- $cached)
     end
@@ -373,7 +379,8 @@ function __gh_resolve --argument-names remote tail destination cached_only
             end
             set -l query_remote "$remote"
             set -q remotes[1]; and set query_remote "$remotes[1]"
-            set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$query_remote"); or begin
+            set -q patterns[1]; or break
+            set -l advertised (git -C "$destination" ls-remote --refs --heads --tags -- "$query_remote" $patterns); or begin
                 if test -z "$namespace"; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$commit_path[1]"; and __gh_commit "$destination" "$commit_path[1]" >/dev/null
                     printf '%s: cannot disambiguate this hexadecimal ref without remote refs; use a full 40-character commit hash for offline access\n' "$0" >&2
                 end

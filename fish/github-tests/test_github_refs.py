@@ -1719,6 +1719,20 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" "$argv[3]"
         self.assertEqual(self.git(destination, "rev-parse", "--symbolic-full-name", "@{upstream}").stdout.strip(), "refs/remotes/origin/deadbeef")
         self.assertEqual(self.transport, [])
 
+    def test_uncached_slash_branch_opens_a_path_with_glob_characters(self):
+        branch = "feature/nested"
+        filename = "dir/[draft]*?.txt"
+        self.git(self.source, "switch", "--quiet", "--create", branch)
+        self.commit(self.source, "literal filename\n", filename)
+        self.git(self.source, "switch", "--quiet", "main")
+        destination = self.clone(single_branch=True)
+
+        result = self.checkout(destination, f"blob/{branch}/{filename}")
+
+        self.assert_success(result)
+        self.assertEqual(self.git(destination, "branch", "--show-current").stdout.strip(), branch)
+        self.assertEqual((destination / filename).read_text(), "literal filename\n")
+
     def test_new_hex_branches_win_over_cached_abbreviated_commits(self):
         routes = (("2026/fix", "blob/2026/fix/file.txt"), ("2026/fix", "tree/2026/fix"),
                   ("2026", "blob/2026/file.txt"), ("2026", "tree/2026"))
