@@ -62,6 +62,7 @@
 	newMoved = green italic
 [color "diff-highlight"]
 	newHighlight = green reverse
+	oldHighlight = red reverse
 [color "blame"]
 	repeatedLines = brightblack italic
 [color "advice"]
