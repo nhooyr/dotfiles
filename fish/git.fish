@@ -71,6 +71,9 @@ abbrali grsp git restore -p
 abbrali grss git restore -S
 abbrali grsw git restore -W
 abbrali grssw git restore -SW
+abbrali gcln git clean -ndX
+abbrali gclx git clean -fdX
+
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd "$git_root"
