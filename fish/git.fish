@@ -92,7 +92,7 @@ function gg --wraps 'git grep -iIE --recurse-submodules'
 end
 abbrali ggf gg -F
 abbrali app git apply
-function papp --wraps 'git apply'
+function papp --wraps 'git apply' --description 'git apply from clipboard'
     pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
 end
 
@@ -114,10 +114,8 @@ abbrali ghopr gh pr view --web
 abbrali tabt column -ts '\t'
 abbrali dt dirt '|' tabt
 function dirt --description 'List repos with dirt'
-    for dir in ~/code/* ~/code/*/*
-        if not test -e "$dir/.git"
-            continue
-        end
+    for gitdir in ~/code/*/.git ~/code/*/*/.git
+        set -l dir "$(path dirname -- "$gitdir")"
         if contains -- "$dir" $dirt_ignore
             continue
         end
