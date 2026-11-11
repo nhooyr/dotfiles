@@ -15,18 +15,30 @@ abbrali gps git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
 abbr -a gcmp 'gcm && gps'
-function gcmp; gcm $argv && gps; end
+function gcmp
+    gcm $argv && gps
+end
 abbr -a gacm 'ga && gcm'
-function gacm; ga && gcm $argv; end
+function gacm
+    ga && gcm $argv
+end
 abbr -a gacmp 'ga && gcm && gp'
-function gacmp; ga && gcm $argv && gp; end
+function gacmp
+    ga && gcm $argv && gp
+end
 abbrali gcma git commit --amend
 abbr -a gcmap 'gcma && gpf'
-function gcmap; gcma $argv && gpf; end
+function gcmap
+    gcma $argv && gpf
+end
 abbr -a gacma 'ga && gcma'
-function gacma; ga && gcma $argv; end
+function gacma
+    ga && gcma $argv
+end
 abbr -a gacmap 'ga && gcma && gpf'
-function gacmap; ga && gcma $argv && gpf; end
+function gacmap
+    ga && gcma $argv && gpf
+end
 abbrali gcmf git commit --fixup
 abbrali grb git rebase
 abbrali grbi git rebase -i
