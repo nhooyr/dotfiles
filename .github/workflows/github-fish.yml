@@ -1,0 +1,15 @@
+name: github-fish
+
+on:
+  push:
+  pull_request:
+  paths:
+    - 'fish/github.fish'
+    - 'fish/github-tests/*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./ci/test.sh

@@ -15,8 +15,3 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: ./ci/lint.sh
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: ./ci/test.sh
