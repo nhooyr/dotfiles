@@ -97,7 +97,8 @@ nnoremap q :quit<CR>
 nnoremap <M-q> q
 nnoremap <C-q> :qall!<CR>
 inoremap <C-q> <Esc>:qall!<CR>
-nnoremap S :write<CR>
+nnoremap <M-s> :write<CR>
+inoremap <M-s> <Esc>:write<CR>
 nnoremap <C-s> :xit<CR>
 inoremap <C-s> <Esc>:xit<CR>
 
@@ -139,6 +140,7 @@ nnoremap c "_c
 vnoremap c "_c
 nnoremap C "_C
 vnoremap C "_C
+nnoremap S "_S
 vnoremap S "_S
 nnoremap <BS><BS> "_dd
 nnoremap <BS> "_d
