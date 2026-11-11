@@ -79,6 +79,7 @@ noremap ^ 0
 inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
+cnoremap <M-f> \V
 nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
 			\:echo 'source' $MYVIMRC<CR>
 nnoremap <Leader>e :e $MYVIMRC<CR>

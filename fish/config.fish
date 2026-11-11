@@ -104,11 +104,14 @@ abbrali ws gg "'[[:space:]]+\$'"
 
 abbrali o open
 abbrali e nvim
-abbrali ef e '"$dotfiles/fish/config.fish"'
+abbrali ec e '"$dotfiles/fish/config.fish"'
 abbrali cdd cdc '"$dotfiles"'
 abbrali ev e '"$dotfiles/nvim/init.vim"'
 abbrali t time
-abbrali m math
+abbrali m man
+abbr -a --set-cursor ma math "'%'"
+alias ma=math
+abbrali tra trash
 function man
     command man $argv 2>/dev/null
 end
