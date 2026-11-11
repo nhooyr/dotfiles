@@ -14,30 +14,30 @@ abbrali gp git push
 abbrali gps git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
-abbr -a gcmp 'gcm && gps'
+abbr -a gcmp 'gcm; and gps'
 function gcmp
-    gcm $argv && gps
+    gcm $argv; and gps
 end
-abbr -a gacm 'ga && gcm'
+abbr -a gacm 'ga; and gcm'
 function gacm
-    ga && gcm $argv
+    ga; and gcm $argv
 end
-abbr -a gacmp 'ga && gcm && gp'
+abbr -a gacmp 'ga; and gcm; and gp'
 function gacmp
-    ga && gcm $argv && gp
+    ga; and gcm $argv; and gp
 end
 abbrali gcma git commit --amend
-abbr -a gcmap 'gcma && gpf'
+abbr -a gcmap 'gcma; and gpf'
 function gcmap
-    gcma $argv && gpf
+    gcma $argv; and gpf
 end
-abbr -a gacma 'ga && gcma'
+abbr -a gacma 'ga; and gcma'
 function gacma
-    ga && gcma $argv
+    ga; and gcma $argv
 end
-abbr -a gacmap 'ga && gcma && gpf'
+abbr -a gacmap 'ga; and gcma; and gpf'
 function gacmap
-    ga && gcma $argv && gpf
+    ga; and gcma $argv; and gpf
 end
 abbrali gcmf git commit --fixup
 abbrali grb git rebase
@@ -146,4 +146,4 @@ function dirt --description 'List repos with dirt'
     end
 end
 
-abbrali imps "ga && gcm -em 'imps: Chat' && gp"
+abbrali imps "ga; and gcm -em 'imps: Chat'; and gp"
