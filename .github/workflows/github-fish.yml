@@ -2,10 +2,13 @@ name: github-fish
 
 on:
   push:
+    paths:
+      - 'fish/github.fish'
+      - 'fish/github-tests/*'
   pull_request:
-  paths:
-    - 'fish/github.fish'
-    - 'fish/github-tests/*'
+    paths:
+      - 'fish/github.fish'
+      - 'fish/github-tests/*'
 
 jobs:
   test:
