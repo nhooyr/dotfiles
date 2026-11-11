@@ -88,6 +88,7 @@ nnoremap <silent> - :execute 'edit' fnameescape(expand('%:p:h'))<CR>
 
 nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>:echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
+nnoremap <M-r> cgn
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
 vnoremap / "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 vnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
@@ -140,6 +141,8 @@ nnoremap c "_c
 vnoremap c "_c
 nnoremap C "_C
 vnoremap C "_C
+nnoremap s "_s
+vnoremap s "_s
 nnoremap S "_S
 vnoremap S "_S
 nnoremap <BS><BS> "_dd
