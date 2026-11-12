@@ -212,6 +212,7 @@ augroup aqsnow
 	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>zz
 	autocmd filetype netrw nnoremap <buffer> <nowait> q :quit<CR>
 augroup END
+
 nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
 nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
 nnoremap <Leader>n :next<CR>
@@ -219,3 +220,12 @@ nnoremap <Leader>p :prev<CR>
 nnoremap Z zz
 nnoremap <M-n> *
 nnoremap <M-p> #
+
+function! s:vidir() abort
+	enew
+	silent read !ls -1
+	normal ggS# :w !sh
+	silent 2,$s/.*/mv '\0' '\0'
+	set filetype=sh
+endfunction
+command Vidir call s:vidir()
