@@ -11,6 +11,7 @@ set foldlevelstart=999
 set shortmess+=I
 set splitbelow
 set splitright
+set formatoptions-=t
 nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
 nnoremap <C-k> <C-w>k
@@ -26,7 +27,6 @@ nnoremap <Leader>u :Undotree<CR>
 
 set notermguicolors
 colorscheme default
-highlight MatchParen ctermfg=6
 highlight Comment ctermfg=8 cterm=italic
 highlight LineNr ctermfg=8
 highlight Constant ctermfg=5
