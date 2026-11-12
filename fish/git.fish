@@ -131,8 +131,9 @@ abbrali ghpr gh pr create --web --fill-verbose
 abbrali ghopr gh pr view --web
 
 abbrali tabt column -ts '\t'
-abbrali dt dirt '|' tabt
-function dirt --description 'List repos with dirt'
+abbrali dt dirt
+alias dirt='_dirt | tabt'
+function _dirt --description 'List repos with dirt'
     for gitdir in ~/code/*/.git ~/code/*/*/.git
         set -l dir "$(path dirname -- "$gitdir")"
         if contains -- "$dir" $dirt_ignore
