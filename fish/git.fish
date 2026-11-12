@@ -106,9 +106,10 @@ function scd
     end
     cd "$super_root"
 end
-function gg --wraps 'git grep -iIE --recurse-submodules'
-    git grep -iIE --recurse-submodules $argv
+function gg --wraps 'git grep -IE --recurse-submodules'
+    git grep -IE --recurse-submodules $argv
 end
+abbrali ggi gg -i
 abbrali ggf gg -F
 abbrali app git apply
 function papp --wraps 'git apply' --description 'git apply from clipboard'
