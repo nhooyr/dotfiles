@@ -148,4 +148,4 @@ function _dirt --description 'List repos with dirt'
     end
 end
 
-abbrali imps "ga; and gcm -em 'imps: Chat'; and gp"
+abbrali imps "ga; and gcm -em 'imps: Chat'"
