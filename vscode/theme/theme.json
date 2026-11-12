@@ -1,6 +1,6 @@
 {
     "$schema": "vscode://schemas/color-theme",
-    "name": "nhooyr Terminal",
+    "name": "nhooyr",
     "type": "light",
     "semanticHighlighting": true,
     "colors": {
