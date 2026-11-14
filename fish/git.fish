@@ -129,7 +129,7 @@ function ghc --wraps 'gh repo create --private'
 end
 abbrali ghch gh pr checkout
 abbrali ghpr gh pr create --web --fill-verbose
-abbrali ghopr gh pr view --web
+abbrali ghop gh pr view --web
 
 abbrali tabt column -ts '\t'
 abbrali dt dirt
