@@ -202,7 +202,7 @@ augroup aqsnow
 	autocmd!
 	autocmd FocusLost * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | endif
 	autocmd filetype gitcommit setlocal tabstop=4 textwidth=110
-	autocmd filetype html,jsonc,fish setlocal expandtab
+	autocmd filetype html,jsonc,fish setlocal expandtab tabstop=2
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 	autocmd BufReadPost * call <SID>restore_cursor()
 	autocmd filetype fish setlocal formatprg=fish_indent
