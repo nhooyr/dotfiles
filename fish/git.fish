@@ -72,6 +72,10 @@ abbrali gro git remote -v
 abbrali gb git branch -vv
 abbrali gba git branch -avv
 abbrali gbr git branch -rvv
+function gbp
+    git fetch --prune
+    and git branch -vv | awk '/: gone]/{print $1}' | xargs -r git branch -d
+end
 abbrali gst git stash push -u
 abbrali gstk git stash push -u --keep-index
 abbrali gsta git stash apply
