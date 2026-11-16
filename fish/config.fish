@@ -45,7 +45,8 @@ set -g fish_pager_color_selected_background --background=black
 set -g fish_pager_color_selected_prefix white --underline --bold
 set -g fish_pager_color_selected_completion white
 set -g fish_pager_color_selected_description white
-function r
+abbrali r reload
+function reload
     source "$__fish_config_dir/config.fish"
 end
 
@@ -114,7 +115,6 @@ abbrali ev e '"$dotfiles/nvim/init.vim"'
 abbrali t time
 abbrali m man
 abbr -a --set-cursor ma math "'%'"
-alias ma=math
 abbrali tra trash
 function man
     command man $argv 2>/dev/null
