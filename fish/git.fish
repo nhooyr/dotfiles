@@ -70,8 +70,10 @@ abbrali gfa git fetch --all
 abbrali gfp git fetch --prune-tags
 abbrali gro git remote -v
 abbrali gb git branch -vv
-abbrali gba git branch -avv
-abbrali gbr git branch -rvv
+abbrali gbm git branch -vvm
+abbrali gbu git branch -vvu
+abbrali gba git branch -vva
+abbrali gbr git branch -vvr
 function gbp
     git fetch --prune
     and git branch -vv | awk '/: gone]/{print $1}' | xargs -r git branch -d
