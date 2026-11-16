@@ -18,3 +18,4 @@ chmod 700 ~/.ssh
 chmod 600 ~/.ssh/config
 
 ./vscode/theme/install.sh
+./nvim/app/install.sh --set-defaults
