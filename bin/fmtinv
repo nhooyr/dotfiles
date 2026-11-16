@@ -51,11 +51,6 @@ format_invoice() {
         }
 
         function format_note_line(note, ranges, count, i, times, result) {
-            # Invoice-specific wording. Other notes keep their original text.
-            if (note == "ammar meeting") return "Meeting with Ammar"
-            if (note == "weekly meeting") return "Weekly meeting"
-            if (note == "wip rust bot poc") return "Rust bot proof of concept (WIP)"
-
             count = split(note, ranges, /[[:blank:]]*,[[:blank:]]*/)
             for (i = 1; i <= count; i++) {
                 if (ranges[i] !~ ("^" clock separator clock "$"))
