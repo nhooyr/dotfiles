@@ -147,6 +147,7 @@ nnoremap ]p ]p=`]
 nnoremap [p [p=`]
 nnoremap ]P ]P=`]
 nnoremap c "_c
+nnoremap C "_C
 vnoremap c "_c
 nnoremap s "_s
 vnoremap s "_s
@@ -158,6 +159,7 @@ vnoremap <BS> "_d
 nnoremap gp `[v`]
 nnoremap <M-p> "+p
 nnoremap <M-P> "+P
+inoremap <M-p> <C-o>"+P
 nnoremap Y "+y
 nnoremap YY m`^"+y$``
 vnoremap Y "+y
@@ -174,7 +176,9 @@ set pumheight=8
 inoremap <expr> <C-Space> pumvisible() ? "\<C-n>" :
 	   \ strpart(getline('.'), 0, col('.') - 1) =~# '\f*/\f*$'
 	   \ ? "\<C-x>\<C-f>" : "\<C-n>"
-inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
+if !exists('g:loaded_copilot')
+	inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
+endif
 inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
 highlight PmenuMatch cterm=underline
