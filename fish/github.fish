@@ -66,6 +66,21 @@ function __gh_remotes --argument-names remote destination
     end
 end
 
+function __ghe_standard_origin --argument-names destination repository
+    # An ordinary clone has one fetch URL and one wildcard fetch mapping.
+    # Defer to Git's remote lookup for other layouts and for URL rewrites.
+    set -q GIT_CONFIG; and return 1
+    set -l config (
+        git -C "$destination" config --null --get-regexp '^(remote|url)\.' 2>/dev/null | string split0
+        test "$pipestatus[1]" -eq 0
+    ); or return 1
+    test (count $config) -eq 2; or return 1
+    contains -- remote.origin.fetch\n'+refs/heads/*:refs/remotes/origin/*' $config; or return 1
+    set -l url (string match -rg '^remote\.origin\.url\n([^[:cntrl:]]+)\z' -- $config); or return 1
+    set -l github (__gh_parse "$url" 2>/dev/null)
+    test (count $github) -eq 3; and test (string lower -- "$github[1]") = (string lower -- "$repository")
+end
+
 function __gh_ref_spelling_safe --argument-names destination ref
     __gh_ref_path_exact "$destination" "$ref"; or return
     set -l existing (git -C "$destination" for-each-ref --ignore-case --format='%(refname)' -- "$ref"); or return
@@ -305,8 +320,9 @@ function __gh_advertised_head
     string match -rg '^ref: (refs/heads/[^\t]+)\tHEAD$' -- $argv
 end
 
-function __gh_resolve --argument-names remote tail destination cached_only
+function __gh_resolve --argument-names remote tail destination cached_only standard_origin
     # Return the full ref, short name, path, and a locally usable revision or OID.
+    # A fifth line marks a direct current branch with no visible case alias.
     set -l route (string split -m 1 / -- "$tail")
     if not __gh_is_ref_route "$tail"
         printf '%s: expected a URL identifying a ref or file\n' "$0" >&2
@@ -355,39 +371,60 @@ function __gh_resolve --argument-names remote tail destination cached_only
     # These glob characters can occur in a path, but never in a ref.
     set -l ref_names (string match -vr '[*?\x5b\x5c]' -- $names)
     set -l patterns $prefixes/$ref_names
+    set -l local_patterns $patterns
+    if test "$standard_origin" = true; and test "$namespace" != refs/tags
+        # The sole wildcard mapping makes every direct origin ref a branch candidate.
+        set -a prefixes refs/remotes/origin
+        set -a local_patterns refs/remotes/origin/$ref_names
+    end
     set -l refs
-    if set -q patterns[1]
-        # Symbolic aliases such as origin/HEAD aren't branch names to check out.
-        set refs (git -C "$destination" for-each-ref \
-            --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $patterns); or return
+    set -l current_branch
+    if set -q local_patterns[1]
+        if test "$standard_origin" = true; and test "$namespace" != refs/tags
+            and set -l records (git --no-lazy-fetch -C "$destination" for-each-ref --ignore-case \
+                --format='%(refname)%09%(symref)%09%(HEAD)%09%(objecttype)' -- $local_patterns 2>/dev/null)
+            # Keep only direct refs for selection, but include aliases in the spelling check.
+            set refs (string match -rg '^([^\t]+)\t\t' -- $records)
+            set current_branch (string match -rg '^(refs/heads/[^\t]+)\t\t\*\tcommit$' -- $records)
+            if test (count $current_branch) -eq 1
+                set -l listed_refs (string split -f 1 \t -- $records)
+                test (count (string match -i -- "$current_branch" $listed_refs)) -eq 1; or set current_branch
+            else
+                set current_branch
+            end
+        else
+            # A missing object can prevent reading types, but ref names still resolve.
+            set refs (git -C "$destination" for-each-ref \
+                --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $local_patterns); or return
+        end
     end
     set -l revisions $refs
-    # A local ref wins over a cached branch of the same or shorter name.
-    # Only resolve remote mappings that can still beat the first local match.
-    set -l cached_names
-    for ref in $ref_names
-        set -l found false
-        for prefix in $prefixes
-            if contains -- "$prefix/$ref" $refs
-                set found true
-                break
-            end
-        end
-        test "$found" = false; or break
-        set -a cached_names "$ref"
-    end
     # The checkout entry point has already verified these remotes.
-    set -l remotes $argv[5..]
+    set -l remotes $argv[6..]
     if not set -q remotes[1]
         set remotes (__gh_remotes "$remote" "$destination"); or return
     end
-    for name in $remotes
-        test "$namespace" != refs/tags; or continue
-        set -a prefixes "refs/remotes/$name"
-        set -q cached_names[1]; or continue
-        set -l cached (__gh_cached_branches "$name" "$destination" $cached_names); or return
-        set -a refs (string split -f 1 \t -- $cached)
-        set -a revisions (string split -f 2 \t -- $cached)
+    if test "$standard_origin" != true; and test "$namespace" != refs/tags
+        # A local ref wins over a cached branch of the same or shorter name.
+        set -l cached_names
+        for ref in $ref_names
+            set -l found false
+            for prefix in $prefixes
+                if contains -- "$prefix/$ref" $refs
+                    set found true
+                    break
+                end
+            end
+            test "$found" = false; or break
+            set -a cached_names "$ref"
+        end
+        for name in $remotes
+            set -a prefixes "refs/remotes/$name"
+            set -q cached_names[1]; or continue
+            set -l cached (__gh_cached_branches "$name" "$destination" $cached_names); or return
+            set -a refs (string split -f 1 \t -- $cached)
+            set -a revisions (string split -f 2 \t -- $cached)
+        end
     end
 
     set -l requested_path "$(string trim -r -c / -- "$route[2]")"
@@ -424,6 +461,9 @@ function __gh_resolve --argument-names remote tail destination cached_only
                 set -l index (contains -i -- "$prefix/$ref" $refs)
                 if test -n "$index"
                     printf '%s\n' "$prefix/$ref" "$ref" "$path" "$revisions[$index]"
+                    if test "$source" = cached; and test "$prefix/$ref" = "$current_branch"
+                        printf 'current\n'
+                    end
                     return 0
                 end
             end
@@ -795,6 +835,24 @@ function __ghe_compare_ref --argument-names remote destination ref mode
     set -l ancestry (string match -rg '((?:[~^][0-9]*)+)$' -- "$ref")
     set ref (string replace -r '(?:[~^][0-9]*)+$' '' -- "$ref")
     set ref (string replace -r '^(heads|tags)/' 'refs/$1/' -- "$ref")
+    set -l full_oid false
+    set -l oid
+    if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
+        set full_oid true
+        # A full commit ID already present locally does not need remote metadata.
+        set oid (__gh_commit "$destination" "$ref")
+        if set -q oid[1]
+            if not set -q ancestry[1]
+                printf '%s\n' "$oid"
+                return 0
+            end
+            __gh_commit "$destination" "$oid$ancestry[1]"
+            set -l ancestry_status $status
+            if test "$ancestry_status" -eq 0; or test "$mode" = cached
+                return "$ancestry_status"
+            end
+        end
+    end
     set -l sources "$ref"
     switch "$ref"
         case 'refs/heads/*' 'refs/tags/*' HEAD
@@ -809,9 +867,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
     set -l tracking_candidates
     set -l tracking_names
     set -l branch_tracking
-    if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
-        set candidates "$ref"
-    else
+    if test "$full_oid" = false
         # Remember which source an unqualified name last selected, including branch/tag changes.
         set candidates (__gh_cache_refs "$destination" "$cache" "$ref"); or return
         for source in $sources
@@ -863,7 +919,9 @@ function __ghe_compare_ref --argument-names remote destination ref mode
             set refresh_default true
         end
     end
-    set -l oid "$(__gh_direct_commit "$destination" $tracking_candidates $candidates)"
+    if test "$full_oid" = false
+        set oid "$(__gh_direct_commit "$destination" $tracking_candidates $candidates)"
+    end
     if test "$mode" = cached; and test "$ref" = HEAD; and test "$refresh_default" = false; and test -n "$oid"
         set -l observed (__ghe_cached_default "$destination" "$cache" "$oid" $tracking_candidates); or return
         if set -q observed[1]
@@ -876,8 +934,6 @@ function __ghe_compare_ref --argument-names remote destination ref mode
         if test "$mode" = cached; and test "$refresh_default" = false
             __gh_commit "$destination" "$oid$ancestry[1]"
             return $status
-        else if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
-            __gh_commit "$destination" "$oid$ancestry[1]"; and return
         end
     else if test "$qualified" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
         # Only a prefix without a known named ref is immutable and needs no refresh.
@@ -1348,15 +1404,16 @@ function __ghe_switch --argument-names remote destination full_ref ref revision 
         set previous_tag "$(git -C "$destination" show-ref --hash --verify "$tag_cache" 2>/dev/null)"
     end
 
-    if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$full_ref"
+    set -l branch_ref ''
+    if string match -qr '^refs/(heads|remotes)/' -- "$full_ref"
+        set branch_ref "refs/heads/$ref"
+    else if string match -qr '^[0-9a-fA-F]{4,40}$' -- "$full_ref"
         set revision (__gh_commit_prefix "$destination" "$full_ref")
     else
         set revision "$(__gh_commit "$destination" "$revision")"
     end
     set -l current_branch "$(git -C "$destination" symbolic-ref -q HEAD)"
-    set -l branch_ref ''
-    if string match -qr '^refs/(heads|remotes)/' -- "$full_ref"
-        set branch_ref "refs/heads/$ref"
+    if test -n "$branch_ref"
         if not __gh_ref_spelling_safe "$destination" "$branch_ref"
             printf '%s: local branch conflicts with a differently spelled ref: %s\n' "$0" "$branch_ref" >&2
             return 1
@@ -1365,7 +1422,8 @@ function __ghe_switch --argument-names remote destination full_ref ref revision 
             printf '%s: local branch is symbolic: %s\n' "$0" "$branch_ref" >&2
             return 1
         end
-        if test "$current_branch" = "$branch_ref"; and test "$full_ref" = "$branch_ref"; and test -n "$revision"
+        if test "$current_branch" = "$branch_ref"; and test "$full_ref" = "$branch_ref"
+            and __gh_commit "$destination" "$revision" >/dev/null
             return 0
         end
     else if test -z "$current_branch"; and test -n "$revision"
@@ -1380,7 +1438,10 @@ function __ghe_switch --argument-names remote destination full_ref ref revision 
         printf '%s: keeping the current ref because the checkout has local changes\n' "$0" >&2
         return 0
     end
-    set -l current_oid "$(git -C "$destination" rev-parse --verify --quiet HEAD)"
+    set -l current_oid
+    if test -n "$branch_ref"; or test -z "$revision"
+        set current_oid "$(git -C "$destination" rev-parse --verify --quiet HEAD)"
+    end
     set -l switch_args
     set -l name
     set -l fetch_remote
@@ -1435,7 +1496,9 @@ function __ghe_checkout --argument-names remote destination tail line column end
         printf '%s: URL paths cannot address Git metadata\n' "$0" >&2
         return 1
     end
+    set -l github (__gh_parse "$remote")
     set -l remotes
+    set -l standard_origin false
     set -l refs_dir
     if test -e "$destination/.git"
         set -l location "$(git -C "$destination" rev-parse --show-toplevel --path-format=absolute --git-path refs)"; or return
@@ -1452,7 +1515,12 @@ function __ghe_checkout --argument-names remote destination tail line column end
             printf '%s: destination is not a repository root: %s\n' "$0" "$destination" >&2
             return 1
         end
-        set remotes (__gh_remotes "$remote" "$destination"); or return
+        if test (count $github) -eq 3; and __ghe_standard_origin "$destination" "$github[1]"
+            set remotes origin
+            set standard_origin true
+        else
+            set remotes (__gh_remotes "$remote" "$destination"); or return
+        end
         if test (count $remotes) -eq 0
             printf '%s: destination does not match the requested repository: %s\n' "$0" "$destination" >&2
             return 1
@@ -1474,7 +1542,6 @@ function __ghe_checkout --argument-names remote destination tail line column end
         end
     end
 
-    set -l github (__gh_parse "$remote")
     set tail "$(__ghe_url_route "$github[1]" "$tail")"; or return
     if string match -qr '^compare(/|$)' -- "$tail"
         cd -- "$destination"; or return
@@ -1505,9 +1572,12 @@ function __ghe_checkout --argument-names remote destination tail line column end
         return
     end
 
-    set -l resolved (__gh_resolve "$remote" "$tail" "$destination" false $remotes)
-    test (count $resolved) -eq 4; or return 1
-    __ghe_switch "$remote" "$destination" "$resolved[1]" "$resolved[2]" "$resolved[4]" "$refs_dir"; or return
+    set -l resolved (__gh_resolve "$remote" "$tail" "$destination" false "$standard_origin" $remotes)
+    set -q resolved[4]; or return 1
+    # Loose aliases that Git omits from the listing still need a spelling check.
+    if test "$resolved[5]" != current; or not __gh_ref_path_exact "$destination" "$resolved[1]" "$refs_dir"
+        __ghe_switch "$remote" "$destination" "$resolved[1]" "$resolved[2]" "$resolved[4]" "$refs_dir"; or return
+    end
 
     set -l requested_path "$resolved[3]"
     if test -z "$requested_path"

@@ -2079,17 +2079,20 @@ __ghe_checkout "$argv[1]" "$argv[2]" tree/topic "" "" "" ""
         self.git(self.source, "switch", "--quiet", "--create", "topic")
         topic = self.commit(self.source, "topic branch\n")
         self.git(self.source, "switch", "--quiet", "main")
-        for change in ("switch", "advance"):
+        for change in ("switch", "advance", "advance-before-fetch"):
             with self.subTest(change=change):
                 destination = self.clone(single_branch=True)
                 self.git(destination, "branch", "side")
                 result = self.fish("""set -gx CHANGE "$argv[3]"
 function git
+    if test "$CHANGE" = advance-before-fetch; and contains -- show-ref $argv; and test "$argv[-1]" = refs/heads/topic
+        command git -C "$argv[2]" commit --quiet --allow-empty --message 'concurrent commit'; or return
+    end
     command git $argv; or return
     if contains -- fetch $argv
         if test "$CHANGE" = switch
             command git -C "$argv[2]" switch --quiet side
-        else
+        else if test "$CHANGE" = advance
             command git -C "$argv[2]" commit --quiet --allow-empty --message 'concurrent commit'
         end
     end

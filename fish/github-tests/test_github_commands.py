@@ -967,14 +967,16 @@ gho"""
         self.assertEqual(self.network_calls(), [])
 
     def test_current_branch_urls_batch_checks_without_scanning_local_changes(self):
+        # The case-insensitive listing must still resolve URL components exactly.
+        self.git(self.checkout, "tag", "MAIN/file.txt")
         (self.checkout / "file.txt").write_text("keep local edit\n")
         (self.checkout / "untracked.txt").write_text("keep untracked file\n")
-        for tail, limit in (("tree/main", 5), ("blob/main/file.txt", 7), ("tree/main/dir", 7)):
+        for tail in ("tree/main", "blob/main/file.txt", "tree/main/dir"):
             with self.subTest(tail=tail):
                 result = self.run_fish("ghe", self.url + "/" + tail, offline=True)
 
                 self.assert_success(result)
-                self.assertLessEqual(len(self.calls("git")), limit)
+                self.assertLessEqual(len(self.calls("git")), 3)
                 self.assertFalse({"status", "switch"} & {call["command"] for call in self.calls("git")})
                 self.assertEqual(self.network_calls(), [])
                 self.assertEqual(self.head(), self.initial)
@@ -1001,7 +1003,76 @@ gho"""
 
         self.assert_success(result)
         self.assertEqual(self.calls("editor")[0]["args"], [str(worktree / "file.txt")])
-        self.assertLessEqual(len(self.calls("git")), 7)
+        self.assertLessEqual(len(self.calls("git")), 3)
+        self.assertEqual(self.network_calls(), [])
+
+    def test_current_branch_open_survives_missing_objects_in_ref_listing(self):
+        # Git's ref pattern includes descendants, but this tag cannot match the URL.
+        broken = self.checkout / ".git/refs/tags/main/file.txt/broken"
+        broken.parent.mkdir(parents=True)
+        broken.write_text("1" * 40 + "\n")
+
+        result = self.run_fish("ghe", self.url + "/blob/main/file.txt", offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(self.calls("editor")[0]["args"], [str(self.checkout / "file.txt")])
+        self.assertEqual(self.network_calls(), [])
+
+    def test_current_branch_open_rejects_dangling_case_alias_over_packed_ref(self):
+        refs = self.checkout / ".git/refs"
+        upper_refs = refs.with_name("REFS")
+        if not (upper_refs.exists() and refs.samefile(upper_refs)):
+            self.skipTest("requires case-folding ref paths")
+        self.git(self.checkout, "pack-refs", "--all", "--prune")
+        self.git(self.checkout, "symbolic-ref", "refs/heads/Main", "refs/heads/missing")
+
+        result = self.run_fish("ghe", self.url + "/blob/main/file.txt", offline=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("local branch conflicts with a differently spelled ref", result.stderr)
+        self.assertEqual(self.calls("editor"), [])
+        self.assertEqual(self.network_calls(), [])
+
+    def test_repository_url_batches_remote_checks_but_honors_rewrites(self):
+        result = self.run_fish("ghe", self.url, offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(result.directory, str(self.checkout))
+        self.assertLessEqual(len(self.calls("git")), 2)
+
+        self.git(self.checkout, "config", "url.https://github.com/other-owner/.insteadOf",
+                 "https://github.com/test-owner/")
+        result = self.run_fish("ghe", self.url, offline=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("destination does not match", result.stderr)
+        self.assertEqual(result.directory, str(self.sandbox))
+        self.assertEqual(self.network_calls(), [])
+
+    def test_repository_url_does_not_use_git_config_override_for_remote_identity(self):
+        config = self.root / "override.config"
+        config.write_text('[remote "origin"]\n'
+                          f'    url = {self.url}.git\n'
+                          '    fetch = +refs/heads/*:refs/remotes/origin/*\n')
+        self.git(self.checkout, "remote", "set-url", "origin", "https://github.com/other-owner/test-repo.git")
+        self.env["GIT_CONFIG"] = str(config)
+
+        result = self.run_fish("ghe", self.url, offline=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("destination does not match", result.stderr)
+        self.assertEqual(self.network_calls(), [])
+
+    def test_comparison_of_local_commit_ids_skips_remote_metadata(self):
+        revision = self.seed_commit({"file.txt": "comparison content\n"})
+        self.fetch_fixture()
+
+        result = self.run_fish("ghe", f"{self.url}/compare/{self.initial}..{revision}", offline=True)
+
+        self.assert_success(result)
+        self.assertIn("+comparison content\n", result.stdout)
+        self.assertLessEqual(len(self.calls("git")), 5)
         self.assertEqual(self.network_calls(), [])
 
     def test_longer_cached_branch_wins_over_a_shorter_local_ref(self):
