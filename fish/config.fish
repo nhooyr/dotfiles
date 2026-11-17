@@ -147,9 +147,8 @@ function socks --wraps 'ssh -ND1080'
     end
 
     sudo -v; or return
-    # The sshu Fish function keeps the pipe open until SSH exits.
-    sshu -N -D localhost:1080 -o ExitOnForwardFailure=yes -o PermitLocalCommand=yes -o 'LocalCommand=printf "socks-ready\n"' $argv |
-        /usr/bin/sudo -n /bin/sh -c '
+    sshu -N -D localhost:1080 -o ExitOnForwardFailure=yes -o PermitLocalCommand=yes \
+        -o 'LocalCommand=printf "socks-ready\n"' $argv | command sudo -n sh -c '
             set -eu
             service=$1
 
@@ -158,13 +157,15 @@ function socks --wraps 'ssh -ND1080'
 
             cleanup() {
                 trap "" HUP INT TERM
-                /usr/sbin/networksetup -setsocksfirewallproxystate "$service" off
+                networksetup -setsocksfirewallproxystate "$service" off
+                printf "socks: proxy disabled on %s\n" "$service"
             }
             trap cleanup 0
             trap "exit 129" HUP
             trap "exit 130" INT
             trap "exit 143" TERM
-            /usr/sbin/networksetup -setsocksfirewallproxy "$service" localhost 1080 off
+            networksetup -setsocksfirewallproxy "$service" localhost 1080 off
+            printf "socks: proxy localhost:1080 enabled on %s\n" "$service"
             while IFS= read -r line; do :; done
         ' socks "$service[1]"
     set -l results $pipestatus
