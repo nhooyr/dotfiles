@@ -309,11 +309,18 @@ function tex --argument-names texfile
     set -l texbase "$(path basename "$texfile")"
     set -l dir "$(path dirname "$texfile")"
     cdc "$dir" latexmk -pdf -silent -pv "$texbase"
-    fswatch -r0 -e '.*' -i '\.tex$' "$dir" | while read -l -z path
+    fswatch -r0 -e '.*' -i '\.tex$' "$dir" | while read -zl path
         set path "$(string replace "$dir/" '' "$path")"
         printf '%s+%s%s\n' "$(set_color --bold)" "$path" "$(set_color reset)"
         cdc "$dir" latexmk -pdf -silent "$texbase"
     end
+end
+
+abbrali nw nwatch
+function nwatch
+  fswatch -r0o . | while read -zl batch
+    printf '+%s delta files\a\n' "$batch"
+  end
 end
 
 function noise
