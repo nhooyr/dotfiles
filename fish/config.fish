@@ -318,9 +318,9 @@ end
 
 abbrali wb watchbell
 function watchbell --argument-names path
-  fswatch -r0o "$path" | while read -zl batch
-    printf '+%s delta paths\a\n' "$batch"
-  end
+    fswatch -r0o "$path" | while read -zl batch
+        printf '+%s delta paths\a\n' "$batch"
+    end
 end
 
 function noise
