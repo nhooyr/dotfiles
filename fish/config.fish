@@ -90,7 +90,7 @@ alias ll='ls --color -lhAF'
 abbr -a fd fd -HLE .git
 abbr -a bfs bfs -L -exclude -name .git
 function f
-    find . -iname "*$argv*"
+    find . -iname "*$argv*" | grf "$argv"
 end
 set -gx GREP_COLORS 'mt=37;44:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '37;44'
