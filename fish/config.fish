@@ -309,17 +309,43 @@ function tex --argument-names texfile
     set -l texbase "$(path basename "$texfile")"
     set -l dir "$(path dirname "$texfile")"
     cdc "$dir" latexmk -pdf -silent -pv "$texbase"
-    fswatch -r0 -e '.*' -i '\.tex$' "$dir" | while read -zl path
-        set path "$(string replace "$dir/" '' "$path")"
-        printf '%s+%s%s\n' "$(set_color --bold)" "$path" "$(set_color reset)"
-        cdc "$dir" latexmk -pdf -silent "$texbase"
+    set -l last_path
+    fswatch -r0 --batch-marker='' -e '.*' -i '\.tex$' "$dir" | while read -zl path
+        if test -z "$path"
+            set -e last_path
+            cdc "$dir" latexmk -pdf -silent "$texbase"
+        else
+            set path "$(string replace "$dir/" '' "$path")"
+            if test "$path" = "$last_path"
+                continue
+            end
+            set last_path "$path"
+            printf '%s+%s %s%s\n' "$(set_color --bold)" "$(date '+%X')" "$path" "$(set_color reset)"
+        end
     end
 end
 
 abbrali wb watchbell
-function watchbell --argument-names path
-    fswatch -r0o "$path" | while read -zl batch
-        printf '+%s delta paths\a\n' "$batch"
+function watchbell --argument-names pattern
+    if test -z "$pattern"
+        set pattern '.*'
+    end
+    set -l last_path
+    fswatch -r0 --batch-marker='' -e '.*' -i "$pattern" . | while read -zl path
+        if test -z "$path"
+            set -e last_path
+            printf '\a'
+        else
+            set path "$(string replace "$PWD/" '' "$path")"
+            if test "$path" = "$last_path"
+                continue
+            end
+            set last_path "$path"
+            if test "$(path basename "$path")" = 4913
+                continue
+            end
+            printf '+%s %s\n' "$(date '+%X')" "$path"
+        end
     end
 end
 
