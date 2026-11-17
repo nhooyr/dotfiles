@@ -78,6 +78,14 @@ function gbp
     argparse --max-args 0 f/force -- $argv; or return
     set -l delete_flag -d
     set -q _flag_force; and set delete_flag -D
+    for branch in main master
+        if git show-ref --verify --quiet "refs/heads/$branch"
+            if test "$(git symbolic-ref --quiet HEAD)" != "refs/heads/$branch"
+                git switch "$branch"; or return
+            end
+            break
+        end
+    end
     git fetch --prune
     and git branch -vv | awk '/: gone]/{print $1}' | xargs -r git branch $delete_flag
 end
