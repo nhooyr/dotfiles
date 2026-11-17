@@ -319,7 +319,7 @@ end
 abbrali nw nwatch
 function nwatch
   fswatch -r0o . | while read -zl batch
-    printf '+%s delta files\a\n' "$batch"
+    printf '+%s delta paths\a\n' "$batch"
   end
 end
 
