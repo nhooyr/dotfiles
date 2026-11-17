@@ -456,6 +456,57 @@ elif kind not in ("editor", "open", "dispatch"):
                     self.assertEqual(self.calls("gh"), [])
                     self.assertEqual(self.network_calls(), [])
 
+    def test_gho_refreshes_a_dangling_default_alias_once(self):
+        alias = "refs/remotes/origin/HEAD"
+        for branch in ("main", "topic"):
+            with self.subTest(branch=branch):
+                if branch == "topic":
+                    self.git(self.seed, "branch", branch)
+                    self.publish(branch)
+                    self.fetch_fixture()
+                    self.git(self.checkout, "switch", "--quiet", "--track", "origin/topic")
+                self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/" + branch)
+                self.git(self.checkout, "symbolic-ref", alias, "refs/remotes/origin/master")
+
+                opened = self.run_fish("gho", cwd=self.checkout)
+
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), self.url)
+                self.assertEqual(self.calls("open")[0]["args"], [self.url])
+                self.assertEqual([call["command"] for call in self.network_calls()], ["ls-remote"])
+                self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(),
+                                 "refs/remotes/origin/" + branch)
+
+                opened = self.run_fish("gho", cwd=self.checkout, offline=True)
+
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), self.url)
+                self.assertEqual(self.network_calls(), [])
+
+    def test_gho_preserves_a_dangling_default_alias_when_offline(self):
+        alias = "refs/remotes/origin/HEAD"
+        dangling = "refs/remotes/origin/master"
+        self.git(self.checkout, "symbolic-ref", alias, dangling)
+
+        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
+
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url + "/tree/main")
+        self.assertEqual([call["command"] for call in self.network_calls()], ["ls-remote"])
+        self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), dangling)
+
+    def test_gho_file_does_not_refresh_a_dangling_default_alias(self):
+        alias = "refs/remotes/origin/HEAD"
+        dangling = "refs/remotes/origin/master"
+        self.git(self.checkout, "symbolic-ref", alias, dangling)
+
+        opened = self.run_fish("gho", self.checkout / "file.txt", offline=True)
+
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url + "/blob/main/file.txt")
+        self.assertEqual(self.network_calls(), [])
+        self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), dangling)
+
     def test_gho_uses_branch_when_default_alias_replacement_was_blocked(self):
         self.git(self.seed, "branch", "topic")
         self.publish("topic")

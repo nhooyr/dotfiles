@@ -1671,6 +1671,10 @@ function __gho_url --argument-names target
 
     # The default-branch homepage needs no ref; other ambiguous links use the commit.
     set -l default_ref "$(__gh_default_ref "$remote" "$dir" $refspecs)"
+    # Pruning the old default branch can leave a dangling remote HEAD.
+    if test -n "$default_ref"; and test "$default_ref" != "$remote_ref"
+        __gh_commit "$dir" "$default_ref" >/dev/null; or set default_ref ''
+    end
     if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "$remote_ref"
         # A successful comparison may have learned a new default without updating this alias.
         __gh_default_cache_consistent "$remote_url" "$dir" "$default_ref"; or set default_ref ''
