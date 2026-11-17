@@ -96,6 +96,7 @@ nnoremap <Leader>r :%s###g<Left><Left>
 nnoremap <M-r> cgn
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
 vnoremap / "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
+vnoremap g/ /
 vnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
 vmap <Leader>r /<Leader>r
 
@@ -206,9 +207,9 @@ endfunction
 filetype plugin indent on
 augroup aqsnow
 	autocmd!
-	autocmd FocusLost * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | endif
-	autocmd filetype gitcommit setlocal tabstop=4 textwidth=110
-	autocmd filetype html,jsonc,fish,css setlocal expandtab tabstop=2
+	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | endif
+	autocmd filetype gitcommit setlocal noet ts=4 sw=0 tw=110
+	autocmd filetype html,markdown,jsonc,fish,css setlocal et ts=2 sw=0
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 	autocmd BufReadPost * call <SID>restore_cursor()
 	autocmd filetype fish setlocal formatprg=fish_indent
