@@ -86,7 +86,7 @@ if [ -e "$destination" ] || [ -L "$destination" ]; then
 fi
 mv "$app" "$destination"
 "$lsregister" -f "$destination"
-printf 'Installed %s\n' "$destination" | hpath
+printf 'dotfiles: nvim: app/%s: Installed %s\n' "${0##*/}" "$destination" | hpath
 
 if [ "$set_defaults" = true ]; then
 	set -- public.text public.plain-text public.source-code \
@@ -105,5 +105,5 @@ if [ "$set_defaults" = true ]; then
 	/usr/bin/killall -u "$(id -un)" lsd 2>/dev/null || :
 	"$lsregister" -f "$destination"
 	osascript -l JavaScript ./set-defaults.js --verify "$@"
-	printf 'Registered nvim.app as the default for text and code types.\n'
+	printf 'dotfiles: nvim: app/%s: Registered nvim.app as the default for text and code types.\n' "${0##*/}"
 fi

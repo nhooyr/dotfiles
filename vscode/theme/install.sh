@@ -24,11 +24,11 @@ publisher=$(jq -r .publisher ./package.json)
 name=$(jq -r .name ./package.json)
 version=$(jq -r .version ./package.json)
 if [ "$force" != true ] && code --list-extensions --show-versions | grep -qFx "$publisher.$name@$version"; then
-	printf 'dotfiles: vscode/theme/install.sh: Already installed %s.%s@%s: Run with -f to force update.\n' "$publisher" "$name" "$version" >&2
+	printf 'dotfiles: vscode/theme/%s: Already installed %s.%s@%s: Run with -f to force update.\n' "${0##*/}" "$publisher" "$name" "$version" >&2
 	exit 0
 fi
 if grep -qFx 'version https://git-lfs.github.com/spec/v1' ./icon.jpg; then
-	printf 'dotfiles: vscode/theme/install.sh: Run git lfs pull to download icon.jpg.\n' >&2
+	printf 'dotfiles: vscode/theme/%s: Run git lfs pull to download icon.jpg.\n' "${0##*/}" >&2
 	exit 1
 fi
 NO_COLOR=1 vsce package

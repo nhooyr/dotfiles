@@ -16,10 +16,14 @@ fi
 src=$(realpath -- "$src")
 
 if [ -L "$dst" ]; then
+	if [ -n "${NO_OVERWRITE-}" ]; then
+		printf '%s: %s: skipping symlink %s\n' "$(basename "$PWD")" "${0##*/}" "$dst" | hpath
+		exit 0
+	fi
 	printf '%s: %s: overwriting symlink %s\n' "$(basename "$PWD")" "${0##*/}" "$dst" | hpath
 	rm -- "$dst"
 elif [ -e "$dst" ]; then
-	printf '%s: %s exists and is not a symlink\n' "${0##*/}" "$dst" >&2
+	printf '%s: %s: %s exists and is not a symlink\n' "$(basename "$PWD")" "${0##*/}" "$dst" | hpath >&2
 	exit 1
 else
 	printf '%s: %s: linking %s\n' "$(basename "$PWD")" "${0##*/}" "$dst" | hpath
