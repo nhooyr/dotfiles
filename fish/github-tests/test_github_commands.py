@@ -966,6 +966,69 @@ gho"""
         self.assertEqual(self.calls("editor"), [])
         self.assertEqual(self.network_calls(), [])
 
+    def test_current_branch_urls_batch_checks_without_scanning_local_changes(self):
+        (self.checkout / "file.txt").write_text("keep local edit\n")
+        (self.checkout / "untracked.txt").write_text("keep untracked file\n")
+        for tail, limit in (("tree/main", 5), ("blob/main/file.txt", 7), ("tree/main/dir", 7)):
+            with self.subTest(tail=tail):
+                result = self.run_fish("ghe", self.url + "/" + tail, offline=True)
+
+                self.assert_success(result)
+                self.assertLessEqual(len(self.calls("git")), limit)
+                self.assertFalse({"status", "switch"} & {call["command"] for call in self.calls("git")})
+                self.assertEqual(self.network_calls(), [])
+                self.assertEqual(self.head(), self.initial)
+                self.assertEqual((self.checkout / "file.txt").read_text(), "keep local edit\n")
+                self.assertEqual((self.checkout / "untracked.txt").read_text(), "keep untracked file\n")
+
+    def test_current_branch_checkout_preserves_newlines_in_the_repository_path(self):
+        renamed = self.checkout.with_name("test-\nrepo")
+        self.checkout.rename(renamed)
+        self.checkout = renamed
+
+        result = self.run_fish("ghe", self.url + "/blob/main/file.txt", offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(self.calls("editor")[0]["args"], [str(self.checkout / "file.txt")])
+        self.assertEqual(self.network_calls(), [])
+
+    def test_current_branch_checkout_uses_linked_worktree_refs(self):
+        worktree = self.sandbox / "topic-worktree"
+        self.git(self.checkout, "worktree", "add", "--quiet", "--track", "-b", "topic", worktree, "origin/main")
+        self.checkout = worktree
+
+        result = self.run_fish("ghe", self.url + "/blob/topic/file.txt", offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(self.calls("editor")[0]["args"], [str(worktree / "file.txt")])
+        self.assertLessEqual(len(self.calls("git")), 7)
+        self.assertEqual(self.network_calls(), [])
+
+    def test_longer_cached_branch_wins_over_a_shorter_local_ref(self):
+        revision = self.seed_commit({"file.txt": "long branch\n"}, branch="topic/long", create=True)
+        self.git(self.checkout, "tag", "topic")
+        self.fetch_fixture()
+
+        result = self.run_fish("ghe", self.url + "/blob/topic/long/file.txt", offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(self.head(), revision)
+        self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "topic/long")
+        self.assertEqual(self.calls("editor")[0]["args"], [str(self.checkout / "file.txt")])
+        self.assertEqual(self.network_calls(), [])
+
+    def test_local_tag_wins_over_a_cached_branch_with_the_same_name(self):
+        self.seed_commit({"file.txt": "branch version\n"}, branch="topic", create=True)
+        self.git(self.checkout, "tag", "topic")
+        self.fetch_fixture()
+
+        result = self.run_fish("ghe", self.url + "/blob/topic/file.txt", offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(self.head(), self.initial)
+        self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "")
+        self.assertEqual(self.network_calls(), [])
+
     def test_url_does_not_traverse_a_symlink_in_its_path(self):
         outside = self.checkout.parent / "outside"
         (outside / "subdir").mkdir(parents=True)

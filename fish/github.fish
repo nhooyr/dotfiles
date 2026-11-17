@@ -362,11 +362,30 @@ function __gh_resolve --argument-names remote tail destination cached_only
             --format='%(if)%(symref)%(then)%(else)%(refname)%(end)' -- $patterns); or return
     end
     set -l revisions $refs
-    set -l remotes (__gh_remotes "$remote" "$destination"); or return
+    # A local ref wins over a cached branch of the same or shorter name.
+    # Only resolve remote mappings that can still beat the first local match.
+    set -l cached_names
+    for ref in $ref_names
+        set -l found false
+        for prefix in $prefixes
+            if contains -- "$prefix/$ref" $refs
+                set found true
+                break
+            end
+        end
+        test "$found" = false; or break
+        set -a cached_names "$ref"
+    end
+    # The checkout entry point has already verified these remotes.
+    set -l remotes $argv[5..]
+    if not set -q remotes[1]
+        set remotes (__gh_remotes "$remote" "$destination"); or return
+    end
     for name in $remotes
         test "$namespace" != refs/tags; or continue
         set -a prefixes "refs/remotes/$name"
-        set -l cached (__gh_cached_branches "$name" "$destination" $ref_names); or return
+        set -q cached_names[1]; or continue
+        set -l cached (__gh_cached_branches "$name" "$destination" $cached_names); or return
         set -a refs (string split -f 1 \t -- $cached)
         set -a revisions (string split -f 2 \t -- $cached)
     end
@@ -1301,7 +1320,22 @@ function __ghe_open --argument-names target line column end_line end_column
     $editor "$target"
 end
 
-function __ghe_switch --argument-names remote destination full_ref ref revision
+function __ghe_switch --argument-names remote destination full_ref ref revision refs_dir
+    if test "$full_ref" = "refs/heads/$ref"; and test "$revision" = "$full_ref"
+        # Opening the current branch needs neither a status scan nor a switch.
+        # Batch the commit, symbolic-ref, current-branch, and case-alias checks.
+        set -l current (git --no-lazy-fetch -C "$destination" for-each-ref --ignore-case \
+            --format='%(refname)%09%(objecttype)%09%(symref)%09%(HEAD)' -- "$full_ref" 2>/dev/null)
+        if test "$status" -eq 0; and test (count $current) -eq 1
+            set -l fields (string split \t -- "$current[1]")
+            if test "$fields[1]" = "$full_ref"; and test "$fields[2]" = commit
+                and test -z "$fields[3]"; and test "$fields[4]" = '*'
+                and __gh_ref_path_exact "$destination" "$full_ref" "$refs_dir"
+                return 0
+            end
+        end
+    end
+
     set -l tag_object
     set -l tag_cache
     set -l previous_tag
@@ -1401,13 +1435,24 @@ function __ghe_checkout --argument-names remote destination tail line column end
         printf '%s: URL paths cannot address Git metadata\n' "$0" >&2
         return 1
     end
+    set -l remotes
+    set -l refs_dir
     if test -e "$destination/.git"
-        set -l root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
+        set -l location "$(git -C "$destination" rev-parse --show-toplevel --path-format=absolute --git-path refs)"; or return
+        set -l paths (string split \n -- "$location")
+        set -l root
+        if test (count $paths) -eq 2
+            set root "$paths[1]"
+            set refs_dir "$paths[2]"
+        else
+            # Embedded newlines make the combined output ambiguous.
+            set root "$(git -C "$destination" rev-parse --show-toplevel)"; or return
+        end
         if test "$root" != "$(path resolve -- "$destination")"
             printf '%s: destination is not a repository root: %s\n' "$0" "$destination" >&2
             return 1
         end
-        set -l remotes (__gh_remotes "$remote" "$destination"); or return
+        set remotes (__gh_remotes "$remote" "$destination"); or return
         if test (count $remotes) -eq 0
             printf '%s: destination does not match the requested repository: %s\n' "$0" "$destination" >&2
             return 1
@@ -1460,9 +1505,9 @@ function __ghe_checkout --argument-names remote destination tail line column end
         return
     end
 
-    set -l resolved (__gh_resolve "$remote" "$tail" "$destination")
+    set -l resolved (__gh_resolve "$remote" "$tail" "$destination" false $remotes)
     test (count $resolved) -eq 4; or return 1
-    __ghe_switch "$remote" "$destination" "$resolved[1]" "$resolved[2]" "$resolved[4]"; or return
+    __ghe_switch "$remote" "$destination" "$resolved[1]" "$resolved[2]" "$resolved[4]" "$refs_dir"; or return
 
     set -l requested_path "$resolved[3]"
     if test -z "$requested_path"
