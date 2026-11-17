@@ -1515,7 +1515,7 @@ function ghe --argument-names input
     __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line" "$column" "$end_line" "$end_column"
 end
 
-function __gho_default_root --argument-names destination remote remote_ref source_ref
+function __gho_default_root --argument-names destination remote remote_ref source_ref refs_dir
     # Batch the checks for a plain default-branch checkout; other layouts use the full resolver.
     string match -q 'refs/heads/*' -- "$source_ref"; or return 1
     test "$remote_ref" = "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source_ref")"; or return 1
@@ -1551,7 +1551,9 @@ function __gho_default_root --argument-names destination remote remote_ref sourc
     end
     test "$found_branch" = true; and test "$found_default" = true; or return 1
     # Git can omit dangling case aliases, so also check the actual filesystem spelling.
-    set -l refs_dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs 2>/dev/null)"; or return 1
+    if test -z "$refs_dir"
+        set refs_dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs 2>/dev/null)"; or return 1
+    end
     __gh_ref_path_exact "$destination" "$remote_ref" "$refs_dir"
     and __gh_ref_path_exact "$destination" "refs/remotes/$remote/HEAD" "$refs_dir"
 end
@@ -1582,7 +1584,7 @@ function __gho_url --argument-names target
         set dir "$parent"
         set is_file true
     end
-    set -l repo_path "$(git -C "$dir" rev-parse --show-prefix 2>/dev/null)"; or begin
+    set -l location "$(git -C "$dir" rev-parse --show-prefix --path-format=absolute --git-path refs 2>/dev/null)"; or begin
         # Installed dotfile links may live outside their source repository.
         if test -L "$entry"; and test -e "$entry"
             set -l resolved "$(path resolve -- "$entry")"; or return
@@ -1591,6 +1593,16 @@ function __gho_url --argument-names target
         end
         printf '%s: path is not in a Git checkout: %s\n' "$0" "$target" >&2
         return 1
+    end
+    set -l paths (string split \n -- "$location")
+    set -l repo_path
+    set -l refs_dir
+    if test (count $paths) -eq 2
+        set repo_path "$paths[1]"
+        set refs_dir "$paths[2]"
+    else
+        # Embedded newlines make the combined output ambiguous.
+        set repo_path "$(git -C "$dir" rev-parse --show-prefix 2>/dev/null)"; or return
     end
     if test "$is_file" = true
         if not test -L "$entry"
@@ -1608,9 +1620,24 @@ function __gho_url --argument-names target
     set -l source_ref
     set -l ref
     set -l commit
-    set -l branch "$(git -C "$dir" symbolic-ref -q HEAD)"
+    set -l branch
+    set -l upstream
+    set -l current (git -C "$dir" for-each-ref \
+        --format='%(if)%(HEAD)%(then)%(refname)%09%(upstream:remotename)%09%(upstream:remoteref)%09%(upstream)%(end)' \
+        -- refs/heads/ 2>/dev/null); or set current
+    set current (string match -r '.+' -- $current)
+    if test (count $current) -eq 1
+        set -l fields (string split \t -- "$current[1]")
+        set branch "$fields[1]"
+        set upstream $fields[2..]
+    else
+        # Unborn and detached HEAD have no current branch in for-each-ref.
+        set branch "$(git -C "$dir" symbolic-ref -q HEAD)"
+        if test -n "$branch"
+            set upstream (git -C "$dir" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)' -- "$branch")
+        end
+    end
     if test -n "$branch"
-        set -l upstream (git -C "$dir" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)' -- "$branch")
         if test -n "$upstream[1]"; and test "$upstream[1]" != .
             set remote "$upstream[1]"
             set remote_ref "$upstream[3]"
@@ -1636,7 +1663,7 @@ function __gho_url --argument-names target
     test (count $github) -eq 3; or return 1
     set -l url "https://github.com/$github[1]"
     if test -z "$repo_path"; and test -n "$branch"; and test -n "$remote_ref"
-        and __gho_default_root "$dir" "$remote" "$remote_ref" "$source_ref"
+        and __gho_default_root "$dir" "$remote" "$remote_ref" "$source_ref" "$refs_dir"
         printf '%s\n' "$url"
         return 0
     end

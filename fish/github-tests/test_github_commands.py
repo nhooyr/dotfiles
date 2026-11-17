@@ -456,13 +456,67 @@ elif kind not in ("editor", "open", "dispatch"):
                     self.assertEqual(self.calls("gh"), [])
                     self.assertEqual(self.network_calls(), [])
 
-    def test_gho_default_root_uses_at_most_seven_git_commands(self):
+    def test_gho_default_root_uses_at_most_five_git_commands(self):
         opened = self.run_fish("gho", cwd=self.checkout, offline=True)
 
         self.assert_success(opened)
         self.assertEqual(opened.stdout.strip(), self.url)
         self.assertEqual(self.network_calls(), [])
-        self.assertLessEqual(len(self.calls("git")), 7)
+        self.assertLessEqual(len(self.calls("git")), 5)
+
+    def test_gho_handles_unborn_and_detached_roots(self):
+        unborn = self.sandbox / "unborn"
+        self.git(None, "init", "--quiet", "--initial-branch=main", unborn)
+        self.git(unborn, "remote", "add", "origin", self.url + ".git")
+
+        opened = self.run_fish("gho", cwd=unborn, offline=True)
+
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url)
+        self.assertEqual(self.network_calls(), [])
+
+        self.git(self.checkout, "switch", "--quiet", "--detach", self.initial)
+
+        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
+
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url + "/tree/" + self.initial)
+        self.assertEqual(self.network_calls(), [])
+
+    def test_gho_preserves_a_newline_in_the_repository_path(self):
+        for rename in (False, True):
+            if rename:
+                renamed = self.checkout.with_name("test-\nrepo")
+                self.checkout.rename(renamed)
+                self.checkout = renamed
+            for target, expected in ((self.checkout, self.url),
+                                     (self.checkout / "dir", self.url + "/tree/main/dir")):
+                with self.subTest(rename=rename, target=target):
+                    opened = self.run_fish("gho", cwd=target, offline=True)
+
+                    self.assert_success(opened)
+                    self.assertEqual(opened.stdout.strip(), expected)
+                    self.assertEqual(self.network_calls(), [])
+
+    def test_gho_linked_worktree_uses_its_own_branch_and_shared_default(self):
+        worktree = self.sandbox / "topic-worktree"
+        self.git(self.checkout, "update-ref", "refs/remotes/origin/topic", self.initial)
+        self.git(self.checkout, "worktree", "add", "--quiet", "--track", "-b", "topic", worktree, "origin/topic")
+
+        opened = self.run_fish("gho", cwd=worktree, offline=True)
+
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url + "/tree/topic")
+        self.assertEqual(self.network_calls(), [])
+
+        self.git(self.checkout, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/topic")
+
+        opened = self.run_fish("gho", cwd=worktree, offline=True)
+
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url)
+        self.assertEqual(self.network_calls(), [])
+        self.assertLessEqual(len(self.calls("git")), 5)
 
     def test_gho_default_root_does_not_ignore_a_dotted_remote(self):
         self.git(self.checkout, "remote", "add", "origin.extra", self.url + ".git")
