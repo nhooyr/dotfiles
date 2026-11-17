@@ -12,6 +12,10 @@ set shortmess+=I
 set splitbelow
 set splitright
 set formatoptions-=t
+nnoremap j gj
+nnoremap k gk
+vnoremap j gj
+vnoremap k gk
 nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
 nnoremap <C-k> <C-w>k
@@ -151,6 +155,8 @@ nnoremap <BS><BS> "_dd
 nnoremap <BS> "_d
 vnoremap <BS> "_d
 nnoremap gp `[v`]
+nnoremap <M-p> "+p
+nnoremap <M-P> "+P
 nnoremap Y "+y
 nnoremap YY m`^"+y$``
 vnoremap Y "+y
@@ -218,8 +224,6 @@ nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
 nnoremap <Leader>n :next<CR>
 nnoremap <Leader>p :prev<CR>
 nnoremap Z zz
-nnoremap <M-n> *
-nnoremap <M-p> #
 
 function! s:vidir() abort
 	enew
