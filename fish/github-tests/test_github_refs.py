@@ -222,6 +222,42 @@ end
             self.assertTrue(self.transport, "Named comparison did not try to refresh")
             self.assertIn("cached", result.stderr)
 
+    def test_commit_ref_avoids_a_redundant_revision_lookup(self):
+        result = self.fish("""function git
+    if contains -- rev-parse $argv
+        printf 'unexpected revision lookup\\n' >&2
+        return 99
+    end
+    command git $argv
+end
+__gh_commit "$argv[1]" refs/heads/main""", self.source, offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), self.initial)
+        self.assertEqual(self.transport, [])
+
+    def test_commit_ref_preserves_tag_peeling_and_direct_ref_checks(self):
+        self.git(self.source, "tag", "--annotate", "--message", "Release", "release")
+        tree = self.oid(self.source, "HEAD^{tree}")
+        self.git(self.source, "update-ref", "refs/tags/tree", tree)
+        self.git(self.source, "symbolic-ref", "refs/cache/alias", "refs/heads/main")
+        cases = (("refs/tags/release", "", True),
+                 (self.initial, "", True),
+                 ("refs/cache/alias", "", True),
+                 ("refs/cache/alias", "direct", False),
+                 ("refs/tags/tree", "", False))
+        for ref, mode, succeeds in cases:
+            with self.subTest(ref=ref, mode=mode):
+                result = self.fish('__gh_commit "$argv[1]" "$argv[2]" "$argv[3]"',
+                                   self.source, ref, mode, offline=True)
+                if succeeds:
+                    self.assert_success(result)
+                    self.assertEqual(result.stdout.strip(), self.initial)
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, "")
+                self.assertEqual(self.transport, [])
+
     def test_remote_matching_handles_filters_multiple_urls_and_rewrites(self):
         other_url = "https://github.com/other/project.git"
         for configuration in ("promisor", "multiple_urls", "push_url", "rewrite"):

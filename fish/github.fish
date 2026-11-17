@@ -86,12 +86,17 @@ end
 function __gh_commit --argument-names destination revision direct
     if string match -q 'refs/*' -- "$revision"
         # Enumerate the exact spelling: a loose case alias can shadow a packed ref.
-        set -l format '%(refname)%09%(objectname)'
+        set -l format '%(refname)%09%(objectname)%09%(objecttype)'
         if test "$direct" = direct
             set format '%(if)%(symref)%(then)%(else)'"$format"'%(end)'
         end
         set -l refs (git --no-lazy-fetch -C "$destination" for-each-ref --format="$format" -- "$revision" 2>/dev/null); or return
-        set revision (string match -rg "^$(string escape --style=regex -- "$revision")\t([0-9a-f]+)\$" -- $refs); or return
+        set -l object (string match -rg "^$(string escape --style=regex -- "$revision")\t([0-9a-f]+)\t([^\t]+)\$" -- $refs); or return
+        if test "$object[2]" = commit
+            printf '%s\n' "$object[1]"
+            return 0
+        end
+        set revision "$object[1]"
     end
     git --no-lazy-fetch -C "$destination" rev-parse --verify --end-of-options "$revision^{commit}" 2>/dev/null
 end
@@ -244,10 +249,13 @@ function __gh_cached_branches --argument-names name destination
     end
 end
 
-function __gh_ref_path_exact --argument-names destination ref
+function __gh_ref_path_exact --argument-names destination ref refs_dir
     # Filesystems can alias paths that Git's case-insensitive matching misses.
     string match -q 'refs/*' -- "$ref"; or return 0
-    set -l dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs)"; or return
+    set -l dir "$refs_dir"
+    if test -z "$dir"
+        set dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs)"; or return
+    end
     for component in (string split / -- (string sub -s 6 -- "$ref"))
         set -l entry "$dir/$component"
         if not test -e "$entry"; and not test -L "$entry"
@@ -731,6 +739,9 @@ function __ghe_cached_default --argument-names destination cache oid
 end
 
 function __gh_default_cache_consistent --argument-names remote destination tracking
+    # Most repositories have no comparison snapshots to check.
+    set -l cached_ref (git -C "$destination" for-each-ref --count=1 --format='%(refname)' -- refs/gh/compare/); or return
+    set -q cached_ref[1]; or return 0
     set -l cache (__gh_compare_cache "$remote" "$destination"); or return
     set -l snapshot (__gh_direct_commit "$destination" (__gh_cache_refs "$destination" "$cache" HEAD)); or return 0
     set -l marker (__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking"); or return
@@ -1504,6 +1515,47 @@ function ghe --argument-names input
     __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line" "$column" "$end_line" "$end_column"
 end
 
+function __gho_default_root --argument-names destination remote remote_ref source_ref
+    # Batch the checks for a plain default-branch checkout; other layouts use the full resolver.
+    string match -q 'refs/heads/*' -- "$source_ref"; or return 1
+    test "$remote_ref" = "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source_ref")"; or return 1
+    set -l config (
+        git -C "$destination" config --null --get-regexp '^remote\.' 2>/dev/null | string split0
+        test "$pipestatus[1]" -eq 0
+    ); or return 1
+    set -l fetch_specs
+    for record in $config
+        set -l fields (string split -m 1 \n -- "$record")
+        set -l owner (string match -rg '^remote\.(.+)\.[^.]+$' -- "$fields[1]")
+        test "$owner" = "$remote"; or return 1
+        if test "$fields[1]" = "remote.$remote.fetch"
+            set -a fetch_specs "$fields[2]"
+        end
+    end
+    test (count $fetch_specs) -eq 1; and test "$fetch_specs[1]" = "+refs/heads/*:refs/remotes/$remote/*"; or return 1
+
+    set -l refs (git -C "$destination" for-each-ref --ignore-case \
+        --format='%(refname)%09%(objecttype)%09%(symref)' -- "$remote_ref" "refs/remotes/$remote/HEAD" refs/gh/compare/ 2>/dev/null); or return 1
+    set -l found_branch false
+    set -l found_default false
+    for record in $refs
+        set -l fields (string split \t -- "$record")
+        string match -qi 'refs/gh/compare/*' -- "$fields[1]"; and return 1
+        if string match -qi -- "$remote_ref" "$fields[1]"
+            test "$fields[1]" = "$remote_ref"; and test "$fields[2]" = commit; and test -z "$fields[3]"; or return 1
+            set found_branch true
+        else if string match -qi -- "refs/remotes/$remote/HEAD" "$fields[1]"
+            test "$fields[1]" = "refs/remotes/$remote/HEAD"; and test "$fields[3]" = "$remote_ref"; or return 1
+            set found_default true
+        end
+    end
+    test "$found_branch" = true; and test "$found_default" = true; or return 1
+    # Git can omit dangling case aliases, so also check the actual filesystem spelling.
+    set -l refs_dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs 2>/dev/null)"; or return 1
+    __gh_ref_path_exact "$destination" "$remote_ref" "$refs_dir"
+    and __gh_ref_path_exact "$destination" "refs/remotes/$remote/HEAD" "$refs_dir"
+end
+
 function __gho_url --argument-names target
     # Resolving a page must not fetch missing objects from a partial clone.
     set -lx GIT_NO_LAZY_FETCH 1
@@ -1583,6 +1635,11 @@ function __gho_url --argument-names target
     set -l github (__gh_parse "$remote_url")
     test (count $github) -eq 3; or return 1
     set -l url "https://github.com/$github[1]"
+    if test -z "$repo_path"; and test -n "$branch"; and test -n "$remote_ref"
+        and __gho_default_root "$dir" "$remote" "$remote_ref" "$source_ref"
+        printf '%s\n' "$url"
+        return 0
+    end
     if test -z "$repo_path"; and test -n "$branch"; and not git -C "$dir" rev-parse --verify HEAD >/dev/null 2>&1
         printf '%s\n' "$url"
         return

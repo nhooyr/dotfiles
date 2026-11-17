@@ -456,6 +456,70 @@ elif kind not in ("editor", "open", "dispatch"):
                     self.assertEqual(self.calls("gh"), [])
                     self.assertEqual(self.network_calls(), [])
 
+    def test_gho_default_root_uses_at_most_seven_git_commands(self):
+        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
+
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url)
+        self.assertEqual(self.network_calls(), [])
+        self.assertLessEqual(len(self.calls("git")), 7)
+
+    def test_gho_default_root_does_not_ignore_a_dotted_remote(self):
+        self.git(self.checkout, "remote", "add", "origin.extra", self.url + ".git")
+        self.git(self.checkout, "config", "--replace-all", "remote.origin.extra.fetch",
+                 "+refs/heads/topic:refs/remotes/origin/main")
+
+        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
+
+        self.assertNotEqual(opened.returncode, 0)
+        self.assertIn("cached remote branch is mapped from another branch or ref", opened.stderr)
+        self.assertIn("remote origin.extra (refs/heads/topic)", opened.stderr)
+        self.assertEqual(self.calls("open"), [])
+
+    def test_gho_rechecks_default_and_fetch_mapping_between_calls(self):
+        self.git(self.checkout, "update-ref", "refs/remotes/origin/topic", self.initial)
+        script = """gho
+command git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/topic
+gho
+command git config --replace-all remote.origin.fetch +refs/heads/main:refs/cache/origin/main
+command git update-ref refs/cache/origin/main """ + self.initial + """
+command git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+gho"""
+
+        opened = self.run_fish(script, cwd=self.checkout, offline=True)
+
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.splitlines(), [self.url, self.url + "/tree/main", self.url])
+        self.assertEqual([call["args"] for call in self.calls("open")],
+                         [[self.url], [self.url + "/tree/main"], [self.url]])
+        self.assertEqual(self.network_calls(), [])
+
+    def test_gho_packed_default_refs_do_not_hide_dangling_case_aliases(self):
+        refs = self.checkout / ".git" / "refs"
+        upper_refs = refs.with_name("REFS")
+        if not (upper_refs.exists() and refs.samefile(upper_refs)):
+            self.skipTest("requires case-folding ref paths")
+        self.git(self.checkout, "pack-refs", "--all", "--prune")
+        target = "refs/remotes/origin/missing"
+        for alias in ("refs/remotes/origin/Main", "refs/remotes/origin/head"):
+            with self.subTest(alias=alias):
+                if alias.endswith("/head"):
+                    self.git(self.checkout, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+                self.git(self.checkout, "symbolic-ref", alias, target)
+
+                opened = self.run_fish("gho", cwd=self.checkout, offline=True)
+
+                if alias.endswith("/Main"):
+                    self.assertNotEqual(opened.returncode, 0)
+                    self.assertIn("cached remote branch conflicts with a differently spelled ref", opened.stderr)
+                    self.assertEqual(self.calls("open"), [])
+                    self.assertEqual(self.network_calls(), [])
+                else:
+                    self.assert_success(opened)
+                    self.assertEqual(opened.stdout.strip(), self.url + "/tree/main")
+                self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), target)
+                self.git(self.checkout, "symbolic-ref", "--delete", alias)
+
     def test_gho_refreshes_a_dangling_default_alias_once(self):
         alias = "refs/remotes/origin/HEAD"
         for branch in ("main", "topic"):
