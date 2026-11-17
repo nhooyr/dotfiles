@@ -7,6 +7,7 @@ fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     /opt/homebrew/share/git-core/contrib/diff-highlight \
     "$GOPATH/bin" \
     /opt/homebrew/share/google-cloud-sdk/bin \
+    /opt/homebrew/opt/openjdk/bin \
     /opt/homebrew/bin
 if not status is-interactive
     return 0
