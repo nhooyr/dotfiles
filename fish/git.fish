@@ -75,8 +75,11 @@ abbrali gbu git branch -vvu
 abbrali gba git branch -vva
 abbrali gbr git branch -vvr
 function gbp
+    argparse --max-args 0 f/force -- $argv; or return
+    set -l delete_flag -d
+    set -q _flag_force; and set delete_flag -D
     git fetch --prune
-    and git branch -vv | awk '/: gone]/{print $1}' | xargs -r git branch -d
+    and git branch -vv | awk '/: gone]/{print $1}' | xargs -r git branch $delete_flag
 end
 abbrali gst git stash push -u
 abbrali gstk git stash push -u --keep-index
