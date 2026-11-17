@@ -130,7 +130,51 @@ end
 abbrali sshq ssh -O exit
 abbrali sshu ssh -oControlPath=none
 abbrali ssha ssh-add
-abbrali socks ssh -ND1080
+function socks --wraps 'ssh -ND1080'
+    if not set -q argv[1]
+        printf 'Usage: socks [ssh-options] destination\n' >&2
+        return 1
+    end
+
+    set -l service
+    for family in IPv4 IPv6
+        set -l id $(printf 'show State:/Network/Global/%s\n' "$family" | scutil | string match -rg '^\s*PrimaryService : (.+)$')
+        set -q id[1]; or continue
+        set service $(printf 'show Setup:/Network/Service/%s\n' "$id[1]" | scutil | string match -rg '^\s*UserDefinedName : (.+)$')
+        set -q service[1]; and break
+    end
+    if not set -q service[1]
+        printf 'socks: could not find the active macOS network service\n' >&2
+        return 1
+    end
+
+    sshu -N -D localhost:1080 -o ExitOnForwardFailure=yes -o PermitLocalCommand=yes -o 'LocalCommand=printf "socks-ready\n"' $argv |
+        /usr/bin/sudo -n /bin/sh -c '
+            set -eu
+            service=$1
+
+            IFS= read -r ready && [ "$ready" = socks-ready ] || exit 1
+
+            cleanup() {
+                result=$?
+                trap - EXIT
+                trap "" HUP INT TERM
+                /usr/sbin/networksetup -setsocksfirewallproxystate "$service" off || exit "$?"
+                exit "$result"
+            }
+            trap cleanup EXIT
+            trap "exit 129" HUP
+            trap "exit 130" INT
+            trap "exit 143" TERM
+            /usr/sbin/networksetup -setsocksfirewallproxy "$service" localhost 1080 off || exit "$?"
+            while IFS= read -r line; do :; done
+        ' socks "$service[1]"
+    set -l results $pipestatus
+    if test "$results[1]" -ne 0
+        return "$results[1]"
+    end
+    return "$results[2]"
+end
 abbrali py python3
 function pyc --wraps 'python3 -c'
     python3 -c "print($argv)"
