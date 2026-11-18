@@ -157,8 +157,8 @@ nnoremap <BS><BS> "_dd
 nnoremap <BS> "_d
 vnoremap <BS> "_d
 nnoremap gp `[v`]
-nnoremap <M-p> "+p
-nnoremap <M-P> "+P
+nnoremap <Leader>p "+p
+nnoremap <Leader>P "+P
 inoremap <M-p> <C-o>"+P
 nnoremap Y "+y
 nnoremap YY m`^"+y$``
@@ -227,8 +227,8 @@ augroup END
 
 nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
 nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
-nnoremap <Leader>n :next<CR>
-nnoremap <Leader>p :prev<CR>
+nnoremap <M-n> :next<CR>
+nnoremap <M-p> :prev<CR>
 nnoremap Z zz
 
 function! s:vidir() abort
