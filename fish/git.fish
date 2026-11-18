@@ -166,4 +166,4 @@ function _dirt --description 'List repos with dirt'
     end
 end
 
-abbrali imps "ga; and gcm -em 'imps'"
+abbrali imps "ga; and gcm -em 'Imp'"
