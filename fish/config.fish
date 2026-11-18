@@ -49,6 +49,7 @@ set -g fish_pager_color_selected_description white
 abbrali r reload
 function reload
     source "$__fish_config_dir/config.fish"
+    history merge
 end
 
 set -gx LSCOLORS \
