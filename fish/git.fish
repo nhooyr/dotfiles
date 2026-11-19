@@ -7,6 +7,9 @@ function git
 end
 abbrali g git
 abbrali gsh git show
+abbrali gshs 'git rev-parse --short | pbc'
+abbrali gsht 'git show -s --format=%s | pbc'
+abbrali gshb 'git show -s --format=%b | pbc'
 abbrali ga git add -A
 abbrali gap git add -p
 abbrali gai git add -i
@@ -98,7 +101,6 @@ abbrali gstl git stash list
 abbrali gstd git diff stash@{0}
 abbrali gstdd git stash drop
 abbrali gbl git blame
-abbrali gshort git rev-parse --short
 abbrali gch git checkout
 abbrali gchb git checkout -b
 abbrali gt git tag
