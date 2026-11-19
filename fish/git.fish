@@ -7,6 +7,7 @@ function git
 end
 abbrali g git
 abbrali gsh git show
+abbrali gshr 'git rev-parse --abbrev-ref HEAD | pbc'
 abbrali gshs 'git rev-parse --short | pbc'
 abbrali gsht 'git show -s --format=%s | pbc'
 abbrali gshb 'git show -s --format=%b | pbc'
