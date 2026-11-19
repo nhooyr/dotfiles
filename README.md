@@ -5,3 +5,4 @@
 ![Screenshot 4](./docs/screenshot-4.png)
 ![Screenshot 5](./docs/screenshot-5.png)
 ![Screenshot 6](./docs/screenshot-6.png)
+![Screenshot 7](./docs/screenshot-7.png)
