@@ -6,9 +6,10 @@ function git
     return "$code"
 end
 abbrali g git
+abbrali grv 'git rev-parse --abbrev-ref HEAD | pbc'
+abbrali grvs 'git rev-parse --short HEAD | pbc'
 abbrali gsh git show
-abbrali gshr 'git rev-parse --abbrev-ref HEAD | pbc'
-abbrali gshs 'git rev-parse --short HEAD | pbc'
+abbrali gshs git show --stat
 abbrali gsht 'git show -s --format=%s | pbc'
 abbrali gshb 'git show -s --format=%b | pbc'
 abbrali ga git add -A
