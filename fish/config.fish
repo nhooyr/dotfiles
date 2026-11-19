@@ -46,6 +46,7 @@ set -g fish_pager_color_selected_background --background=black
 set -g fish_pager_color_selected_prefix white --underline --bold
 set -g fish_pager_color_selected_completion white
 set -g fish_pager_color_selected_description white
+set -g fish_color_autosuggestion brblack --italic
 abbrali r reload
 function reload
     source "$__fish_config_dir/config.fish"
