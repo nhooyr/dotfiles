@@ -1,3 +1,71 @@
+function ghe --description 'Clone a GitHub repository and open its referenced path'
+    set -l usage 'Usage: ghe <OWNER/REPO | GITHUB_URL>
+
+Clone into ~/code/OWNER/REPO when needed, then enter the checkout.
+Files open in $EDITOR; directories change the current directory.
+
+Inputs (URL paths below follow https://github.com/OWNER/REPO):
+  OWNER/REPO or repository URL     Enter the repository.
+  /tree/REF[/PATH]                 Switch to a branch, tag, or commit; enter PATH.
+  /blob/REF/PATH                   Switch ref and edit the file.
+  /blame/REF/PATH                  Edit the file at that ref.
+  /raw/REF/PATH, /edit/REF/PATH    Edit the file at that ref.
+  raw.githubusercontent.com/...    Edit the referenced raw file.
+  /commit/SHA                      Enter the checkout at that commit.
+  /commits/REF[/PATH]              Open the referenced ref or path.
+  /releases/tag/TAG                Enter the checkout at that release tag.
+  /releases/latest                 Look up and open the latest release tag.
+  /archive/REF.zip or .tar.gz      Open the archive ref locally.
+  /pull/NUMBER                     Enter the checkout at the PR head.
+  /pull/NUMBER/commits/SHA         Enter the checkout at that PR commit.
+  /pull/NUMBER/files or /changes   Print the PR diff; keep the current ref.
+  /compare                         Enter the repository.
+  /compare/REF                     Print a merge-base diff from HEAD to REF.
+  /compare/BASE..HEAD              Print a two-dot diff; keep the current ref.
+  /compare/BASE...HEAD             Print a merge-base diff; keep the current ref.
+  Other pages (issues, etc.)       Enter the repository.
+
+REF accepts branch names, tags, commit hashes, refs/heads/BRANCH,
+or refs/tags/TAG. Compare refs also accept OWNER:BRANCH or OWNER:REPO:BRANCH.
+File anchors: #L10, #L10-L20, #L10C3, or #L10C3-L20C5.
+SSH and HTTP(S) repository URLs are accepted. Local changes prevent ref switches.
+
+  -h, --help                       Show this help.'
+    set -lx 0 (status current-function)
+    __ghe_main "$usage" $argv
+end
+
+function gho --description 'Open the GitHub page for a repository or path'
+    set -l usage 'Usage: gho [PATH | OWNER/REPO | GITHUB_URL]
+
+Print the GitHub URL and open it in the default browser.
+Build URLs from local information; never check or fetch the remote.
+
+  gho                              Open the current directory on its branch.
+  gho PATH                         Open a local file or directory on its branch.
+  gho SYMLINK                      Open the tracked link, or its source checkout.
+  gho OWNER/REPO                   Open the repository homepage.
+  gho GITHUB_URL                   Open any GitHub page, preserving query/fragment.
+  gho SSH_REPOSITORY_URL           Open the corresponding GitHub homepage.
+  gho -h, --help                   Show this help.
+
+Local paths use the configured upstream branch, otherwise the local branch.
+The cached default branch opens its homepage; detached HEAD uses its commit.
+Unpublished branches and files are opened without checking whether they exist.'
+    set -lx 0 (status current-function)
+    __gho_main "$usage" $argv
+end
+
+function ghss --description 'Upload a screenshot to GitHub and copy its Markdown'
+    set -l usage 'Usage: ghss [PHOTO]
+
+Upload a PNG or JPEG to the current GitHub repository.
+Without a path, read a macOS clipboard image using pngpaste.
+Validate the image, then print its Markdown and copy it with pbc.
+Uses gh authentication and repository selection; requires write access.'
+    __ghss_main "$usage" $argv
+end
+
 function __gh_parse --argument-names input
     # Return three lines: owner/repo, the URL's remaining path, and a clone URL.
     # Reject controls before decoding can strip trailing newlines.
@@ -1600,42 +1668,10 @@ function __ghe_checkout --argument-names remote destination tail line column end
     __ghe_open "$target" "$line" "$column" "$end_line" "$end_column"
 end
 
-function ghe --argument-names input
-    # Fish doesn't set $0; export it locally so the helpers inherit this name.
-    set -lx 0 (status current-function)
+function __ghe_main --argument-names usage input
+    set -e argv[1]
     if test (count $argv) -eq 1; and contains -- "$input" -h --help
-        printf '%s\n' 'Usage: ghe <OWNER/REPO | GITHUB_URL>
-
-Clone into ~/code/OWNER/REPO when needed, then enter the checkout.
-Files open in $EDITOR; directories change the current directory.
-
-Inputs (URL paths below follow https://github.com/OWNER/REPO):
-  OWNER/REPO or repository URL     Enter the repository.
-  /tree/REF[/PATH]                 Switch to a branch, tag, or commit; enter PATH.
-  /blob/REF/PATH                   Switch ref and edit the file.
-  /blame/REF/PATH                  Edit the file at that ref.
-  /raw/REF/PATH, /edit/REF/PATH    Edit the file at that ref.
-  raw.githubusercontent.com/...    Edit the referenced raw file.
-  /commit/SHA                      Enter the checkout at that commit.
-  /commits/REF[/PATH]              Open the referenced ref or path.
-  /releases/tag/TAG                Enter the checkout at that release tag.
-  /releases/latest                 Look up and open the latest release tag.
-  /archive/REF.zip or .tar.gz      Open the archive ref locally.
-  /pull/NUMBER                     Enter the checkout at the PR head.
-  /pull/NUMBER/commits/SHA         Enter the checkout at that PR commit.
-  /pull/NUMBER/files or /changes   Print the PR diff; keep the current ref.
-  /compare                         Enter the repository.
-  /compare/REF                     Print a merge-base diff from HEAD to REF.
-  /compare/BASE..HEAD              Print a two-dot diff; keep the current ref.
-  /compare/BASE...HEAD             Print a merge-base diff; keep the current ref.
-  Other pages (issues, etc.)       Enter the repository.
-
-REF accepts branch names, tags, commit hashes, refs/heads/BRANCH,
-or refs/tags/TAG. Compare refs also accept OWNER:BRANCH or OWNER:REPO:BRANCH.
-File anchors: #L10, #L10-L20, #L10C3, or #L10C3-L20C5.
-SSH and HTTP(S) repository URLs are accepted. Local changes prevent ref switches.
-
-  -h, --help                       Show this help.'
+        printf '%s\n' "$usage"
         return 0
     end
     if test (count $argv) -ne 1; or test -z "$input"
@@ -1753,25 +1789,10 @@ function __gho_url --argument-names target
     printf '%s/%s/%s\n' "$url" "$kind" (string escape --style=url -- "$web_path")
 end
 
-function gho --argument-names target
-    set -lx 0 (status current-function)
+function __gho_main --argument-names usage target
+    set -e argv[1]
     if test (count $argv) -eq 1; and contains -- "$target" -h --help
-        printf '%s\n' 'Usage: gho [PATH | OWNER/REPO | GITHUB_URL]
-
-Print the GitHub URL and open it in the default browser.
-Build URLs from local information; never check or fetch the remote.
-
-  gho                              Open the current directory on its branch.
-  gho PATH                         Open a local file or directory on its branch.
-  gho SYMLINK                      Open the tracked link, or its source checkout.
-  gho OWNER/REPO                   Open the repository homepage.
-  gho GITHUB_URL                   Open any GitHub page, preserving query/fragment.
-  gho SSH_REPOSITORY_URL           Open the corresponding GitHub homepage.
-  gho -h, --help                   Show this help.
-
-Local paths use the configured upstream branch, otherwise the local branch.
-The cached default branch opens its homepage; detached HEAD uses its commit.
-Unpublished branches and files are opened without checking whether they exist.'
+        printf '%s\n' "$usage"
         return 0
     end
     if test (count $argv) -gt 1
@@ -1818,15 +1839,11 @@ function __ghss_upload --argument-names directory
     printf '![img](%s)\n' "$url" | pbc
 end
 
-function ghss --description 'Upload a screenshot to GitHub and copy its Markdown'
-    argparse --max-args 1 h/help -- $argv; or return
+function __ghss_main --argument-names usage
+    set -e argv[1]
+    argparse --name ghss --max-args 1 h/help -- $argv; or return
     if set -q _flag_help
-        printf '%s\n' 'Usage: ghss [PHOTO]
-
-Upload a PNG or JPEG to the current GitHub repository.
-Without a path, read a macOS clipboard image using pngpaste.
-Validate the image, then print its Markdown and copy it with pbc.
-Uses gh authentication and repository selection; requires write access.'
+        printf '%s\n' "$usage"
         return 0
     end
     set -l directory "$(mktemp -d)"; or return
