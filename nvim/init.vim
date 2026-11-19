@@ -200,19 +200,20 @@ nnoremap <Leader>m :Mkdirp<CR>
 command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 			   \ diffthis | wincmd p | diffthis
 
-function! s:restore_cursor() abort
-	" Commit messages, rebase todos, and diffs start at the top.
-	if &filetype =~# 'commit' || &filetype ==# 'gitrebase' || &diff
-		return
-	endif
-	if line("'\"") > 0
-		if line("'\"") <= line("$")
-			normal! g`"
-		else
-			keepjumps normal! G
-		endif
-	endif
+nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
+nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
+nnoremap <M-n> :next<CR>
+nnoremap <M-p> :prev<CR>
+nnoremap Z zz
+
+function! s:vidir() abort
+	enew
+	silent read !ls -1
+	normal ggS# :w !sh
+	silent 2,$s/.*/mv '\0' '\0'
+	set filetype=sh
 endfunction
+command Vidir call s:vidir()
 
 " For BufReadPost restore_cursor.
 filetype plugin indent on
@@ -233,17 +234,16 @@ augroup aqsnow
 	autocmd filetype netrw nnoremap <buffer> <nowait> q :quit<CR>
 augroup END
 
-nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
-nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
-nnoremap <M-n> :next<CR>
-nnoremap <M-p> :prev<CR>
-nnoremap Z zz
-
-function! s:vidir() abort
-	enew
-	silent read !ls -1
-	normal ggS# :w !sh
-	silent 2,$s/.*/mv '\0' '\0'
-	set filetype=sh
+function! s:restore_cursor() abort
+	" Commit messages, rebase todos, and diffs start at the top.
+	if &filetype =~# 'commit' || &filetype ==# 'gitrebase' || &diff
+		return
+	endif
+	if line("'\"") > 0
+		if line("'\"") <= line("$")
+			normal! g`"
+		else
+			keepjumps normal! G
+		endif
+	endif
 endfunction
-command Vidir call s:vidir()
