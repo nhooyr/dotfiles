@@ -31,6 +31,21 @@ if [ ! -f "$input" ]; then
 	exit 1
 fi
 
+if ! LC_ALL=C awk '
+    { sub(/\r$/, "") }
+    NR == 1 && toupper($0) != "BEGIN:VCARD" { exit 1 }
+    NF { last = toupper($0) }
+    END { exit last != "END:VCARD" }
+' 2>/dev/null <"$input"; then
+	printf '%s: not a vCard file: %s\n' "${0##*/}" "$input" | hpath >&2
+	exit 1
+fi
+
+if [ "$input" -ef "$output" ]; then
+	printf '%s: input and output must be different files: %s\n' "${0##*/}" "$output" | hpath >&2
+	exit 1
+fi
+
 if ! tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXXXX" 2>&1)"; then
 	printf '%s: %s\n' "${0##*/}" "$tmpdir" | hpath >&2
 	exit 1
