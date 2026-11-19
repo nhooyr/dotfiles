@@ -9,7 +9,7 @@ The main features I benefit from are:
 
 1. Vastly faster performance than Spotlight.
 2. Clipboard management.
-3. Spotify integration with [alfred-spotify-mini-player](https://github.com/vdesabou/alfred-spotify-mini-player)
+3. Spotify integration with [nhooyr/Spotify.alfredworkflow](https://github.com/nhooyr/Spotify.alfredworkflow).
 4. Dictionary.app integration.
 4. Terminal.app integration.
 5. Advanced calculator syntax with GCMathParser.
