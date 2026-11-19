@@ -31,8 +31,7 @@ File anchors: #L10, #L10-L20, #L10C3, or #L10C3-L20C5.
 SSH and HTTP(S) repository URLs are accepted. Local changes prevent ref switches.
 
   -h, --help                       Show this help.'
-    set -lx 0 (status current-function)
-    __ghe_main "$usage" $argv
+    0=(status current-function) usage="$usage" __ghe_main $argv
 end
 
 function gho --description 'Open the GitHub page for a repository or path'
@@ -52,8 +51,7 @@ Build URLs from local information; never check or fetch the remote.
 Local paths use the configured upstream branch, otherwise the local branch.
 The cached default branch opens its homepage; detached HEAD uses its commit.
 Unpublished branches and files are opened without checking whether they exist.'
-    set -lx 0 (status current-function)
-    __gho_main "$usage" $argv
+    0=(status current-function) usage="$usage" __gho_main $argv
 end
 
 function ghss --description 'Upload a screenshot to GitHub and copy its Markdown'
@@ -63,7 +61,7 @@ Upload a PNG or JPEG to the current GitHub repository.
 Without a path, read a macOS clipboard image using pngpaste.
 Validate the image, then print its Markdown and copy it with pbc.
 Uses gh authentication and repository selection; requires write access.'
-    __ghss_main "$usage" $argv
+    0=(status current-function) usage="$usage" __ghss_main $argv
 end
 
 function __gh_parse --argument-names input
@@ -600,7 +598,7 @@ function __ghe_tracking_commit --argument-names name destination ref
     # Fetch the commit without replacing a local branch or tag.
     if string match -qri '^refs/(heads|tags)/' -- "$tracking_ref"
         __ghe_fetch_head "$destination" --refmap= -- "$name" "$branch_ref"
-        return $status
+        return
     end
     # A known commit can still be missing its remote-tracking ref.
     set -l commit
@@ -911,6 +909,13 @@ function __ghe_compare_ref --argument-names remote destination ref mode
             end
         end
     end
+
+    qualified=$qualified full_oid=$full_oid oid="$oid" ancestry="$ancestry" \
+        __ghe_compare_cached "$remote" "$destination" "$ref" "$mode"
+end
+
+function __ghe_compare_cached --argument-names remote destination ref mode
+    # The caller supplies the normalized ref state through call-scoped variables.
     set -l sources "$ref"
     switch "$ref"
         case 'refs/heads/*' 'refs/tags/*' HEAD
@@ -991,7 +996,7 @@ function __ghe_compare_ref --argument-names remote destination ref mode
     if test -n "$oid"
         if test "$mode" = cached; and test "$refresh_default" = false
             __gh_commit "$destination" "$oid$ancestry[1]"
-            return $status
+            return
         end
     else if test "$qualified" = false; and string match -qr '^[0-9a-fA-F]{4,39}$' -- "$ref"
         # Only a prefix without a known named ref is immutable and needs no refresh.
@@ -1002,6 +1007,13 @@ function __ghe_compare_ref --argument-names remote destination ref mode
         end
     end
 
+    qualified=$qualified oid="$oid" refresh_default=$refresh_default ancestry="$ancestry" \
+        sources=$sources remotes=$remotes candidates=$candidates branch_tracking=$branch_tracking \
+        __ghe_compare_fetch "$destination" "$cache" "$query" "$ref"
+end
+
+function __ghe_compare_fetch --argument-names destination cache query ref
+    # Read the cached candidates, then observe refs before contacting the remote.
     # A delayed fetch must not overwrite a newer default observation.
     set -l head_cache
     set -l previous_head
@@ -1149,6 +1161,17 @@ function __ghe_compare_ref --argument-names remote destination ref mode
         printf '%s: comparison commit is missing or ambiguous: %s\n' "$0" "$ref" >&2
         return 1
     end
+
+    ancestry="$ancestry" source="$source" default_source="$default_source" default_oid="$default_oid" \
+        fetched=$fetched fetch_refs=$fetch_refs fetch_tracking=$fetch_tracking \
+        default_names=$default_names default_tracking=$default_tracking invalidate_default=$invalidate_default \
+        remotes=$remotes head_cache="$head_cache" previous_head="$previous_head" previous_aliases=$previous_aliases \
+        snapshot_refs=$snapshot_refs observations=$observations \
+        __ghe_compare_publish "$destination" "$cache" "$ref" "$oid"
+end
+
+function __ghe_compare_publish --argument-names destination cache ref oid
+    # Publish against the observations captured before the fetch.
     # Cross-remote alias collisions cannot represent every synchronized default.
     for name in $default_names
         set -l index (contains -i -- "$name" $default_names)
@@ -1403,7 +1426,7 @@ end
 function __ghe_open --argument-names target line column end_line end_column
     if test -d "$target"; and not test -L "$target"
         cd -- "$target"
-        return $status
+        return
     end
     cd -- "$(path dirname -- "$target")"; or return
     if test -z "$EDITOR"
@@ -1604,7 +1627,7 @@ function __ghe_checkout --argument-names remote destination tail line column end
     if string match -qr '^compare(/|$)' -- "$tail"
         cd -- "$destination"; or return
         __ghe_compare "$remote" "$destination" (string replace -r '^compare/?' '' -- "$tail")
-        return $status
+        return
     end
     if string match -qr '^pull/[1-9][0-9]*(/|$)' -- "$tail"
         set -l request (string split / -- "$tail")
@@ -1616,7 +1639,7 @@ function __ghe_checkout --argument-names remote destination tail line column end
                 return 1
             end
             __ghe_compare "$remote" "$destination" "$revisions[1]...$revisions[2]"
-            return $status
+            return
         else if test "$request[3]" = commits; and string match -qr '^[0-9a-fA-F]{40}$' -- "$request[4]"
             set tail "oid/$request[4]"
         else
@@ -1668,8 +1691,7 @@ function __ghe_checkout --argument-names remote destination tail line column end
     __ghe_open "$target" "$line" "$column" "$end_line" "$end_column"
 end
 
-function __ghe_main --argument-names usage input
-    set -e argv[1]
+function __ghe_main --argument-names input
     if test (count $argv) -eq 1; and contains -- "$input" -h --help
         printf '%s\n' "$usage"
         return 0
@@ -1718,7 +1740,7 @@ function __gho_url --argument-names target
         if test -L "$entry"; and test -e "$entry"
             set -l resolved "$(path resolve -- "$entry")"; or return
             __gho_url "$resolved"
-            return $status
+            return
         end
         printf '%s: path is not in a Git checkout: %s\n' "$0" "$target" >&2
         return 1
@@ -1789,8 +1811,7 @@ function __gho_url --argument-names target
     printf '%s/%s/%s\n' "$url" "$kind" (string escape --style=url -- "$web_path")
 end
 
-function __gho_main --argument-names usage target
-    set -e argv[1]
+function __gho_main --argument-names target
     if test (count $argv) -eq 1; and contains -- "$target" -h --help
         printf '%s\n' "$usage"
         return 0
@@ -1812,15 +1833,14 @@ function __ghss_upload --argument-names directory
     else
         pngpaste - >"$photo"; or return
     end
-    set -l size "$(wc -c < "$photo")"; or return
-    set size (string trim -- "$size")
+    set -l size (stat -f %z -- "$photo"); or return
     if test "$size" -gt 10485760
-        printf 'ghss: image must be at most 10 MiB\n' >&2
+        printf '%s: image must be at most 10 MiB\n' "$0" >&2
         return 1
     end
     set -l content_type "$(file --brief --mime-type -- "$photo")"; or return
     if not contains -- "$content_type" image/png image/jpeg
-        printf 'ghss: expected a PNG or JPEG image\n' >&2
+        printf '%s: expected a PNG or JPEG image\n' "$0" >&2
         return 1
     end
     sips -s format png "$photo" --out "$directory/decoded.png" >/dev/null; or return
@@ -1839,9 +1859,8 @@ function __ghss_upload --argument-names directory
     printf '![img](%s)\n' "$url" | pbc
 end
 
-function __ghss_main --argument-names usage
-    set -e argv[1]
-    argparse --name ghss --max-args 1 h/help -- $argv; or return
+function __ghss_main
+    argparse --name "$0" --max-args 1 h/help -- $argv; or return
     if set -q _flag_help
         printf '%s\n' "$usage"
         return 0
