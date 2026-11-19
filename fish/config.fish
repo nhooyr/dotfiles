@@ -118,6 +118,7 @@ abbrali ec e '"$dotfiles/fish/config.fish"'
 abbrali cdd cdc '"$dotfiles"'
 abbrali ev e '"$dotfiles/nvim/init.vim"'
 abbrali t time
+abbrali d diff -r
 abbrali esc string escape
 abbrali m man
 abbr -a --set-cursor ma math "'%'"
