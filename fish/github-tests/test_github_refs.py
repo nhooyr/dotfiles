@@ -870,8 +870,8 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
                     self.git(destination, "config", "branch.topic.remote", "origin")
                     self.git(destination, "config", "branch.topic.merge", "refs/heads/topic")
                     result = self.fish('__gho_url "$argv[1]"', destination / "upper.txt", offline=True)
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("cached remote branch conflicts with a differently spelled ref", result.stderr)
+                    self.assert_success(result)
+                    self.assertEqual(result.stdout.strip(), "https://github.com/example/project/blob/topic/upper.txt")
                     self.assertEqual(self.transport, [])
 
     def test_compare_does_not_read_or_overwrite_a_unicode_loose_ref_alias(self):
@@ -912,15 +912,15 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" main""",
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
 
-    def test_gho_does_not_use_a_tag_in_place_of_a_missing_tracking_ref(self):
+    def test_gho_opens_paths_without_a_tracking_ref(self):
         destination = self.clone()
         tracking = "refs/remotes/origin/main"
         self.git(destination, "update-ref", "-d", tracking)
         self.git(destination, "tag", tracking, self.initial)
 
         result = self.fish('__gho_url "$argv[1]"', destination / "file.txt", offline=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("branch has not been pushed or fetched", result.stderr)
+        self.assert_success(result)
+        self.assertEqual(result.stdout.strip(), "https://github.com/example/project/blob/main/file.txt")
         self.assertEqual(self.transport, [])
 
     def test_offline_tag_comparison_does_not_reuse_a_differently_cased_tag(self):
@@ -1694,13 +1694,13 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" "$argv[3]"
                 self.assertEqual(self.oid(destination), main)
                 self.assertEqual(self.git(destination, "status", "--porcelain").stdout, before)
 
-    def test_gho_uses_commit_link_for_same_named_branch_and_tag(self):
+    def test_gho_opens_branch_without_checking_for_same_named_tags(self):
         self.git(self.source, "tag", "main")
-        upstream = self.commit(self.source, "branch version\n")
+        self.commit(self.source, "branch version\n")
         destination = self.clone()
         result = self.fish('gho "$argv[1]"', destination / "file.txt", offline=True)
         self.assert_success(result)
-        self.assertEqual(result.stdout.strip(), "https://github.com/example/project/blob/" + upstream + "/file.txt")
+        self.assertEqual(result.stdout.strip(), "https://github.com/example/project/blob/main/file.txt")
         self.assertEqual(self.transport, [])
 
     def test_stale_default_head_alias_uses_current_fetch_mapping_offline(self):
@@ -1717,13 +1717,13 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" "$argv[3]"
         self.assertEqual(self.transport, [])
         self.assert_resolves(destination, "HEAD", newer, offline=True)
 
-    def test_gho_uses_commit_link_when_a_longer_tag_changes_url_interpretation(self):
+    def test_gho_opens_paths_without_checking_for_longer_tags(self):
         self.commit(self.source, "nested file\n", "directory/file.txt")
         self.git(self.source, "tag", "main/directory")
         destination = self.clone()
         result = self.fish('gho "$argv[1]"', destination / "directory/file.txt", offline=True)
         self.assert_success(result)
-        self.assertEqual(result.stdout.strip(), "https://github.com/example/project/blob/" + self.oid(destination) + "/directory/file.txt")
+        self.assertEqual(result.stdout.strip(), "https://github.com/example/project/blob/main/directory/file.txt")
         self.assertEqual(self.transport, [])
 
     def test_explicit_tag_checks_out_tag_instead_of_same_named_branch(self):

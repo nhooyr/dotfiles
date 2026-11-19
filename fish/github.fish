@@ -797,16 +797,6 @@ function __ghe_cached_default --argument-names destination cache oid
     printf '%s\n' "$observed"
 end
 
-function __gh_default_cache_consistent --argument-names remote destination tracking
-    # Most repositories have no comparison snapshots to check.
-    set -l cached_ref (git -C "$destination" for-each-ref --count=1 --format='%(refname)' -- refs/gh/compare/); or return
-    set -q cached_ref[1]; or return 0
-    set -l cache (__gh_compare_cache "$remote" "$destination"); or return
-    set -l snapshot (__gh_direct_commit "$destination" (__gh_cache_refs "$destination" "$cache" HEAD)); or return 0
-    set -l marker (__gh_cache_refs "$destination" "$cache/tracking-synced" "$tracking"); or return
-    test "$(__gh_direct_commit "$destination" "$marker")" = "$snapshot"
-end
-
 function __gh_snapshot_observations --argument-names destination cache
     for snapshot in $argv[3..]
         set -l oid "$(git --no-lazy-fetch -C "$destination" show-ref --hash --verify "$snapshot" 2>/dev/null)"
@@ -1613,8 +1603,44 @@ end
 function ghe --argument-names input
     # Fish doesn't set $0; export it locally so the helpers inherit this name.
     set -lx 0 (status current-function)
+    if test (count $argv) -eq 1; and contains -- "$input" -h --help
+        printf '%s\n' \
+            'Usage: ghe <OWNER/REPO | GITHUB_URL>' \
+            '' \
+            'Clone into ~/code/OWNER/REPO when needed, then enter the checkout.' \
+            'Files open in $EDITOR; directories change the current directory.' \
+            '' \
+            'Inputs (URL paths below follow https://github.com/OWNER/REPO):' \
+            '  OWNER/REPO or repository URL     Enter the repository.' \
+            '  /tree/REF[/PATH]                 Switch to a branch, tag, or commit; enter PATH.' \
+            '  /blob/REF/PATH                   Switch ref and edit the file.' \
+            '  /blame/REF/PATH                  Edit the file at that ref.' \
+            '  /raw/REF/PATH, /edit/REF/PATH    Edit the file at that ref.' \
+            '  raw.githubusercontent.com/...    Edit the referenced raw file.' \
+            '  /commit/SHA                      Enter the checkout at that commit.' \
+            '  /commits/REF[/PATH]              Open the referenced ref or path.' \
+            '  /releases/tag/TAG                Enter the checkout at that release tag.' \
+            '  /releases/latest                 Look up and open the latest release tag.' \
+            '  /archive/REF.zip or .tar.gz      Open the archive ref locally.' \
+            '  /pull/NUMBER                     Enter the checkout at the PR head.' \
+            '  /pull/NUMBER/commits/SHA         Enter the checkout at that PR commit.' \
+            '  /pull/NUMBER/files or /changes   Print the PR diff; keep the current ref.' \
+            '  /compare                         Enter the repository.' \
+            '  /compare/REF                     Print a merge-base diff from HEAD to REF.' \
+            '  /compare/BASE..HEAD              Print a two-dot diff; keep the current ref.' \
+            '  /compare/BASE...HEAD             Print a merge-base diff; keep the current ref.' \
+            '  Other pages (issues, etc.)       Enter the repository.' \
+            '' \
+            'REF accepts branch names, tags, commit hashes, refs/heads/BRANCH,' \
+            'or refs/tags/TAG. Compare refs also accept OWNER:BRANCH or OWNER:REPO:BRANCH.' \
+            'File anchors: #L10, #L10-L20, #L10C3, or #L10C3-L20C5.' \
+            'SSH and HTTP(S) repository URLs are accepted. Local changes prevent ref switches.' \
+            '' \
+            '  -h, --help                       Show this help.'
+        return 0
+    end
     if test (count $argv) -ne 1; or test -z "$input"
-        printf 'Usage: %s <owner/repo | github-url>\n' "$0" >&2
+        printf 'Usage: %s <OWNER/REPO | GITHUB_URL>\n' "$0" >&2
         return 1
     end
     set -l github (__gh_parse "$input")
@@ -1630,54 +1656,8 @@ function ghe --argument-names input
     __ghe_checkout "$github[3]" "$HOME/code/$github[1]" "$github[2]" "$line" "$column" "$end_line" "$end_column"
 end
 
-function __gho_default_root --argument-names destination remote remote_ref source_ref refs_dir
-    # Batch the checks for a plain default-branch checkout; other layouts use the full resolver.
-    string match -q 'refs/heads/*' -- "$source_ref"; or return 1
-    test "$remote_ref" = "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source_ref")"; or return 1
-    set -l config (
-        git -C "$destination" config --null --get-regexp '^remote\.' 2>/dev/null | string split0
-        test "$pipestatus[1]" -eq 0
-    ); or return 1
-    set -l fetch_specs
-    for record in $config
-        set -l fields (string split -m 1 \n -- "$record")
-        set -l owner (string match -rg '^remote\.(.+)\.[^.]+$' -- "$fields[1]")
-        test "$owner" = "$remote"; or return 1
-        if test "$fields[1]" = "remote.$remote.fetch"
-            set -a fetch_specs "$fields[2]"
-        end
-    end
-    test (count $fetch_specs) -eq 1; and test "$fetch_specs[1]" = "+refs/heads/*:refs/remotes/$remote/*"; or return 1
-
-    set -l refs (git -C "$destination" for-each-ref --ignore-case \
-        --format='%(refname)%09%(objecttype)%09%(symref)' -- "$remote_ref" "refs/remotes/$remote/HEAD" refs/gh/compare/ 2>/dev/null); or return 1
-    set -l found_branch false
-    set -l found_default false
-    for record in $refs
-        set -l fields (string split \t -- "$record")
-        string match -qi 'refs/gh/compare/*' -- "$fields[1]"; and return 1
-        if string match -qi -- "$remote_ref" "$fields[1]"
-            test "$fields[1]" = "$remote_ref"; and test "$fields[2]" = commit; and test -z "$fields[3]"; or return 1
-            set found_branch true
-        else if string match -qi -- "refs/remotes/$remote/HEAD" "$fields[1]"
-            test "$fields[1]" = "refs/remotes/$remote/HEAD"; and test "$fields[3]" = "$remote_ref"; or return 1
-            set found_default true
-        end
-    end
-    test "$found_branch" = true; and test "$found_default" = true; or return 1
-    # Git can omit dangling case aliases, so also check the actual filesystem spelling.
-    if test -z "$refs_dir"
-        set refs_dir "$(git -C "$destination" rev-parse --path-format=absolute --git-path refs 2>/dev/null)"; or return 1
-    end
-    __gh_ref_path_exact "$destination" "$remote_ref" "$refs_dir"
-    and __gh_ref_path_exact "$destination" "refs/remotes/$remote/HEAD" "$refs_dir"
-end
-
 function __gho_url --argument-names target
-    # Resolving a page must not fetch missing objects from a partial clone.
-    set -lx GIT_NO_LAZY_FETCH 1
-
-    # Inspect the final entry itself, including a symlink followed by a slash.
+    # Build links from local metadata only; never inspect or fetch remote content.
     set -l parent "$(path dirname -- "$target")"
     set -l name "$(path basename -- "$target")"
     set -l entry "$parent/$name"
@@ -1688,18 +1668,17 @@ function __gho_url --argument-names target
         if test -n "$github[2]"
             set url "$url/$(string escape --style=url -- "$github[2]")"
         end
-        set url "$url$(string match -r '[?#].*$' -- "$target")"
-        printf '%s\n' "$url"
+        printf '%s%s\n' "$url" "$(string match -r '[?#].*$' -- "$target")"
         return
     end
 
     set -l dir "$target"
-    set -l is_file false
+    set -l kind tree
     if test -L "$entry"; or not test -d "$target"
         set dir "$parent"
-        set is_file true
+        set kind blob
     end
-    set -l location "$(git -C "$dir" rev-parse --show-prefix --path-format=absolute --git-path refs 2>/dev/null)"; or begin
+    set -l repo_path "$(git -C "$dir" rev-parse --show-prefix 2>/dev/null)"; or begin
         # Installed dotfile links may live outside their source repository.
         if test -L "$entry"; and test -e "$entry"
             set -l resolved "$(path resolve -- "$entry")"; or return
@@ -1709,217 +1688,96 @@ function __gho_url --argument-names target
         printf '%s: path is not in a Git checkout: %s\n' "$0" "$target" >&2
         return 1
     end
-    set -l paths (string split \n -- "$location")
-    set -l repo_path
-    set -l refs_dir
-    if test (count $paths) -eq 2
-        set repo_path "$paths[1]"
-        set refs_dir "$paths[2]"
-    else
-        # Embedded newlines make the combined output ambiguous.
-        set repo_path "$(git -C "$dir" rev-parse --show-prefix 2>/dev/null)"; or return
-    end
-    if test "$is_file" = true
+    if test "$kind" = blob
         if not test -L "$entry"
             set name "$(path basename -- "$(path resolve -- "$entry")")"
         end
         set repo_path "$repo_path$name"
-    else if test -n "$repo_path"
-        # Git's directory prefix ends in /.
+        # Preserve the index's spelling on filesystems that normalize Unicode.
+        set -l indexed (git -C "$dir" --literal-pathspecs ls-files -z --full-name -- "$name" | string split0)
+        if test (count $indexed) -eq 1
+            set repo_path "$indexed[1]"
+        end
+    else
         set repo_path (string trim -r -c / -- "$repo_path")
     end
 
-    # Named branches open the cached remote version, including when local commits are ahead.
+    set -l branch "$(git -C "$dir" symbolic-ref --quiet HEAD 2>/dev/null)"
+    set -l ref (string replace -r '^refs/heads/' '' -- "$branch")
     set -l remote
-    set -l remote_ref
-    set -l source_ref
-    set -l ref
-    set -l commit
-    set -l branch
     set -l upstream
-    set -l current (git -C "$dir" for-each-ref \
-        --format='%(if)%(HEAD)%(then)%(refname)%09%(upstream:remotename)%09%(upstream:remoteref)%09%(upstream)%(end)' \
-        -- refs/heads/ 2>/dev/null); or set current
-    set current (string match -r '.+' -- $current)
-    if test (count $current) -eq 1
-        set -l fields (string split \t -- "$current[1]")
-        set branch "$fields[1]"
-        set upstream $fields[2..]
+    set -l remotes
+    set -l config (git -C "$dir" config --null --get-regexp '^(branch\..*\.(remote|merge)|remote\..*\.url)$' | string split0)
+    for record in $config
+        set -l fields (string split -m 1 \n -- "$record")
+        if test "$fields[1]" = "branch.$ref.remote"
+            set remote "$fields[2]"
+        else if test "$fields[1]" = "branch.$ref.merge"; and not set -q upstream[1]
+            set upstream (string replace -r '^refs/heads/' '' -- "$fields[2]")
+        end
+        set -l remote_name (string match -rg '^remote\.(.+)\.url$' -- "$fields[1]")
+        if set -q remote_name[1]; and not contains -- "$remote_name" $remotes
+            set -a remotes "$remote_name"
+        end
+    end
+    if test -n "$remote"; and test "$remote" != .
+        if set -q upstream[1]
+            set ref "$upstream"
+        end
+    else if contains -- origin $remotes
+        set remote origin
+    else if test (count $remotes) -eq 1
+        set remote "$remotes[1]"
     else
-        # Unborn and detached HEAD have no current branch in for-each-ref.
-        set branch "$(git -C "$dir" symbolic-ref -q HEAD)"
-        if test -n "$branch"
-            set upstream (git -C "$dir" for-each-ref --format='%(upstream:remotename)%0a%(upstream:remoteref)%0a%(upstream)' -- "$branch")
-        end
-    end
-    if test -n "$branch"
-        if test -n "$upstream[1]"; and test "$upstream[1]" != .
-            set remote "$upstream[1]"
-            set remote_ref "$upstream[3]"
-            set source_ref "$upstream[2]"
-            if test -n "$remote_ref"; and string match -q 'refs/heads/*' -- "$source_ref"
-                set ref (string replace -r '\Arefs/heads/' '' -- "$source_ref")
-            end
-        end
-    end
-    if test -z "$remote"
-        set -l remotes (git -C "$dir" remote)
-        if contains -- origin $remotes
-            set remote origin
-        else if test (count $remotes) -eq 1
-            set remote "$remotes[1]"
-        else
-            printf '%s: set a tracking remote or add an origin remote\n' "$0" >&2
-            return 1
-        end
+        printf '%s: set a tracking remote or add an origin remote\n' "$0" >&2
+        return 1
     end
     set -l remote_url "$(git -C "$dir" remote get-url -- "$remote")"; or return
     set -l github (__gh_parse "$remote_url")
     test (count $github) -eq 3; or return 1
     set -l url "https://github.com/$github[1]"
-    if test -z "$repo_path"; and test -n "$branch"; and test -n "$remote_ref"
-        and __gho_default_root "$dir" "$remote" "$remote_ref" "$source_ref" "$refs_dir"
-        printf '%s\n' "$url"
-        return 0
-    end
-    if test -z "$repo_path"; and test -n "$branch"; and not git -C "$dir" rev-parse --verify HEAD >/dev/null 2>&1
-        printf '%s\n' "$url"
-        return
-    end
 
-    set -l refspecs (__gh_refspecs "$remote" "$dir")
-    if test -n "$branch"
-        # %(upstream) prints abbreviated fetch destinations as written.
-        test -z "$remote_ref"; or set remote_ref (__gh_local_ref "$remote_ref")
-        if test -z "$remote_ref"
-            set ref (string replace -r '\Arefs/heads/' '' -- "$branch")
-            set source_ref "refs/heads/$ref"
-            set remote_ref (__gh_tracking_ref "$source_ref" $refspecs)
-            test -n "$remote_ref"; or set remote_ref "refs/remotes/$remote/$ref"
-        end
-        if test -n "$source_ref"
-            set -l tracked_source (__gh_tracking_source "$remote" "$dir" "$remote_ref" $refspecs)
-            set -l source_status "$status"
-            if set -l alias (__gh_mapped_alias_for "$dir" "$remote_ref")
-                set tracked_source "mapped symbolic ref $alias"
-                set source_status 2
-            end
-            if test -n "$tracked_source"; and test "$tracked_source" != "$source_ref"
-                # A branch page can be opened without trusting the shared tracking ref.
-                if test "$source_status" -eq 2; and test -n "$ref"; and test -z "$repo_path"
-                    set -l advertised (git -C "$dir" ls-remote --refs -- "$remote" "$source_ref" "refs/tags/$ref" 2>/dev/null)
-                    set -l revision (string match -rg "^([0-9a-f]+)\t$(string escape --style=regex -- "$source_ref")\$" -- $advertised)
-                    if set -q revision[1]
-                        if test (count $advertised) -ne 1
-                            or string match -qr '^(?:[0-9a-fA-F]{40}$|refs/(?:heads|tags)/)' -- "$ref"
-                            set ref "$revision"
-                        end
-                        printf '%s/tree/%s\n' "$url" (string escape --style=url -- "$ref")
-                        return 0
-                    end
-                end
-                printf '%s: cached remote branch is mapped from another branch or ref: %s -> %s\n' "$0" "$tracked_source" "$remote_ref" >&2
-                return 1
-            end
-        end
-        if not __gh_ref_spelling_safe "$dir" "$remote_ref"
-            printf '%s: cached remote branch conflicts with a differently spelled ref: %s\n' "$0" "$remote_ref" >&2
-            return 1
-        end
-        if not __gh_safe_tracking "$dir" "$remote_ref"
-            printf '%s: fetch destination is not a dedicated tracking ref: %s\n' "$0" "$remote_ref" >&2
-            return 1
-        end
-        set commit "$(__gh_commit "$dir" "$remote_ref")"
-        if test -z "$commit"
-            printf '%s: branch has not been pushed or fetched yet: %s/%s\n' "$0" "$remote" "$ref" >&2
-            return 1
-        end
-    else
-        set commit "$(__gh_commit "$dir" HEAD)"; or begin
-            if test -n "$repo_path"
-                printf '%s: repository has no commits\n' "$0" >&2
-                return 1
-            end
+    if test -z "$branch"
+        set ref "$(git -C "$dir" rev-parse HEAD 2>/dev/null)"; or return
+    else if test -z "$repo_path"
+        # Use the cached default-branch name without checking whether it exists.
+        set -l default "$(git -C "$dir" symbolic-ref --quiet "refs/remotes/$remote/HEAD" 2>/dev/null)"
+        if test "$default" = "refs/remotes/$remote/$ref"
+            printf '%s\n' "$url"
+            return
         end
     end
-    test -n "$ref"; or set ref "$commit"
-
-    set -l kind tree
-    if test -n "$repo_path"
-        set -l record (
-            git -C "$dir" --literal-pathspecs ls-tree -z --full-tree "$commit" -- "$repo_path" | string split0
-            test "$pipestatus[1]" -eq 0
-        ); or return
-        set -l fields (string split -m 1 \t -- "$record")
-        set kind (string split -f 2 " " -- "$fields[1]")
-        if test -z "$kind"
-            if test -n "$branch"
-                printf '%s: path is not in the cached remote branch; push or fetch first: %s\n' "$0" "$target" >&2
-            else
-                printf '%s: path is not in the current commit: %s\n' "$0" "$target" >&2
-            end
-            return 1
-        end
-        if not contains -- "$kind" tree blob
-            printf '%s: unsupported Git object at path: %s\n' "$0" "$target" >&2
-            return 1
-        end
-        set repo_path "$fields[2]"
-    end
-
-    # The default-branch homepage needs no ref; other ambiguous links use the commit.
-    set -l default_ref "$(__gh_default_ref "$remote" "$dir" $refspecs)"
-    # Pruning the old default branch can leave a dangling remote HEAD.
-    if test -n "$default_ref"; and test "$default_ref" != "$remote_ref"
-        __gh_commit "$dir" "$default_ref" >/dev/null; or set default_ref ''
-    end
-    if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "$remote_ref"
-        # A successful comparison may have learned a new default without updating this alias.
-        __gh_default_cache_consistent "$remote_url" "$dir" "$default_ref"; or set default_ref ''
-    else if test -z "$default_ref$repo_path"; and test -n "$branch"
-        # set-head assumes refs/remotes; cache the advertised HEAD using its mapping.
-        set -l source (__gh_advertised_head (git -C "$dir" ls-remote --symref -- "$remote" HEAD 2>/dev/null))
-        if set -q source[1]
-            set default_ref (__gh_tracking_ref "$source" $refspecs)
-            test -n "$default_ref"; or set default_ref "refs/remotes/$remote/$(string replace -r '^refs/heads/' '' -- "$source")"
-            set -l tracked_source (__gh_tracking_source "$remote" "$dir" "$default_ref" $refspecs)
-            if test -n "$tracked_source"; and test "$tracked_source" != "$source"
-                set default_ref ''
-            else if __gh_safe_tracking "$dir" "$default_ref"
-                and __gh_ref_spelling_safe "$dir" "$default_ref"
-                and __gh_head_alias_safe "$dir" "$remote"
-                git -C "$dir" symbolic-ref "refs/remotes/$remote/HEAD" "$default_ref" >/dev/null 2>&1
-            end
-        end
-    end
-    if test -z "$repo_path"; and test -n "$branch"; and test "$default_ref" = "$remote_ref"
-        set ref ''
-    else if string match -qr '^[0-9a-fA-F]{40}$' -- "$ref"
-        set ref "$commit"
-    else if git -C "$dir" show-ref --verify --quiet "refs/tags/$ref"
-        set ref "$commit"
-    else
-        set -l resolved (__gh_resolve "$remote_url" "$kind/$ref/$repo_path" "$dir" true)
-        if test (count $resolved) -ne 4; or test "$resolved[2]" != "$ref"; or test "$resolved[3]" != "$repo_path"
-            set ref "$commit"
-        end
-    end
-
     set -l web_path "$ref"
     if test -n "$repo_path"
         set web_path "$web_path/$repo_path"
     end
-    if test -n "$commit"; and test -n "$web_path"
-        set url "$url/$kind/$(string escape --style=url -- "$web_path")"
-    end
-    printf '%s\n' "$url"
+    printf '%s/%s/%s\n' "$url" "$kind" (string escape --style=url -- "$web_path")
 end
 
 function gho --argument-names target
     set -lx 0 (status current-function)
+    if test (count $argv) -eq 1; and contains -- "$target" -h --help
+        printf '%s\n' \
+            'Usage: gho [PATH | OWNER/REPO | GITHUB_URL]' \
+            '' \
+            'Print the GitHub URL and open it in the default browser.' \
+            'Build URLs from local information; never check or fetch the remote.' \
+            '' \
+            '  gho                              Open the current directory on its branch.' \
+            '  gho PATH                         Open a local file or directory on its branch.' \
+            '  gho SYMLINK                      Open the tracked link, or its source checkout.' \
+            '  gho OWNER/REPO                   Open the repository homepage.' \
+            '  gho GITHUB_URL                   Open any GitHub page, preserving query/fragment.' \
+            '  gho SSH_REPOSITORY_URL           Open the corresponding GitHub homepage.' \
+            '  gho -h, --help                   Show this help.' \
+            '' \
+            'Local paths use the configured upstream branch, otherwise the local branch.' \
+            'The cached default branch opens its homepage; detached HEAD uses its commit.' \
+            'Unpublished branches and files are opened without checking whether they exist.'
+        return 0
+    end
     if test (count $argv) -gt 1
-        printf 'Usage: %s [path | owner/repo | github-url]\n' "$0" >&2
+        printf 'Usage: %s [PATH | OWNER/REPO | GITHUB_URL]\n' "$0" >&2
         return 1
     end
     set -q argv[1]; or set target "$PWD"

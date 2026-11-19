@@ -247,6 +247,8 @@ elif kind not in ("editor", "open", "dispatch"):
         )
         result.stdout, marker, result.directory = result.stdout.rpartition("\x1e")
         self.assertTrue(marker, result.stderr)
+        if command == "gho":
+            self.assertEqual(self.network_calls(), [], "gho must never contact the remote")
         return result
 
     def assert_success(self, result):
@@ -254,6 +256,23 @@ elif kind not in ("editor", "open", "dispatch"):
 
     def head(self):
         return self.git(self.checkout, "rev-parse", "HEAD").stdout.strip()
+
+    def test_help_lists_modes_without_side_effects(self):
+        for command, name, modes in (
+            ("gho", "gho", ("PATH", "SYMLINK", "OWNER/REPO", "GITHUB_URL", "SSH_REPOSITORY_URL", "never check")),
+            ("ghe_dispatch", "ghe", ("/tree/", "/blob/", "/blame/", "/raw/", "/edit/", "raw.githubusercontent.com",
+                                     "/commit/", "/commits/", "/releases/tag/", "/releases/latest", "/archive/",
+                                     "/pull/NUMBER", "/commits/SHA", "/files", "/changes", "/compare", "#L10")),
+        ):
+            for flag in ("--help", "-h"):
+                with self.subTest(command=name, flag=flag):
+                    result = self.run_fish(command, flag)
+                    self.assert_success(result)
+                    self.assertTrue(result.stdout.startswith("Usage: " + name))
+                    for mode in modes:
+                        self.assertIn(mode, result.stdout)
+                    self.assertEqual(self.calls(), [])
+                    self.assertEqual(result.directory, str(self.sandbox))
 
     def test_supported_transports_open_and_enter_the_same_repository(self):
         inputs = [
@@ -282,6 +301,19 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assert_success(result)
         self.assertEqual(self.calls("open")[0]["args"], [value])
         self.assertEqual(self.network_calls(), [])
+
+    def test_gho_opens_unknown_remote_pages_directly(self):
+        for suffix in ("/tree/not-pushed", "/blob/not-pushed/missing.txt", "/pull/999999",
+                       "/issues/999999", "/compare/missing...also-missing"):
+            with self.subTest(suffix=suffix):
+                opened = self.run_fish("gho", self.url + suffix)
+                self.assert_success(opened)
+                self.assertEqual(self.calls("open")[0]["args"], [self.url + suffix])
+                self.assertEqual(self.calls("git"), [])
+        opened = self.run_fish("gho", "unknown-owner/unknown-repo")
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), "https://github.com/unknown-owner/unknown-repo")
+        self.assertEqual(self.calls("git"), [])
 
     def test_rejects_traversal_and_controls_without_side_effects(self):
         for suffix in ("blob/main/%2e%2e/escape", "blob/main/a%0ab", "blob/main/a\nb"):
@@ -424,9 +456,8 @@ elif kind not in ("editor", "open", "dispatch"):
                 self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), topic)
 
                 result = self.run_fish("gho", self.checkout / "file.txt", offline=True)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(f"mapped symbolic ref {alias}", result.stderr)
-                self.assertEqual(self.calls("open"), [])
+                self.assert_success(result)
+                self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/main/file.txt"])
                 result = self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout, "heads/main", offline=True)
                 self.assertNotEqual(result.returncode, 0)
 
@@ -456,13 +487,16 @@ elif kind not in ("editor", "open", "dispatch"):
                     self.assertEqual(self.calls("gh"), [])
                     self.assertEqual(self.network_calls(), [])
 
-    def test_gho_default_root_uses_at_most_five_git_commands(self):
-        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
-
-        self.assert_success(opened)
-        self.assertEqual(opened.stdout.strip(), self.url)
-        self.assertEqual(self.network_calls(), [])
-        self.assertLessEqual(len(self.calls("git")), 5)
+    def test_gho_local_modes_use_at_most_five_metadata_commands(self):
+        for target in (self.checkout, self.checkout / "dir", self.checkout / "file.txt"):
+            with self.subTest(target=target):
+                opened = self.run_fish("gho", target, offline=True)
+                self.assert_success(opened)
+                commands = self.calls("git")
+                self.assertLessEqual(len(commands), 5)
+                self.assertLessEqual({call["command"] for call in commands},
+                                     {"rev-parse", "symbolic-ref", "config", "remote", "ls-files"})
+                self.assertFalse(any("--verify" in call["args"] for call in commands))
 
     def test_gho_handles_unborn_and_detached_roots(self):
         unborn = self.sandbox / "unborn"
@@ -472,7 +506,7 @@ elif kind not in ("editor", "open", "dispatch"):
         opened = self.run_fish("gho", cwd=unborn, offline=True)
 
         self.assert_success(opened)
-        self.assertEqual(opened.stdout.strip(), self.url)
+        self.assertEqual(opened.stdout.strip(), self.url + "/tree/main")
         self.assertEqual(self.network_calls(), [])
 
         self.git(self.checkout, "switch", "--quiet", "--detach", self.initial)
@@ -518,17 +552,19 @@ elif kind not in ("editor", "open", "dispatch"):
         self.assertEqual(self.network_calls(), [])
         self.assertLessEqual(len(self.calls("git")), 5)
 
-    def test_gho_default_root_does_not_ignore_a_dotted_remote(self):
+    def test_gho_ignores_overlapping_fetch_mappings(self):
         self.git(self.checkout, "remote", "add", "origin.extra", self.url + ".git")
         self.git(self.checkout, "config", "--replace-all", "remote.origin.extra.fetch",
                  "+refs/heads/topic:refs/remotes/origin/main")
-
-        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
-
-        self.assertNotEqual(opened.returncode, 0)
-        self.assertIn("cached remote branch is mapped from another branch or ref", opened.stderr)
-        self.assertIn("remote origin.extra (refs/heads/topic)", opened.stderr)
-        self.assertEqual(self.calls("open"), [])
+        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
+                 "+refs/heads/main:refs/tags/local-copy")
+        for target, expected in ((self.checkout, self.url),
+                                 (self.checkout / "file.txt", self.url + "/blob/main/file.txt")):
+            with self.subTest(target=target):
+                opened = self.run_fish("gho", target, offline=True)
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), expected)
+                self.assertEqual(self.calls("open")[0]["args"], [expected])
 
     def test_gho_rechecks_default_and_fetch_mapping_between_calls(self):
         self.git(self.checkout, "update-ref", "refs/remotes/origin/topic", self.initial)
@@ -548,84 +584,36 @@ gho"""
                          [[self.url], [self.url + "/tree/main"], [self.url]])
         self.assertEqual(self.network_calls(), [])
 
-    def test_gho_packed_default_refs_do_not_hide_dangling_case_aliases(self):
-        refs = self.checkout / ".git" / "refs"
-        upper_refs = refs.with_name("REFS")
-        if not (upper_refs.exists() and refs.samefile(upper_refs)):
-            self.skipTest("requires case-folding ref paths")
-        self.git(self.checkout, "pack-refs", "--all", "--prune")
-        target = "refs/remotes/origin/missing"
-        for alias in ("refs/remotes/origin/Main", "refs/remotes/origin/head"):
-            with self.subTest(alias=alias):
-                if alias.endswith("/head"):
-                    self.git(self.checkout, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
-                self.git(self.checkout, "symbolic-ref", alias, target)
+    def test_gho_does_not_need_cached_commit_objects(self):
+        shutil.rmtree(self.checkout / ".git" / "objects")
+        (self.checkout / ".git" / "objects").mkdir()
+        for target, expected in ((self.checkout, self.url),
+                                 (self.checkout / "file.txt", self.url + "/blob/main/file.txt")):
+            with self.subTest(target=target):
+                opened = self.run_fish("gho", target, offline=True)
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), expected)
 
-                opened = self.run_fish("gho", cwd=self.checkout, offline=True)
-
-                if alias.endswith("/Main"):
-                    self.assertNotEqual(opened.returncode, 0)
-                    self.assertIn("cached remote branch conflicts with a differently spelled ref", opened.stderr)
-                    self.assertEqual(self.calls("open"), [])
-                    self.assertEqual(self.network_calls(), [])
-                else:
-                    self.assert_success(opened)
-                    self.assertEqual(opened.stdout.strip(), self.url + "/tree/main")
-                self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), target)
+    def test_gho_never_refreshes_a_missing_or_dangling_default_alias(self):
+        alias = "refs/remotes/origin/HEAD"
+        self.git(self.checkout, "update-ref", "-d", "refs/remotes/origin/main")
+        for default in ("", "refs/remotes/origin/master", "refs/remotes/origin/main"):
+            if default:
+                self.git(self.checkout, "symbolic-ref", alias, default)
+            else:
                 self.git(self.checkout, "symbolic-ref", "--delete", alias)
+            root_url = self.url if default.endswith("/main") else self.url + "/tree/main"
+            for offline in (False, True):
+                for target, expected in ((self.checkout, root_url),
+                                         (self.checkout / "file.txt", self.url + "/blob/main/file.txt")):
+                    with self.subTest(default=default, offline=offline, target=target):
+                        opened = self.run_fish("gho", target, offline=offline)
+                        self.assert_success(opened)
+                        self.assertEqual(opened.stdout.strip(), expected)
+                        self.assertEqual(self.git(self.checkout, "symbolic-ref", "--quiet", alias,
+                                                  check=False).stdout.strip(), default)
 
-    def test_gho_refreshes_a_dangling_default_alias_once(self):
-        alias = "refs/remotes/origin/HEAD"
-        for branch in ("main", "topic"):
-            with self.subTest(branch=branch):
-                if branch == "topic":
-                    self.git(self.seed, "branch", branch)
-                    self.publish(branch)
-                    self.fetch_fixture()
-                    self.git(self.checkout, "switch", "--quiet", "--track", "origin/topic")
-                self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/" + branch)
-                self.git(self.checkout, "symbolic-ref", alias, "refs/remotes/origin/master")
-
-                opened = self.run_fish("gho", cwd=self.checkout)
-
-                self.assert_success(opened)
-                self.assertEqual(opened.stdout.strip(), self.url)
-                self.assertEqual(self.calls("open")[0]["args"], [self.url])
-                self.assertEqual([call["command"] for call in self.network_calls()], ["ls-remote"])
-                self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(),
-                                 "refs/remotes/origin/" + branch)
-
-                opened = self.run_fish("gho", cwd=self.checkout, offline=True)
-
-                self.assert_success(opened)
-                self.assertEqual(opened.stdout.strip(), self.url)
-                self.assertEqual(self.network_calls(), [])
-
-    def test_gho_preserves_a_dangling_default_alias_when_offline(self):
-        alias = "refs/remotes/origin/HEAD"
-        dangling = "refs/remotes/origin/master"
-        self.git(self.checkout, "symbolic-ref", alias, dangling)
-
-        opened = self.run_fish("gho", cwd=self.checkout, offline=True)
-
-        self.assert_success(opened)
-        self.assertEqual(opened.stdout.strip(), self.url + "/tree/main")
-        self.assertEqual([call["command"] for call in self.network_calls()], ["ls-remote"])
-        self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), dangling)
-
-    def test_gho_file_does_not_refresh_a_dangling_default_alias(self):
-        alias = "refs/remotes/origin/HEAD"
-        dangling = "refs/remotes/origin/master"
-        self.git(self.checkout, "symbolic-ref", alias, dangling)
-
-        opened = self.run_fish("gho", self.checkout / "file.txt", offline=True)
-
-        self.assert_success(opened)
-        self.assertEqual(opened.stdout.strip(), self.url + "/blob/main/file.txt")
-        self.assertEqual(self.network_calls(), [])
-        self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), dangling)
-
-    def test_gho_uses_branch_when_default_alias_replacement_was_blocked(self):
+    def test_gho_uses_cached_default_name_when_alias_update_was_blocked(self):
         self.git(self.seed, "branch", "topic")
         self.publish("topic")
         self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/topic")
@@ -639,7 +627,7 @@ gho"""
 
         opened = self.run_fish("gho", cwd=self.checkout, offline=True)
         self.assert_success(opened)
-        self.assertEqual(opened.stdout.strip(), self.url + "/tree/main")
+        self.assertEqual(opened.stdout.strip(), self.url)
         self.assertEqual(self.network_calls(), [])
 
         lock.unlink()
@@ -649,30 +637,6 @@ gho"""
         self.assert_success(opened)
         self.assertEqual(opened.stdout.strip(), self.url)
         self.assertEqual(self.network_calls(), [])
-
-    def test_gho_does_not_cache_default_through_a_case_folded_tracking_ref(self):
-        upper = self.seed_commit({"file.txt": "uppercase branch\n"}, branch="Topic", create=True)
-        self.fetch_fixture()
-        self.git(self.seed, "pack-refs", "--all", "--prune")
-        self.git(self.remote, "pack-refs", "--all", "--prune")
-        self.seed_commit({"file.txt": "lowercase branch\n"}, branch="topic", create=True)
-        self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/topic")
-        alias = "refs/remotes/origin/HEAD"
-        self.git(self.checkout, "symbolic-ref", "--delete", alias)
-        refs = self.checkout / ".git" / "refs"
-        upper_refs = refs.with_name("REFS")
-        folds_case = upper_refs.exists() and refs.samefile(upper_refs)
-
-        result = self.run_fish("gho", cwd=self.checkout)
-
-        self.assert_success(result)
-        self.assertEqual(result.stdout.strip(), self.url + "/tree/main")
-        self.assertEqual(self.git(self.checkout, "rev-parse", "refs/remotes/origin/Topic").stdout.strip(), upper)
-        cached = self.git(self.checkout, "symbolic-ref", "--quiet", alias, check=False)
-        if folds_case:
-            self.assertNotEqual(cached.returncode, 0)
-        else:
-            self.assertEqual(cached.stdout.strip(), "refs/remotes/origin/topic")
 
     def test_default_alias_does_not_read_or_replace_a_case_folded_symref(self):
         refs = self.checkout / ".git" / "refs"
@@ -688,11 +652,6 @@ gho"""
         for target in ("refs/remotes/origin/topic", dangling):
             with self.subTest(target=target):
                 self.git(self.checkout, "symbolic-ref", alias, target)
-                opened = self.run_fish("gho", cwd=self.checkout)
-                self.assert_success(opened)
-                self.assertEqual(opened.stdout.strip(), self.url + "/tree/topic")
-                self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), target)
-
                 compared = self.run_fish("__ghe_compare_ref", self.url + ".git", self.checkout, "HEAD")
                 self.assert_success(compared)
                 self.assertEqual(compared.stdout.strip(), self.initial)
@@ -705,65 +664,32 @@ gho"""
         self.assertEqual(compared.stdout.strip(), self.initial)
         self.assertEqual(self.git(self.checkout, "symbolic-ref", alias).stdout.strip(), dangling)
 
-    def test_gho_ignores_tracking_refs_mapped_from_a_different_branch(self):
-        release = self.seed_commit({"release-only.txt": "only on release\n"}, branch="release/topic", create=True)
-        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
-                 "+refs/heads/release/*:refs/remotes/origin/*")
-        self.git(self.checkout, "config", "--add", "remote.origin.fetch",
-                 "+refs/heads/*:refs/remotes/origin/*")
-        self.fetch_fixture()
-        self.seed_commit({"topic-only.txt": "only on topic\n"}, branch="topic", create=True)
-        self.git(self.checkout, "switch", "--quiet", "--create", "topic", "refs/remotes/origin/topic")
-        self.git(self.checkout, "config", "branch.topic.remote", "origin")
-        self.git(self.checkout, "config", "branch.topic.merge", "refs/heads/topic")
+    def test_gho_uses_configured_upstream_without_a_tracking_ref(self):
+        self.git(self.checkout, "switch", "--quiet", "--create", "local-topic")
+        publish_url = "https://github.com/test-owner/published"
+        self.git(self.checkout, "remote", "add", "publish", publish_url + ".git")
+        self.git(self.checkout, "config", "branch.local-topic.remote", "publish")
+        self.git(self.checkout, "config", "branch.local-topic.merge", "refs/heads/review/topic")
+        self.git(self.checkout, "config", "--replace-all", "remote.publish.fetch",
+                 "+refs/heads/other:refs/remotes/publish/shared")
+        for target, expected in ((self.checkout, publish_url + "/tree/review/topic"),
+                                 (self.checkout / "file.txt", publish_url + "/blob/review/topic/file.txt")):
+            with self.subTest(target=target):
+                opened = self.run_fish("gho", target, offline=True)
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), expected)
 
-        result = self.run_fish("gho", self.checkout / "release-only.txt", offline=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("mapped from another branch", result.stderr)
-        self.assertEqual(self.calls("open"), [])
+    def test_gho_prefers_origin_then_the_only_remote_without_an_upstream(self):
+        self.git(self.checkout, "switch", "--quiet", "--create", "local-topic")
+        self.git(self.checkout, "remote", "rename", "origin", "publish")
+        opened = self.run_fish("gho", self.checkout, offline=True)
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), self.url + "/tree/local-topic")
 
-        self.git(self.remote, "symbolic-ref", "HEAD", "refs/heads/topic")
-        self.git(self.checkout, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
-        self.git(self.checkout, "switch", "--quiet", "--create", "release/topic", "refs/remotes/origin/topic")
-        self.git(self.checkout, "config", "branch.release/topic.remote", "origin")
-        self.git(self.checkout, "config", "branch.release/topic.merge", "refs/heads/release/topic")
-
-        result = self.run_fish("gho", self.checkout)
-        self.assert_success(result)
-        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/release/topic"])
-        alias = self.git(self.checkout, "symbolic-ref", "-q", "refs/remotes/origin/HEAD", check=False)
-        self.assertNotEqual(alias.returncode, 0)
-
-        self.git(self.remote, "update-ref", "refs/tags/release/topic", self.initial)
-        result = self.run_fish("gho", self.checkout)
-        self.assert_success(result)
-        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/" + release])
-
-    def test_gho_does_not_use_a_shared_abbreviated_tracking_destination(self):
-        topic = self.seed_commit({"topic-only.txt": "topic\n"}, branch="topic", create=True)
-        other = self.seed_commit({"other-only.txt": "other\n"}, branch="other", create=True)
-        tracking = "refs/remotes/origin/shared"
-        rule = "url." + self.remote.as_uri() + ".insteadOf=" + self.url + ".git"
-        self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch", f"+topic:{tracking}")
-        self.git(self.checkout, "-c", rule, "fetch", "--quiet", "origin", "topic")
-        self.git(self.checkout, "switch", "--quiet", "--create", "topic", "--no-track", tracking)
-        self.git(self.checkout, "config", "branch.topic.remote", "origin")
-        self.git(self.checkout, "config", "branch.topic.merge", "topic")
-
-        result = self.run_fish("gho", self.checkout / "topic-only.txt", offline=True)
-        self.assert_success(result)
-        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/" + topic + "/topic-only.txt"])
-
-        self.git(self.checkout, "config", "--add", "remote.origin.fetch", f"+refs/heads/other:{tracking}")
-        self.git(self.checkout, "-c", rule, "fetch", "--quiet", "origin", "other")
-        self.assertEqual(self.git(self.checkout, "rev-parse", tracking).stdout.strip(), other)
-        target = self.checkout / "other-only.txt"
-        target.write_text("local only\n")
-
-        result = self.run_fish("gho", target, offline=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("mapped from another branch", result.stderr)
-        self.assertEqual(self.calls("open"), [])
+        self.git(self.checkout, "remote", "add", "origin", "https://github.com/test-owner/other.git")
+        opened = self.run_fish("gho", self.checkout, offline=True)
+        self.assert_success(opened)
+        self.assertEqual(opened.stdout.strip(), "https://github.com/test-owner/other/tree/local-topic")
 
     def test_tracking_destination_shared_by_different_remotes_is_not_trusted(self):
         topic = self.seed_commit({"topic-only.txt": "origin topic\n"}, branch="topic", create=True)
@@ -803,9 +729,8 @@ gho"""
         target = self.checkout / "other-only.txt"
         target.write_text("local only\n")
         result = self.run_fish("gho", target, offline=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("remote other", result.stderr)
-        self.assertEqual(self.calls("open"), [])
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/topic/other-only.txt"])
         result = self.run_fish("gho", self.checkout)
         self.assert_success(result)
         self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/topic"])
@@ -819,73 +744,27 @@ gho"""
         self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/topic/topic-only.txt"])
         self.assertEqual(self.network_calls(), [])
 
-    def test_case_aliased_tracking_destinations_are_distinct_only_when_refs_are(self):
-        topic = self.seed_commit({"topic-only.txt": "origin topic\n"}, branch="topic", create=True)
-        (self.seed / "other-only.txt").write_text("other topic\n")
-        self.git(self.seed, "add", "other-only.txt")
-        self.git(self.seed, "commit", "-qm", "other remote only")
-        other = self.git(self.seed, "rev-parse", "HEAD").stdout.strip()
-        rule = "url." + self.remote.as_uri() + ".insteadOf=" + self.url + ".git"
-        tracking = "refs/remotes/shared/topic"
-        for index, spec in enumerate(("+refs/heads/topic:refs/remotes/Shared/topic",
-                                     "+refs/heads/*:refs/remotes/Shared/*")):
-            with self.subTest(spec=spec):
-                self.alias_checkout("case-destination-%d" % index)
-                self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
-                         "+refs/heads/*:refs/remotes/shared/*")
-                self.git(self.checkout, "-c", rule, "fetch", "--quiet", "origin", "topic")
-                self.git(self.checkout, "switch", "--quiet", "--create", "topic", "--track", tracking)
-                self.git(self.checkout, "remote", "add", "other", self.seed.as_uri())
-                self.git(self.checkout, "config", "--replace-all", "remote.other.fetch", spec)
-                self.git(self.checkout, "fetch", "--quiet", "other", "topic")
-
-                refs = self.checkout / ".git" / "refs"
-                upper_refs = refs.with_name("REFS")
-                folds_case = upper_refs.exists() and refs.samefile(upper_refs)
-                tip = self.git(self.checkout, "rev-parse", tracking).stdout.strip()
-                target = self.checkout / ("other-only.txt" if folds_case else "topic-only.txt")
-                if folds_case:
-                    target.write_text("local only\n")
-                result = self.run_fish("gho", target, offline=True)
-                if folds_case:
-                    self.assertEqual(tip, other)
-                    self.assertNotEqual(result.returncode, 0)
-                    self.assertIn("case-folded destination", result.stderr)
-                    self.assertEqual(self.calls("open"), [])
-                else:
-                    self.assertEqual(tip, topic)
-                    self.assert_success(result)
-                    self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/topic/topic-only.txt"])
-                self.assertEqual(self.network_calls(), [])
-
-    def test_local_ahead_branch_uses_remote_paths_and_rejects_new_paths(self):
-        (self.checkout / "file.txt").write_text("local update\n")
+    def test_gho_opens_local_only_files_and_directories(self):
         (self.checkout / "new-local.txt").write_text("not pushed\n")
         self.git(self.checkout, "add", "-A")
         self.git(self.checkout, "commit", "-qm", "local commit")
-        result = self.run_fish("gho", self.checkout / "file.txt", offline=True)
-        self.assert_success(result)
-        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/main/file.txt"])
-        result = self.run_fish("gho", self.checkout / "new-local.txt", offline=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("cached remote branch", result.stderr)
-        self.assertEqual(self.calls("open"), [])
+        (self.checkout / "untracked.txt").write_text("not committed\n")
+        (self.checkout / "untracked-dir").mkdir()
+        for name, kind in (("file.txt", "blob"), ("new-local.txt", "blob"),
+                           ("untracked.txt", "blob"), ("untracked-dir", "tree")):
+            with self.subTest(name=name):
+                opened = self.run_fish("gho", self.checkout / name, offline=True)
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), self.url + f"/{kind}/main/{name}")
 
-    def test_gho_does_not_treat_local_branches_or_tags_as_remote_tracking(self):
-        target = self.checkout / "local-only.txt"
-        target.write_text("unpublished\n")
-        self.git(self.checkout, "add", target)
-        self.git(self.checkout, "commit", "-qm", "local commit")
-        self.git(self.checkout, "tag", "local-copy")
+    def test_gho_does_not_validate_fetch_destinations(self):
         for tracking in ("refs/heads/main", "refs/tags/local-copy"):
             with self.subTest(tracking=tracking):
                 self.git(self.checkout, "config", "--replace-all", "remote.origin.fetch",
                          "+refs/heads/main:" + tracking)
-                result = self.run_fish("gho", target, offline=True)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("not a dedicated tracking ref", result.stderr)
-                self.assertEqual(self.calls("open"), [])
-                self.assertEqual(self.network_calls(), [])
+                opened = self.run_fish("gho", self.checkout / "file.txt", offline=True)
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), self.url + "/blob/main/file.txt")
 
     def test_implicit_head_mapping_cannot_prove_topic_tracking(self):
         self.seed_commit({"file.txt": "topic branch\n"}, branch="topic", create=True)
@@ -902,9 +781,8 @@ gho"""
 
         self.git(self.checkout, "switch", "--quiet", "--create", "topic")
         result = self.run_fish("gho", self.checkout / "file.txt", offline=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("mapped from another branch or ref: HEAD", result.stderr)
-        self.assertEqual(self.calls("open"), [])
+        self.assert_success(result)
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/topic/file.txt"])
         self.assertEqual(self.network_calls(), [])
 
     def test_gho_uses_the_git_tree_spelling_for_a_decomposed_filename(self):
@@ -926,12 +804,20 @@ gho"""
         self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/main/Caf%C3%A9.txt"])
         self.assertEqual(self.network_calls(), [])
 
-    def test_unpushed_new_branch_has_a_clear_error(self):
+    def test_gho_opens_unpublished_branches_and_paths(self):
         self.git(self.checkout, "switch", "--quiet", "--create", "unpublished")
-        result = self.run_fish("gho", self.checkout, offline=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("not been pushed or fetched", result.stderr)
-        self.assertEqual(self.calls("open"), [])
+        for arguments, cwd, suffix in (
+            ((), self.checkout, "/tree/unpublished"),
+            ((self.checkout,), self.sandbox, "/tree/unpublished"),
+            ((self.checkout / "dir",), self.sandbox, "/tree/unpublished/dir"),
+            ((self.checkout / "file.txt",), self.sandbox, "/blob/unpublished/file.txt"),
+        ):
+            with self.subTest(arguments=arguments):
+                opened = self.run_fish("gho", *arguments, cwd=cwd, offline=True)
+                self.assert_success(opened)
+                self.assertEqual(opened.stderr, "")
+                self.assertEqual(opened.stdout, self.url + suffix + "\n")
+                self.assertEqual(self.calls("open")[0]["args"], [self.url + suffix])
 
     def test_tracked_symlinks_open_the_link_and_installed_links_resolve(self):
         for name in ("linked.txt", "broken.txt"):
@@ -1323,7 +1209,7 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
                     self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), branch)
                     self.assertEqual(self.network_calls(), [])
 
-    def test_gho_uses_commit_link_when_branch_name_looks_like_a_qualified_ref(self):
+    def test_gho_opens_qualified_branch_names_directly(self):
         branch = "refs/heads/main"
         self.git(self.seed, "switch", "--quiet", "--create", branch)
         (self.seed / "qualified.txt").write_text("only on the nested branch\n")
@@ -1336,14 +1222,14 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
         result = self.run_fish("gho", self.checkout / "qualified.txt", offline=True)
 
         self.assert_success(result)
-        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/" + self.head() + "/qualified.txt"])
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/blob/refs/heads/main/qualified.txt"])
         self.assertEqual(self.network_calls(), [])
 
         self.git(self.checkout, "config", "--add", "remote.origin.fetch",
                  "+refs/heads/main:refs/remotes/origin/" + branch)
         result = self.run_fish("gho", self.checkout)
         self.assert_success(result)
-        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/" + self.head()])
+        self.assertEqual(self.calls("open")[0]["args"], [self.url + "/tree/refs/heads/main"])
 
     def test_latest_release_uses_mocked_api_and_checks_out_its_tag(self):
         endpoint = "repos/test-owner/test-repo/releases/latest"
