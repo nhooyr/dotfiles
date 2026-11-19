@@ -170,3 +170,6 @@ function _dirt --description 'List repos with dirt'
 end
 
 abbrali imps "ga; and gcm -em 'imps'"
+function gbins --description 'Print staged or committed binary files'
+    git diff --numstat --cached 4b825dc642cb6eb9a060e54bf8d69288fbee4904 | awk '$1 == "-" {print $3}'
+end
