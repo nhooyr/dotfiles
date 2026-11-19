@@ -506,7 +506,7 @@ elif kind not in ("editor", "open", "dispatch"):
         opened = self.run_fish("gho", cwd=unborn, offline=True)
 
         self.assert_success(opened)
-        self.assertEqual(opened.stdout.strip(), self.url + "/tree/main")
+        self.assertEqual(opened.stdout.strip(), self.url)
         self.assertEqual(self.network_calls(), [])
 
         self.git(self.checkout, "switch", "--quiet", "--detach", self.initial)
@@ -602,7 +602,7 @@ gho"""
                 self.git(self.checkout, "symbolic-ref", alias, default)
             else:
                 self.git(self.checkout, "symbolic-ref", "--delete", alias)
-            root_url = self.url if default.endswith("/main") else self.url + "/tree/main"
+            root_url = self.url if not default or default.endswith("/main") else self.url + "/tree/main"
             for offline in (False, True):
                 for target, expected in ((self.checkout, root_url),
                                          (self.checkout / "file.txt", self.url + "/blob/main/file.txt")):
@@ -610,6 +610,30 @@ gho"""
                         opened = self.run_fish("gho", target, offline=offline)
                         self.assert_success(opened)
                         self.assertEqual(opened.stdout.strip(), expected)
+                        self.assertEqual(self.git(self.checkout, "symbolic-ref", "--quiet", alias,
+                                                  check=False).stdout.strip(), default)
+
+    def test_gho_default_fallback_only_applies_to_main_and_master_roots(self):
+        alias = "refs/remotes/origin/HEAD"
+        for branch in ("main", "master", "topic"):
+            if branch != "main":
+                self.git(self.checkout, "switch", "--quiet", "--create", branch)
+            for default in ("", "refs/remotes/origin/develop"):
+                self.git(self.checkout, "symbolic-ref", "--delete", alias, check=False)
+                if default:
+                    self.git(self.checkout, "symbolic-ref", alias, default)
+                homepage = not default and branch in ("main", "master")
+                root_url = self.url if homepage else self.url + "/tree/" + branch
+                for target, expected in (
+                    (self.checkout, root_url),
+                    (self.checkout / "dir", self.url + "/tree/" + branch + "/dir"),
+                    (self.checkout / "file.txt", self.url + "/blob/" + branch + "/file.txt"),
+                ):
+                    with self.subTest(branch=branch, default=default, target=target):
+                        opened = self.run_fish("gho", target, offline=True)
+                        self.assert_success(opened)
+                        self.assertEqual(opened.stdout.strip(), expected)
+                        self.assertEqual(self.calls("open")[0]["args"], [expected])
                         self.assertEqual(self.git(self.checkout, "symbolic-ref", "--quiet", alias,
                                                   check=False).stdout.strip(), default)
 

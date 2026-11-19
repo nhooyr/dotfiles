@@ -50,6 +50,7 @@ Build URLs from local information; never check or fetch the remote.
 
 Local paths use the configured upstream branch, otherwise the local branch.
 The cached default branch opens its homepage; detached HEAD uses its commit.
+If the default branch is unknown, main/master also open the homepage.
 Unpublished branches and files are opened without checking whether they exist.'
     0=(status current-function) usage="$usage" __gho_main $argv
 end
@@ -1797,8 +1798,11 @@ function __gho_url --argument-names target
     if test -z "$branch"
         set ref "$(git -C "$dir" rev-parse HEAD 2>/dev/null)"; or return
     else if test -z "$repo_path"
-        # Use the cached default-branch name without checking whether it exists.
+        # Use the cached default name, or assume main/master when it is missing.
         set -l default "$(git -C "$dir" symbolic-ref --quiet "refs/remotes/$remote/HEAD" 2>/dev/null)"
+        if test -z "$default"; and contains -- "$ref" main master
+            set default "refs/remotes/$remote/$ref"
+        end
         if test "$default" = "refs/remotes/$remote/$ref"
             printf '%s\n' "$url"
             return
