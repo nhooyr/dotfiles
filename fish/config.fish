@@ -118,6 +118,8 @@ abbrali ws gg "'[[:space:]]+\$'"
 
 abbrali o open
 abbrali o. open .
+abbrali of ofinder
+abbrali ofinder open -R
 abbrali safari open -a Safari
 abbrali chrome open -a 'Google Chrome'
 abbrali e nvim
