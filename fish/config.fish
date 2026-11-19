@@ -46,7 +46,8 @@ set -g fish_pager_color_selected_background --background=black
 set -g fish_pager_color_selected_prefix white --underline --bold
 set -g fish_pager_color_selected_completion white
 set -g fish_pager_color_selected_description white
-set -g fish_color_autosuggestion brblack --italic
+set -g fish_color_autosuggestion 808080 --italic
+set -g fish_color_comment brblack --italic
 abbrali r reload
 function reload
     source "$__fish_config_dir/config.fish"
@@ -117,6 +118,7 @@ abbrali ec e '"$dotfiles/fish/config.fish"'
 abbrali cdd cdc '"$dotfiles"'
 abbrali ev e '"$dotfiles/nvim/init.vim"'
 abbrali t time
+abbrali esc string escape
 abbrali m man
 abbr -a --set-cursor ma math "'%'"
 abbrali tra trash
