@@ -260,7 +260,7 @@ for mode in default insert
     bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
     bind -M "$mode" alt-v 'fzf_accept_and_run fzf-file-widget'
     bind -M "$mode" shift-tab 'fzf_accept_and_run fzf_complete'
-    bind -M "$mode" alt-e edit_command_buffer aqsnow_rendezvous
+    bind -M "$mode" -m insert alt-e edit_command_buffer aqsnow_rendezvous
 end
 
 function aqsnow_exec
