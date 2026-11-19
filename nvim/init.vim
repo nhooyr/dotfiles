@@ -99,6 +99,7 @@ vnoremap / "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 vnoremap g/ /
 vnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
 vmap <Leader>r /<Leader>r
+vnoremap <M-r> :s###g<Left><Left>
 
 nnoremap q :quit<CR>
 nnoremap <M-q> q
