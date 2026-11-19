@@ -1,0 +1,211 @@
+#!/bin/sh
+set -eu
+
+# Resizing requires macOS sips, jpegtran, and openssl in addition to qrencode.
+photo_quality=35
+
+usage() {
+	printf 'Usage: %s input.vcf [output.png]\n' "${0##*/}"
+}
+
+for arg; do
+	case "$arg" in
+	-h | --help)
+		usage
+		exit 0
+		;;
+	esac
+done
+
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+	usage >&2
+	exit 1
+fi
+
+input="$1"
+input_name="${input##*/}"
+output="${2:-${input%"$input_name"}${input_name%.*}.png}"
+
+if [ ! -f "$input" ]; then
+	printf '%s: file not found: %s\n' "${0##*/}" "$input" | hpath >&2
+	exit 1
+fi
+
+if ! tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXXXX" 2>&1)"; then
+	printf '%s: %s\n' "${0##*/}" "$tmpdir" | hpath >&2
+	exit 1
+fi
+cleanup_error=""
+trap '
+    if ! cleanup_error="$(rm -rf "$tmpdir" 2>&1)"; then
+        printf "%s: %s\n" "${0##*/}" "$cleanup_error" | hpath >&2
+    fi
+' 0
+trap 'exit 1' HUP INT TERM
+
+encode() {
+	# Keep a full quiet zone and medium error correction for screen scanning.
+	if LC_ALL=C qrencode -r "$1" -o "$2" -l M -s 8 -m 4 2>"$tmpdir/error"; then
+		return 0
+	fi
+	if ! grep -Eq 'Input data (is )?too large' "$tmpdir/error"; then
+		printf '%s: %s\n' "${0##*/}" "$(cat "$tmpdir/error")" | hpath >&2
+		exit 1
+	fi
+	return 1
+}
+
+make_card() {
+	sips -Z "$1" -s format jpeg -s formatOptions "$photo_quality" \
+		-d profile "$tmpdir/photo" --out "$tmpdir/resized.jpg" >/dev/null || return
+	jpegtran -copy none -optimize -outfile "$tmpdir/photo.jpg" "$tmpdir/resized.jpg" || return
+	openssl base64 -A -in "$tmpdir/photo.jpg" -out "$tmpdir/photo.b64" || return
+
+	{
+		cat "$tmpdir/before.vcf" || return
+		LC_ALL=C awk '
+            { line = line $0 }
+            END {
+                printf "%s", substr(line, 1, 75)
+                for (i = 76; i <= length(line); i += 74)
+                    printf "\r\n %s", substr(line, i, 74)
+                printf "\r\n"
+            }
+        ' "$tmpdir/photo.header" "$tmpdir/photo.b64" || return
+		cat "$tmpdir/after.vcf" || return
+	} >"$tmpdir/card.vcf"
+}
+
+photo_dimensions=""
+# Preserve the original card and photo whenever they already fit.
+if ! encode "$input" "$tmpdir/qr.png"; then
+	: >"$tmpdir/before.vcf"
+	: >"$tmpdir/after.vcf"
+	: >"$tmpdir/error"
+	if ! LC_ALL=C awk -v dir="$tmpdir" '
+        function fail(message) {
+            print message > (dir "/error")
+            failed = 1
+            exit 1
+        }
+
+        function flush(    separator, header, data, name, prefix) {
+            if (raw == "") return
+            if (toupper(unfolded) ~ /^([[:alnum:]-]+\.)?PHOTO[:;]/) {
+                if (++photos > 1)
+                    fail("Resizing requires exactly one embedded PHOTO property.")
+
+                separator = index(unfolded, ":")
+                header = substr(unfolded, 1, separator - 1)
+                data = substr(unfolded, separator + 1)
+                name = header
+                sub(/;.*/, "", name)
+
+                if (toupper(header) ~ /;ENCODING="?(B|BASE64)"?(;|$)/)
+                    prefix = name ";ENCODING=b;TYPE=JPEG:"
+                else if (toupper(data) ~ /^DATA:IMAGE\/[^,]+;BASE64,/) {
+                    sub(/^[^,]*,/, "", data)
+                    prefix = name ";VALUE=uri:data:image/jpeg;base64,"
+                } else
+                    fail("Cannot resize PHOTO: expected a base64-encoded image.")
+
+                printf "%s", prefix > (dir "/photo.header")
+                printf "%s", data > (dir "/photo.b64")
+            } else {
+                printf "%s", raw > (dir (photos ? "/after.vcf" : "/before.vcf"))
+            }
+        }
+
+        {
+            line = $0
+            sub(/\r$/, "", line)
+            if (raw != "" && line ~ /^[ \t]/) {
+                raw = raw $0 "\n"
+                unfolded = unfolded substr(line, 2)
+            } else {
+                flush()
+                raw = $0 "\n"
+                unfolded = line
+            }
+        }
+
+        END {
+            if (!failed) {
+                flush()
+                if (photos != 1)
+                    fail("The vCard is too large and has no embedded PHOTO to resize.")
+            }
+        }
+    ' <"$input" 2>"$tmpdir/tool-error"; then
+		printf '%s: %s\n' "${0##*/}" "$(cat "$tmpdir/error" "$tmpdir/tool-error")" | hpath >&2
+		exit 1
+	fi
+
+	{
+		openssl base64 -d -A -in "$tmpdir/photo.b64" -out "$tmpdir/photo" &&
+			sips -g pixelWidth -g pixelHeight "$tmpdir/photo" >"$tmpdir/dimensions"
+	} 2>"$tmpdir/tool-error" || {
+		command_status=$?
+		printf '%s: %s\n' "${0##*/}" "$(cat "$tmpdir/tool-error")" | hpath >&2
+		exit "$command_status"
+	}
+	upper="$(awk '
+        $1 == "pixelWidth:" || $1 == "pixelHeight:" {
+            if ($2 > maximum) maximum = $2
+        }
+        END { printf "%.0f", maximum }
+    ' <"$tmpdir/dimensions")"
+	if [ "$upper" -lt 1 ]; then
+		printf '%s: cannot determine photo dimensions\n' "${0##*/}" >&2
+		exit 1
+	fi
+
+	# Search actual QR encodes, preserving aspect ratio and never upscaling.
+	lower=1
+	while [ "$lower" -le "$upper" ]; do
+		photo_size="$(((lower + upper) / 2))"
+		make_card "$photo_size" 2>"$tmpdir/tool-error" || {
+			command_status=$?
+			printf '%s: %s\n' "${0##*/}" "$(cat "$tmpdir/tool-error")" | hpath >&2
+			exit "$command_status"
+		}
+		if encode "$tmpdir/card.vcf" "$tmpdir/candidate.png"; then
+			{
+				mv "$tmpdir/candidate.png" "$tmpdir/qr.png" &&
+					mv "$tmpdir/photo.jpg" "$tmpdir/best-photo.jpg"
+			} 2>"$tmpdir/tool-error" || {
+				command_status=$?
+				printf '%s: %s\n' "${0##*/}" "$(cat "$tmpdir/tool-error")" | hpath >&2
+				exit "$command_status"
+			}
+			lower="$((photo_size + 1))"
+		else
+			upper="$((photo_size - 1))"
+		fi
+	done
+	if [ ! -f "$tmpdir/best-photo.jpg" ]; then
+		printf '%s: vCard cannot fit in one QR code, even with a 1-pixel photo\n' "${0##*/}" >&2
+		exit 1
+	fi
+	sips -g pixelWidth -g pixelHeight "$tmpdir/best-photo.jpg" >"$tmpdir/dimensions" 2>"$tmpdir/tool-error" || {
+		command_status=$?
+		printf '%s: %s\n' "${0##*/}" "$(cat "$tmpdir/tool-error")" | hpath >&2
+		exit "$command_status"
+	}
+	photo_dimensions="$(awk '
+        $1 == "pixelWidth:" { width = $2 }
+        $1 == "pixelHeight:" { height = $2 }
+        END { printf "%sx%s", width, height }
+    ' <"$tmpdir/dimensions")"
+fi
+
+case "$output" in -*) output="./$output" ;; esac
+mv "$tmpdir/qr.png" "$output" 2>"$tmpdir/tool-error" || {
+	command_status=$?
+	printf '%s: %s\n' "${0##*/}" "$(cat "$tmpdir/tool-error")" | hpath >&2
+	exit "$command_status"
+}
+if [ -n "$photo_dimensions" ]; then
+	printf '%s: profile photo resized to %s@%sq\n' "${0##*/}" "$photo_dimensions" "$photo_quality" >&2
+fi
+printf '%s\n' "$output" | hpath
