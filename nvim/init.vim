@@ -213,7 +213,8 @@ augroup aqsnow
 	autocmd!
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | endif
 	autocmd filetype gitcommit setlocal noet ts=4 sw=0 tw=110
-	autocmd filetype html,markdown,jsonc,css setlocal et ts=2 sw=0
+	autocmd filetype html,jsonc,css setlocal et ts=2 sw=0
+	autocmd filetype markdown setlocal et ts=3 sw=0
 	autocmd filetype fish setlocal et ts=4 sw=0
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 	autocmd BufReadPost * call <SID>restore_cursor()

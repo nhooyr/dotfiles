@@ -134,7 +134,7 @@ function papp --wraps 'git apply' --description 'git apply from clipboard'
 end
 
 alias gh='NO_COLOR=1 command gh'
-abbrali ghf gh repo fork --remote
+abbrali ghf 'gh repo fork --remote; and gh repo set-default upstream'
 function ghc --wraps 'gh repo create --private'
     if contains -- --help $argv
         gh repo create --help
