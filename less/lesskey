@@ -1,0 +1,3 @@
+#command
+^E forw-line 2j
+^Y back-line 2k
