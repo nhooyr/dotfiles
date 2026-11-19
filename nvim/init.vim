@@ -144,8 +144,10 @@ imap <C-_> <C-o>gcc
 vmap <C-_> gc
 
 nnoremap ]p ]p=`]
-nnoremap [p [p=`]
 nnoremap ]P ]P=`]
+nnoremap ]<M-p> "+]p=`]
+nnoremap ]<M-P> "+]P=`]
+
 nnoremap c "_c
 nnoremap C "_C
 vnoremap c "_c
