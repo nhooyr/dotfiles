@@ -148,8 +148,8 @@ function ghc --wraps 'gh repo create --private'
     ghe $url[1]
 end
 abbrali ghch gh pr checkout
-abbrali ghpr gh pr create --web --fill-verbose
 abbrali ghop gh pr view --web
+abbrali ghep gh pr create --web --fill-verbose
 
 abbrali tabt column -ts '\t'
 abbrali dt dirt
