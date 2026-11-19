@@ -1785,3 +1785,75 @@ function gho --argument-names target
     printf '%s\n' "$url"
     open "$url"
 end
+
+function ghss --description 'Upload a photo to GitHub and copy its Markdown'
+    argparse --max-args 1 h/help -- $argv; or return
+    if set -q _flag_help
+        printf '%s\n' \
+            'Usage: ghss PHOTO' \
+            '' \
+            'Upload a PNG, JPG, or JPEG to the current GitHub repository.' \
+            'Print the image Markdown and copy it with pbc.' \
+            'Uses gh authentication and repository selection; requires write access.'
+        return 0
+    end
+    if not set -q argv[1]
+        printf 'Usage: ghss PHOTO\n' >&2
+        return 1
+    end
+    set -l photo "$(path resolve -- "$argv[1]")"; or return
+    if not test -f "$photo"; or not test -r "$photo"
+        printf 'ghss: not a readable file: %s\n' "$argv[1]" >&2
+        return 1
+    end
+    set -l content_type
+    switch (string lower -- "$(path extension -- "$photo")")
+        case .png
+            set content_type image/png
+        case .jpg .jpeg
+            set content_type image/jpeg
+        case '*'
+            printf 'ghss: expected a PNG, JPG, or JPEG: %s\n' "$argv[1]" >&2
+            return 1
+    end
+    set -l size "$(wc -c < "$photo")"; or return
+    set size (string trim -- "$size")
+    if test "$size" -eq 0; or test "$size" -gt 10485760
+        printf 'ghss: photo must be nonempty and at most 10 MiB\n' >&2
+        return 1
+    end
+    if not type -q pbc
+        printf 'ghss: pbc is required to copy the Markdown\n' >&2
+        return 1
+    end
+
+    set -l repository (gh api 'repos/{owner}/{repo}' --jq '.id, .html_url'); or return
+    if test (count $repository) -ne 2; or not string match -qr '^[1-9][0-9]*$' -- "$repository[1]"
+        printf 'ghss: could not determine the current GitHub repository\n' >&2
+        return 1
+    end
+    if not string match -qr '^https://github\.com/[^/]+/[^/]+/?$' -- "$repository[2]"
+        printf 'ghss: photo uploads require a GitHub.com repository\n' >&2
+        return 1
+    end
+    # Use the same upload endpoint as gh --attach, without posting a comment.
+    set -l url "$(gh api --hostname github.com https://uploads.github.com/user-attachments/assets \
+        --method POST \
+        --input "$photo" \
+        -H 'Accept: application/vnd.github+json' \
+        -H 'Content-Type: application/octet-stream' \
+        -H "Content-Length: $size" \
+        -f "name=$(path basename -- "$photo")" \
+        -f "content_type=$content_type" \
+        -F "repository_id=$repository[1]" \
+        --jq '.url // empty')"; or return
+    if test -z "$url"
+        printf 'ghss: upload returned no image URL\n' >&2
+        return 1
+    end
+    set -l markdown "![Photo]($url)"
+    printf '%s\n' "$markdown" | pbc; or begin
+        printf 'ghss: uploaded, but could not copy the Markdown:\n%s\n' "$markdown" >&2
+        return 1
+    end
+end
