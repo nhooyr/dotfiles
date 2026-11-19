@@ -194,6 +194,8 @@ abbr -a --command tmux l list-sessions
 abbr -a --command tmux a attach-session
 abbr -a --command tmux k kill-server
 abbr -a --command tmux q kill-server
+abbrali cx codex
+abbr -a --command codex a agents
 
 function colors
     for name in black red green yellow blue magenta cyan white
