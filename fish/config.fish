@@ -182,10 +182,10 @@ abbrali bi brew install
 abbrali bu brew upgrade
 abbrali bcl brew cleanup
 abbrali tm tmux
-abbrali tml tmux list-sessions
-abbrali tma tmux attach-session
-abbrali tmq tmux kill-server
-abbrali tmk tmux kill-server
+abbrali tmuxl tmux list-sessions
+abbrali tmuxa tmux attach-session
+abbrali tmuxq tmux kill-server
+abbrali tmuxk tmux kill-server
 abbr -a --command tmux l list-sessions
 abbr -a --command tmux a attach-session
 abbr -a --command tmux k kill-server
