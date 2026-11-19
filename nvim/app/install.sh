@@ -95,7 +95,7 @@ if [ "$set_defaults" = true ]; then
 		.java .kt .kts .scala .cs .rb .php .pl .r \
 		.js .mjs .cjs .jsx .tsx .vue .svelte \
 		.json .jsonc .jsonl .yaml .yml .toml \
-		.html .htm .css .scss .sass .less .xml .sql \
+		.html .svg .htm .css .scss .sass .less .xml .sql \
 		.sh .bash .zsh .fish .lua .vim .conf .cfg .ini
 	# System setters trigger a macOS dialog for each type. Update the user's
 	# handler preferences in one batch, preserving unrelated types and URLs.

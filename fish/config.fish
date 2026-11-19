@@ -114,6 +114,8 @@ abbrali ws gg "'[[:space:]]+\$'"
 
 abbrali o open
 abbrali o. open .
+abbrali safari open -a Safari
+abbrali chrome open -a 'Google Chrome'
 abbrali e nvim
 abbrali ec e '"$dotfiles/fish/config.fish"'
 abbrali cdd cdc '"$dotfiles"'
