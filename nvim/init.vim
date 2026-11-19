@@ -111,6 +111,9 @@ inoremap <C-s> <Esc>:xit<CR>
 
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
 function! s:quit_and_run() abort
+	if mode() ==# 'i'
+		execute "normal! i" . copilot#Accept('')
+	endif
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != "")
@@ -120,7 +123,7 @@ function! s:quit_and_run() abort
 	qall
 endfunction
 nnoremap <M-CR> :call <SID>quit_and_run()<CR>
-inoremap <M-CR> <Esc>:call <SID>quit_and_run()<CR>
+inoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
 function! s:fzf_file_widget() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
