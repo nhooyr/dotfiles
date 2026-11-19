@@ -22,7 +22,7 @@ end
 set -g fish_prompt_pwd_dir_length 0
 set -g fish_color_user --reset
 if fish_is_root_user
-    set -g fish_color_user brred --underline --bold --italic
+    set -g fish_color_user brred --underline --bold
 end
 set -g fish_color_cwd blue
 set -g fish_color_host --underline
