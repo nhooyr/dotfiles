@@ -413,7 +413,7 @@ function biglines --argument-names file \
     awk '{ print length, $0 }' "$file" | sort -rn | sed -E "s/^[0-9]+/$(set_color magenta)&$(set_color reset)/" | less
 end
 
-abbrali noise 'cdc "$noise" gacm -em Update'
+abbrali noise 'cdc "$noise" gacmp -em Update'
 
 function fair --argument-names n
     if test "$(path resolve -- "$PWD")" != "$(path resolve -- "$fair_repo")"
@@ -434,6 +434,7 @@ function fair --argument-names n
     git push
 end
 
+abbrali notep 'cdc "$notes" gacmp -em Update'
 function note --description '$EDITOR $notes/YYYY/MM/DD.md'
     set -l note "$notes/$(date '+%Y/%m/%d').md"
     set -l EDITOR $EDITOR

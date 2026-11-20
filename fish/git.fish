@@ -15,13 +15,16 @@ abbrali gshb 'git show -s --format=%b | pbc'
 abbrali ga git add -A
 abbrali gap git add -p
 abbrali gai git add -i
-abbrali gp git push
 abbrali gps git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
 abbr -a gacm 'ga; and gcm'
 function gacm
     ga; and gcm $argv
+end
+abbr -a gacmp 'ga; and gcm; and gp'
+function gacmp
+    ga; and gcm $argv; and gps
 end
 abbrali gcma git commit --amend
 abbr -a gacma 'ga; and gcma'
