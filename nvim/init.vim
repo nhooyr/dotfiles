@@ -4,6 +4,8 @@ set shiftwidth=0
 set ignorecase
 set smartcase
 set laststatus=3
+set title
+set titlestring=%t%(\ %M%)%(\ \(%{expand('%:p:~:h')}\)%)%a\ -\ nvim
 set textwidth=110
 set foldmethod=indent
 set foldlevel=999
@@ -88,7 +90,7 @@ cnoremap <M-v> <C-r>"
 cnoremap <M-f> \V
 nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
 			\:echo 'source' $MYVIMRC<CR>
-nnoremap <Leader>e :e $MYVIMRC<CR>
+nnoremap <Leader>v :e $MYVIMRC<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 nnoremap <silent> - :execute 'edit' fnameescape(expand('%:p:h'))<CR>
