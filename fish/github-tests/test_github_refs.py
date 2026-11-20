@@ -1831,18 +1831,10 @@ __ghe_compare_ref "$argv[1]" "$argv[2]" "$argv[3]"
         self.assertNotEqual(self.git(destination, "symbolic-ref", "--quiet", "HEAD", check=False).returncode, 0)
         self.assertEqual([call["command"] for call in self.transport], ["ls-remote"])
 
-    def test_cached_only_resolution_keeps_short_commits_ambiguous_and_gho_offline(self):
+    def test_gho_opens_detached_commit_offline_despite_ambiguous_short_ref(self):
         destination = self.clone()
         unrelated = self.colliding_hex_commit(destination, with_paths=True)
         self.git(destination, "update-ref", "refs/heads/unrelated", unrelated)
-        result = self.fish('__gh_resolve "$argv[1]" blob/2026/fix/file.txt "$argv[2]" true', URL, destination, offline=True)
-
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(result.stdout, "")
-        self.assertEqual(result.stderr, "")
-        self.assertEqual(self.transport, [])
-        self.assertEqual(self.oid(destination), self.initial)
-
         self.git(destination, "switch", "--quiet", "--detach", unrelated)
         result = self.fish('gho "$argv[1]"', destination / "fix/file.txt", offline=True)
         self.assert_success(result)

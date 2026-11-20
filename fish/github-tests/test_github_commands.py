@@ -239,8 +239,7 @@ elif kind not in ("editor", "open"):
             # Exercise real parsing and checkout without redirecting system HOME.
             # The public ghe destination/anchor dispatch is tested separately.
             self.assertEqual(len(args), 1)
-            script += "set -lx 0 ghe\nset -l parsed (__gh_parse " + fish_quote(args[0]) + ")\n"
-            script += "if test (count $parsed) -eq 4\n"
+            script += "set -lx 0 ghe\nif set -l parsed $(__gh_parse " + fish_quote(args[0]) + ")\n"
             script += '__ghe_checkout "$parsed[3]" ' + fish_quote(self.checkout)
             script += ' "$parsed[2]" ' + " ".join(fish_quote(value) for value in positions)
             script += "\nelse\nfalse\nend\n"
@@ -519,6 +518,17 @@ elif kind not in ("editor", "open"):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(self.network_calls(), [])
                     self.assertEqual(self.calls("open") + self.calls("editor"), [])
+
+    def test_rejects_controls_in_configured_host_without_side_effects(self):
+        for host in ("github.\nexample.com", "github.example.com\r", "github.\texample.com"):
+            self.env["GH_HOST"] = host
+            for command in ("ghe", "gho"):
+                with self.subTest(command=command, host=host):
+                    result = self.run_fish(command, "test-owner/test-repo")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("invalid GitHub hostname", result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(self.calls(), [])
 
     def test_ghe_rejects_git_metadata_paths(self):
         self.git(None, "init", "--quiet", self.checkout / "nested")
