@@ -469,6 +469,8 @@ function rootimg --description 'Shrink image to 1/4' --argument-names img
     magick "$img" -resize 50% "$img_dst"
 end
 
+abbrali netq networkquality
+
 set -g dotfiles "$(path resolve -- "$(status filename)/../..")"
 function add_cdpath
     set -l mode --append
