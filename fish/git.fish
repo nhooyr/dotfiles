@@ -19,31 +19,15 @@ abbrali gp git push
 abbrali gps git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
-abbr -a gcmp 'gcm; and gps'
-function gcmp
-    gcm $argv; and gps
-end
 abbr -a gacm 'ga; and gcm'
 function gacm
     ga; and gcm $argv
 end
-abbr -a gacmp 'ga; and gcm; and gp'
-function gacmp
-    ga; and gcm $argv; and gp
-end
 abbrali gcma git commit --amend
-abbr -a gcmap 'gcma; and gpf'
-function gcmap
-    gcma $argv; and gpf
-end
 abbr -a gacma 'ga; and gcma'
 abbr -a fcm 'ga; and gcma'
 function gacma
     ga; and gcma $argv
-end
-abbr -a gacmap 'ga; and gcma; and gpf'
-function gacmap
-    ga; and gcma $argv; and gpf
 end
 abbrali gcmf git commit --fixup
 abbrali grb git rebase
@@ -74,6 +58,11 @@ abbrali gf git fetch
 abbrali gfa git fetch --all
 abbrali gfp git fetch --prune-tags
 abbrali gro git remote -v
+abbrali groa git remote add
+abbrali gros git remote set-url
+abbrali grou git remote get-url
+abbrali gror git remote rename
+abbrali grod git remote remove
 abbrali gb git branch -vv
 abbrali gbm git branch -vvm
 abbrali gbu git branch -vvu

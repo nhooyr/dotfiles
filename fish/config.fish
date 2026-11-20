@@ -337,9 +337,9 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     test "$code" -eq 0; or return 0
 
     switch "$cmdline"
-        case 'git commit --amend*' '*; and git commit --amend' 'gcma*' '*; and gcma*'
+        case 'git commit --amend' '*; and git commit --amend' 'gcma' '*; and gcma'
             gpf
-        case 'git commit*' '*; and git commit' 'gcm*' '*; and gcm*'
+        case 'git commit*' '* git commit' 'gcm*' '* gcm*' 'gacm*' '* gacm*'
             git push
     end
 end
@@ -412,19 +412,7 @@ function biglines --argument-names file \
     awk '{ print length, $0 }' "$file" | sort -rn | sed -E "s/^[0-9]+/$(set_color magenta)&$(set_color reset)/" | less
 end
 
-function noise
-    if test "$(path resolve -- "$PWD")" != "$(path resolve -- "$noise")"
-        cdc "$noise" noise $argv
-        return
-    end
-    git add -A; or return
-    set -l commit_args
-    if test "$(git diff --cached --name-only)" = fish/fish_history
-        set commit_args -m 'fish_history: Update' -e
-    end
-    git commit $commit_args; or return
-    git push
-end
+abbrali noise 'cdc "$noise" gacm -em Update'
 
 function fair --argument-names n
     if test "$(path resolve -- "$PWD")" != "$(path resolve -- "$fair_repo")"
