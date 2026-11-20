@@ -421,7 +421,7 @@ function biglines --argument-names file \
     awk '{ print length, $0 }' "$file" | sort -rn | sed -E "s/^[0-9]+/$(set_color magenta)&$(set_color reset)/" | less
 end
 
-abbrali noise 'cdc "$noise" gacmp -em Update'
+abbrali noise 'cdc "$noise" gacmp -em "fish_history: Update"'
 
 function fair --argument-names n
     if test "$(path resolve -- "$PWD")" != "$(path resolve -- "$fair_repo")"
