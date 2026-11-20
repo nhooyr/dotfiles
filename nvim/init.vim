@@ -207,7 +207,8 @@ command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 			   \ diffthis | wincmd p | diffthis
 
 nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
-nnoremap <Leader>= :keeppatterns %s/^\s*[+-]//<CR>
+nnoremap <Leader>- :keeppatterns %s/^\s*[+-]//<CR>
+vnoremap <Leader>- :keeppatterns s/^\s*[+-]//<CR>
 nnoremap <M-n> :next<CR>
 nnoremap <M-p> :prev<CR>
 nnoremap Z zz
