@@ -197,7 +197,7 @@ highlight PmenuMatchSel cterm=underline,bold
 highlight! link PmenuSbar Pmenu
 highlight! link PmenuThumb Pmenu
 " Only time we use a non-base16 color. Keeps copilot suggestions visible in comments which are cterm=8.
-highlight CopilotSuggestion ctermfg=244 cterm=italic
+highlight CopilotSuggestion ctermfg=244
 let g:copilot_filetypes = {
 			\ '*': v:true,
 			\ }
