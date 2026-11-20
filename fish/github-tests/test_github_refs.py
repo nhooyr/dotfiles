@@ -79,6 +79,7 @@ class GithubRefsTests(unittest.TestCase):
             GIT_CONFIG_GLOBAL=os.devnull,
             GIT_TERMINAL_PROMPT="0",
             GIT_ALLOW_PROTOCOL="file",
+            GH_HOST="",
             GITHUB_TEST_REAL_GIT=GIT,
             GITHUB_TEST_TRANSPORT_LOG=str(self.log),
             XDG_CONFIG_HOME=str(self.directory / "config"),

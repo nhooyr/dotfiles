@@ -1,7 +1,20 @@
+function ghc --description 'Create a private GitHub repository and open its checkout'
+    set -l usage 'Usage: ghc <OWNER/REPO>
+
+Create a private GitHub repository, then open its checkout with ghe.
+If the repository already exists, open its checkout instead.
+Accepts exactly one OWNER/REPO argument; repository URLs and extra flags are not accepted.
+Uses GH_HOST when set, otherwise github.com.
+
+  -h, --help    Show this help.'
+    0="$(status current-function)" usage="$usage" __ghc $argv
+end
+
 function ghe --description 'Clone a GitHub repository and open its referenced path'
     set -l usage 'Usage: ghe <OWNER/REPO | GITHUB_URL>
 
 Clone into ~/code/OWNER/REPO when needed, then enter the checkout.
+Existing checkouts without remotes get the requested URL as origin.
 Files open in $EDITOR; directories change the current directory.
 
 Inputs (URL paths below follow https://github.com/OWNER/REPO):
@@ -29,9 +42,10 @@ REF accepts branch names, tags, commit hashes, refs/heads/BRANCH,
 or refs/tags/TAG. Compare refs also accept OWNER:BRANCH or OWNER:REPO:BRANCH.
 File anchors: #L10, #L10-L20, #L10C3, or #L10C3-L20C5.
 SSH and HTTP(S) repository URLs are accepted. Local changes prevent ref switches.
+OWNER/REPO uses GH_HOST when set, otherwise github.com. Explicit URLs keep their host.
 
   -h, --help                       Show this help.'
-    0=(status current-function) usage="$usage" __ghe_main $argv
+    0="$(status current-function)" usage="$usage" __ghe $argv
 end
 
 function gho --description 'Open the GitHub page for a repository or path'
@@ -52,7 +66,7 @@ Local paths use the configured upstream branch, otherwise the local branch.
 The cached default branch opens its homepage; detached HEAD uses its commit.
 If the default branch is unknown, main/master also open the homepage.
 Unpublished branches and files are opened without checking whether they exist.'
-    0=(status current-function) usage="$usage" __gho_main $argv
+    0="$(status current-function)" usage="$usage" __gho $argv
 end
 
 function ghss --description 'Upload a screenshot to GitHub and copy its Markdown'
@@ -62,21 +76,67 @@ Upload a PNG or JPEG to the current GitHub repository.
 Without a path, read a macOS clipboard image using pngpaste.
 Validate the image, then print its Markdown and copy it with pbc.
 Uses gh authentication and repository selection; requires write access.'
-    0=(status current-function) usage="$usage" __ghss_main $argv
+    0="$(status current-function)" usage="$usage" __ghss $argv
 end
 
 function __gh_parse --argument-names input
-    # Return three lines: owner/repo, the URL's remaining path, and a clone URL.
+    # Return owner/repo, the URL's remaining path, a clone URL, and its API host.
     # Reject controls before decoding can strip trailing newlines.
     if string match -rqi '%[01][0-9a-f]|%7f|[[:cntrl:]]' -- "$input"
         printf '%s: invalid input\n' "$0" >&2
         return 1
     end
-    # Accept GitHub's standard ports and its alternate SSH endpoint.
+    # Accept GitHub's standard endpoints and the configured GitHub host.
+    set -l host "$GH_HOST"
+    test -n "$host"; or set host github.com
+    set host $(string lower -- "$host")
+    set -l configured_authority "$host"
+    set host $(string replace -r ':443$' '' -- "$host")
+    set -l configured_host "$host"
+    set -l https_authority 'github\.com(?::443)?|raw\.githubusercontent\.com(?::443)?'
+    set -l http_authority 'github\.com(?::80)?|raw\.githubusercontent\.com(?::80)?'
+    set -l ssh_authority 'github\.com(?::22)?|ssh\.github\.com:443'
+    set -l scp_host 'github\.com'
+    set -l bare_authority 'github\.com(?::443)?'
+    if test "$configured_authority" != "$host"
+        set http_authority "$http_authority|$(string escape --style=regex -- "$configured_authority")"
+    end
+    if test "$host" != github.com
+        set -l configured $(string escape --style=regex -- "$host")
+        set -l ssh_name $(string escape --style=regex -- $(string replace -r ':[0-9]+$' '' -- "$host"))
+        if string match -qr ':[0-9]+$' -- "$host"
+            set https_authority "$https_authority|$configured"
+            set http_authority "$http_authority|$configured"
+            set bare_authority "$bare_authority|$configured"
+        else
+            set https_authority "$https_authority|$configured(?::443)?"
+            set http_authority "$http_authority|$configured(?::80)?"
+            set bare_authority "$bare_authority|$configured(?::443)?"
+        end
+        set ssh_authority "$ssh_authority|$ssh_name(?::[0-9]+)?"
+        set scp_host "$scp_host|$ssh_name"
+    end
     set -l http_userinfo '(?:[A-Za-z0-9._~!$&\'()*+,;=:-]|%[0-9a-f]{2})+'
-    set -l http_host '(?:github\.com|raw\.githubusercontent\.com)'
     set -l is_url true
-    set -l path (string replace -ri "^(https://(?:$http_userinfo@)?$http_host(:443)?/|http://(?:$http_userinfo@)?$http_host(:80)?/|ssh://git@(github\\.com(:22)?|ssh\\.github\\.com:443)/|git@github\\.com:|github\\.com(:443)?/)" '' -- "$input"); or set is_url false
+    set -l path $(string replace -ri "^(https://(?:$http_userinfo@)?(?:$https_authority)/|http://(?:$http_userinfo@)?(?:$http_authority)/|ssh://git@(?:$ssh_authority)/|git@(?:$scp_host):|(?:$bare_authority)/(?=[^/]+/[^/]+))" '' -- "$input"); or set is_url false
+    if set -l authority $(string match -rgi "^https?://(?:$http_userinfo@)?([^/]+)/" -- "$input")
+        set host $(string lower -- "$authority")
+        if string match -rqi '^http://' -- "$input"; and test "$host" != "$configured_host"
+            set host $(string replace -r ':80$' '' -- "$host")
+        end
+        set host $(string replace -r ':443$' '' -- "$host")
+    else if set -l authority $(string match -rgi '^(?:ssh://git@|git@)([^/:]+)' -- "$input")
+        set host $(string lower -- "$authority")
+        if test "$host" = "$(string replace -r ':[0-9]+$' '' -- "$configured_host")"
+            set host "$configured_host"
+        end
+    else if test "$is_url" = true
+        set host $(string lower -- $(string split -m 1 -f 1 / -- "$input"))
+        set host $(string replace -r ':443$' '' -- "$host")
+    end
+    if contains -- "$host" raw.githubusercontent.com ssh.github.com
+        set host github.com
+    end
     set path (string replace -r '[?#].*$' '' -- "$path")
     set path (string trim -r -c / -- "$path")
     set -l parts (string split -m 2 / -- "$path")
@@ -108,32 +168,33 @@ function __gh_parse --argument-names input
     if string match -rqi "^https?://(?:$http_userinfo@)?raw\\.githubusercontent\\.com(?::[0-9]+)?/" -- "$input"
         set tail "raw/$tail"
     end
-    set -l userinfo (string match -rgi "^https?://($http_userinfo@)$http_host(?::[0-9]+)?/" -- "$input")
-    set -l remote "https://$userinfo[1]github.com/$parts[1]/$repo.git"
-    set -l ssh_authority (string match -ri '^ssh://git@[^/]+:[0-9]+/' -- "$input")
-    if test -n "$ssh_authority"
-        set remote "$(string lower -- "$ssh_authority")$parts[1]/$repo.git"
+    set -l userinfo $(string match -rgi "^https?://($http_userinfo@)[^/]+/" -- "$input")
+    set -l remote "https://$userinfo[1]$host/$parts[1]/$repo.git"
+    set -l ssh_prefix $(string match -ri '^ssh://git@[^/]+:[0-9]+/' -- "$input")
+    if test -n "$ssh_prefix"
+        set remote "$(string lower -- "$ssh_prefix")$parts[1]/$repo.git"
     else if string match -rqi '^(git@|ssh://git@)' -- "$input"
-        set remote "git@github.com:$parts[1]/$repo.git"
+        set remote "git@$(string replace -r ':[0-9]+$' '' -- "$host"):$parts[1]/$repo.git"
     end
-    printf '%s\n' "$parts[1]/$repo" "$tail" "$remote"
+    printf '%s\n' "$parts[1]/$repo" "$tail" "$remote" "$host"
 end
 
 function __gh_remotes --argument-names remote destination
     # Match GitHub repositories across HTTPS and SSH URLs.
-    set -l requested (__gh_parse "$remote")
-    test (count $requested) -eq 3; or return 1
+    set -l requested $(__gh_parse "$remote")
+    test $(count $requested) -eq 4; or return 1
     set -l remotes (git -C "$destination" remote); or return
     for name in $remotes
         set -l url "$(git -C "$destination" remote get-url -- "$name")"; or return
-        set -l github (__gh_parse "$url" 2>/dev/null)
-        if test (count $github) -eq 3; and test (string lower -- "$github[1]") = (string lower -- "$requested[1]")
+        set -l github $(__gh_parse "$url" 2>/dev/null)
+        if test $(count $github) -eq 4; and test "$github[4]" = "$requested[4]"
+            and test "$(string lower -- "$github[1]")" = "$(string lower -- "$requested[1]")"
             printf '%s\n' "$name"
         end
     end
 end
 
-function __ghe_standard_origin --argument-names destination repository
+function __ghe_standard_origin --argument-names destination repository host
     # An ordinary clone has one fetch URL and one wildcard fetch mapping.
     # Defer to Git's remote lookup for other layouts and for URL rewrites.
     set -q GIT_CONFIG; and return 1
@@ -144,8 +205,9 @@ function __ghe_standard_origin --argument-names destination repository
     test (count $config) -eq 2; or return 1
     contains -- remote.origin.fetch\n'+refs/heads/*:refs/remotes/origin/*' $config; or return 1
     set -l url (string match -rg '^remote\.origin\.url\n([^[:cntrl:]]+)\z' -- $config); or return 1
-    set -l github (__gh_parse "$url" 2>/dev/null)
-    test (count $github) -eq 3; and test (string lower -- "$github[1]") = (string lower -- "$repository")
+    set -l github $(__gh_parse "$url" 2>/dev/null)
+    test $(count $github) -eq 4; and test "$github[4]" = "$host"
+    and test "$(string lower -- "$github[1]")" = "$(string lower -- "$repository")"
 end
 
 function __gh_ref_spelling_safe --argument-names destination ref
@@ -763,7 +825,9 @@ end
 
 function __gh_compare_cache --argument-names remote destination
     set -l github (__gh_parse "$remote"); or return
-    set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
+    set -l repository "$github[1]"
+    test "$github[4]" = github.com; or set repository "$github[4]/$repository"
+    set -l identity $(string lower -- "$repository" | git -C "$destination" hash-object --stdin); or return
     printf 'refs/gh/compare/%s\n' "$identity"
 end
 
@@ -1363,7 +1427,7 @@ function __ghe_compare --argument-names remote destination comparison
     git -C "$destination" diff "$base...$head" --
 end
 
-function __ghe_url_route --argument-names repository tail
+function __ghe_url_route --argument-names repository tail host
     switch "$tail"
         case 'tag/*' 'branch/*' 'oid/*' raw/refs/heads/ raw/refs/tags/
             # Internal routes and bare namespaces do not identify GitHub refs.
@@ -1373,7 +1437,7 @@ function __ghe_url_route --argument-names repository tail
         case 'releases/tag/*'
             string replace -r '^releases/tag/' tag/ -- "$tail"
         case releases/latest
-            set -l tag "$(gh api --hostname github.com "repos/$repository/releases/latest" --jq '.tag_name | select(type == "string" and length > 0)')"; or return
+            set -l tag "$(gh api --hostname "$host" "repos/$repository/releases/latest" --jq '.tag_name | select(type == "string" and length > 0)')"; or return
             if test -z "$tag"; or not git check-ref-format "refs/tags/$tag" >/dev/null 2>&1
                 printf '%s: latest release has no valid tag\n' "$0" >&2
                 return 1
@@ -1410,7 +1474,9 @@ function __ghe_pull_request --argument-names remote destination number
     set -l name (__ghe_remote "$remote" "$destination"); or return
     # Remote names can change or be reused for another repository.
     set -l github (__gh_parse "$remote"); or return
-    set -l identity (string lower -- "$github[1]" | git -C "$destination" hash-object --stdin); or return
+    set -l repository "$github[1]"
+    test "$github[4]" = github.com; or set repository "$github[4]/$repository"
+    set -l identity $(string lower -- "$repository" | git -C "$destination" hash-object --stdin); or return
     set -l cache "refs/gh/pull/$identity/$number/head"
     set -l previous "$(git -C "$destination" show-ref --hash --verify "$cache" 2>/dev/null)"
     # Pull requests move, so refresh the head before falling back to the cache.
@@ -1430,14 +1496,9 @@ function __ghe_open --argument-names target line column end_line end_column
         return
     end
     cd -- "$(path dirname -- "$target")"; or return
-    if test -z "$EDITOR"
+    set -l EDITOR $EDITOR
+    if test -z "$EDITOR[1]"
         printf '%s: EDITOR is not set\n' "$0" >&2
-        return 1
-    end
-    # Respect quoted arguments in EDITOR without evaluating shell commands.
-    printf '%s\n' "$EDITOR" | read --tokenize --array --local editor; or return
-    if not set -q editor[1]
-        printf '%s: EDITOR is empty\n' "$0" >&2
         return 1
     end
     if test -n "$end_line"
@@ -1449,13 +1510,13 @@ function __ghe_open --argument-names target line column end_line end_column
             set end_column 1
         end
         test -n "$column"; or set column 1
-        set -a editor "+set selection=inclusive | call cursor($line, $column) | execute 'normal! $selection' | call cursor($end_line, $end_column)"
+        set -a EDITOR "+set selection=inclusive | call cursor($line, $column) | execute 'normal! $selection' | call cursor($end_line, $end_column)"
     else if test -n "$column"
-        set -a editor "+call cursor($line, $column)"
+        set -a EDITOR "+call cursor($line, $column)"
     else if test -n "$line"
-        set -a editor "+$line"
+        set -a EDITOR "+$line"
     end
-    $editor "$target"
+    $EDITOR "$target"
 end
 
 function __ghe_switch --argument-names remote destination full_ref ref revision refs_dir
@@ -1597,15 +1658,20 @@ function __ghe_checkout --argument-names remote destination tail line column end
             printf '%s: destination is not a repository root: %s\n' "$0" "$destination" >&2
             return 1
         end
-        if test (count $github) -eq 3; and __ghe_standard_origin "$destination" "$github[1]"
+        if test $(count $github) -eq 4; and __ghe_standard_origin "$destination" "$github[1]" "$github[4]"
             set remotes origin
             set standard_origin true
         else
             set remotes (__gh_remotes "$remote" "$destination"); or return
         end
         if test (count $remotes) -eq 0
-            printf '%s: destination does not match the requested repository: %s\n' "$0" "$destination" >&2
-            return 1
+            set -l existing_remotes (git -C "$destination" remote); or return
+            if set -q existing_remotes[1]
+                printf '%s: destination does not match the requested repository: %s\n' "$0" "$destination" >&2
+                return 1
+            end
+            git -C "$destination" remote add origin "$remote"; or return
+            set remotes origin
         end
     else
         set -l org_dir "$(path dirname -- "$destination")"
@@ -1624,7 +1690,7 @@ function __ghe_checkout --argument-names remote destination tail line column end
         end
     end
 
-    set tail "$(__ghe_url_route "$github[1]" "$tail")"; or return
+    set tail "$(__ghe_url_route "$github[1]" "$tail" "$github[4]")"; or return
     if string match -qr '^compare(/|$)' -- "$tail"
         cd -- "$destination"; or return
         __ghe_compare "$remote" "$destination" (string replace -r '^compare/?' '' -- "$tail")
@@ -1634,7 +1700,7 @@ function __ghe_checkout --argument-names remote destination tail line column end
         set -l request (string split / -- "$tail")
         if contains -- "$request[3]" changes files
             cd -- "$destination"; or return
-            set -l revisions (gh api --hostname github.com "repos/$github[1]/pulls/$request[2]" --jq '.base.sha, .head.sha'); or return
+            set -l revisions $(gh api --hostname "$github[4]" "repos/$github[1]/pulls/$request[2]" --jq '.base.sha, .head.sha'); or return
             if test (count $revisions) -ne 2; or string match -qvr '^[0-9a-fA-F]{40}$' -- $revisions
                 printf '%s: pull request has an invalid base or head commit\n' "$0" >&2
                 return 1
@@ -1692,7 +1758,37 @@ function __ghe_checkout --argument-names remote destination tail line column end
     __ghe_open "$target" "$line" "$column" "$end_line" "$end_column"
 end
 
-function __ghe_main --argument-names input
+function __ghc --argument-names repository
+    if test $(count $argv) -eq 1; and contains -- "$repository" -h --help
+        printf '%s\n' "$usage"
+        return 0
+    end
+    if test $(count $argv) -ne 1
+        or not string match -qr '\A[A-Za-z0-9][A-Za-z0-9_-]*/(?!\.{1,2}\z)[A-Za-z0-9._-]+\z' -- "$repository"
+        printf 'Usage: %s <OWNER/REPO>\n' "$0" >&2
+        return 1
+    end
+    set -l error_file "$(mktemp)"; or return
+    set -l url "$(gh repo create --private "$repository" 2>"$error_file")"
+    set -l create_status $status
+    set -l error_message "$(cat "$error_file")"
+    rm -- "$error_file"
+    if test "$create_status" -ne 0
+        if not string match -q '*Name already exists on this account (createRepository)*' -- "$error_message"
+            printf '%s\n' "$error_message" >&2
+            return "$create_status"
+        end
+        set -l host "$GH_HOST"
+        test -n "$host"; or set host github.com
+        set url "https://$host/$repository"
+    else if test -n "$error_message"
+        printf '%s\n' "$error_message" >&2
+    end
+    printf '%s\n' "$url"
+    ghe "$url"
+end
+
+function __ghe --argument-names input
     if test (count $argv) -eq 1; and contains -- "$input" -h --help
         printf '%s\n' "$usage"
         return 0
@@ -1701,8 +1797,8 @@ function __ghe_main --argument-names input
         printf 'Usage: %s <OWNER/REPO | GITHUB_URL>\n' "$0" >&2
         return 1
     end
-    set -l github (__gh_parse "$input")
-    test (count $github) -eq 3; or return 1
+    set -l github $(__gh_parse "$input")
+    test $(count $github) -eq 4; or return 1
     set -l line ''
     set -l column ''
     set -l end_line ''
@@ -1720,9 +1816,9 @@ function __gho_url --argument-names target
     set -l name "$(path basename -- "$target")"
     set -l entry "$parent/$name"
     if not test -e "$target"; and not test -L "$entry"
-        set -l github (__gh_parse "$target")
-        test (count $github) -eq 3; or return 1
-        set -l url "https://github.com/$github[1]"
+        set -l github $(__gh_parse "$target")
+        test $(count $github) -eq 4; or return 1
+        set -l url "https://$github[4]/$github[1]"
         if test -n "$github[2]"
             set url "$url/$(string escape --style=url -- "$github[2]")"
         end
@@ -1791,9 +1887,9 @@ function __gho_url --argument-names target
         return 1
     end
     set -l remote_url "$(git -C "$dir" remote get-url -- "$remote")"; or return
-    set -l github (__gh_parse "$remote_url")
-    test (count $github) -eq 3; or return 1
-    set -l url "https://github.com/$github[1]"
+    set -l github $(__gh_parse "$remote_url")
+    test $(count $github) -eq 4; or return 1
+    set -l url "https://$github[4]/$github[1]"
 
     if test -z "$branch"
         set ref "$(git -C "$dir" rev-parse HEAD 2>/dev/null)"; or return
@@ -1815,7 +1911,7 @@ function __gho_url --argument-names target
     printf '%s/%s/%s\n' "$url" "$kind" (string escape --style=url -- "$web_path")
 end
 
-function __gho_main --argument-names target
+function __gho --argument-names target
     if test (count $argv) -eq 1; and contains -- "$target" -h --help
         printf '%s\n' "$usage"
         return 0
@@ -1863,7 +1959,7 @@ function __ghss_upload --argument-names directory
     printf '![img](%s)\n' "$url" | pbc
 end
 
-function __ghss_main
+function __ghss
     argparse --name "$0" --max-args 1 h/help -- $argv; or return
     if set -q _flag_help
         printf '%s\n' "$usage"

@@ -1,4 +1,4 @@
-"""Public ghe/gho regressions; all GitHub traffic stays in temporary repos.
+"""Public ghc/ghe/gho regressions; all GitHub traffic stays in temporary repos.
 
 Run with: python3 -m unittest discover -s fish/github-tests -p 'test_github_commands.py'
 Requires fish and Git. Browser, editor, and gh invocations are recorded mocks.
@@ -61,6 +61,12 @@ class GitHubCommandsTests(unittest.TestCase):
             TEST_CALL_LOG=str(self.log),
             TEST_REMOTE=str(self.remote),
             TEST_GH_RESPONSES="{}",
+            TEST_REPO_CREATE_STDOUT=self.url + "\n",
+            TEST_REPO_CREATE_STDERR="",
+            TEST_REPO_CREATE_STATUS="0",
+            TEST_DISPATCH_STATUS="0",
+            TEST_EXTRA_URLS="[]",
+            GH_HOST="",
             TEST_OFFLINE="",
             TEST_CLONE_FAILURE="",
         )
@@ -146,18 +152,25 @@ if kind == "git":
             "ssh://git@github.com:22/test-owner/test-repo.git",
             "ssh://git@ssh.github.com:443/test-owner/test-repo.git",
         }
+        allowed.update(json.loads(os.environ["TEST_EXTRA_URLS"]))
         if source not in allowed:
             sys.exit("unmapped remote blocked: " + source)
         rule = "url." + pathlib.Path(os.environ["TEST_REMOTE"]).as_uri() + ".insteadOf=" + source
         args = ["-c", rule, *args]
     sys.exit(subprocess.call([os.environ["TEST_REAL_GIT"], *args]))
 elif kind == "gh":
+    if args[:2] == ["repo", "create"]:
+        sys.stdout.write(os.environ["TEST_REPO_CREATE_STDOUT"])
+        sys.stderr.write(os.environ["TEST_REPO_CREATE_STDERR"])
+        sys.exit(int(os.environ["TEST_REPO_CREATE_STATUS"]))
     endpoint = next((arg for arg in args if arg.startswith("repos/")), "")
     response = json.loads(os.environ["TEST_GH_RESPONSES"]).get(endpoint)
     if response is None:
         sys.exit("unmapped gh request: " + endpoint)
     print(response)
-elif kind not in ("editor", "open", "dispatch"):
+elif kind == "dispatch":
+    sys.exit(int(os.environ.get("TEST_DISPATCH_STATUS", "0")))
+elif kind not in ("editor", "open"):
     sys.exit("unexpected mock executable")
 '''
         for name in ("git", "gh", "open", "editor", "dispatch"):
@@ -217,21 +230,23 @@ elif kind not in ("editor", "open", "dispatch"):
         self.clear_calls()
         env = self.env.copy()
         env["TEST_OFFLINE"] = "1" if offline else ""
-        if editor is not None:
-            env["EDITOR"] = editor
         if responses is not None:
             env["TEST_GH_RESPONSES"] = json.dumps(responses)
         script = "source " + fish_quote(SOURCE) + "\n"
+        if editor is not None:
+            script += "set -gx EDITOR " + " ".join(fish_quote(arg) for arg in editor) + "\n"
         if command == "ghe":
             # Exercise real parsing and checkout without redirecting system HOME.
             # The public ghe destination/anchor dispatch is tested separately.
             self.assertEqual(len(args), 1)
             script += "set -lx 0 ghe\nset -l parsed (__gh_parse " + fish_quote(args[0]) + ")\n"
-            script += "if test (count $parsed) -eq 3\n"
+            script += "if test (count $parsed) -eq 4\n"
             script += '__ghe_checkout "$parsed[3]" ' + fish_quote(self.checkout)
             script += ' "$parsed[2]" ' + " ".join(fish_quote(value) for value in positions)
             script += "\nelse\nfalse\nend\n"
         else:
+            if command == "ghc":
+                script += "function ghe\ncommand dispatch $argv\nend\n"
             if command == "ghe_dispatch":
                 script += "function __ghe_checkout\ncommand dispatch $argv\nend\n"
                 command = "ghe"
@@ -259,6 +274,7 @@ elif kind not in ("editor", "open", "dispatch"):
 
     def test_help_lists_modes_without_side_effects(self):
         for command, name, modes in (
+            ("ghc", "ghc", ("OWNER/REPO", "private", "already exists", "--help")),
             ("gho", "gho", ("PATH", "SYMLINK", "OWNER/REPO", "GITHUB_URL", "SSH_REPOSITORY_URL", "never check")),
             ("ghe_dispatch", "ghe", ("/tree/", "/blob/", "/blame/", "/raw/", "/edit/", "raw.githubusercontent.com",
                                      "/commit/", "/commits/", "/releases/tag/", "/releases/latest", "/archive/",
@@ -273,6 +289,96 @@ elif kind not in ("editor", "open", "dispatch"):
                         self.assertIn(mode, result.stdout)
                     self.assertEqual(self.calls(), [])
                     self.assertEqual(result.directory, str(self.sandbox))
+
+    def test_ghc_creates_private_repository_and_opens_reported_url(self):
+        result = self.run_fish("ghc", "Test-Owner/Test-Repo")
+        self.assert_success(result)
+        self.assertEqual(result.stdout, self.url + "\n")
+        self.assertEqual(self.calls(), [
+            {"kind": "gh", "args": ["repo", "create", "--private", "Test-Owner/Test-Repo"]},
+            {"kind": "dispatch", "args": [self.url]},
+        ])
+
+    def test_ghc_reuses_existing_repository_without_looking_it_up(self):
+        created = self.run_fish("ghc", "test-owner/test-repo")
+        self.assert_success(created)
+        self.env.update(
+            TEST_REPO_CREATE_STDOUT="",
+            TEST_REPO_CREATE_STDERR="GraphQL: Name already exists on this account (createRepository)\n",
+            TEST_REPO_CREATE_STATUS="1",
+        )
+
+        existing = self.run_fish("ghc", "test-owner/test-repo")
+
+        self.assert_success(existing)
+        self.assertEqual(existing.stdout, created.stdout)
+        self.assertEqual(existing.stderr, "")
+        self.assertEqual(self.calls(), [
+            {"kind": "gh", "args": ["repo", "create", "--private", "test-owner/test-repo"]},
+            {"kind": "dispatch", "args": [self.url]},
+        ])
+
+    def test_ghc_uses_configured_host_or_github_default(self):
+        self.env.update(
+            TEST_REPO_CREATE_STDOUT="",
+            TEST_REPO_CREATE_STDERR="GraphQL: Name already exists on this account (createRepository)\n",
+            TEST_REPO_CREATE_STATUS="1",
+        )
+        for host in (None, "", "github.com", "github.example.com", "github.example.com:8443"):
+            with self.subTest(host=host):
+                if host is None:
+                    self.env.pop("GH_HOST", None)
+                else:
+                    self.env["GH_HOST"] = host
+                url = "https://" + (host or "github.com") + "/test-owner/test-repo"
+                result = self.run_fish("ghc", "test-owner/test-repo")
+                self.assert_success(result)
+                self.assertEqual(result.stdout, url + "\n")
+                self.assertEqual(result.stderr, "")
+                self.assertEqual(self.calls(), [
+                    {"kind": "gh", "args": ["repo", "create", "--private", "test-owner/test-repo"]},
+                    {"kind": "dispatch", "args": [url]},
+                ])
+
+    def test_ghc_rejects_invalid_input_before_running_commands(self):
+        arguments = (
+            (), ("",), ("test-repo",), ("test-owner/test-repo", "extra"),
+            ("--help", "extra"), ("-h", "test-owner/test-repo"),
+            ("test-owner/test-repo", "--public"), ("https://github.com/test-owner/test-repo",),
+            ("git@github.com:test-owner/test-repo.git",), ("test-owner/test-repo/extra",),
+            ("/test-repo",), ("test-owner/",), ("test-owner/test-repo/",),
+            ("test owner/test-repo",), ("test-owner/test repo",),
+            ("test-owner/.",), ("test-owner/..",), ("test-owner/test-repo\n",),
+        )
+        for args in arguments:
+            with self.subTest(args=args):
+                result = self.run_fish("ghc", *args)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "Usage: ghc <OWNER/REPO>\n")
+                self.assertEqual(self.calls(), [])
+
+    def test_ghc_preserves_other_creation_errors(self):
+        error = "HTTP 403: Resource not accessible by integration\n"
+        self.env.update(TEST_REPO_CREATE_STDOUT="", TEST_REPO_CREATE_STDERR=error, TEST_REPO_CREATE_STATUS="37")
+        result = self.run_fish("ghc", "test-owner/test-repo")
+        self.assertEqual(result.returncode, 37)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, error)
+        self.assertEqual(self.calls(), [{"kind": "gh", "args": ["repo", "create", "--private", "test-owner/test-repo"]}])
+
+    def test_ghc_preserves_creation_warnings(self):
+        self.env["TEST_REPO_CREATE_STDERR"] = "A warning\n"
+        result = self.run_fish("ghc", "test-owner/test-repo")
+        self.assert_success(result)
+        self.assertEqual(result.stdout, self.url + "\n")
+        self.assertEqual(result.stderr, "A warning\n")
+        self.assertEqual(self.calls("dispatch"), [{"kind": "dispatch", "args": [self.url]}])
+
+    def test_ghc_returns_checkout_failure(self):
+        self.env["TEST_DISPATCH_STATUS"] = "42"
+        result = self.run_fish("ghc", "test-owner/test-repo")
+        self.assertEqual(result.returncode, 42)
 
     def test_supported_transports_open_and_enter_the_same_repository(self):
         inputs = [
@@ -294,6 +400,96 @@ elif kind not in ("editor", "open", "dispatch"):
                 self.assert_success(result)
                 self.assertEqual(result.directory, str(self.checkout))
                 self.assertEqual(self.network_calls(), [])
+
+    def test_ghe_dispatch_uses_configured_host(self):
+        self.env["GH_HOST"] = "github.example.com:8443"
+        result = self.run_fish("ghe_dispatch", "test-owner/test-repo")
+        self.assert_success(result)
+        self.assertEqual(self.calls("dispatch")[0]["args"][0],
+                         "https://github.example.com:8443/test-owner/test-repo.git")
+        self.assertEqual(self.network_calls(), [])
+
+    def test_ghe_accepts_configured_host_transports(self):
+        for host in ("test-owner", "github.example.com", "github.example.com:443", "github.example.com:80", "github.example.com:8443"):
+            self.env["GH_HOST"] = host
+            hostname = host.split(":")[0]
+            url = "https://" + host + "/test-owner/test-repo"
+            transports = (url + ".git", "http://" + host + "/test-owner/test-repo.git",
+                          "git@" + hostname + ":test-owner/test-repo.git",
+                          "ssh://git@" + hostname + ":2222/test-owner/test-repo.git")
+            self.env["TEST_EXTRA_URLS"] = json.dumps(transports)
+            for transport in transports:
+                self.git(self.checkout, "remote", "set-url", "origin", transport)
+                for value in ("test-owner/test-repo", transport, url + "/blob/main/file.txt"):
+                    with self.subTest(host=host, transport=transport, value=value):
+                        result = self.run_fish("ghe", value, offline=True)
+                        self.assert_success(result)
+                        self.assertEqual(result.directory, str(self.checkout))
+                        self.assertEqual(self.network_calls(), [])
+
+    def test_ghe_clones_from_configured_host(self):
+        host = "github.example.com"
+        url = "https://" + host + "/test-owner/test-repo.git"
+        self.env.update(GH_HOST=host, TEST_EXTRA_URLS=json.dumps([url]))
+        shutil.rmtree(self.checkout)
+
+        result = self.run_fish("ghe", "test-owner/test-repo")
+
+        self.assert_success(result)
+        self.assertEqual(self.git(self.checkout, "remote", "get-url", "origin").stdout.strip(), url)
+        self.assertEqual([call["command"] for call in self.network_calls()], ["clone"])
+        self.assertEqual(result.directory, str(self.checkout))
+
+    def test_ghe_adds_configured_host_to_checkout_without_remotes(self):
+        self.env["GH_HOST"] = "github.example.com"
+        self.git(self.checkout, "remote", "remove", "origin")
+
+        result = self.run_fish("ghe", "test-owner/test-repo", offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(self.git(self.checkout, "remote", "get-url", "origin").stdout.strip(),
+                         "https://github.example.com/test-owner/test-repo.git")
+        self.assertEqual(self.network_calls(), [])
+
+    def test_ghe_distinguishes_repositories_on_different_hosts(self):
+        self.env["GH_HOST"] = "github.example.com"
+        result = self.run_fish("ghe", "test-owner/test-repo", offline=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("destination does not match", result.stderr)
+        self.assertEqual(self.network_calls(), [])
+
+        # An explicit public GitHub URL still selects its own host.
+        result = self.run_fish("ghe", self.url, offline=True)
+        self.assert_success(result)
+        self.assertEqual(result.directory, str(self.checkout))
+        self.assertEqual(self.network_calls(), [])
+
+        public = self.run_fish("__gh_compare_cache", self.url + ".git", self.checkout)
+        enterprise = self.run_fish("__gh_compare_cache",
+                                   "https://github.example.com/test-owner/test-repo.git", self.checkout)
+        self.assert_success(public)
+        self.assert_success(enterprise)
+        self.assertNotEqual(public.stdout, enterprise.stdout)
+
+    def test_ghe_api_routes_use_configured_host(self):
+        host = "github.example.com:8443"
+        url = "https://" + host + "/test-owner/test-repo"
+        self.env.update(GH_HOST=host, TEST_EXTRA_URLS=json.dumps([url + ".git"]))
+        self.git(self.checkout, "remote", "set-url", "origin", url + ".git")
+        for tail, endpoint, response in (
+            ("releases/latest", "repos/test-owner/test-repo/releases/latest", "v1"),
+            ("pull/7/files", "repos/test-owner/test-repo/pulls/7", self.initial + "\n" + self.initial),
+        ):
+            with self.subTest(tail=tail):
+                result = self.run_fish("ghe", url + "/" + tail, responses={endpoint: response})
+                self.assert_success(result)
+                self.assertEqual(self.calls("gh")[0]["args"][:3], ["api", "--hostname", host])
+
+        self.git(self.checkout, "remote", "set-url", "origin", self.url + ".git")
+        endpoint = "repos/test-owner/test-repo/releases/latest"
+        result = self.run_fish("ghe", self.url + "/releases/latest", responses={endpoint: "v1"})
+        self.assert_success(result)
+        self.assertEqual(self.calls("gh")[0]["args"][:3], ["api", "--hostname", "github.com"])
 
     def test_direct_url_preserves_query_and_fragment(self):
         value = self.url + "/blob/main/a%20b%23.txt?plain=1#L2-L4"
@@ -960,6 +1156,52 @@ gho"""
         self.assertEqual(result.directory, str(self.sandbox))
         self.assertEqual(self.network_calls(), [])
 
+    def test_existing_checkout_without_remotes_adds_origin(self):
+        for tail in ("", "/blob/main/file.txt"):
+            with self.subTest(tail=tail):
+                self.git(self.checkout, "remote", "remove", "origin")
+                result = self.run_fish("ghe", self.url + tail, offline=True)
+
+                self.assert_success(result)
+                self.assertEqual(self.git(self.checkout, "remote").stdout.splitlines(), ["origin"])
+                self.assertEqual(self.git(self.checkout, "remote", "get-url", "origin").stdout.strip(),
+                                 self.url + ".git")
+                self.assertEqual(result.directory, str(self.checkout))
+                self.assertEqual(self.head(), self.initial)
+                self.assertEqual(self.network_calls(), [])
+                self.assertEqual(bool(self.calls("editor")), bool(tail))
+
+    def test_unborn_checkout_without_remotes_adds_origin(self):
+        self.checkout = self.sandbox / "unborn"
+        self.git(None, "init", "--quiet", "--initial-branch=master", self.checkout)
+        note = self.checkout / "note.txt"
+        note.write_text("keep this local file\n")
+        before = self.git(self.checkout, "status", "--porcelain").stdout
+
+        result = self.run_fish("ghe", self.url, offline=True)
+
+        self.assert_success(result)
+        self.assertEqual(result.directory, str(self.checkout))
+        self.assertEqual(self.git(self.checkout, "remote", "get-url", "origin").stdout.strip(), self.url + ".git")
+        self.assertEqual(self.git(self.checkout, "branch", "--show-current").stdout.strip(), "master")
+        self.assertEqual(self.git(self.checkout, "status", "--porcelain").stdout, before)
+        self.assertEqual(note.read_text(), "keep this local file\n")
+        self.assertEqual(self.network_calls(), [])
+
+    def test_checkout_with_only_a_different_remote_is_not_reassigned(self):
+        self.git(self.checkout, "remote", "rename", "origin", "upstream")
+        other_url = "https://github.com/other-owner/other-repo.git"
+        self.git(self.checkout, "remote", "set-url", "upstream", other_url)
+
+        result = self.run_fish("ghe", self.url, offline=True)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("destination does not match", result.stderr)
+        self.assertEqual(self.git(self.checkout, "remote").stdout.splitlines(), ["upstream"])
+        self.assertEqual(self.git(self.checkout, "remote", "get-url", "upstream").stdout.strip(), other_url)
+        self.assertEqual(result.directory, str(self.sandbox))
+        self.assertEqual(self.network_calls(), [])
+
     def test_repository_url_does_not_use_git_config_override_for_remote_identity(self):
         config = self.root / "override.config"
         config.write_text('[remote "origin"]\n'
@@ -1178,12 +1420,28 @@ os.execv(os.environ["TEST_REAL_MKDIR"], [os.environ["TEST_REAL_MKDIR"], *sys.arg
             ("2", "2", "4", ""): "+set selection=inclusive | call cursor(2, 2) | execute 'normal! v' | call cursor(4, max([1, strlen(getline(4))]))",
             ("2", "", "4", "3"): "+set selection=inclusive | call cursor(2, 1) | execute 'normal! v' | call cursor(4, 3)",
         }
-        editor = fish_quote(self.bin / "editor") + " --wait 'two words'"
+        editor = [self.bin / "editor", "--wait", "two words"]
         for positions, position in cases.items():
             with self.subTest(positions=positions):
                 result = self.run_fish("ghe", self.url + "/blob/main/file.txt", editor=editor, positions=positions)
                 self.assert_success(result)
                 self.assertEqual(self.calls("editor")[0]["args"], ["--wait", "two words", position, str(self.checkout / "file.txt")])
+
+    def test_editor_list_is_preserved_when_position_arguments_are_appended(self):
+        editor_dir = self.root / "editor dir"
+        editor_dir.mkdir()
+        executable = editor_dir / "editor"
+        shutil.copy2(self.bin / "editor", executable)
+        editor = [str(executable), "--wait", "two words"]
+        target = self.checkout / "file.txt"
+        script = "__ghe_open " + fish_quote(target) + " 2\n"
+        script += 'set -l opened $status\nprintf "%s\\n" $EDITOR\ntest "$opened" -eq 0'
+
+        result = self.run_fish(script, editor=editor)
+
+        self.assert_success(result)
+        self.assertEqual(self.calls("editor")[0]["args"], ["--wait", "two words", "+2", str(target)])
+        self.assertEqual(result.stdout.splitlines(), editor)
 
     def test_public_ghe_dispatches_destination_and_normalized_anchors_without_writing(self):
         result = self.run_fish("ghe_dispatch", self.url + "/blob/main/file.txt#L002C03-L004C05")
