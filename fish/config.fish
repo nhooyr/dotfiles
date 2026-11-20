@@ -119,6 +119,7 @@ abbrali ws gg "'[[:space:]]+\$'"
 abbrali o open
 abbrali o. open .
 abbrali of finder
+abbrali fi finder
 abbrali finder open -R
 abbrali safari open -a Safari
 abbrali chrome open -a 'Google Chrome'
@@ -355,7 +356,7 @@ if test -f ~/.codex/config.toml
     end
 end
 abbrali shf shfmt -s -w .
-abbrali fi fmtinv
+abbrali fmti fmtinv
 abbrali dnsq 'sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder'
 
 function tex --argument-names texfile
@@ -438,7 +439,7 @@ function note --description '$EDITOR $notes/YYYY/MM/DD.md'
     set -l EDITOR $EDITOR
     if not test -f "$note"
         mkdir -p "$(path dirname "$note")"
-        printf '# %s\n\n\n' "$(date +"%B %d, %Y")" >"$note"
+        printf '# %s\n* %s *\n\n\n' "$(date '+%B %d, %Y')" "$(date '+%A')" >"$note"
         set EDITOR $EDITOR '+normal G' +startinsert
     end
     $EDITOR "$note"
