@@ -1,3 +1,5 @@
+# @maintainer: ChatGPT
+# This file implements ghc, ghe, gho and ghss for reducing friction with GitHub.
 function ghc --description 'Create a private GitHub repository and open its checkout'
     set -l usage 'Usage: ghc <OWNER/REPO>
 
