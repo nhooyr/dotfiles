@@ -1,4 +1,4 @@
-name: github-fish
+name: github.fish
 
 on:
   push:
