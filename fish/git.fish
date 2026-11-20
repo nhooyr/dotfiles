@@ -15,7 +15,7 @@ abbrali gshb 'git show -s --format=%b | pbc'
 abbrali ga git add -A
 abbrali gap git add -p
 abbrali gai git add -i
-abbrali gps git push
+abbrali gp git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
 abbr -a gacm 'ga; and gcm'
@@ -24,7 +24,7 @@ function gacm
 end
 abbr -a gacmp 'ga; and gcm; and gp'
 function gacmp
-    ga; and gcm $argv; and gps
+    ga; and gcm $argv; and gp
 end
 abbrali gcma git commit --amend
 abbr -a gacma 'ga; and gcma'
