@@ -454,6 +454,21 @@ function note --description '$EDITOR $notes/YYYY/MM/DD.md'
     $EDITOR "$note"
 end
 
+function rootimg --description 'Shrink image by 1/4' --argument-names img
+    if not set -q img; or set -q argv[2]
+        printf 'Usage: %s <img>' >&2
+        return 1
+    end
+    if contains -- "$img" -h --help
+        printf 'Usage: %s <img>'
+        return 0
+    end
+    set -l img_dst "$(path basename --no-extension "$img")"
+    set img_dst "$img_dst-root$(path extension "$img")"
+    set img_dst "$(path dirname "$img")/$img_dst"
+    magick "$img" -resize 50% "$img_dst"
+end
+
 set -g dotfiles "$(path resolve -- "$(status filename)/../..")"
 function add_cdpath
     set -l mode --append
