@@ -337,7 +337,7 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     test "$code" -eq 0; or return 0
 
     switch "$cmdline"
-        case 'git commit --amend' '*; and git commit --amend' 'gcma' '*; and gcma'
+        case 'git commit --amend' '*; and git commit --amend' gcma '*; and gcma'
             gpf
         case 'git commit*' '* git commit' 'gcm*' '* gcm*' 'gacm*' '* gacm*'
             git push
@@ -438,7 +438,7 @@ function note --description '$EDITOR $notes/YYYY/MM/DD.md'
     set -l EDITOR $EDITOR
     if not test -f "$note"
         mkdir -p "$(path dirname "$note")"
-        printf '# %s\n\n\n' "$(date +"%B %d, %Y")" > "$note"
+        printf '# %s\n\n\n' "$(date +"%B %d, %Y")" >"$note"
         set EDITOR $EDITOR '+normal G' +startinsert
     end
     $EDITOR "$note"
