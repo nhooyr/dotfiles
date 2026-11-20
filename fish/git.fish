@@ -135,6 +135,7 @@ abbrali ghf 'gh repo fork --remote; and gh repo set-default upstream'
 abbrali ghch gh pr checkout
 abbrali ghop gh pr view --web
 abbrali ghep gh pr create --web --fill-verbose
+abbrali ghl gh repo list --visibility public --source --no-archived --json url --jq '.[].url'
 
 abbrali tabt column -ts '\t'
 abbrali dt dirt
