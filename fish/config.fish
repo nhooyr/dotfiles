@@ -433,6 +433,17 @@ function fair --argument-names n
     git push
 end
 
+function note
+    set -l note "$notes/$(date '+%Y/%m/%d').md"
+    set -l EDITOR $EDITOR
+    if not test -f "$note"
+        mkdir -p "$(path dirname "$note")"
+        printf '# %s\n\n\n' "$(date +"%B %d, %Y")" > "$note"
+        set EDITOR $EDITOR '+normal G' +startinsert
+    end
+    $EDITOR "$note"
+end
+
 set -g dotfiles "$(path resolve -- "$(status filename)/../..")"
 function add_cdpath
     set -l mode --append
