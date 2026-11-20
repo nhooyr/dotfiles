@@ -4,10 +4,11 @@ cd "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
 	sudo add-apt-repository --yes ppa:fish-shell/release-4
-	sudo apt-get install --yes fish shfmt
+	sudo apt-get install --yes fish shfmt rustfmt
 fi
 
 find . -type f -name '*.fish' -exec fish_indent -w {} +
+find bin -type f -name '*.rs' -exec rustfmt --edition 2021 {} +
 shfmt -s -w .
 
 if [ "${CI-}" ]; then

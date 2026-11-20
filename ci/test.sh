@@ -3,8 +3,8 @@ set -eu
 cd "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
-	sudo add-apt-repository --yes ppa:fish-shell/release-4
-	sudo apt-get install --yes fish
+	sudo apt-get update
+	sudo apt-get install --yes rustc
 fi
 
-python3 -m unittest discover -s fish/github-tests
+python3 bin/fzf-paths/test.py

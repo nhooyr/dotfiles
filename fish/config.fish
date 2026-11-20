@@ -3,6 +3,7 @@ if not set -q HOMEBREW_PREFIX
 end
 set -gx GOPATH ~/.local/share/go
 fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
+    ~/.local/share/bin \
     ~/.local/bin \
     /opt/homebrew/share/git-core/contrib/diff-highlight \
     "$GOPATH/bin" \
@@ -12,6 +13,10 @@ fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
 if not status is-interactive
     return 0
 end
+
+set -g dotfiles "$(path resolve -- "$(status filename)/../..")"
+set -g nhooyr ~/code/nhooyr
+set -g notes "$nhooyr/notes"
 
 tabs -4
 set -gx LESS -RXF -ix4 --use-color -DBK -DCK -DEms -DMcd -DNcd -DPks -DRKs -DSbws
@@ -240,52 +245,15 @@ abbrali n noti
 abbr -a --command noti e eval
 abbrali bell printf '\a'
 
-fzf --fish | source
-set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
-    --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
-    --color=bw,query:regular,info:italic,hl:underline,fg+:regular:reverse,\
-hl+:reverse:underline,pointer:magenta:bold"
-set -gx FZF_ALT_C_OPTS --bind=alt-enter:accept
-# Display no prefix by default in history view.
-set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
-function fzf_accept_and_run --argument-names widget
-    set -l action "alt-enter:execute-silent(printf %s {+} > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
-    set -l option "--bind=$(string escape -- "$action")"
+source "$dotfiles/fish/fzf.fish"
 
-    set -lx FZF_CTRL_R_OPTS "$FZF_CTRL_R_OPTS $option"
-    set -lx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS $option"
-    set -lx FZF_COMPLETION_OPTS "$FZF_COMPLETION_OPTS $option"
-    set -lx FZF_EXPANSION_OPTS "$FZF_EXPANSION_OPTS $option"
-
-    switch "$widget"
-        case fzf-file-widget
-            if test -z "$(commandline --cut-at-cursor --current-process --tokens-expanded)"
-                and string match -q './*' -- "$(commandline --current-token --tokens-expanded)"
-                set -l dir "$(string unescape -- "$(__fzf_parse_commandline)[1]")"
-                if test "$dir" != .; and not string match -q './*' -- "$dir"
-                    set dir "./$dir"
-                end
-
-                set -fx FZF_CTRL_T_COMMAND "find -L $(string escape -- "$dir") -mindepth 1 \
-                    -name .git -prune -o -name node_modules -prune -o -print0 \
-                    | path filter -zZ -fdx"
-                set -fx FZF_CTRL_T_OPTS "$FZF_CTRL_T_OPTS --read0"
-            end
-    end
-    $widget
-    aqsnow_rendezvous
-end
 for mode in default insert
-    bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
-    bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
-    bind -M "$mode" alt-v 'fzf_accept_and_run fzf-file-widget'
-    bind -M "$mode" shift-tab 'fzf_accept_and_run fzf_complete'
     bind -M "$mode" alt-e edit_command_buffer 'set -g fish_bind_mode insert' aqsnow_rendezvous
 end
 
 function aqsnow_exec
     set -l cmd $(commandline --current-process --tokens-expanded)
-    if test "$(count $cmd)" -eq 1; and test -f "$cmd[1]"; and not string match -qr '^\.{0,2}/' -- "$cmd[1]"
+    if test "$(count $cmd)" -eq 1; and test -f "$cmd[1]"; and not string match -qr '^\.{1,2}/' -- "$cmd[1]"
         if type -q -- "$cmd[1]"
             if test -x "$cmd[1]"; and file -bI -- "$cmd[1]" | grep -q "^text/"
                 fish_commandline_prepend "$EDITOR --"
@@ -301,29 +269,6 @@ bind -M insert enter aqsnow_exec
 bind -M default -m insert alt-enter accept-autosuggestion aqsnow_exec
 bind -M insert alt-enter accept-autosuggestion aqsnow_exec
 
-if not set -q __aqsnow_rendezvous_dir
-    set -l rendezvous_dir "$(mktemp -d)"; or return
-    set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
-    set -gx AQSNOW_FISH_RENDEZVOUS "$rendezvous_dir/rendezvous"
-    function aqsnow_rm_rendezvous --on-event fish_exit --inherit-variable rendezvous_dir
-        rm -rf -- "$rendezvous_dir"
-    end
-end
-function aqsnow_run_requested
-    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 1
-    if not echo '<M-v>' | cmp -s - "$AQSNOW_FISH_RENDEZVOUS"
-        rm "$AQSNOW_FISH_RENDEZVOUS"
-        return 0
-    end
-    rm "$AQSNOW_FISH_RENDEZVOUS"
-    fzf_accept_and_run fzf-file-widget
-    return 1
-end
-function aqsnow_rendezvous
-    aqsnow_run_requested; or return 0
-    aqsnow_exec
-    set -g fish_bind_mode insert
-end
 function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     set -l code "$status"
     if test "$code" -ne 0
@@ -471,24 +416,10 @@ end
 
 abbrali netq networkquality
 
-set -g dotfiles "$(path resolve -- "$(status filename)/../..")"
-function add_cdpath
-    set -l mode --append
-    argparse p/prepend -- $argv; or return
-    set -q _flag_prepend; and set mode --prepend
-    for path in $argv
-        if not contains -- "$path" $CDPATH
-            set $mode --path -g CDPATH "$path"
-        end
-    end
-end
-
 source "$dotfiles/fish/git.fish"
 source "$dotfiles/fish/github.fish"
 source "$dotfiles/fish/prompt.fish"
 source "$dotfiles/fish/cd.fish"
-
-add_cdpath . "$dotfiles" ~
 
 if test "$PWD" = "$HOME"
     cd "$dotfiles"

@@ -1,3 +1,31 @@
+function cdpath_add
+    argparse --exclusive p,a,b p/prepend a/after= b/before= -- $argv; or return
+    set -l index "$(count $CDPATH)"
+    set -q _flag_prepend; and set index 0
+    set -l anchor $_flag_before $_flag_after
+    if set -q anchor[1]
+        set index "$(contains -i -- "$anchor" $CDPATH)"
+        if test -z "$index"
+            printf '%s: %s is not in CDPATH\n' "$(status function)" "$(string escape -- "$anchor")" >&2
+            return 1
+        end
+        set -q _flag_before; and set index "$(math "$index - 1")"
+    end
+
+    set -l paths
+    for path in $argv
+        if test -n "$path"; and not contains -- "$path" $CDPATH $paths
+            set -a paths "$path"
+        end
+    end
+    set -q paths[1]; or return 0
+    set -l head
+    test "$index" -gt 0; and set head $CDPATH[..$index]
+    set -l next_index "$(math "$index + 1")"
+    set --path -g CDPATH $head $paths $CDPATH[$next_index..]
+end
+cdpath_add . "$dotfiles" "$notes" "$nhooyr" ~/code ~
+
 function multicd
     echo cd "$(string repeat -n "$(math "$(string length -- "$argv")" - 1)" ../)"
 end
