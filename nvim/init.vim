@@ -126,7 +126,7 @@ function! s:quit_and_run() abort
 	qall
 endfunction
 nnoremap <M-CR> :call <SID>quit_and_run()<CR>
-inoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
+inoremap <M-CR> <Cmd>call <SID>quit_and_run()
 function! s:fzf_file_widget() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
@@ -213,14 +213,24 @@ nnoremap <M-n> :next<CR>
 nnoremap <M-p> :prev<CR>
 nnoremap Z zz
 
+function! s:vidir_mcr() abort
+	write !sh
+	set nomodified
+endfunction
+
 function! s:vidir() abort
 	enew
 	silent read !ls -1
 	normal ggS# :w !sh
-	silent 2,$s/.*/mv '\0' '\0'
+	nnoremap <buffer> <M-CR> :call <SID>vidir_mcr()<CR>
+	inoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()
+	silent 2,$s/.*/mv -v '\0' '\0'
+	set nomodified
+	set buftype=nofile
 	set filetype=sh
 endfunction
 command Vidir call s:vidir()
+command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
 " For BufReadPost restore_cursor.
 filetype plugin indent on
