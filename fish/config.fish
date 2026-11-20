@@ -433,7 +433,7 @@ function fair --argument-names n
     git push
 end
 
-function note
+function note --description '$EDITOR $notes/YYYY/MM/DD.md'
     set -l note "$notes/$(date '+%Y/%m/%d').md"
     set -l EDITOR $EDITOR
     if not test -f "$note"
