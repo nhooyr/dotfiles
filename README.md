@@ -1,3 +1,6 @@
+[![ci](https://github.com/nhooyr/dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/nhooyr/dotfiles/actions/workflows/ci.yml)
+[![github-fish](https://github.com/nhooyr/dotfiles/actions/workflows/github-fish.yml/badge.svg)](https://github.com/nhooyr/dotfiles/actions/workflows/github-fish.yml)
+
 ![Screenshot 0](./docs/screenshot-0.png)
 ![Screenshot 1](./docs/screenshot-1.png)
 ![Screenshot 2](./docs/screenshot-2.png)
