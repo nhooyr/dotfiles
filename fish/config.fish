@@ -454,7 +454,7 @@ function note --description '$EDITOR $notes/YYYY/MM/DD.md'
     $EDITOR "$note"
 end
 
-function rootimg --description 'Shrink image by 1/4' --argument-names img
+function rootimg --description 'Shrink image to 1/4' --argument-names img
     if not set -q img; or set -q argv[2]
         printf 'Usage: %s <img>' >&2
         return 1
