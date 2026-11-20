@@ -126,7 +126,7 @@ function! s:quit_and_run() abort
 	qall
 endfunction
 nnoremap <M-CR> :call <SID>quit_and_run()<CR>
-inoremap <M-CR> <Cmd>call <SID>quit_and_run()
+inoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
 function! s:fzf_file_widget() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
@@ -223,7 +223,7 @@ function! s:vidir() abort
 	silent read !ls -1
 	normal ggS# :w !sh
 	nnoremap <buffer> <M-CR> :call <SID>vidir_mcr()<CR>
-	inoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()
+	inoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
 	silent 2,$s/.*/mv -v '\0' '\0'
 	set nomodified
 	set buftype=nofile
