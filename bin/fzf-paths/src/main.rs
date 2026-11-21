@@ -11,6 +11,53 @@ extern "C" {
     fn access(path: *const c_char, mode: c_int) -> c_int;
 }
 
+fn main() {
+    let mut arguments = env::args_os();
+    let invoked = arguments.next().unwrap_or_default();
+    let name = Path::new(&invoked)
+        .file_name()
+        .unwrap_or(&invoked)
+        .to_string_lossy();
+    let args: Vec<_> = arguments.collect();
+    let help = args.len() == 1 && (args[0] == "--help" || args[0] == "-h");
+    if help || args.len() < 4 || (args.len() - 4) % 2 != 0 {
+        let usage = format!("usage: {name} DIR OWNER TYPE KEEP_DOT [LABEL DIRECTORY]...");
+        if help {
+            println!("{usage}");
+        } else {
+            eprintln!("{usage}");
+            process::exit(1);
+        }
+        return;
+    }
+    if let Err(error) = run(&args) {
+        if error.kind() != io::ErrorKind::BrokenPipe {
+            eprintln!("{name}: {error}");
+            process::exit(1);
+        }
+    }
+}
+
+fn run(args: &[OsString]) -> io::Result<()> {
+    let mut aliases: Vec<_> = args[4..]
+        .chunks_exact(2)
+        .map(|pair| (pair[0].as_bytes().to_vec(), pair[1].as_bytes().to_vec()))
+        .collect();
+    aliases.sort_by_key(|(_, base)| std::cmp::Reverse(base.len()));
+    let mut picker = Picker {
+        cwd: working_directory()?,
+        directories_only: args[2] == "-d",
+        executable_only: args[2] == "-fdx",
+        keep_dot: args[3] == "true",
+        aliases,
+        seen: HashSet::new(),
+        shown: HashSet::new(),
+        output: BufWriter::new(io::stdout()),
+    };
+    picker.walk(PathBuf::from(&args[0]), true, &mut HashSet::new())?;
+    picker.repositories(Path::new(&args[1]))
+}
+
 fn working_directory() -> io::Result<PathBuf> {
     let cwd = env::current_dir()?;
     if let Some(pwd) = env::var_os("PWD").map(PathBuf::from) {
@@ -160,41 +207,5 @@ impl Picker {
             git.wait()?;
         }
         Ok(())
-    }
-}
-
-fn run() -> io::Result<()> {
-    let args: Vec<_> = env::args_os().skip(1).collect();
-    if args.len() < 4 || (args.len() - 4) % 2 != 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "usage: fzf-paths DIR OWNER TYPE KEEP_DOT [LABEL DIRECTORY]...",
-        ));
-    }
-    let mut aliases: Vec<_> = args[4..]
-        .chunks_exact(2)
-        .map(|pair| (pair[0].as_bytes().to_vec(), pair[1].as_bytes().to_vec()))
-        .collect();
-    aliases.sort_by_key(|(_, base)| std::cmp::Reverse(base.len()));
-    let mut picker = Picker {
-        cwd: working_directory()?,
-        directories_only: args[2] == "-d",
-        executable_only: args[2] == "-fdx",
-        keep_dot: args[3] == "true",
-        aliases,
-        seen: HashSet::new(),
-        shown: HashSet::new(),
-        output: BufWriter::new(io::stdout()),
-    };
-    picker.walk(PathBuf::from(&args[0]), true, &mut HashSet::new())?;
-    picker.repositories(Path::new(&args[1]))
-}
-
-fn main() {
-    if let Err(error) = run() {
-        if error.kind() != io::ErrorKind::BrokenPipe {
-            eprintln!("fzf-paths: {error}");
-            process::exit(1);
-        }
     }
 }

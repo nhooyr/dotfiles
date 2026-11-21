@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
 	sudo apt-get update
-	sudo apt-get install --yes rustc
+	sudo apt-get install --yes cargo
 fi
 
-python3 bin/fzf-paths/test.py
+cargo test --manifest-path bin/fzf-paths/Cargo.toml --locked
