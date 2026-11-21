@@ -8,7 +8,7 @@ if [ "${GITHUB_ACTIONS-}" ]; then
 fi
 
 find . -type f -name '*.fish' -exec fish_indent -w {} +
-cargo fmt --manifest-path bin/fzf-paths/Cargo.toml
+cargo fmt --manifest-path fish/fzf-paths/Cargo.toml
 shfmt -s -w .
 
 if [ "${CI-}" ]; then

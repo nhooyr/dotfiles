@@ -7,4 +7,4 @@ if [ "${GITHUB_ACTIONS-}" ]; then
 	sudo apt-get install --yes cargo
 fi
 
-cargo test --manifest-path bin/fzf-paths/Cargo.toml --locked
+cargo test --manifest-path fish/fzf-paths/Cargo.toml --locked

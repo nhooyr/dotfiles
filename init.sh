@@ -18,7 +18,7 @@ mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ./ssh/config
 
-./bin/fzf-paths/install.sh
+./fish/fzf-paths/install.sh
 ./nvim/app/install.sh --set-defaults
 ./vscode/theme/install.sh
 if ! [ -d ~/.config/nvim/pack/github/start/copilot.vim ]; then
