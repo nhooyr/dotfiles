@@ -99,10 +99,9 @@ nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>:echo 'v:hlsearch =' v:hlsea
 nnoremap <Leader>r :%s###g<Left><Left>
 nnoremap <M-r> cgn
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
-vnoremap / "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
-vnoremap g/ /
+vnoremap <Leader>/ "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 vnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
-vmap <Leader>r /<Leader>r
+vmap <Leader>r <Leader>/<Leader>r
 vnoremap <M-r> :s###g<Left><Left>
 
 nnoremap q :quit<CR>
@@ -156,6 +155,9 @@ nnoremap ]P ]P=`]
 nnoremap ]<M-p> "+]p=`]
 nnoremap ]<M-P> "+]P=`]
 
+nnoremap x "_x
+nnoremap X "_X
+nnoremap C "_C
 nnoremap c "_c
 nnoremap C "_C
 vnoremap c "_c
