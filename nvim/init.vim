@@ -59,9 +59,7 @@ function! s:set_spell_highlight() abort
 		highlight clear SpellRare
 		highlight clear SpellLocal
 	else
-		if ! &spell
-			set spell
-		endif
+		set spell
 		highlight SpellBad cterm=underline
 		highlight SpellCap cterm=underline
 		highlight SpellRare cterm=underline
@@ -187,11 +185,11 @@ set completeopt=menuone,noselect,popup
 set complete+=U,kspell,i,d,f,o
 set pumheight=8
 
-inoremap <expr> <C-n> &spell ? "\<C-n>" : "\<Cmd>set spell\<CR>\<C-n>"
-inoremap <expr> <C-p> &spell ? "\<C-p>" : "\<Cmd>set spell\<CR>\<C-p>"
+inoremap <C-n> <Cmd>set spell<CR><C-n>
+inoremap <C-p> <Cmd>set spell<CR><C-p>
 inoremap <expr> <C-Space> pumvisible() ? "\<C-n>" :
 	   \ strpart(getline('.'), 0, col('.') - 1) =~# '\f*/\f*$'
-	   \ ? "\<C-x>\<C-f>" : &spell ? "\<C-n>" : "\<Cmd>set spell\<CR>\<C-n>"
+	   \ ? "\<C-x>\<C-f>" : "\<Cmd>set spell\<CR>\<C-n>"
 if !exists('g:loaded_copilot')
 	inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
 endif
