@@ -473,32 +473,6 @@ fn keep_dot_is_opt_in() {
 }
 
 #[test]
-fn executable_only_filter_offers_both_local_forms() {
-    let fixture = Fixture::new();
-    let paths = fixture.run(&mut fixture.command_with_flags(
-        &["--keep-dot"],
-        &fixture.local,
-        &fixture.global_dir,
-        "-fdx",
-        &[],
-    ));
-    assert!(paths.contains(&"executable".into()));
-    assert!(paths.contains(&"./executable".into()));
-    assert!(!paths.contains(&"./file".into()));
-    assert!(paths.iter().all(|path| {
-        fixture
-            .local
-            .join(path)
-            .metadata()
-            .unwrap()
-            .permissions()
-            .mode()
-            & 0o111
-            != 0
-    }));
-}
-
-#[test]
 fn executable_paths_work_with_dot_roots_and_symlinks() {
     let fixture = Fixture::new();
     let name = "run with\nspaces";

@@ -2,17 +2,13 @@ use ignore::gitignore::Gitignore;
 use ignore::Match;
 use std::collections::HashSet;
 use std::env;
-use std::ffi::{c_char, c_int, CString, OsStr, OsString};
+use std::ffi::{OsStr, OsString};
 use std::fs::{self, Metadata};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt};
 use std::path::{Component, Path, PathBuf};
 use std::process::{self, Command, Stdio};
 use std::rc::Rc;
-
-extern "C" {
-    fn access(path: *const c_char, mode: c_int) -> c_int;
-}
 
 fn print_help(name: &str) {
     println!(
@@ -48,7 +44,6 @@ Arguments:
   <TYPE>        -fd   Files and directories.
                 -f    Files only.
                 -d    Directories only.
-                -fdx  Executable files and searchable directories.
   <ENV> <DIR>
                 Repeated <ENV> <DIR> pairs, such as '$dotfiles' /path/to/dotfiles.
                 Each env must be unique. The longest matching directory wins.
@@ -70,7 +65,7 @@ Output:
 Examples (Fish):
   {name} . \"$nhooyr\" -fd '$dotfiles' \"$dotfiles\" | fzf --read0
   {name} . '' -d | fzf --read0
-  {name} --keep-dot . '' -fdx | fzf --read0"
+  {name} --keep-dot . '' -f | fzf --read0"
     );
 }
 
@@ -122,7 +117,6 @@ fn run(args: &[OsString], keep_dot: bool) -> io::Result<()> {
         cwd: working_directory()?,
         files_only: args[2] == "-f",
         directories_only: args[2] == "-d",
-        executable_only: args[2] == "-fdx",
         keep_dot,
         env_dirs,
         shown: HashSet::new(),
@@ -198,7 +192,6 @@ struct Picker {
     cwd: PathBuf,
     files_only: bool,
     directories_only: bool,
-    executable_only: bool,
     keep_dot: bool,
     env_dirs: Vec<(Vec<u8>, Vec<u8>)>,
     shown: HashSet<Vec<u8>>,
@@ -236,12 +229,6 @@ impl Picker {
             || (!metadata.is_dir() && (self.directories_only || !metadata.is_file()))
         {
             return Ok(());
-        }
-        if self.executable_only {
-            let name = CString::new(path.as_os_str().as_bytes()).unwrap();
-            if unsafe { access(name.as_ptr(), 1) } != 0 {
-                return Ok(());
-            }
         }
         self.emit_path(
             path,
@@ -301,7 +288,7 @@ impl Picker {
                 }
                 let path = entry.path();
                 let absolute = absolute.join(name);
-                if regular_file && !self.keep_dot && !self.executable_only {
+                if regular_file && !self.keep_dot {
                     if !ignored(&absolute, false, &ignores) {
                         self.emit_path(path, true, false)?;
                     }

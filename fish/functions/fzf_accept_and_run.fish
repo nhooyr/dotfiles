@@ -1,4 +1,4 @@
-source "$(status dirname)/../fzf.fish"; or return
+source "$(status dirname)/../fzf_upstream.fish"; or return
 
 function fzf_accept_and_run --argument-names widget
     aqsnow_init_rendezvous; or return
@@ -56,15 +56,35 @@ function fzf_path_widget --argument-names widget
         "$opts --read0 --print0 --with-shell=$(string escape -- "$shell")")
     set -lx FZF_DEFAULT_OPTS_FILE
     printf '%s\0' "$parsed[2]" | read --null --local --array --tokenize query; or return
+    # Upstream path parsing normalizes away an explicit execution prefix.
+    set -l token "$(commandline --current-token --tokens-expanded)"
+    if string match -q -- './*' "$token"
+        set query "$token"
+    end
     set -l result $(fzf-paths $flags "$dir" "$nhooyr" "$type" $dirs | fzf --query="$query" | string split0)
     if set -q result[1]
         set -l escaped
         for target in $result
             set -a escaped "$(aqsnow_fzf_path_quote "$target")"
         end
-        if test "$widget" = fzf-cd-widget
-            set -q tokens[1]; or set -p escaped cd --
-        else if set -q tokens[1]; and test "$(path basename -- "$tokens[1]")" = nvim; and not contains -- -- $tokens; and test -z "$parsed[3]"
+        if not set -q tokens[1]
+            set -l target "$result[1]"
+            # Resolve directory aliases without evaluating the selected path.
+            for name in $aqsnow_fzf_diralis
+                set -l direnv '$'$name
+                test "$name" = HOME; and set direnv '~'
+                if test "$target" = "$direnv"; or string match -q -- "$direnv/*" "$target"
+                    set -l suffix $(string split --max 1 -- "$direnv" "$target")[2]
+                    set target "$$name$suffix"
+                    break
+                end
+            end
+            if test "$(count $result)" -eq 1; and test -d "$target"
+                set -p escaped cd --
+            else if not string match -q -- './*' "$result[1]"
+                set -p escaped nvim --
+            end
+        else if test "$widget" != fzf-cd-widget; and test "$(path basename -- "$tokens[1]")" = nvim; and not contains -- -- $tokens; and test -z "$parsed[3]"
             set -p escaped --
         end
         commandline -rt -- "$(string join -- ' ' $parsed[3]$escaped) "

@@ -1,4 +1,4 @@
-# Upstream helpers below are from fzf 0.75.0 (MIT):
+# Upstream helpers from fzf 0.75.0 (MIT):
 # https://github.com/junegunn/fzf/blob/v0.75.0/shell/key-bindings.fish
 # https://github.com/junegunn/fzf/blob/v0.75.0/shell/completion.fish
 # The MIT License (MIT)
