@@ -30,8 +30,21 @@ end
 abbr -a --position anywhere '&&' '; and'
 abbr -a --position anywhere '||' '; or'
 abbr -a '!' not
+abbrali v nvim
 abbrali vi nvim
 abbrali vim nvim
+abbrali vid vidir
+function vidir
+    if set -q argv[1]
+        cdc "$argv[1]" vidir $argv[2..]
+        return
+    end
+    nvim +Vidir $argv
+end
+abbrali e nvim
+abbrali ec v '"$dotfiles/fish/config.fish"'
+abbrali ev v '"$dotfiles/nvim/init.vim"'
+abbrali cdd cdc '"$dotfiles"'
 abbr -a --command sudo vi nvim
 abbr -a --command sudo vim nvim
 abbrali s sudo
@@ -128,18 +141,6 @@ abbrali fi finder
 abbrali finder open -R
 abbrali safari open -a Safari
 abbrali chrome open -a 'Google Chrome'
-abbrali e nvim
-abbrali ec e '"$dotfiles/fish/config.fish"'
-abbrali cdd cdc '"$dotfiles"'
-abbrali ev e '"$dotfiles/nvim/init.vim"'
-abbrali vid vidir
-function vidir
-    if set -q argv[1]
-        cdc "$argv[1]" vidir $argv[2..]
-        return
-    end
-    nvim +Vidir $argv
-end
 abbrali t time
 abbrali diff diff -r
 abbrali esc string escape
