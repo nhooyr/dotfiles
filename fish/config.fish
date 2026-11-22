@@ -208,7 +208,7 @@ abbrali n noti
 abbr -a --command noti e eval
 abbrali bell printf '\a'
 
-source "$dotfiles/fish/fzf.fish"
+source "$dotfiles/fish/fzf-config.fish"
 
 for mode in default insert
     bind -M "$mode" alt-e 'aqsnow_init_rendezvous; and edit_command_buffer' 'set -g fish_bind_mode insert' aqsnow_rendezvous

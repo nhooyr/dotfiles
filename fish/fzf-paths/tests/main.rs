@@ -362,6 +362,45 @@ fn different_envs_may_reference_the_same_directory() {
 }
 
 #[test]
+fn files_only_excludes_directories_and_keeps_symlink_files() {
+    let fixture = Fixture::new();
+    symlink("file", fixture.local.join("file-link")).unwrap();
+    symlink("tracked", fixture.repo.join("file-link")).unwrap();
+    symlink("nested", fixture.repo.join("directory-link")).unwrap();
+    fixture.git(&["add", "--", "file-link", "directory-link"]);
+    fs::create_dir(fixture.repo.join("module")).unwrap();
+    fixture.git(&[
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        "160000,1111111111111111111111111111111111111111,module",
+    ]);
+
+    for flags in [&[][..], &["--keep-dot"][..]] {
+        let paths = fixture.run(&mut fixture.command_with_flags(
+            flags,
+            &fixture.local,
+            &fixture.global_dir,
+            "-f",
+            &[],
+        ));
+        for name in ["file", "file-link", "dir/child", "executable"] {
+            assert!(paths.contains(&name.into()), "missing local file {name}");
+        }
+        for name in [
+            "tracked",
+            "file-link",
+            "nested/child",
+            "node_modules/tracked",
+        ] {
+            assert!(paths.contains(&fixture.repo.join(name).into_os_string()));
+        }
+        assert!(paths.iter().all(|path| fixture.local.join(path).is_file()));
+        assert_eq!(paths.contains(&"./executable".into()), !flags.is_empty());
+    }
+}
+
+#[test]
 fn directories_only() {
     let fixture = Fixture::new();
     let paths = fixture.run(&mut fixture.command(&fixture.local, &fixture.global_dir, "-d", &[]));

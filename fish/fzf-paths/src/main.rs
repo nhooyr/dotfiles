@@ -46,6 +46,7 @@ Arguments:
   <GLOBAL_DIR>  Dir containing additional Git repositories.
                 Use an empty string to search only <DIR>.
   <TYPE>        -fd   Files and directories.
+                -f    Files only.
                 -d    Directories only.
                 -fdx  Executable files and searchable directories.
   <ENV> <DIR>
@@ -119,6 +120,7 @@ fn run(args: &[OsString], keep_dot: bool) -> io::Result<()> {
     env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
     let mut picker = Picker {
         cwd: working_directory()?,
+        files_only: args[2] == "-f",
         directories_only: args[2] == "-d",
         executable_only: args[2] == "-fdx",
         keep_dot,
@@ -194,6 +196,7 @@ fn normalize(path: &Path) -> PathBuf {
 
 struct Picker {
     cwd: PathBuf,
+    files_only: bool,
     directories_only: bool,
     executable_only: bool,
     keep_dot: bool,
@@ -229,7 +232,9 @@ impl Picker {
         let Some(metadata) = metadata.or_else(|| path.metadata().ok()) else {
             return Ok(());
         };
-        if !metadata.is_dir() && (self.directories_only || !metadata.is_file()) {
+        if (self.files_only && !metadata.is_file())
+            || (!metadata.is_dir() && (self.directories_only || !metadata.is_file()))
+        {
             return Ok(());
         }
         if self.executable_only {
@@ -338,9 +343,11 @@ impl Picker {
             .map(|entry| entry.path())
             .filter(|repo| repo.join(".git").exists())
             .collect();
-        for repo in &repos {
-            self.candidate(repo.clone(), false, None)?;
-            self.output.flush()?;
+        if !self.files_only {
+            for repo in &repos {
+                self.candidate(repo.clone(), false, None)?;
+                self.output.flush()?;
+            }
         }
         let jobs = std::thread::available_parallelism().map_or(1, |count| count.get());
         for repos in repos.chunks(jobs) {
@@ -374,15 +381,17 @@ impl Picker {
                     if !regular_file {
                         self.candidate(repo.join(file), false, None)?;
                     }
-                    for parent in file
-                        .ancestors()
-                        .skip(1)
-                        .filter(|p| !p.as_os_str().is_empty())
-                    {
-                        if !parents.insert(parent.to_path_buf()) {
-                            break;
+                    if !self.files_only {
+                        for parent in file
+                            .ancestors()
+                            .skip(1)
+                            .filter(|p| !p.as_os_str().is_empty())
+                        {
+                            if !parents.insert(parent.to_path_buf()) {
+                                break;
+                            }
+                            self.candidate(repo.join(parent), false, None)?;
                         }
-                        self.candidate(repo.join(parent), false, None)?;
                     }
                     self.output.flush()?;
                 }
