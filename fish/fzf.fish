@@ -42,18 +42,21 @@ function fzf_path_widget --argument-names widget
     if test "$dir" -ef ~
         set dir ''
     end
-    set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
-    while set -q tokens[1]; and contains -- "$tokens[1]" and or not '!' command builtin exec time if while
-        set -e tokens[1]
-    end
+    set -l tokens
     set -l type -fd
     set -l flags
     set -l opts "--multi $FZF_CTRL_T_OPTS"
     if test "$widget" = fzf-cd-widget
         set type -d
         set opts "$FZF_ALT_C_OPTS --no-multi"
-    else if not set -q tokens[1]
-        set flags --keep-dot
+    else
+        set tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
+        while contains -- "$tokens[1]" and or not '!' command builtin exec time if while
+            set -e tokens[1]
+        end
+        if not set -q tokens[1]
+            set flags --keep-dot
+        end
     end
 
     set -l dirs
@@ -96,11 +99,10 @@ function fzf_accept_and_run --argument-names widget
         set --function --export "$name" "$$name $option"
     end
 
-    switch "$widget"
-        case fzf-file-widget fzf-cd-widget
-            fzf_path_widget "$widget"
-        case '*'
-            $widget
+    if contains -- "$widget" fzf-file-widget fzf-cd-widget
+        fzf_path_widget "$widget"
+    else
+        $widget
     end
     aqsnow_rendezvous
 end

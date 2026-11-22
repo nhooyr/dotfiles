@@ -143,7 +143,11 @@ fn ignored(path: &Path, directory: bool, ignores: &[Rc<Gitignore>]) -> bool {
 }
 
 fn add_ignore_file(directory: &Path, ignores: &mut Vec<Rc<Gitignore>>) {
-    let (matcher, _) = Gitignore::new(directory.join(".gitignore"));
+    let path = directory.join(".gitignore");
+    if !path.is_file() {
+        return;
+    }
+    let (matcher, _) = Gitignore::new(path);
     if !matcher.is_empty() {
         ignores.push(Rc::new(matcher));
     }
