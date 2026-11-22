@@ -25,24 +25,24 @@ function socks --wraps 'sshu -ND1080'
 
     sudo -v; or return
     aqsnow_ssh_forward "$name" -D localhost:1080 $argv | command sudo -n sh -c '
-            set -eu
-            service=$1
+        set -eu
+        service=$1
 
-            IFS= read -r command
+        IFS= read -r command
 
-            cleanup() {
-                trap "" HUP INT TERM
-                networksetup -setsocksfirewallproxystate "$service" off
-                printf "%s: proxy disabled on %s\n" "$0" "$service"
-            }
-            trap cleanup 0
-            trap "exit 129" HUP
-            trap "exit 130" INT
-            trap "exit 143" TERM
-            networksetup -setsocksfirewallproxy "$service" localhost 1080 off
-            printf "%s\n" "$command"
-            while IFS= read -r line; do :; done
-        ' "$name" "$service[1]"
+        cleanup() {
+            trap "" HUP INT TERM
+            networksetup -setsocksfirewallproxystate "$service" off
+            printf "%s: proxy disabled on %s\n" "$0" "$service"
+        }
+        trap cleanup EXIT
+        trap "exit 129" HUP
+        trap "exit 130" INT
+        trap "exit 143" TERM
+        networksetup -setsocksfirewallproxy "$service" localhost 1080 off
+        printf "%s\n" "$command"
+        while IFS= read -r line; do :; done
+    ' "$name" "$service[1]"
     set -l results $pipestatus
     test "$results[1]" -eq 0; or return "$results[1]"
     return "$results[2]"
@@ -74,7 +74,7 @@ function aqsnow_ssh_forward --argument-names name direction ports
         ssh -S "$control" -O forward "$direction" "$ports" "$@"
         if [ "$direction" = -R ]; then
             port=${ports%%:*}
-            ssh -nT -S "$control" -o ProxyCommand=false -o ClearAllForwardings=yes "$@" \
+            exec ssh -nT -S "$control" -o ProxyCommand=false -o ClearAllForwardings=yes "$@" \
                 "sh -c \"command -v nc >/dev/null || exit 127; until nc -z -w 1 localhost $port; do sleep 0.1; done\""
         fi
     '
@@ -88,10 +88,10 @@ function aqsnow_ssh_forward --argument-names name direction ports
         forward_command="$forward_command" host="$argv[-1]" command sh -c '
         cleanup() {
             trap "" HUP INT TERM
-            ssh -S "$control" -O exit "$host" >/dev/null 2>&1 || :
+            ssh -S "$control" -O exit "$host" >/dev/null 2>&1
             rm -rf "${control%/*}"
         }
-        trap cleanup 0
+        trap cleanup EXIT
         trap "exit 129" HUP
         trap "exit 130" INT
         trap "exit 143" TERM
@@ -105,6 +105,9 @@ function aqsnow_ssh_forward --argument-names name direction ports
             exit "$result"
         fi
         printf "%s\n" "$forward_command"
+        if [ "$direction" = -L ]; then
+            printf "http://localhost:%s\n" "${ports%%:*}"
+        fi
         while IFS= read -r line; do :; done
     ' "$name" $argv
     set -l results $pipestatus
