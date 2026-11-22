@@ -151,126 +151,6 @@ function man
     command man $argv 2>/dev/null
 end
 abbrali to touch
-abbrali sshak ssh-add --apple-load-keychain
-set -q TMPDIR; or set -gx TMPDIR "$(mktemp -d)"
-if not test -f "$TMPDIR/__aqsnow_ssh_keychain_loaded"
-    sshak -q; and touch "$TMPDIR/__aqsnow_ssh_keychain_loaded"
-end
-abbrali sshq ssh -O exit
-abbrali sshu ssh -oControlPath=none
-abbrali ssha ssh-add
-function socks --wraps 'sshu -ND1080'
-    if not set -q argv[1]
-        printf 'Usage: socks [ssh-options] host\n' >&2
-        return 1
-    end
-
-    set -l service
-    for family in IPv4 IPv6
-        set -l service_id $(printf 'show State:/Network/Global/%s\n' "$family" | scutil | string match -rg '^\s*PrimaryService : (.+)$'); or continue
-        set service $(printf 'show Setup:/Network/Service/%s\n' "$service_id[1]" | scutil | string match -rg '^\s*UserDefinedName : (.+)$'); and break
-    end
-    if not set -q service[1]
-        printf 'socks: could not find the active macOS network service\n' >&2
-        return 1
-    end
-
-    sudo -v; or return
-    aqsnow_ssh_forward "$(status current-function)" -D localhost:1080 $argv | command sudo -n sh -c '
-            set -eu
-            service=$1
-
-            IFS= read -r command
-
-            cleanup() {
-                trap "" HUP INT TERM
-                networksetup -setsocksfirewallproxystate "$service" off
-                printf "socks: proxy disabled on %s\n" "$service"
-            }
-            trap cleanup 0
-            trap "exit 129" HUP
-            trap "exit 130" INT
-            trap "exit 143" TERM
-            networksetup -setsocksfirewallproxy "$service" localhost 1080 off
-            printf "%s\n" "$command"
-            while IFS= read -r line; do :; done
-        ' socks "$service[1]"
-    set -l results $pipestatus
-    test "$results[1]" -eq 0; or return "$results[1]"
-    return "$results[2]"
-end
-abbrali fsshl fssh -L
-abbrali fsshr fssh -R
-function fssh --argument-names direction src_port dst_port
-    set -l name "$(status current-function)"
-    if not set -q argv[4]; or not contains -- "$direction" -L -R
-        printf 'Usage: %s -L|-R SRC_PORT DST_PORT [ssh-options] host\n' "$name" >&2
-        return 1
-    end
-    for port in "$src_port" "$dst_port"
-        if not string match -qr '^[0-9]{1,5}$' -- "$port"; or test "$port" -lt 1; or test "$port" -gt 65535
-            printf '%s: invalid port: %s\n' "$name" "$port" >&2
-            return 1
-        end
-    end
-
-    aqsnow_ssh_forward "$name" "$direction" "$src_port:localhost:$dst_port" $argv[4..]
-end
-function aqsnow_ssh_forward --argument-names name direction ports
-    set -l directory "$(mktemp -d)"; or return
-    set -l control "$directory/socket"
-    set -l command "$(string join ' ' -- sshu "-N$(string sub --start 2 -- "$direction")" $(string escape -- "$ports" $argv[4..]))"
-    set -l setup '
-        control=$1
-        direction=$2
-        ports=$3
-        shift 3
-        ssh -S "$control" -O forward "$direction" "$ports" "$@" || exit $?
-        if [ "$direction" = -R ]; then
-            port=${ports%%:*}
-            ssh -nT -S "$control" -o ProxyCommand=false -o BatchMode=yes -o ClearAllForwardings=yes "$@" \
-                "sh -c \"command -v nc >/dev/null || exit 127; until nc -z -w 1 localhost $port; do sleep 0.1; done\""
-        fi
-    '
-
-    # Authenticate before starting the five-second forwarding deadline.
-    # An external reader lets the sshu function stream output while it runs.
-    sshu -MN -S "$control" -o ControlPersist=no -o ClearAllForwardings=yes \
-        -o ConnectTimeout=5 -o ConnectionAttempts=1 \
-        -o PermitLocalCommand=yes -o 'LocalCommand=printf "ssh-authenticated\n"' \
-        $argv[4..] | command sh -c '
-        command=$1
-        control=$2
-        setup=$3
-        direction=$4
-        ports=$5
-        host=$6
-        shift 6
-        cleanup() {
-            trap "" HUP INT TERM
-            ssh -S "$control" -O exit "$host" >/dev/null 2>&1 || :
-            rm -rf "${control%/*}"
-        }
-        trap cleanup 0
-        trap "exit 129" HUP
-        trap "exit 130" INT
-        trap "exit 143" TERM
-
-        IFS= read -r ready || exit 1
-        [ "$ready" = ssh-authenticated ] || exit 1
-        timeout 5 sh -c "$setup" "$0" "$control" "$direction" "$ports" "$@"
-        result=$?
-        if [ "$result" -ne 0 ]; then
-            [ "$result" -ne 124 ] || printf "%s: forwarding timed out after 5s\n" "$0" >&2
-            exit "$result"
-        fi
-        printf "%s\n" "$command"
-        while IFS= read -r line; do :; done
-    ' "$name" "$command" "$control" "$setup" "$direction" "$ports" "$argv[-1]" $argv[4..]
-    set -l results $pipestatus
-    test "$results[1]" -eq 0; or return "$results[1]"
-    return "$results[2]"
-end
 abbrali py python3
 function pyc --wraps 'python3 -c'
     python3 -c "print($argv)"
@@ -493,6 +373,7 @@ source "$dotfiles/fish/git.fish"
 source "$dotfiles/fish/github.fish"
 source "$dotfiles/fish/prompt.fish"
 source "$dotfiles/fish/cd.fish"
+source "$dotfiles/fish/ssh.fish"
 
 if test "$PWD" = "$HOME"
     cd "$dotfiles"
