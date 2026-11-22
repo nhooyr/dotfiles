@@ -28,6 +28,10 @@ function fzf_path_widget --argument-names widget
     while contains -- "$tokens[1]" and or not '!' command builtin exec time if while
         set -e tokens[1]
     end
+    set -l --unexport CDPATH $CDPATH
+    if not set -q tokens[1]; or contains -- "$tokens[1]" cd cdc
+        set -x CDPATH $CDPATH
+    end
     set -l type -fd
     set -l flags
     set -l opts "--multi $FZF_CTRL_T_OPTS"
@@ -63,9 +67,16 @@ function fzf_path_widget --argument-names widget
     end
     set -l result $(fzf-paths $flags "$dir" "$nhooyr" "$type" $dirs | fzf --query="$query" | string split0)
     if set -q result[1]
+        set -l cdpath_selected 0
+        string match -q -- '$CDPATH/*' "$result[1]"; and set cdpath_selected 1
         set -l escaped
         for target in $result
-            set -a escaped "$(aqsnow_fzf_path_quote "$target")"
+            if string match -q -- '$CDPATH/*' "$target"
+                set -l name $(string split --max 1 -- '$CDPATH/' "$target")[2]
+                set -a escaped "$(string escape -n -- "$name")"
+            else
+                set -a escaped "$(aqsnow_fzf_path_quote "$target")"
+            end
         end
         if not set -q tokens[1]
             set -l target "$result[1]"
@@ -79,7 +90,9 @@ function fzf_path_widget --argument-names widget
                     break
                 end
             end
-            if test "$(count $result)" -eq 1; and test -d "$target"
+            set -l directory "$cdpath_selected"
+            test -d "$target"; and set directory 1
+            if test "$(count $result)" -eq 1; and test "$directory" -eq 1
                 set -p escaped cd --
             else if not string match -q -- './*' "$result[1]"
                 set -p escaped nvim --

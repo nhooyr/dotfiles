@@ -28,6 +28,11 @@ needed. The 1,000-result limit counts output paths, including extra ./ forms
 from --keep-dot; it limits results, not elapsed time.
 fzf may reorder matches when sorting is enabled.
 
+Directory modes (-d and -fd) also list the immediate subdirectories of each
+entry in the colon-separated CDPATH environment variable. Missing roots are
+skipped. These choices use the display prefix $CDPATH/; the Fish widgets strip
+it when inserting a choice. Duplicate directory names are emitted only once.
+
 The local scan respects .gitignore files, including nested rules and negations.
 Starting inside an ignored directory makes that directory searchable: ignore
 rules above the ignored directory are bypassed, while rules inside still apply.
@@ -124,7 +129,7 @@ fn run(args: &[OsString], keep_dot: bool) -> io::Result<()> {
         output: BufWriter::new(io::stdout()),
     };
     picker.walk(PathBuf::from(&args[0]))?;
-    picker.repositories()
+    picker.global_paths()
 }
 
 fn ignored(path: &Path, directory: bool, ignores: &[Rc<Gitignore>]) -> bool {
@@ -210,7 +215,7 @@ impl Picker {
             if self.shown.len() == 1000 {
                 // Pause local output for global results, then resume here.
                 self.output.flush()?;
-                self.repositories()?;
+                self.global_paths()?;
             }
         }
         Ok(())
@@ -315,11 +320,45 @@ impl Picker {
         Ok(())
     }
 
-    fn repositories(&mut self) -> io::Result<()> {
+    fn cdpath(&mut self) -> io::Result<()> {
+        let Some(cdpath) = env::var_os("CDPATH").filter(|value| !value.is_empty()) else {
+            return Ok(());
+        };
+        let mut roots = HashSet::new();
+        for root in env::split_paths(&cdpath) {
+            let root = normalize(&self.cwd.join(root));
+            if !roots.insert(root.clone()) {
+                continue;
+            }
+            let Ok(entries) = fs::read_dir(root) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                if name == ".git" || name == "node_modules" {
+                    continue;
+                }
+                let path = entry.path();
+                let Ok(metadata) = path.metadata() else {
+                    continue;
+                };
+                if metadata.is_dir() {
+                    self.emit([b"$CDPATH/", name.as_bytes()].concat(), false)?;
+                }
+            }
+            self.output.flush()?;
+        }
+        Ok(())
+    }
+
+    fn global_paths(&mut self) -> io::Result<()> {
         // Take this before emitting so global output cannot restart the scan.
         let Some(global_dir) = self.global_dir.take() else {
             return Ok(());
         };
+        if !self.files_only {
+            self.cdpath()?;
+        }
         if global_dir.as_os_str().is_empty() || !global_dir.is_dir() {
             return Ok(());
         }

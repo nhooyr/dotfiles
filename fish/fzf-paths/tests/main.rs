@@ -118,6 +118,7 @@ impl Fixture {
         command
             .current_dir(cwd)
             .env("PWD", cwd)
+            .env_remove("CDPATH")
             .args(flags)
             .arg(".")
             .arg(global_dir)
@@ -398,6 +399,143 @@ fn files_only_excludes_directories_and_keeps_symlink_files() {
         assert!(paths.iter().all(|path| fixture.local.join(path).is_file()));
         assert_eq!(paths.contains(&"./executable".into()), !flags.is_empty());
     }
+}
+
+#[test]
+fn cdpath_adds_immediate_directories_from_all_roots() {
+    let fixture = Fixture::new();
+    let first = fixture.root.join("cdpath");
+    let second = fixture.root.join("cdpath2");
+    for directory in [
+        "one/inside",
+        "two",
+        ".hidden",
+        ".git/excluded",
+        "node_modules/excluded",
+    ] {
+        fs::create_dir_all(first.join(directory)).unwrap();
+    }
+    fs::create_dir_all(second.join("three")).unwrap();
+    write(&first, "not-a-directory");
+    symlink("one", first.join("linked")).unwrap();
+    symlink("missing", first.join("broken")).unwrap();
+    let cdpath = env::join_paths([
+        first.clone(),
+        PathBuf::from("../cdpath2"),
+        first.clone(),
+        fixture.root.join("missing"),
+        PathBuf::new(),
+    ])
+    .unwrap();
+
+    for kind in ["-d", "-fd"] {
+        let paths = fixture.run(
+            fixture
+                .command(&fixture.local, &fixture.global_dir, kind, &[])
+                .env("CDPATH", &cdpath),
+        );
+        for directory in ["one", "two", ".hidden", "linked"] {
+            assert!(paths.contains(&format!("$CDPATH/{directory}").into()));
+        }
+        assert!(paths.contains(&"$CDPATH/three".into()));
+        assert!(paths.contains(&"$CDPATH/dir".into()));
+        for omitted in [
+            "one/inside",
+            "not-a-directory",
+            "broken",
+            ".git",
+            "node_modules",
+        ] {
+            assert!(!paths.contains(&format!("$CDPATH/{omitted}").into()));
+        }
+        assert_eq!(HashSet::<_>::from_iter(&paths).len(), paths.len());
+    }
+}
+
+#[test]
+fn cdpath_labels_are_independent_of_aliases_and_global_repositories() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("cdpath with spaces");
+    fs::create_dir_all(directory.join("child\nwith spaces")).unwrap();
+    fs::create_dir_all(directory.join("project")).unwrap();
+    let cdpath = env::join_paths([&directory, &fixture.global_dir]).unwrap();
+    for global_dir in [
+        Path::new(""),
+        &fixture.root.join("missing"),
+        &fixture.global_dir,
+    ] {
+        let paths = fixture.run(
+            fixture
+                .command(&fixture.local, global_dir, "-d", &[("$places", &directory)])
+                .env("CDPATH", &cdpath),
+        );
+        assert!(paths.contains(&"$CDPATH/child\nwith spaces".into()));
+        assert_eq!(
+            paths
+                .iter()
+                .filter(|path| path.as_os_str() == "$CDPATH/project")
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
+fn files_only_ignores_cdpath() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("cdpath");
+    fs::create_dir_all(directory.join("child")).unwrap();
+    write(&directory, "file");
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.local, &fixture.global_dir, "-f", &[])
+            .env("CDPATH", &directory),
+    );
+    assert!(paths.contains(&"file".into()));
+    assert!(paths.contains(&fixture.repo.join("tracked").into_os_string()));
+    assert!(!paths
+        .iter()
+        .any(|path| Path::new(path).starts_with(&directory)));
+    assert!(!paths
+        .iter()
+        .any(|path| Path::new(path).starts_with("$CDPATH")));
+    assert!(paths.iter().all(|path| fixture.local.join(path).is_file()));
+}
+
+#[test]
+fn many_cdpath_directories_do_not_restart_scanning() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("cdpath");
+    for index in 0..1005 {
+        fs::create_dir_all(directory.join(format!("dir-{index}"))).unwrap();
+    }
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.local, &fixture.global_dir, "-d", &[])
+            .env("CDPATH", &directory),
+    );
+    assert_eq!(
+        paths
+            .iter()
+            .filter(|path| Path::new(path).starts_with("$CDPATH"))
+            .count(),
+        1005
+    );
+    assert!(paths.contains(&fixture.repo.clone().into_os_string()));
+}
+
+#[test]
+fn empty_cdpath_disables_cdpath_choices() {
+    let fixture = Fixture::new();
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.local, &fixture.global_dir, "-d", &[])
+            .env("CDPATH", ""),
+    );
+    assert!(paths.contains(&"dir".into()));
+    assert!(!paths
+        .iter()
+        .any(|path| Path::new(path).starts_with("$CDPATH")));
 }
 
 #[test]
@@ -815,6 +953,7 @@ fn help_uses_invoked_basename() {
         assert!(help.contains("streamed directly in Git's order"));
         assert!(help.contains("GLOBAL_DIR"));
         assert!(help.contains("Repeated <ENV> <DIR> pairs"));
+        assert!(help.contains("CDPATH environment variable"));
         assert!(help.contains("Fish bindings keep directory aliases in the command line"));
         assert!(help.contains("shell expands them when the command is executed"));
         assert!(help.contains("--keep-dot"));
