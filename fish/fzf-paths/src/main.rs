@@ -234,18 +234,21 @@ impl Picker {
                 return Ok(());
             }
         }
+        self.emit_path(
+            path,
+            local,
+            metadata.is_file() && metadata.mode() & 0o111 != 0,
+        )
+    }
+
+    fn emit_path(&mut self, path: PathBuf, local: bool, executable: bool) -> io::Result<()> {
         let mut path = path.into_os_string().into_vec();
         if path.starts_with(b"./") {
             path.drain(..2);
         }
         if local {
             self.emit(path.clone(), true)?;
-            if self.keep_dot
-                && metadata.is_file()
-                && metadata.mode() & 0o111 != 0
-                && !path.starts_with(b"/")
-                && !path.starts_with(b"./")
-            {
+            if self.keep_dot && executable && !path.starts_with(b"/") && !path.starts_with(b"./") {
                 self.emit([b"./", path.as_slice()].concat(), true)?;
             }
         }
@@ -283,11 +286,18 @@ impl Picker {
                 if name == ".git" || name == "node_modules" {
                     continue;
                 }
-                if self.directories_only && entry.file_type().is_ok_and(|kind| kind.is_file()) {
+                let regular_file = entry.file_type().is_ok_and(|kind| kind.is_file());
+                if self.directories_only && regular_file {
                     continue;
                 }
                 let path = entry.path();
                 let absolute = absolute.join(name);
+                if regular_file && !self.keep_dot && !self.executable_only {
+                    if !ignored(&absolute, false, &ignores) {
+                        self.emit_path(path, true, false)?;
+                    }
+                    continue;
+                }
                 let Ok(metadata) = path.metadata() else {
                     continue;
                 };
