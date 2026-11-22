@@ -164,19 +164,15 @@ fn local_paths_are_first_and_unique() {
 }
 
 #[test]
-fn local_paths_are_breadth_first() {
+fn local_subdirectories_are_scanned_depth_first() {
     let fixture = Fixture::new();
     write(&fixture.local, "first/deep/leaf");
-    write(&fixture.local, "second/child");
+    write(&fixture.local, "second/deep/leaf");
     let paths = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), "-fd", &[]));
-    let depths: Vec<_> = paths
-        .iter()
-        .map(|path| {
-            let path = Path::new(path);
-            path.strip_prefix(".").unwrap_or(path).components().count()
-        })
-        .collect();
-    assert!(depths.windows(2).all(|pair| pair[0] <= pair[1]));
+    let index = |name: &str| paths.iter().position(|path| path == name).unwrap();
+    let first = (index("first/deep"), index("first/deep/leaf"));
+    let second = (index("second/deep"), index("second/deep/leaf"));
+    assert!(first.1 < second.0 || second.1 < first.0);
 }
 
 #[test]

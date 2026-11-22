@@ -1,6 +1,6 @@
 use ignore::gitignore::Gitignore;
 use ignore::Match;
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use std::env;
 use std::ffi::{c_char, c_int, CString, OsStr, OsString};
 use std::fs::{self, Metadata};
@@ -21,12 +21,12 @@ Generate path candidates for fzf from local files and Git repositories.
 
 usage: {name} [--keep-dot] <DIR> <GLOBAL_DIR> <TYPE> [<ENV> <DIR>]...
 
-Scan <DIR> in breadth-first order and emit local paths first, streaming them
+Scan <DIR> in depth-first order and emit local paths first, streaming them
 as they are found. After 1,000 unique local results (or when the local scan
 finishes), scan Git repositories directly under <GLOBAL_DIR> for tracked files
 and their parent directories. Then resume any remaining local paths.
 
-The local scan shows shallow paths before deeper paths. Global tracked paths
+The local scan explores one subdirectory tree before the next. Global paths
 are streamed directly in Git's order, with their parent directories added as
 needed. The 1,000-result limit counts output paths, including extra ./ forms
 from --keep-dot; it limits results, not elapsed time.
@@ -276,8 +276,8 @@ impl Picker {
         let absolute = normalize(&self.cwd.join(&path));
         let ignores = local_ignores(&absolute);
         let ancestors = vec![(metadata.dev(), metadata.ino())];
-        let mut directories = VecDeque::from([(path, absolute, ancestors, ignores)]);
-        while let Some((path, absolute, ancestors, ignores)) = directories.pop_front() {
+        let mut directories = vec![(path, absolute, ancestors, ignores)];
+        while let Some((path, absolute, ancestors, ignores)) = directories.pop() {
             let Ok(entries) = fs::read_dir(path) else {
                 continue;
             };
@@ -312,7 +312,7 @@ impl Picker {
                     ancestors.push(identity);
                     let mut ignores = ignores.clone();
                     add_ignore_file(&absolute, &mut ignores);
-                    directories.push_back((path, absolute, ancestors, ignores));
+                    directories.push((path, absolute, ancestors, ignores));
                 }
             }
         }

@@ -65,7 +65,10 @@ function fzf_path_widget --argument-names widget
     end
 
     set -l shell $(string join ' ' -- $(string escape -- $(status fish-path) -c))
-    set -lx FZF_DEFAULT_OPTS $(__fzf_defaults '--reverse --scheme=path' "$opts --read0 --print0 --with-shell=$(string escape -- "$shell")")
+    # Score without a leading $, falling back to the full path for queries containing $.
+    set -lx FZF_DEFAULT_OPTS $(__fzf_defaults \
+        '--reverse --scheme=path --delimiter=^[$] --nth=2,.. --tiebreak=length,pathname' \
+        "$opts --read0 --print0 --with-shell=$(string escape -- "$shell")")
     set -lx FZF_DEFAULT_OPTS_FILE
     printf '%s\0' "$parsed[2]" | read --null --local --array --tokenize query; or return
     set -l result $(fzf-paths $flags "$dir" "$nhooyr" "$type" $dirs | fzf --query="$query" | string split0)
