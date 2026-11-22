@@ -59,7 +59,9 @@ function! s:set_spell_highlight() abort
 		highlight clear SpellRare
 		highlight clear SpellLocal
 	else
-		set spell
+		if ! &spell
+			set spell
+		endif
 		highlight SpellBad cterm=underline
 		highlight SpellCap cterm=underline
 		highlight SpellRare cterm=underline
