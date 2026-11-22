@@ -1,14 +1,76 @@
-use std::collections::HashSet;
+use ignore::gitignore::Gitignore;
+use ignore::Match;
+use std::collections::{HashSet, VecDeque};
 use std::env;
-use std::ffi::{c_char, c_int, CString, OsString};
+use std::ffi::{c_char, c_int, CString, OsStr, OsString};
 use std::fs::{self, Metadata};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt};
 use std::path::{Component, Path, PathBuf};
 use std::process::{self, Command, Stdio};
+use std::rc::Rc;
 
 extern "C" {
     fn access(path: *const c_char, mode: c_int) -> c_int;
+}
+
+fn print_help(name: &str) {
+    println!(
+        "\
+Generate path candidates for fzf from local files and Git repositories.
+
+usage: {name} [--keep-dot] <DIR> <GLOBAL_DIR> <TYPE> [<ENV> <DIR>]...
+
+Scan <DIR> in breadth-first order and emit local paths first, streaming them
+as they are found. After 1,000 unique local results (or when the local scan
+finishes), scan Git repositories directly under <GLOBAL_DIR> for tracked files
+and their parent directories. Then resume any remaining local paths.
+
+The local scan shows shallow paths before deeper paths. Global tracked paths
+are streamed directly in Git's order, with their parent directories added as
+needed. The 1,000-result limit counts output paths, including extra ./ forms
+from --keep-dot; it limits results, not elapsed time.
+fzf may reorder matches when sorting is enabled.
+
+The local scan respects .gitignore files, including nested rules and negations.
+Starting inside an ignored directory makes that directory searchable: ignore
+rules above the ignored directory are bypassed, while rules inside still apply.
+Directories named .git and node_modules are skipped unless they are <DIR> itself.
+
+Options:
+  -h, --help  Show this help.
+  --keep-dot  Also offer ./ paths for local executable files.
+
+Arguments:
+  <DIR>         Directory to search locally. Use . for the current directory.
+  <GLOBAL_DIR>  Dir containing additional Git repositories.
+                Use an empty string to search only <DIR>.
+  <TYPE>        -fd   Files and directories.
+                -d    Directories only.
+                -fdx  Executable files and searchable directories.
+  <ENV> <DIR>
+                Repeated <ENV> <DIR> pairs, such as '$dotfiles' /path/to/dotfiles.
+                Each env must be unique. The longest matching directory wins.
+
+Output:
+  Unique, NUL-separated paths. Filenames may contain spaces or newlines.
+  Local paths omit a leading ./. With --keep-dot, local executables also get
+  a ./ form. The Fish bindings enable this only when completing a command name.
+  Global paths use a matching env when available; otherwise they are absolute.
+  Global directory scans (-d, used by Alt-C) use Git's indexed file types. If
+  you replace a tracked regular file with a symlink to a directory, that
+  symlink is omitted until you stage the change with git add. Local scans
+  see the change immediately.
+  A file may appear as both a short local path and a global path; identical
+  output strings are emitted only once.
+  The Fish bindings keep directory aliases in the command line.
+  The shell expands them when the command is executed.
+
+Examples (Fish):
+  {name} . \"$nhooyr\" -fd '$dotfiles' \"$dotfiles\" | fzf --read0
+  {name} . '' -d | fzf --read0
+  {name} --keep-dot . '' -fdx | fzf --read0"
+    );
 }
 
 fn main() {
@@ -19,18 +81,21 @@ fn main() {
         .unwrap_or(&invoked)
         .to_string_lossy();
     let args: Vec<_> = arguments.collect();
+    let (keep_dot, args) = if args.first().is_some_and(|arg| arg == "--keep-dot") {
+        (true, &args[1..])
+    } else {
+        (false, args.as_slice())
+    };
     let help = args.len() == 1 && (args[0] == "--help" || args[0] == "-h");
-    if help || args.len() < 4 || (args.len() - 4) % 2 != 0 {
-        let usage = format!("usage: {name} DIR OWNER TYPE KEEP_DOT [LABEL DIRECTORY]...");
-        if help {
-            println!("{usage}");
-        } else {
-            eprintln!("{usage}");
-            process::exit(1);
-        }
+    if help {
+        print_help(&name);
         return;
     }
-    if let Err(error) = run(&args) {
+    if args.len() < 3 || (args.len() - 3) % 2 != 0 {
+        eprintln!("usage: {name} [--keep-dot] <DIR> <GLOBAL_DIR> <TYPE> [<ENV> <DIR>]...");
+        process::exit(1);
+    }
+    if let Err(error) = run(args, keep_dot) {
         if error.kind() != io::ErrorKind::BrokenPipe {
             eprintln!("{name}: {error}");
             process::exit(1);
@@ -38,24 +103,65 @@ fn main() {
     }
 }
 
-fn run(args: &[OsString]) -> io::Result<()> {
-    let mut aliases: Vec<_> = args[4..]
-        .chunks_exact(2)
-        .map(|pair| (pair[0].as_bytes().to_vec(), pair[1].as_bytes().to_vec()))
-        .collect();
-    aliases.sort_by_key(|(_, base)| std::cmp::Reverse(base.len()));
+fn run(args: &[OsString], keep_dot: bool) -> io::Result<()> {
+    let mut seen_envs = HashSet::new();
+    let mut env_dirs = Vec::new();
+    for pair in args[3..].chunks_exact(2) {
+        let env = pair[0].as_bytes();
+        if !seen_envs.insert(env) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("duplicate env: {}", pair[0].to_string_lossy()),
+            ));
+        }
+        env_dirs.push((env.to_vec(), pair[1].as_bytes().to_vec()));
+    }
+    env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
     let mut picker = Picker {
         cwd: working_directory()?,
         directories_only: args[2] == "-d",
         executable_only: args[2] == "-fdx",
-        keep_dot: args[3] == "true",
-        aliases,
-        seen: HashSet::new(),
+        keep_dot,
+        env_dirs,
         shown: HashSet::new(),
+        global_dir: Some(PathBuf::from(&args[1])),
         output: BufWriter::new(io::stdout()),
     };
-    picker.walk(PathBuf::from(&args[0]), true, &mut HashSet::new())?;
-    picker.repositories(Path::new(&args[1]))
+    picker.walk(PathBuf::from(&args[0]))?;
+    picker.repositories()
+}
+
+fn ignored(path: &Path, directory: bool, ignores: &[Rc<Gitignore>]) -> bool {
+    for matcher in ignores.iter().rev() {
+        match matcher.matched(path, directory) {
+            Match::Ignore(_) => return true,
+            Match::Whitelist(_) => return false,
+            Match::None => {}
+        }
+    }
+    false
+}
+
+fn add_ignore_file(directory: &Path, ignores: &mut Vec<Rc<Gitignore>>) {
+    let (matcher, _) = Gitignore::new(directory.join(".gitignore"));
+    if !matcher.is_empty() {
+        ignores.push(Rc::new(matcher));
+    }
+}
+
+fn local_ignores(directory: &Path) -> Vec<Rc<Gitignore>> {
+    let mut ignores = Vec::new();
+    if !directory.join(".git").exists() {
+        if let Some(parent) = directory.parent() {
+            ignores = local_ignores(parent);
+        }
+    }
+    if ignored(directory, true, &ignores) {
+        // An explicit search inside an ignored directory starts fresh here.
+        ignores.clear();
+    }
+    add_ignore_file(directory, &mut ignores);
+    ignores
 }
 
 fn working_directory() -> io::Result<PathBuf> {
@@ -87,9 +193,9 @@ struct Picker {
     directories_only: bool,
     executable_only: bool,
     keep_dot: bool,
-    aliases: Vec<(Vec<u8>, Vec<u8>)>,
-    seen: HashSet<(bool, PathBuf)>,
+    env_dirs: Vec<(Vec<u8>, Vec<u8>)>,
     shown: HashSet<Vec<u8>>,
+    global_dir: Option<PathBuf>,
     output: BufWriter<io::Stdout>,
 }
 
@@ -101,7 +207,11 @@ impl Picker {
         if self.shown.insert(path.clone()) {
             self.output.write_all(&path)?;
             self.output.write_all(b"\0")?;
-            self.output.flush()?;
+            if self.shown.len() == 1000 {
+                // Pause local output for global results, then resume here.
+                self.output.flush()?;
+                self.repositories()?;
+            }
         }
         Ok(())
     }
@@ -112,9 +222,6 @@ impl Picker {
         local: bool,
         metadata: Option<Metadata>,
     ) -> io::Result<()> {
-        if !self.seen.insert((local, self.cwd.join(&path))) {
-            return Ok(());
-        }
         let Some(metadata) = metadata.or_else(|| path.metadata().ok()) else {
             return Ok(());
         };
@@ -128,83 +235,145 @@ impl Picker {
             }
         }
         let mut path = path.into_os_string().into_vec();
-        if !self.keep_dot && path.starts_with(b"./") {
+        if path.starts_with(b"./") {
             path.drain(..2);
         }
         if local {
             self.emit(path.clone(), true)?;
-        }
-        let cwd_prefix = [self.cwd.as_os_str().as_bytes(), b"/"].concat();
-        if self.keep_dot && path.starts_with(&cwd_prefix) {
-            path.splice(..cwd_prefix.len(), b"./".iter().copied());
-        } else if let Some((label, base)) = self.aliases.iter().find(|(_, base)| {
-            path.starts_with(base)
-                && (path.len() == base.len() || path.get(base.len()) == Some(&b'/'))
-        }) {
-            path.splice(..base.len(), label.iter().copied());
-            return self.emit(path, false);
-        } else if self.aliases.is_empty() && path.starts_with(&cwd_prefix) {
-            path.drain(..cwd_prefix.len());
-        }
-        self.emit(path, true)
-    }
-
-    fn walk(
-        &mut self,
-        path: PathBuf,
-        root: bool,
-        ancestors: &mut HashSet<(u64, u64)>,
-    ) -> io::Result<()> {
-        let Ok(metadata) = path.metadata() else {
-            return Ok(());
-        };
-        if !root {
-            self.candidate(path.clone(), true, Some(metadata.clone()))?;
-        }
-        let identity = (metadata.dev(), metadata.ino());
-        if metadata.is_dir() && ancestors.insert(identity) {
-            if let Ok(entries) = fs::read_dir(path) {
-                for entry in entries.flatten() {
-                    if entry.file_name() != ".git" && entry.file_name() != "node_modules" {
-                        self.walk(entry.path(), false, ancestors)?;
-                    }
-                }
+            if self.keep_dot
+                && metadata.is_file()
+                && metadata.mode() & 0o111 != 0
+                && !path.starts_with(b"/")
+                && !path.starts_with(b"./")
+            {
+                self.emit([b"./", path.as_slice()].concat(), true)?;
             }
-            ancestors.remove(&identity);
+        }
+        if let Some((env, dir)) = self.env_dirs.iter().find(|(_, dir)| {
+            path.starts_with(dir) && (path.len() == dir.len() || path.get(dir.len()) == Some(&b'/'))
+        }) {
+            path.splice(..dir.len(), env.iter().copied());
+            self.emit(path, false)?;
+        } else if !local {
+            self.emit(path, true)?;
+        }
+        if local {
+            self.output.flush()?;
         }
         Ok(())
     }
 
-    fn repositories(&mut self, owner: &Path) -> io::Result<()> {
-        if owner.as_os_str().is_empty() || !owner.is_dir() {
+    fn walk(&mut self, path: PathBuf) -> io::Result<()> {
+        let Ok(metadata) = path.metadata() else {
+            return Ok(());
+        };
+        if !metadata.is_dir() {
             return Ok(());
         }
-        let owner = normalize(&self.cwd.join(owner));
-        let mut repos: Vec<_> = fs::read_dir(owner)?
+        let absolute = normalize(&self.cwd.join(&path));
+        let ignores = local_ignores(&absolute);
+        let ancestors = vec![(metadata.dev(), metadata.ino())];
+        let mut directories = VecDeque::from([(path, absolute, ancestors, ignores)]);
+        while let Some((path, absolute, ancestors, ignores)) = directories.pop_front() {
+            let Ok(entries) = fs::read_dir(path) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                if name == ".git" || name == "node_modules" {
+                    continue;
+                }
+                if self.directories_only && entry.file_type().is_ok_and(|kind| kind.is_file()) {
+                    continue;
+                }
+                let path = entry.path();
+                let absolute = absolute.join(name);
+                let Ok(metadata) = path.metadata() else {
+                    continue;
+                };
+                let is_directory = metadata.is_dir();
+                if ignored(&absolute, is_directory, &ignores) {
+                    continue;
+                }
+                let identity = (metadata.dev(), metadata.ino());
+                self.candidate(path.clone(), true, Some(metadata))?;
+                if is_directory && !ancestors.contains(&identity) {
+                    let mut ancestors = ancestors.clone();
+                    ancestors.push(identity);
+                    let mut ignores = ignores.clone();
+                    add_ignore_file(&absolute, &mut ignores);
+                    directories.push_back((path, absolute, ancestors, ignores));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn repositories(&mut self) -> io::Result<()> {
+        // Take this before emitting so global output cannot restart the scan.
+        let Some(global_dir) = self.global_dir.take() else {
+            return Ok(());
+        };
+        if global_dir.as_os_str().is_empty() || !global_dir.is_dir() {
+            return Ok(());
+        }
+        let global_dir = normalize(&self.cwd.join(global_dir));
+        let repos: Vec<_> = fs::read_dir(global_dir)?
             .flatten()
             .filter(|entry| !entry.file_name().as_bytes().starts_with(b"."))
             .map(|entry| entry.path())
+            .filter(|repo| repo.join(".git").exists())
             .collect();
-        repos.sort();
-        for repo in repos {
-            if !repo.join(".git").exists() {
-                continue;
-            }
+        for repo in &repos {
             self.candidate(repo.clone(), false, None)?;
-            let mut git = Command::new("git")
-                .arg("-C")
-                .arg(&repo)
-                .args(["ls-files", "--recurse-submodules", "-z"])
-                .stdin(Stdio::null())
-                .stdout(Stdio::piped())
-                .spawn()?;
-            for file in BufReader::new(git.stdout.take().unwrap()).split(0) {
-                let file = PathBuf::from(OsString::from_vec(file?));
-                for relative in file.ancestors().filter(|p| !p.as_os_str().is_empty()) {
-                    self.candidate(repo.join(relative), false, None)?;
+            self.output.flush()?;
+        }
+        let jobs = std::thread::available_parallelism().map_or(1, |count| count.get());
+        for repos in repos.chunks(jobs) {
+            let scans = repos
+                .iter()
+                .map(|repo| {
+                    let mut git = Command::new("git");
+                    git.arg("-C")
+                        .arg(repo)
+                        .args(["ls-files", "--recurse-submodules", "-z"]);
+                    if self.directories_only {
+                        git.arg("--format=%(objectmode) %(path)");
+                    }
+                    git.stdin(Stdio::null()).stdout(Stdio::piped()).spawn()
+                })
+                .collect::<io::Result<Vec<_>>>()?;
+            for (repo, mut scan) in repos.iter().zip(scans) {
+                let mut parents = HashSet::new();
+                for file in BufReader::new(scan.stdout.take().unwrap()).split(0) {
+                    let file = file?;
+                    // Git's indexed modes let directory scans skip regular files.
+                    let regular_file = self.directories_only && file.starts_with(b"100");
+                    let path = if self.directories_only {
+                        file.splitn(2, |&byte| byte == b' ')
+                            .nth(1)
+                            .unwrap_or_default()
+                    } else {
+                        &file
+                    };
+                    let file = Path::new(OsStr::from_bytes(path));
+                    if !regular_file {
+                        self.candidate(repo.join(file), false, None)?;
+                    }
+                    for parent in file
+                        .ancestors()
+                        .skip(1)
+                        .filter(|p| !p.as_os_str().is_empty())
+                    {
+                        if !parents.insert(parent.to_path_buf()) {
+                            break;
+                        }
+                        self.candidate(repo.join(parent), false, None)?;
+                    }
+                    self.output.flush()?;
                 }
+                scan.wait()?;
             }
-            git.wait()?;
         }
         Ok(())
     }

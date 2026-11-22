@@ -254,12 +254,14 @@ end
 
 function aqsnow_exec
     set -l cmd $(commandline --current-process --tokens-expanded)
-    if test "$(count $cmd)" -eq 1; and test -f "$cmd[1]"; and not string match -qr '^\.{1,2}/' -- "$cmd[1]"
-        if type -q -- "$cmd[1]"
-            if test -x "$cmd[1]"; and file -bI -- "$cmd[1]" | grep -q "^text/"
-                fish_commandline_prepend "$EDITOR --"
-            end
-        else
+    if test "$(count $cmd)" -eq 1
+        and test -f "$cmd[1]"
+        and not string match -qr '^\.{1,2}/' -- "$cmd[1]"
+        if not type -q -- "$cmd[1]"
+            fish_commandline_prepend "$EDITOR --"
+        else if not string match -q '/*' -- "$cmd[1]"
+            and test -x "$cmd[1]"
+            and file -bI -- "$cmd[1]" | grep -q "^text/"
             fish_commandline_prepend "$EDITOR --"
         end
     end
