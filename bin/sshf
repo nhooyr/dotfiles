@@ -1,0 +1,275 @@
+#!/bin/sh
+set -eu
+
+name="${0##*/}"
+
+usage() {
+	printf 'Usage: %s -L SRC_PORT [DST_PORT] [ssh-options] host
+       %s -R SRC_PORT [DST_PORT] [ssh-options] host
+       %s -D [ssh-options] host
+' "$name" "$name" "$name"
+}
+
+help() {
+	usage
+	printf '\nForward TCP ports over SSH, or enable the macOS SOCKS proxy.
+
+  -L          Listen locally and forward to localhost:DST_PORT on host.
+  -R          Listen on host and forward to localhost:DST_PORT locally.
+  -D          Listen on localhost:1080 and use it as the SOCKS proxy for the
+              active macOS network service until the SSH connection ends.
+  -h, --help  Show this help.
+
+SRC_PORT must be between 0 and 65535; 0 selects an unused port on the
+listening machine.
+DST_PORT defaults to the selected SRC_PORT and must be between 1 and 65535.
+The SSH command is printed once the forwarding is ready, with the selected
+source port in place of 0.
+
+For -L, an HTTP or HTTPS link is also printed based on DST_PORT:
+  HTTP:   3000, 8000, 8080, 8081, 8888
+  HTTPS:  4443, 8443, 9443, 10443
+The link uses the actual local SRC_PORT, including when it was selected
+automatically. No HTTP request is made to detect the protocol.
+
+SSH authentication is followed by a five-second forwarding setup deadline.
+Ctrl-C closes the tunnel and disables the SOCKS proxy, if enabled.
+'
+}
+
+setup() {
+	control="$1"
+	direction="$2"
+	ports="$3"
+	shift 3
+	src_port="${ports%%:*}"
+	dst_port="${ports##*:}"
+	if [ "$direction" != -D ] && [ "$src_port" -eq 0 ]; then
+		if [ "$direction" = -L ]; then
+			# OpenSSH only supports automatic allocation for remote forwards.
+			src_port="$(perl -MIO::Socket::INET -e '
+my $listener = IO::Socket::INET->new(
+    LocalAddr => "127.0.0.1",
+    LocalPort => 0,
+    Listen => 1,
+) or die "$!\n";
+print $listener->sockport, "\n";
+')"
+		elif [ "$dst_port" -eq 0 ]; then
+			# Allocate first so the destination can use the same port.
+			src_port="$(ssh -S "$control" -O forward -R 0 "$@")"
+			ssh -S "$control" -O cancel -R 0 "$@"
+		fi
+		[ "$dst_port" -ne 0 ] || dst_port="$src_port"
+		ports="$src_port:localhost:$dst_port"
+	fi
+	if [ "$direction" = -R ] && [ "$src_port" -eq 0 ]; then
+		src_port="$(ssh -S "$control" -O forward -R "$ports" "$@")"
+		ports="$src_port:localhost:$dst_port"
+	else
+		ssh -S "$control" -O forward "$direction" "$ports" "$@"
+	fi
+	if [ "$direction" = -R ]; then
+		ssh -nT -S "$control" -o ProxyCommand=false -o ClearAllForwardings=yes "$@" \
+			"sh -c \"command -v nc >/dev/null || exit 127; until nc -z -w 1 localhost $src_port; do sleep 0.1; done\"" >/dev/null
+	fi
+	printf '%s\n' "$ports"
+}
+
+proxy() {
+	name="$1"
+	service="$2"
+	IFS= read -r forward_command
+	cleanup_proxy() {
+		trap '' HUP INT TERM
+		networksetup -setsocksfirewallproxystate "$service" off
+		printf '%s: proxy disabled on %s\n' "$name" "$service"
+	}
+	trap cleanup_proxy EXIT
+	trap 'exit 129' HUP
+	trap 'exit 0' INT
+	trap 'exit 143' TERM
+	networksetup -setsocksfirewallproxy "$service" localhost 1080 off
+	printf '%s\n' "$forward_command"
+	while IFS= read -r line; do :; done
+}
+
+scutil_value() {
+	scutil <<EOF | sed -n "s/^[[:space:]]*$2 : //p"
+show $1
+EOF
+}
+
+case "${1-}" in
+-h | --help)
+	help
+	exit 0
+	;;
+--setup)
+	shift
+	setup "$@"
+	exit
+	;;
+--proxy)
+	shift
+	proxy "$@"
+	exit
+	;;
+esac
+
+# The outer process handles Ctrl-C, including during authentication.
+trap 'exit 0' INT
+direction="${1-}"
+case "$direction" in
+-L | -R)
+	if [ "$#" -lt 3 ]; then
+		usage >&2
+		exit 1
+	fi
+	src_port="$2"
+	shift 2
+	dst_port=
+	case "$1" in
+	'' | *[!0-9]*) ;;
+	*)
+		if [ "$#" -gt 1 ]; then
+			dst_port="$1"
+			shift
+		fi
+		;;
+	esac
+	for port in "$src_port" "${dst_port:-$src_port}"; do
+		case "$port" in
+		'' | *[!0-9]*)
+			printf '%s: invalid port: %s\n' "$name" "$port" >&2
+			exit 1
+			;;
+		esac
+		if [ "${#port}" -gt 5 ] || [ "$port" -lt 0 ] || [ "$port" -gt 65535 ]; then
+			printf '%s: invalid port: %s\n' "$name" "$port" >&2
+			exit 1
+		fi
+	done
+	if [ -n "$dst_port" ] && [ "$dst_port" -eq 0 ]; then
+		printf '%s: invalid destination port: %s\n' "$name" "$dst_port" >&2
+		exit 1
+	fi
+	ports="$src_port:localhost:${dst_port:-$src_port}"
+	;;
+-D)
+	shift
+	if [ "$#" -eq 0 ]; then
+		usage >&2
+		exit 1
+	fi
+	ports=localhost:1080
+	service=
+	for family in IPv4 IPv6; do
+		service_id="$(scutil_value "State:/Network/Global/$family" PrimaryService)"
+		[ -n "$service_id" ] || continue
+		service="$(scutil_value "Setup:/Network/Service/$service_id" UserDefinedName)"
+		[ -z "$service" ] || break
+	done
+	if [ -z "$service" ]; then
+		printf '%s: could not find the active macOS network service\n' "$name" >&2
+		exit 1
+	fi
+	sudo -v
+	;;
+*)
+	usage >&2
+	exit 1
+	;;
+esac
+
+# Quote for Fish, where sshu is defined, including literal backslashes.
+quote() {
+	case "$1" in
+	'' | *[!A-Za-z0-9_./:@%+=,-]*)
+		printf "'"
+		printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e "s/'/\\\\'/g"
+		printf "'"
+		;;
+	*) printf '%s' "$1" ;;
+	esac
+}
+directory="$(mktemp -d)"
+control="$directory/socket"
+master=
+proxy_pid=
+cleanup() {
+	trap '' HUP INT TERM
+	if [ -n "$master" ]; then kill "$master" 2>/dev/null || :; fi
+	exec 3>&-
+	if [ -n "$proxy_pid" ]; then wait "$proxy_pid" || :; fi
+	if [ -n "$master" ]; then wait "$master" 2>/dev/null || :; fi
+	rm -rf "$directory"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 143' TERM
+
+mkfifo "$directory/ready"
+ssh -o ControlPath=none -MN -S "$control" -o ControlPersist=no -o ClearAllForwardings=yes \
+	-o ConnectTimeout=5 -o ConnectionAttempts=1 \
+	-o PermitLocalCommand=yes -o 'LocalCommand=printf "ssh-authenticated\n"' \
+	"$@" >"$directory/ready" &
+master=$!
+if ! IFS= read -r ready <"$directory/ready"; then
+	wait "$master" || exit $?
+	exit 1
+fi
+[ "$ready" = ssh-authenticated ] || exit 1
+
+# One deadline covers forwarding setup and the remote readiness check.
+if ports="$(timeout 5 "$0" --setup "$control" "$direction" "$ports" "$@")"; then
+	:
+else
+	result=$?
+	[ "$result" -ne 124 ] || printf '%s: forwarding timed out after 5s\n' "$name" >&2
+	exit "$result"
+fi
+
+forward_command="$(
+	printf 'sshu -N%s %s' "${direction#-}" "$ports"
+	for arg in "$@"; do
+		printf ' '
+		quote "$arg"
+	done
+)"
+
+if [ "$direction" = -D ]; then
+	# Keep proxy cleanup privileged even after sudo's timestamp expires.
+	mkfifo "$directory/proxy"
+	exec 3<>"$directory/proxy"
+	(
+		if sudo -n "$0" --proxy "$name" "$service"; then exit 0; else
+			result=$?
+			kill "$master" 2>/dev/null || :
+			exit "$result"
+		fi
+	) <"$directory/proxy" 3>&- &
+	proxy_pid=$!
+	printf '%s\n' "$forward_command" >&3
+else
+	printf '%s\n' "$forward_command"
+	if [ "$direction" = -L ]; then
+		port="${ports%%:*}"
+		case "${ports##*:}" in
+		8080 | 8081 | 8888 | 3000 | 8000) printf 'http://localhost:%s\n' "$port" ;;
+		8443 | 4443 | 9443 | 10443) printf 'https://localhost:%s\n' "$port" ;;
+		esac
+	fi
+fi
+
+result=0
+wait "$master" || result=$?
+master=
+if [ -n "$proxy_pid" ]; then
+	exec 3>&-
+	proxy_result=0
+	wait "$proxy_pid" || proxy_result=$?
+	proxy_pid=
+	[ "$result" -ne 0 ] || result=$proxy_result
+fi
+exit "$result"

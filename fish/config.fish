@@ -151,6 +151,18 @@ function man
     command man $argv 2>/dev/null
 end
 abbrali to touch
+
+abbrali sshak ssh-add --apple-load-keychain
+set -q TMPDIR; or set -gx TMPDIR /tmp
+if not test -f "$TMPDIR/__aqsnow_ssh_keychain_loaded"
+    sshak -q; and touch "$TMPDIR/__aqsnow_ssh_keychain_loaded"
+end
+abbrali sshq ssh -O exit
+abbrali sshu ssh -oControlPath=none
+abbrali ssha ssh-add
+abbrali sshfl sshf -L
+abbrali sshfr sshf -R
+abbrali sshfs sshf -D
 abbrali py python3
 function pyc --wraps 'python3 -c'
     python3 -c "print($argv)"
@@ -373,7 +385,6 @@ source "$dotfiles/fish/git.fish"
 source "$dotfiles/fish/github.fish"
 source "$dotfiles/fish/prompt.fish"
 source "$dotfiles/fish/cd.fish"
-source "$dotfiles/fish/ssh.fish"
 
 if test "$PWD" = "$HOME"
     cd "$dotfiles"
