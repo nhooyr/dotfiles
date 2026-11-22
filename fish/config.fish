@@ -211,7 +211,7 @@ abbrali bell printf '\a'
 source "$dotfiles/fish/fzf.fish"
 
 for mode in default insert
-    bind -M "$mode" alt-e edit_command_buffer 'set -g fish_bind_mode insert' aqsnow_rendezvous
+    bind -M "$mode" alt-e 'aqsnow_init_rendezvous; and edit_command_buffer' 'set -g fish_bind_mode insert' aqsnow_rendezvous
 end
 
 function aqsnow_exec
@@ -265,14 +265,6 @@ end
 
 abbrali vsce NO_COLOR=1 command vsce
 abbrali bun NO_COLOR=1 command bun
-if test -f ~/.codex/config.toml
-    if test "$(yq '.tui.theme' ~/.codex/config.toml)" != ansi
-        yq -i '.tui.theme = "ansi"' ~/.codex/config.toml
-    end
-    if test "$(yq '.tui.vim_mode_default' ~/.codex/config.toml)" != true
-        yq -i '.tui.vim_mode_default = true' ~/.codex/config.toml
-    end
-end
 abbrali shf shfmt -s -w .
 abbrali fmti fmtinv
 abbrali dnsq 'sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder'
@@ -382,7 +374,6 @@ end
 abbrali netq networkquality
 
 source "$dotfiles/fish/git.fish"
-source "$dotfiles/fish/github.fish"
 source "$dotfiles/fish/prompt.fish"
 source "$dotfiles/fish/cd.fish"
 

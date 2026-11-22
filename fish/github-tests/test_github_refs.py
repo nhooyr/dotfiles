@@ -17,7 +17,7 @@ import unittest
 from helpers import read_calls
 
 
-SOURCE = Path(os.environ.get("GITHUB_FISH_TEST_SOURCE", Path(__file__).resolve().parents[1] / "github.fish"))
+SOURCE = Path(os.environ.get("GITHUB_FISH_TEST_SOURCE", Path(__file__).resolve().parents[1] / "functions"))
 GIT = shutil.which("git")
 FISH = shutil.which("fish")
 URL = "https://github.com/example/project.git"
@@ -182,7 +182,10 @@ class GithubRefsTests(unittest.TestCase):
             "GITHUB_TEST_OFFLINE": "1" if offline else "0",
             "EDITOR": "__test_editor",
         }
-        script = '''source "$argv[1]"; or exit
+        script = ('set -gp fish_function_path "$argv[1]"\n'
+                  'source "$argv[1]/ghe.fish"; or exit\n'
+                  'source "$argv[1]/gho.fish"; or exit\n' if SOURCE.is_dir()
+                  else 'source "$argv[1]"; or exit\n') + '''
 set -e argv[1]
 set -lx 0 test
 function __test_editor

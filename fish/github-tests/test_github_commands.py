@@ -17,7 +17,7 @@ import unittest
 from helpers import read_calls
 
 
-SOURCE = Path(os.environ.get("GITHUB_FISH_TEST_SOURCE", Path(__file__).resolve().parents[1] / "github.fish"))
+SOURCE = Path(os.environ.get("GITHUB_FISH_TEST_SOURCE", Path(__file__).resolve().parents[1] / "functions"))
 FISH = shutil.which("fish")
 GIT = shutil.which("git")
 
@@ -258,7 +258,12 @@ elif kind not in ("editor", "open"):
         env["TEST_OFFLINE"] = "1" if offline else ""
         if responses is not None:
             env["TEST_GH_RESPONSES"] = json.dumps(responses)
-        script = "source " + fish_quote(SOURCE) + "\n"
+        if SOURCE.is_dir():
+            script = "set -gp fish_function_path " + fish_quote(SOURCE) + "\n"
+            # Tests also call the checkout helpers directly and override them.
+            script += "source " + fish_quote(SOURCE / "ghe.fish") + "; or exit\n"
+        else:
+            script = "source " + fish_quote(SOURCE) + "; or exit\n"
         if editor is not None:
             script += "set -gx EDITOR " + " ".join(fish_quote(arg) for arg in editor) + "\n"
         if command == "ghe":

@@ -12,11 +12,22 @@ dotln ./less/lesskey ~/.config/lesskey
 dotln ./tmux/tmux.conf ~/.tmux.conf
 dotln ./vscode/settings.json ~/Library/Application\ Support/Code/User/settings.json
 NO_OVERWRITE=1 dotln ./fish/config.fish ~/.config/fish/config.fish
+dotln ./fish/functions ~/.config/fish/functions
 dotln ./ssh/config ~/.ssh/config
 dotln ./ssh/allowed_signers ~/.ssh/allowed_signers
 mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ./ssh/config
+
+codex_config="$HOME/.codex/config.toml"
+if [ ! -e "$codex_config" ]; then
+	mkdir -p "${codex_config%/*}"
+	printf '[tui]\ntheme = "ansi"\nvim_mode_default = true\n' >"$codex_config"
+	printf 'dotfiles: %s: Created %s\n' "${0##*/}" "$codex_config" | hpath
+elif [ "$(grep -Fxc -e 'theme = "ansi"' -e 'vim_mode_default = true' "$codex_config")" != 2 ]; then
+	yq -i '.tui.theme = "ansi" | .tui.vim_mode_default = true' "$codex_config"
+	printf 'dotfiles: %s: Updated %s\n' "${0##*/}" "$codex_config" | hpath
+fi
 
 ./fish/fzf-paths/install.sh
 ./nvim/app/install.sh --set-defaults
