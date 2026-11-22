@@ -1,4 +1,4 @@
-"""Git regressions; run with python3 -m unittest discover -s fish/github-tests.
+"""Git regressions; run individual tests in parallel with ./ci/test.sh.
 
 Fixtures use real Git repositories and file transport. A small Git wrapper supplies
 URL rewrites only for transport commands, so repository identity and refspec logic
@@ -6,13 +6,15 @@ still see GitHub URLs. Git permits no other transport, and user configuration,
 credentials, editors, and browsers are never used.
 """
 
-import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import tempfile
 import unittest
+
+from helpers import read_calls
 
 
 SOURCE = Path(os.environ.get("GITHUB_FISH_TEST_SOURCE", Path(__file__).resolve().parents[1] / "github.fish"))
@@ -20,37 +22,35 @@ GIT = shutil.which("git")
 FISH = shutil.which("fish")
 URL = "https://github.com/example/project.git"
 
-GIT_WRAPPER = r'''#!/usr/bin/env python3
-import json
-import os
-import sys
-
-args = sys.argv[1:]
-index = 0
-while index < len(args):
-    arg = args[index]
-    if arg in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"):
-        index += 2
-    elif arg.startswith("-"):
-        index += 1
-    else:
-        break
-command = args[index] if index < len(args) else ""
-transport = command in ("fetch", "ls-remote", "clone", "pull", "push")
-rewrites = []
-if transport:
-    with open(os.environ["GITHUB_TEST_TRANSPORT_LOG"], "a", encoding="utf-8") as log:
-        log.write(json.dumps({"command": command, "args": args}) + "\n")
-    if command == "push":
-        sys.stderr.write("Tests must not push.\n")
-        sys.exit(98)
-    if os.environ.get("GITHUB_TEST_OFFLINE") == "1":
-        sys.stderr.write("Fixture transport is offline.\n")
-        sys.exit(99)
-    for github_url, local_url in json.loads(os.environ["GITHUB_TEST_URLS"]).items():
-        rewrites.extend(("-c", "url." + local_url + ".insteadOf=" + github_url))
-real_git = os.environ["GITHUB_TEST_REAL_GIT"]
-os.execve(real_git, [real_git, *rewrites, *args], os.environ)
+GIT_WRAPPER = r'''#!/bin/sh
+set -eu
+skip=
+command=
+for arg do
+    if [ "$skip" ]; then
+        skip=
+        continue
+    fi
+    case "$arg" in
+        -C|-c|--git-dir|--work-tree|--namespace|--config-env) skip=1 ;;
+        -*) ;;
+        *) command=$arg; break ;;
+    esac
+done
+case "$command" in
+    fetch|ls-remote|clone|pull|push)
+        printf '%s\0' git "$#" "$@" >> "$GITHUB_TEST_TRANSPORT_LOG"
+        if [ "$command" = push ]; then
+            printf '%s\n' 'Tests must not push.' >&2
+            exit 98
+        fi
+        if [ "${GITHUB_TEST_OFFLINE:-0}" = 1 ]; then
+            printf '%s\n' 'Fixture transport is offline.' >&2
+            exit 99
+        fi
+        exec "$GITHUB_TEST_REAL_GIT" @REWRITES@ "$@" ;;
+    *) exec "$GITHUB_TEST_REAL_GIT" "$@" ;;
+esac
 '''
 
 
@@ -66,9 +66,9 @@ class GithubRefsTests(unittest.TestCase):
         self.bin = self.directory / "bin"
         self.bin.mkdir()
         wrapper = self.bin / "git"
-        wrapper.write_text(GIT_WRAPPER, encoding="utf-8")
+        wrapper.write_text(GIT_WRAPPER.replace("@REWRITES@", ""), encoding="utf-8")
         wrapper.chmod(0o755)
-        self.log = self.directory / "transport.jsonl"
+        self.log = self.directory / "transport.log"
         self.urls = {}
         self.counter = 0
         self.env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
@@ -79,6 +79,10 @@ class GithubRefsTests(unittest.TestCase):
             GIT_CONFIG_GLOBAL=os.devnull,
             GIT_TERMINAL_PROMPT="0",
             GIT_ALLOW_PROTOCOL="file",
+            GIT_AUTHOR_NAME="Dotfiles tests",
+            GIT_AUTHOR_EMAIL="dotfiles-tests@example.invalid",
+            GIT_COMMITTER_NAME="Dotfiles tests",
+            GIT_COMMITTER_EMAIL="dotfiles-tests@example.invalid",
             GH_HOST="",
             GITHUB_TEST_REAL_GIT=GIT,
             GITHUB_TEST_TRANSPORT_LOG=str(self.log),
@@ -109,8 +113,6 @@ class GithubRefsTests(unittest.TestCase):
         repository = self.directory / (name + str(self.counter))
         repository.mkdir()
         self.git(repository, "init", "--quiet", "--initial-branch=main", "--object-format=sha1")
-        self.git(repository, "config", "user.name", "Dotfiles tests")
-        self.git(repository, "config", "user.email", "dotfiles-tests@example.invalid")
         return repository
 
     def commit(self, repository, contents, filename="file.txt"):
@@ -153,8 +155,6 @@ class GithubRefsTests(unittest.TestCase):
             options.append("--filter=" + object_filter)
         self.git(self.directory, "clone", *options, self.source.as_uri(), str(destination))
         self.git(destination, "remote", "set-url", "origin", URL)
-        self.git(destination, "config", "user.name", "Dotfiles tests")
-        self.git(destination, "config", "user.email", "dotfiles-tests@example.invalid")
         return destination
 
     def empty_checkout(self):
@@ -174,8 +174,11 @@ class GithubRefsTests(unittest.TestCase):
 
     def fish(self, body, *args, offline=False):
         self.log.write_text("", encoding="utf-8")
+        rewrites = []
+        for github_url, local_url in self.urls.items():
+            rewrites.extend(("-c", "url." + local_url + ".insteadOf=" + github_url))
+        (self.bin / "git").write_text(GIT_WRAPPER.replace("@REWRITES@", shlex.join(rewrites)))
         env = self.env | {
-            "GITHUB_TEST_URLS": json.dumps(self.urls),
             "GITHUB_TEST_OFFLINE": "1" if offline else "0",
             "EDITOR": "__test_editor",
         }
@@ -197,7 +200,10 @@ end
             text=True,
             timeout=30,
         )
-        self.transport = [json.loads(line) for line in self.log.read_text().splitlines()]
+        self.transport = [
+            {"command": call["command"], "args": call["args"]}
+            for call in read_calls(self.log)
+        ]
         return result
 
     def compare_ref(self, destination, ref, *, offline=False, url=URL):

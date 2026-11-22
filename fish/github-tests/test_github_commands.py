@@ -1,6 +1,7 @@
 """Public ghc/ghe/gho regressions; all GitHub traffic stays in temporary repos.
 
-Run with: python3 -m unittest discover -s fish/github-tests -p 'test_github_commands.py'
+Run individual tests in parallel with ./ci/test.sh, or just this module with:
+python3 -m unittest discover -s fish/github-tests -p 'test_github_commands.py'
 Requires fish and Git. Browser, editor, and gh invocations are recorded mocks.
 """
 
@@ -12,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+from helpers import read_calls
 
 
 SOURCE = Path(os.environ.get("GITHUB_FISH_TEST_SOURCE", Path(__file__).resolve().parents[1] / "github.fish"))
@@ -36,7 +39,7 @@ class GitHubCommandsTests(unittest.TestCase):
         self.sandbox.mkdir()
         self.bin = self.root / "bin"
         self.bin.mkdir()
-        self.log = self.root / "calls.jsonl"
+        self.log = self.root / "calls.log"
         self.remote = self.root / "remote.git"
         self.seed = self.root / "seed"
         self.checkout = self.sandbox / "code" / "test-owner" / "test-repo"
@@ -54,10 +57,15 @@ class GitHubCommandsTests(unittest.TestCase):
             GIT_CONFIG_NOSYSTEM="1",
             GIT_TERMINAL_PROMPT="0",
             GIT_ALLOW_PROTOCOL="file",
+            GIT_AUTHOR_NAME="Regression Test",
+            GIT_AUTHOR_EMAIL="test@example.invalid",
+            GIT_COMMITTER_NAME="Regression Test",
+            GIT_COMMITTER_EMAIL="test@example.invalid",
             GIT_EDITOR="true",
             GIT_PAGER="cat",
             PAGER="cat",
             TEST_REAL_GIT=GIT,
+            TEST_PYTHON=sys.executable,
             TEST_CALL_LOG=str(self.log),
             TEST_REMOTE=str(self.remote),
             TEST_GH_RESPONSES="{}",
@@ -75,7 +83,6 @@ class GitHubCommandsTests(unittest.TestCase):
         self.env["EDITOR"] = str(self.bin / "editor")
         self.git(None, "init", "--bare", "--initial-branch=main", self.remote)
         self.git(None, "init", "--initial-branch=main", self.seed)
-        self.configure_identity(self.seed)
         (self.seed / "dir").mkdir()
         (self.seed / "file.txt").write_text("first\nsecond\nthird\nfourth\n")
         (self.seed / "dir" / "nested.txt").write_text("nested\n")
@@ -91,14 +98,41 @@ class GitHubCommandsTests(unittest.TestCase):
         self.publish("main", "refs/tags/v1")
         self.checkout.parent.mkdir(parents=True)
         self.git(None, "clone", self.remote, self.checkout)
-        self.configure_identity(self.checkout)
         self.git(self.checkout, "remote", "set-url", "origin", self.url + ".git")
 
     def _make_mocks(self):
+        # Log arguments in the shell; only transport and gh responses need Python.
+        wrapper = r'''#!/bin/sh
+set -eu
+kind=${0##*/}
+printf '%s\0' "$kind" "$#" "$@" >> "$TEST_CALL_LOG"
+case "$kind" in
+    open|editor) exit 0 ;;
+    dispatch) exit "${TEST_DISPATCH_STATUS:-0}" ;;
+    git)
+        skip=
+        command=
+        for arg do
+            if [ "$skip" ]; then
+                skip=
+                continue
+            fi
+            case "$arg" in
+                -C|-c|--git-dir|--work-tree) skip=1 ;;
+                -*) ;;
+                *) command=$arg; break ;;
+            esac
+        done
+        case "$command" in
+            clone|fetch|ls-remote|push) ;;
+            *) exec "$TEST_REAL_GIT" "$@" ;;
+        esac ;;
+esac
+exec "$TEST_PYTHON" "${0%/*}/mock.py" "$kind" "$@"
+'''
         program = r'''import json, os, pathlib, subprocess, sys
-kind = pathlib.Path(sys.argv[0]).name
-args = sys.argv[1:]
-entry = {"kind": kind, "args": args}
+kind = sys.argv[1]
+args = sys.argv[2:]
 if kind == "git":
     i = 0
     while i < len(args):
@@ -109,10 +143,6 @@ if kind == "git":
         else:
             break
     command = args[i] if i < len(args) else ""
-    entry["command"] = command
-with open(os.environ["TEST_CALL_LOG"], "a") as log:
-    log.write(json.dumps(entry) + "\n")
-if kind == "git":
     if command == "push":
         sys.exit("the command under test must never push")
     if command == "clone" and os.environ.get("TEST_CLONE_FAILURE"):
@@ -157,7 +187,7 @@ if kind == "git":
             sys.exit("unmapped remote blocked: " + source)
         rule = "url." + pathlib.Path(os.environ["TEST_REMOTE"]).as_uri() + ".insteadOf=" + source
         args = ["-c", rule, *args]
-    sys.exit(subprocess.call([os.environ["TEST_REAL_GIT"], *args]))
+    os.execve(os.environ["TEST_REAL_GIT"], [os.environ["TEST_REAL_GIT"], *args], os.environ)
 elif kind == "gh":
     if args[:2] == ["repo", "create"]:
         sys.stdout.write(os.environ["TEST_REPO_CREATE_STDOUT"])
@@ -173,9 +203,10 @@ elif kind == "dispatch":
 elif kind not in ("editor", "open"):
     sys.exit("unexpected mock executable")
 '''
+        (self.bin / "mock.py").write_text(program)
         for name in ("git", "gh", "open", "editor", "dispatch"):
             target = self.bin / name
-            target.write_text("#!" + sys.executable + "\n" + program)
+            target.write_text(wrapper)
             target.chmod(0o755)
 
     def git(self, directory, *args, check=True):
@@ -186,11 +217,6 @@ elif kind not in ("editor", "open"):
         return subprocess.run(
             command, env=self.env, text=True, capture_output=True, check=check
         )
-
-    def configure_identity(self, directory):
-        self.git(directory, "config", "user.name", "Regression Test")
-        self.git(directory, "config", "user.email", "test@example.invalid")
-        self.git(directory, "config", "commit.gpgsign", "false")
 
     def publish(self, *refs):
         self.git(self.seed, "push", "--quiet", "origin", *refs)
@@ -217,7 +243,7 @@ elif kind not in ("editor", "open"):
         self.git(self.checkout, "-c", rule, "fetch", "--quiet", "origin")
 
     def calls(self, kind=None):
-        entries = [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
+        entries = read_calls(self.log)
         return [entry for entry in entries if kind is None or entry["kind"] == kind]
 
     def clear_calls(self):
