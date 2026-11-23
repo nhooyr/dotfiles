@@ -136,11 +136,19 @@ abbrali gre _grep -E
 abbrali grf _grep -F
 abbrali grer _grep -ER
 abbrali grfr _grep -FR
-function _grep --wraps 'grep --color -inI'
+function __grep_smart_case
+    argparse --move-unknown e/regexp=+ -- $argv; or return
+    set -l patterns $_flag_regexp
+    set -q patterns[1]; or set patterns $argv[1]
+    set -q patterns[1]; and string match -qr '\p{Uppercase}' -- $patterns; and return
+    printf '%s\n' -i
+end
+function _grep --wraps 'grep --color -nI'
+    set -l ignore_case $(__grep_smart_case $argv); or return
     if type -q ggrep
-        ggrep --color -inI $argv
+        ggrep --color -nI $ignore_case $argv
     else
-        grep --color -inI -SE $argv
+        grep --color -nI -SE $ignore_case $argv
     end
 end
 abbrali ws gg "'[[:space:]]+\$'"

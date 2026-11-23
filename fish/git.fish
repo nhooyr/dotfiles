@@ -121,9 +121,9 @@ function scd
     cd -- "$super_root"
 end
 function gg --wraps 'git grep -IE --recurse-submodules'
-    git grep -IE --recurse-submodules $argv
+    set -l ignore_case $(__grep_smart_case $argv); or return
+    git grep -IE --recurse-submodules $ignore_case $argv
 end
-abbrali ggi gg -i
 abbrali ggf gg -F
 abbrali app git apply
 function papp --wraps 'git apply' --description 'git apply from clipboard'
