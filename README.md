@@ -8,3 +8,7 @@
 ![Screenshot 5](./docs/screenshot-5.png)
 ![Screenshot 6](./docs/screenshot-6.png)
 ![Screenshot 7](./docs/screenshot-7.png)
+![Screenshot 8](./docs/screenshot-8.png)
+![Screenshot 9](./docs/screenshot-9.png)
+![Screenshot 10](./docs/screenshot-10.png)
+![Screenshot 11](./docs/screenshot-11.png)
