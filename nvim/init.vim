@@ -32,7 +32,7 @@ set undolevels=99999
 set undoreload=99999
 command! Undotree packadd nvim.undotree | lua require('undotree').open()
 nnoremap <Leader>u <Cmd>Undotree<CR>
-nnoremap <C-u> <Cmd>execute 'earlier' v:count1.'f'<CR>
+nnoremap <M-u> <Cmd>execute 'earlier' v:count1.'f'<CR>
 
 set notermguicolors
 colorscheme default
