@@ -31,7 +31,7 @@ set undofile
 set undolevels=99999
 set undoreload=99999
 command! Undotree packadd nvim.undotree | lua require('undotree').open()
-nnoremap <Leader>u :Undotree<CR>
+nnoremap <Leader>u <Cmd>Undotree<CR>
 
 set notermguicolors
 colorscheme default
@@ -74,7 +74,7 @@ function! s:toggle_spell_visible() abort
 	call s:set_spell_highlight()
 	echo 's:spell_visible =' s:spell_visible
 endfunction
-nnoremap <Leader>z :call <SID>toggle_spell_visible()<CR>
+nnoremap <Leader>z <Cmd>call <SID>toggle_spell_visible()<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
 
 " https://github.com/neovim/neovim/issues/39337
@@ -93,14 +93,14 @@ inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
 cnoremap <M-f> \V
-nnoremap <Leader>s :if <SID>is_config_file(expand('%:p')) \| update \| endif \| execute 'source' fnameescape($MYVIMRC)<CR>
-			\:echo 'source' $MYVIMRC<CR>
-nnoremap <Leader>v :e $MYVIMRC<CR>
+nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| update \| endif
+				\ \| execute 'source' fnameescape($MYVIMRC) \| echo 'source' $MYVIMRC<CR>
+nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
-nnoremap <silent> - :execute 'edit' fnameescape(expand('%:p:h'))<CR>
+nnoremap - <Cmd>execute 'edit' fnameescape(expand('%:p:h'))<CR>
 
-nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>:echo 'v:hlsearch =' v:hlsearch<CR>
+nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
 nnoremap <M-r> cgn
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
@@ -109,13 +109,13 @@ xnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
 xmap <Leader>r <Leader>/<Leader>r
 xnoremap <M-r> :s###g<Left><Left>
 
-nnoremap q :quit<CR>
+nnoremap q <Cmd>quit<CR>
 nnoremap <M-q> q
-nnoremap <C-q> :qall!<CR>
+nnoremap <C-q> <Cmd>qall!<CR>
 inoremap <C-q> <Esc>:qall!<CR>
-nnoremap <M-s> :write<CR>
+nnoremap <M-s> <Cmd>write<CR>
 inoremap <M-s> <Esc>:write<CR>
-nnoremap <C-s> :xit<CR>
+nnoremap <C-s> <Cmd>xit<CR>
 inoremap <C-s> <Esc>:xit<CR>
 
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
@@ -131,7 +131,7 @@ function! s:quit_and_run() abort
 	endif
 	qall
 endfunction
-nnoremap <M-CR> :call <SID>quit_and_run()<CR>
+nnoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
 inoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
 function! s:fzf_file_widget() abort
 	wall
@@ -140,7 +140,7 @@ function! s:fzf_file_widget() abort
 	endif
 	qall
 endfunction
-nnoremap <M-v> :call <SID>fzf_file_widget()<CR>
+nnoremap <M-v> <Cmd>call <SID>fzf_file_widget()<CR>
 inoremap <M-v> <Esc>:call <SID>fzf_file_widget()<CR>
 
 inoremap <C-a> <C-o>^
@@ -184,7 +184,7 @@ xnoremap C "+c
 nnoremap D "+d
 nnoremap DD m`^"+y$``"_dd
 xnoremap D "+d
-nnoremap <silent> <Leader>d :t.<CR>
+nnoremap <Leader>d <Cmd>execute '.,.+' . (v:count1 - 1) . 't.'<CR>
 
 set completeopt=menuone,noselect,popup
 set complete+=U,kspell,i,d,f,o
@@ -212,16 +212,16 @@ let g:copilot_filetypes = {
 			\ }
 
 command -bar -bang -nargs=0 Mkdirp write<bang> ++p
-nnoremap <Leader>m :Mkdirp<CR>
+nnoremap <Leader>m <Cmd>Mkdirp<CR>
 
 command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 			   \ diffthis | wincmd p | diffthis
 
-nnoremap <Leader>w :%s/\s\+$//<CR>
-nnoremap <Leader>- :%s/^\s*[+-]//<CR>
+nnoremap <Leader>w <Cmd>%s/\s\+$//<CR>
+nnoremap <Leader>- <Cmd>%s/^\s*[+-]//<CR>
 xnoremap <Leader>- :s/^\s*[+-]//<CR>
-nnoremap <M-n> :next<CR>
-nnoremap <M-p> :prev<CR>
+nnoremap <M-n> <Cmd>execute v:count1 . 'next'<CR>
+nnoremap <M-p> <Cmd>execute v:count1 . 'prev'<CR>
 nnoremap Z zz
 
 function! s:vidir_mcr() abort
@@ -235,7 +235,7 @@ function! s:vidir() abort
 	enew
 	silent read !ls -1
 	normal ggS# :w !sh
-	nnoremap <buffer> <M-CR> :call <SID>vidir_mcr()<CR>
+	nnoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
 	inoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
 	" Quote for the sh command list, regardless of the interactive shell.
 	let shell = &shell
@@ -297,7 +297,7 @@ augroup aqsnow
 	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | execute 'autocmd aqsnow SafeState * ++once execute "source" fnameescape($MYVIMRC)' | endif
 	autocmd filetype gitcommit nnoremap <buffer> ]c /^@@<CR>zz
 	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>zz
-	autocmd filetype netrw nnoremap <buffer> <nowait> q :quit<CR>
+	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 
 function! s:restore_cursor() abort
