@@ -204,10 +204,10 @@ sub nested_repository_during_refresh {
     my $result = shell($self, "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
         . stage_completion(' (wrong-parent-result)', '0') . <<'FISH' . wait_for_refresh() . <<'FISH', $nested);
 command git init --quiet --initial-branch nested .
-aqsnow_vcs_prompt_invalidate
+# Another process can create the repository before this shell gets a postexec event.
 aqsnow_vcs_prompt_done
-printf '%s\n%s\n' "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
 aqsnow_vcs_prompt_update
+printf '%s\n%s\n' "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
 exit 0
