@@ -66,7 +66,7 @@ function fzf_path_widget --argument-names widget
     else if test "$widget" != fzf-file-widget
         set -a flags --cdpath "$CDPATH"
     end
-    set -l result $(fzf-paths --color --classify $flags "$dir" "$global_dir" "$type" $dirs | fzf --query="$query" | string split0)
+    set -l result $(fzfpaths --color --classify $flags "$dir" "$global_dir" "$type" $dirs | fzf --query="$query" | string split0)
     if set -q result[1]
         set -l resolve_cdpath 1
         if contains -- "$tokens[1]" cd cdc

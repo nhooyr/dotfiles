@@ -10,4 +10,4 @@ fi
 find . -type f -name '*.fish' -print0 | xargs -0 -n1 fish --no-execute
 
 shfmt -f=0 . | xargs -0 -n1 sh -n
-cargo clippy --quiet --manifest-path fish/fzf-paths/Cargo.toml --locked --all-targets -- -D warnings
+cargo clippy --quiet --manifest-path fish/fzfpaths/Cargo.toml --locked --all-targets -- -D warnings

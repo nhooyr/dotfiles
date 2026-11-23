@@ -49,7 +49,7 @@ impl Fixture {
     fn new() -> Self {
         let root = loop {
             let id = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
-            let path = env::temp_dir().join(format!("fzf-paths-{}-{id}", std::process::id()));
+            let path = env::temp_dir().join(format!("fzfpaths-{}-{id}", std::process::id()));
             match fs::create_dir(&path) {
                 Ok(()) => break path,
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
@@ -135,7 +135,7 @@ impl Fixture {
         kind: &str,
         env_dirs: &[(&str, &Path)],
     ) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_fzf-paths"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_fzfpaths"));
         command
             .current_dir(cwd)
             .env("PWD", cwd)
@@ -676,7 +676,7 @@ fn failed_git_scan_reports_failure() {
         std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
     )
     .unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+    let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
         .current_dir(&fixture.local)
         .env("PATH", path)
         .arg("")
@@ -1408,7 +1408,7 @@ fn cdpath_and_keep_dot_flags_work_in_both_orders() {
     let directory = fixture.root.join("cdpath");
     fs::create_dir_all(directory.join("child")).unwrap();
     for keep_dot_first in [false, true] {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_fzf-paths"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_fzfpaths"));
         command
             .current_dir(&fixture.local)
             .env("PWD", &fixture.local);
@@ -1529,7 +1529,7 @@ fn executable_paths_work_with_dot_roots_and_symlinks() {
     .unwrap();
     for directory in [".", "./"] {
         let paths = fixture.run(
-            Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+            Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
                 .current_dir(&fixture.local)
                 .env("PWD", &fixture.local)
                 .args(["--keep-dot", directory, "", "-fd"]),
@@ -1547,16 +1547,16 @@ fn executable_paths_work_with_dot_roots_and_symlinks() {
 #[test]
 fn executable_subdirectory_paths_get_both_forms() {
     let fixture = Fixture::new();
-    write_script(&fixture.local, "fzf-paths/install.sh");
-    for directory in [".", "fzf-paths"] {
+    write_script(&fixture.local, "fzfpaths/install.sh");
+    for directory in [".", "fzfpaths"] {
         let paths = fixture.run(
-            Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+            Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
                 .current_dir(&fixture.local)
                 .env("PWD", &fixture.local)
                 .args(["--keep-dot", directory, "", "-fd"]),
         );
-        assert!(paths.contains(&"fzf-paths/install.sh".into()));
-        assert!(paths.contains(&"./fzf-paths/install.sh".into()));
+        assert!(paths.contains(&"fzfpaths/install.sh".into()));
+        assert!(paths.contains(&"./fzfpaths/install.sh".into()));
     }
 }
 
@@ -1747,7 +1747,7 @@ fn symlink_parent_search_uses_the_target_gitignore_rules() {
 
     let scan = |directory: &str| {
         fixture.run(
-            Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+            Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
                 .current_dir(&fixture.local)
                 .env("PWD", &fixture.local)
                 .args([directory, "", "-f"]),
@@ -1794,7 +1794,7 @@ fn explicitly_selected_ignored_directory_can_be_searched() {
     fs::write(fixture.repo.join(".gitignore"), "/target/\n").unwrap();
     write(&fixture.repo, "target/deep/application");
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
             .current_dir(&fixture.repo)
             .env("PWD", &fixture.repo)
             .args(["target/deep", "", "-fd"]),
@@ -1829,7 +1829,7 @@ fn explicit_search_can_cross_normally_skipped_ancestors() {
     fs::write(fixture.repo.join(".gitignore"), "/target/\n").unwrap();
     write(&fixture.repo, "target/node_modules/package/application");
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
             .current_dir(&fixture.repo)
             .env("PWD", &fixture.repo)
             .args(["./target/node_modules/package", "", "-fd"]),
@@ -1886,7 +1886,7 @@ fn escaped_gitignore_patterns_are_respected() {
 fn dirali_options_work_before_and_after_positions() {
     let fixture = Fixture::new();
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
             .current_dir(&fixture.local)
             .env("PWD", &fixture.local)
             .arg("--dirali")
@@ -1933,7 +1933,7 @@ fn invalid_arguments() {
         vec!["", "", ""],
         vec!["", "", "-df"],
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+        let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
             .arg0("/some/path/renamed-picker")
             .args(args)
             .output()
@@ -1960,7 +1960,7 @@ fn help_uses_invoked_basename() {
         vec!["--cdpath", "", "--help"],
         vec!["--keep-dot", "--cdpath", "", "--help"],
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+        let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
             .arg0("/some/path/renamed-picker")
             .args(flags)
             .output()
@@ -1984,13 +1984,13 @@ fn help_uses_invoked_basename() {
         assert!(help.contains("--keep-dot"));
         assert!(!help.contains("LABEL"));
         assert!(!help.contains("OWNER"));
-        assert!(!help.contains("usage: fzf-paths"));
+        assert!(!help.contains("usage: fzfpaths"));
     }
 }
 
 #[test]
 fn incomplete_dirali_is_a_usage_error() {
-    let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+    let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
         .arg0("/some/path/renamed-picker")
         .args([".", "", "-fd", "--dirali", "unpaired"])
         .output()
@@ -2101,7 +2101,7 @@ fn absolute_local_binary_paths_are_relative_to_the_physical_cwd() {
     fs::create_dir_all(logical.parent().unwrap()).unwrap();
     symlink(&fixture.local, &logical).unwrap();
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
             .current_dir(&fixture.local)
             .env("PWD", &logical)
             .arg(&external)

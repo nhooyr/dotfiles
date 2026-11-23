@@ -29,7 +29,7 @@ elif ! yq -e -o=json '.tui.theme == "ansi" and .tui.vim_mode_default == true' "$
 	printf 'dotfiles: %s: Updated %s\n' "${0##*/}" "$codex_config" | hpath
 fi
 
-./fish/fzf-paths/install.sh
+./fish/fzfpaths/install.sh
 ./nvim/app/install.sh --set-defaults
 ./vscode/theme/install.sh
 if ! [ -d ~/.config/nvim/pack/github/start/copilot.vim ]; then

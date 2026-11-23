@@ -1,5 +1,5 @@
 [package]
-name = "fzf-paths"
+name = "fzfpaths"
 edition = "2024"
 publish = false
 
