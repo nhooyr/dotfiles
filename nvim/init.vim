@@ -32,7 +32,7 @@ set undolevels=99999
 set undoreload=99999
 command! Undotree packadd nvim.undotree | lua require('undotree').open()
 nnoremap <Leader>u <Cmd>Undotree<CR>
-nnoremap <C-u> <Cmd>execute 'earlier ' . v:count1 . 'f'<CR>
+nnoremap <C-u> <Cmd>execute 'earlier' v:count1.'f'<CR>
 
 set notermguicolors
 colorscheme default
@@ -207,7 +207,7 @@ xnoremap C "+c
 nnoremap D "+d
 nnoremap DD m`^"+y$``"_dd
 xnoremap D "+d
-nnoremap <Leader>d <Cmd>execute '.,.+' . (v:count1 - 1) . 't.'<CR>
+nnoremap <Leader>d <Cmd>execute '.,.+'.(v:count1-1).'t.'<CR>
 
 set completeopt=menuone,noselect,popup
 set complete+=U,kspell,i,d,f,o
@@ -244,8 +244,8 @@ command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 nnoremap <Leader>w <Cmd>%s/\s\+$//<CR>
 nnoremap <Leader>- <Cmd>%s/^\s*[+-]//<CR>
 xnoremap <Leader>- :s/^\s*[+-]//<CR>
-nnoremap <M-n> <Cmd>execute v:count1 . 'next'<CR>
-nnoremap <M-p> <Cmd>execute v:count1 . 'prev'<CR>
+nnoremap <M-n> <Cmd>execute v:count1.'next'<CR>
+nnoremap <M-p> <Cmd>execute v:count1.'prev'<CR>
 nnoremap Z zz
 
 function s:vidir_mcr() abort
