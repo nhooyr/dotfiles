@@ -1,6 +1,7 @@
 local snippets = {
 	global = {
 		fx = "Fiat Lux$0",
+		imp = "Improve$0",
 		imps = "imps: ${1:Chat}$0",
 		todo = "TODO: ${1:desc}$0",
 	},
