@@ -7,3 +7,4 @@
 - Do not report or change automatic commit-push behavior unless I explicitly ask.
 - Do not report or change tracking of Alfred's machine-local preferences unless I explicitly ask.
 - Assume file paths never contain newlines. Do not report, fix, or test newline-containing paths; NUL-delimited path transport is for performance only.
+- Prefer Perl over Python for scripting.
