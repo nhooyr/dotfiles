@@ -51,6 +51,20 @@ highlight RedrawDebugClear ctermbg=6
 highlight WinSeparator cterm=bold
 highlight link gitcommitOverflow Error
 
+function s:set_mode_highlight(check_record) abort
+	let mode = mode(1)
+	if a:check_record && reg_recording() !=# ''
+		highlight ModeMsg ctermfg=4
+	elseif mode =~# "^[vVsS\<C-v>\<C-s>]"
+		highlight ModeMsg ctermfg=5
+	elseif mode =~# '^R\|^ni[RV]'
+		highlight ModeMsg ctermfg=6
+	else
+		highlight ModeMsg ctermfg=2
+	endif
+endfunction
+call s:set_mode_highlight(v:true)
+
 set list
 set listchars+=extends:>,precedes:<
 highlight! link NonText Comment
@@ -289,6 +303,9 @@ endfunction
 filetype plugin indent on
 augroup aqsnow
 	autocmd!
+	autocmd ModeChanged,RecordingEnter * call <SID>set_mode_highlight(v:true)
+	autocmd RecordingEnter * redraw!
+	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd BufWinEnter quickfix lua require('qf').fmt()
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
