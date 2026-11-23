@@ -66,10 +66,7 @@ function fish_mode_prompt
         case insert
             set_color green
             printf '[I]'
-        case replace_one
-            set_color green
-            printf '[R]'
-        case replace
+        case replace replace_one
             set_color cyan
             printf '[R]'
         case visual
