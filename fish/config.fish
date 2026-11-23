@@ -109,7 +109,7 @@ set -gx LS_COLORS "di=34:ln=36:so=32:pi=32:ex=35:bd=37;42:\
 cd=37;42:su=37;45:sg=37;45:tw=37;44:ow=37;44:st=34"
 function ls
     if command -q gls
-        LC_COLLATE=C command gls --group-directories-first $argv
+        LC_COLLATE=C command gls -v --group-directories-first $argv
     else
         LC_COLLATE=C command ls $argv
     end
@@ -289,9 +289,14 @@ function aqsnow_fzf_diralis_add
 end
 aqsnow_fzf_diralis_add HOME nhooyr dotfiles notes noise
 
-# Editors launched by commands need to inherit the handoff path.
+# Initialize the directory aliases and handoff path inherited by child processes.
 function aqsnow_init_rendezvous --on-event fish_preexec
     set -q __aqsnow_rendezvous_dir; and return
+    set -gx AQSNOW_DIRALIS (string join : -- $aqsnow_fzf_diralis)
+    for name in $aqsnow_fzf_diralis
+        test "$name" = HOME; and continue
+        set -q "$name"; and set -gx "$name" "$$name"
+    end
     set -e AQSNOW_FISH_RENDEZVOUS
     set -l rendezvous_dir "$(mktemp -d)"; or return
     set -g __aqsnow_rendezvous_dir "$rendezvous_dir"

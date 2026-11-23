@@ -5,7 +5,8 @@ set ignorecase
 set smartcase
 set laststatus=3
 set title
-set titlestring=%t%(\ %M%)%(\ \(%{expand('%:p:~:h')}\)%)%a\ -\ nvim
+set titlestring=%{v:lua.require'dirali'.filename()}%(\ %M%)%a\ -\ nvim
+let &statusline = substitute(&statusline, '%f', "%{v:lua.require'dirali'.filename()}", '')
 set textwidth=110
 set foldmethod=indent
 set foldlevel=999
@@ -122,6 +123,7 @@ nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
 nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snips.lua<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
+let g:netrw_keepdir = 0
 nnoremap - <Cmd>execute 'edit' fnameescape(expand('%:p:h'))<CR>
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
@@ -257,22 +259,25 @@ endfunction
 
 function s:vidir() abort
 	enew
-	silent read !ls -1
-	normal ggS# :w !sh
+	execute 'file' fnameescape('vidir://' . luaeval("require('dirali').shorten(_A)", getcwd()))
+	silent read !LC_COLLATE=C gls -1A -v --group-directories-first -r
+	call setline(1, '#!/bin/sh')
+	call append(1, 'set -eu')
+	autocmd BufWriteCmd <buffer> call <SID>vidir_mcr()
 	nnoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
 	inoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
 	" Quote for the sh command list, regardless of the interactive shell.
 	let shell = &shell
 	try
 		set shell=sh
-		if line('$') > 1
-			silent 2,$s/.*/\='mv -v -- ' . shellescape(submatch(0)) . ' ' . shellescape(submatch(0))/
+		if line('$') > 2
+			silent 3,$s/.*/\='mv -v -- ' . shellescape(submatch(0)) . ' ' . shellescape(submatch(0))/
 		endif
 	finally
 		let &shell = shell
 	endtry
 	set nomodified
-	set buftype=nofile
+	set buftype=acwrite
 	set filetype=sh
 endfunction
 command Vidir call s:vidir()
@@ -290,15 +295,17 @@ highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=3
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
-lua package.loaded.qf, package.loaded.snips = nil, nil
+lua package.loaded.dirali, package.loaded.qf, package.loaded.snips = nil, nil, nil
 inoremap <M-j> <Cmd>lua require('snips').expand_or_jump()<CR>
 snoremap <M-j> <Cmd>lua require('snips').jump(1)<CR>
 inoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
 snoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
 
 function s:is_config_file(path) abort
-	return index([resolve($MYVIMRC), s:config_dir . '/lua/snips.lua',
-				\ s:config_dir . '/lua/qf.lua'], resolve(a:path)) >= 0
+	return index([resolve($MYVIMRC),
+				\ s:config_dir . '/lua/snips.lua',
+				\ s:config_dir . '/lua/qf.lua',
+				\ s:config_dir . '/lua/dirali.lua'], resolve(a:path)) >= 0
 endfunction
 
 " For BufReadPost's restore_cursor.
