@@ -33,60 +33,67 @@ fi
 
 applications_dir=$HOME/Applications
 destination=$applications_dir/nvim.app
-mkdir -p "$applications_dir"
-staging_dir=$(mktemp -d "$applications_dir/.nvim.XXXXXX")
-cleanup() {
-	if [ -e "$staging_dir/previous.app" ] || [ -L "$staging_dir/previous.app" ]; then
-		if [ ! -e "$destination" ] && [ ! -L "$destination" ]; then
-			if ! mv "$staging_dir/previous.app" "$destination"; then
-				printf '%s: Could not restore the previous app; it remains at %s/previous.app.\n' "${0##*/}" "$staging_dir" | hpath >&2
-				return
+source_hash=$(shasum -a 256 ./install.sh ./nvim.applescript ./icon.png)
+lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+if [ "$source_hash" = "$(cat "$destination/Contents/Resources/dotfiles.sha256" 2>/dev/null)" ] &&
+	codesign --verify --strict "$destination" >/dev/null 2>&1; then
+	printf 'dotfiles: nvim: app/%s: Already installed %s\n' "${0##*/}" "$destination" | hpath
+else
+	mkdir -p "$applications_dir"
+	staging_dir=$(mktemp -d "$applications_dir/.nvim.XXXXXX")
+	cleanup() {
+		if [ -e "$staging_dir/previous.app" ] || [ -L "$staging_dir/previous.app" ]; then
+			if [ ! -e "$destination" ] && [ ! -L "$destination" ]; then
+				if ! mv "$staging_dir/previous.app" "$destination"; then
+					printf '%s: Could not restore the previous app; it remains at %s/previous.app.\n' "${0##*/}" "$staging_dir" | hpath >&2
+					return
+				fi
 			fi
 		fi
-	fi
-	rm -rf "$staging_dir"
-}
-trap cleanup 0
-trap 'exit 1' HUP INT TERM
-
-quiet() {
-	"$@" >"$staging_dir/command.log" 2>&1 || {
-		command_status=$?
-		hpath <"$staging_dir/command.log" >&2
-		return "$command_status"
+		rm -rf "$staging_dir"
 	}
-}
+	trap cleanup 0
+	trap 'exit 1' HUP INT TERM
 
-app=$staging_dir/nvim.app
-quiet osacompile -o "$app" ./nvim.applescript
+	quiet() {
+		"$@" >"$staging_dir/command.log" 2>&1 || {
+			command_status=$?
+			hpath <"$staging_dir/command.log" >&2
+			return "$command_status"
+		}
+	}
 
-iconset=$staging_dir/nvim.iconset
-mkdir "$iconset"
-for size in 16 32 128 256 512; do
-	quiet sips -z "$size" "$size" ./icon.png --out "$iconset/icon_${size}x${size}.png"
-	double_size=$((size * 2))
-	quiet sips -z "$double_size" "$double_size" ./icon.png --out "$iconset/icon_${size}x${size}@2x.png"
-done
-quiet iconutil -c icns "$iconset" -o "$app/Contents/Resources/nvim.icns"
+	app=$staging_dir/nvim.app
+	quiet osacompile -o "$app" ./nvim.applescript
 
-plist=$app/Contents/Info.plist
-plutil -replace CFBundleIdentifier -string io.nhooyr.nvim-terminal "$plist"
-plutil -replace CFBundleShortVersionString -string 1.0 "$plist"
-plutil -replace CFBundleVersion -string 1 "$plist"
-plutil -replace CFBundleIconFile -string nvim.icns "$plist"
-plutil -remove CFBundleIconName "$plist" 2>/dev/null || :
-plutil -replace NSAppleEventsUsageDescription -string 'Open files in nvim using Terminal.' "$plist"
-plutil -replace CFBundleDocumentTypes -json '[{"CFBundleTypeName":"Files","CFBundleTypeRole":"Editor","LSItemContentTypes":["public.data"],"LSHandlerRank":"Alternate"}]' "$plist"
-quiet codesign --force --sign - "$app"
-quiet codesign --verify --strict "$app"
+	iconset=$staging_dir/nvim.iconset
+	mkdir "$iconset"
+	for size in 16 32 128 256 512; do
+		quiet sips -z "$size" "$size" ./icon.png --out "$iconset/icon_${size}x${size}.png"
+		double_size=$((size * 2))
+		quiet sips -z "$double_size" "$double_size" ./icon.png --out "$iconset/icon_${size}x${size}@2x.png"
+	done
+	quiet iconutil -c icns "$iconset" -o "$app/Contents/Resources/nvim.icns"
 
-lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
-if [ -e "$destination" ] || [ -L "$destination" ]; then
-	mv "$destination" "$staging_dir/previous.app"
+	plist=$app/Contents/Info.plist
+	plutil -replace CFBundleIdentifier -string io.nhooyr.nvim-terminal "$plist"
+	plutil -replace CFBundleShortVersionString -string 1.0 "$plist"
+	plutil -replace CFBundleVersion -string 1 "$plist"
+	plutil -replace CFBundleIconFile -string nvim.icns "$plist"
+	plutil -remove CFBundleIconName "$plist" 2>/dev/null || :
+	plutil -replace NSAppleEventsUsageDescription -string 'Open files in nvim using Terminal.' "$plist"
+	plutil -replace CFBundleDocumentTypes -json '[{"CFBundleTypeName":"Files","CFBundleTypeRole":"Editor","LSItemContentTypes":["public.data"],"LSHandlerRank":"Alternate"}]' "$plist"
+	printf '%s\n' "$source_hash" >"$app/Contents/Resources/dotfiles.sha256"
+	quiet codesign --force --sign - "$app"
+	quiet codesign --verify --strict "$app"
+
+	if [ -e "$destination" ] || [ -L "$destination" ]; then
+		mv "$destination" "$staging_dir/previous.app"
+	fi
+	mv "$app" "$destination"
+	"$lsregister" -f "$destination"
+	printf 'dotfiles: nvim: app/%s: Installed %s\n' "${0##*/}" "$destination" | hpath
 fi
-mv "$app" "$destination"
-"$lsregister" -f "$destination"
-printf 'dotfiles: nvim: app/%s: Installed %s\n' "${0##*/}" "$destination" | hpath
 
 if [ "$set_defaults" = true ]; then
 	set -- public.text public.plain-text public.source-code \

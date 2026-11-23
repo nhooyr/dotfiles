@@ -24,7 +24,7 @@ if [ ! -e "$codex_config" ]; then
 	mkdir -p "${codex_config%/*}"
 	printf '[tui]\ntheme = "ansi"\nvim_mode_default = true\n' >"$codex_config"
 	printf 'dotfiles: %s: Created %s\n' "${0##*/}" "$codex_config" | hpath
-elif [ "$(grep -Fxc -e 'theme = "ansi"' -e 'vim_mode_default = true' "$codex_config")" != 2 ]; then
+elif ! yq -e -o=json '.tui.theme == "ansi" and .tui.vim_mode_default == true' "$codex_config" >/dev/null; then
 	yq -i '.tui.theme = "ansi" | .tui.vim_mode_default = true' "$codex_config"
 	printf 'dotfiles: %s: Updated %s\n' "${0##*/}" "$codex_config" | hpath
 fi

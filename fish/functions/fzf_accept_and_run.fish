@@ -63,34 +63,42 @@ function fzf_path_widget --argument-names widget
     if string match -q -- './*' "$token"
         test "$widget" = fzf-path-widget; and set query "$token"
         set global_dir ''
-    else if not set -q tokens[1]; or contains -- "$tokens[1]" cd cdc
+    else if test "$widget" != fzf-file-widget
         set -a flags --cdpath "$CDPATH"
     end
     set -l result $(fzf-paths $flags "$dir" "$global_dir" "$type" $dirs | fzf --query="$query" | string split0)
     if set -q result[1]
         set -l cdpath_selected 0
         string match -q -- '$CDPATH/*' "$result[1]"; and set cdpath_selected 1
+        set -l resolve_cdpath 1
+        if contains -- "$tokens[1]" cd cdc
+            set resolve_cdpath 0
+        else if not set -q tokens[1]; and test "$(count $result)" -eq 1
+            set resolve_cdpath 0
+        end
         set -l escaped
         for target in $result
             if string match -q -- '$CDPATH/*' "$target"
                 set -l name $(string split --max 1 -- '$CDPATH/' "$target")[2]
                 set -l selected "$(string escape -n -- "$name")"
-                if test -d "$name"
+                if test -d "$name"; or test "$resolve_cdpath" -eq 1
+                    set -l path
                     for root in $CDPATH
-                        # Skip the local directory and use the first different CDPATH match.
-                        if test -d "$root/$name"; and not test "$name" -ef "$root/$name"
-                            set -l path "$root/$name"
-                            string match -q -- '/*' "$path"; or set path "$PWD/$path"
-                            set path $(path normalize -Z -- "$path" | string split0)
-                            set path $(aqsnow_fzf_path_alias "$path" | string split0)
-                            set selected "$(aqsnow_fzf_path_quote "$path")"
-                            break
-                        end
+                        test -d "$root/$name"; or continue
+                        set path "$root/$name"
+                        # Prefer a different directory on collisions, if one exists.
+                        test "$name" -ef "$path"; or break
+                    end
+                    if set -q path[1]
+                        string match -q -- '/*' "$path"; or set path "$PWD/$path"
+                        set path $(path normalize -Z -- "$path" | string split0)
+                        set path $(aqsnow_fzf_path_alias "$path" | string split0)
+                        set selected "$(aqsnow_fzf_path_quote "$path" "$parsed[3]")"
                     end
                 end
                 set -a escaped "$selected"
             else
-                set -a escaped "$(aqsnow_fzf_path_quote "$target")"
+                set -a escaped "$(aqsnow_fzf_path_quote "$target" "$parsed[3]")"
             end
         end
         if not set -q tokens[1]
@@ -109,10 +117,10 @@ function fzf_path_widget --argument-names widget
             test -d "$target"; and set directory 1
             if test "$(count $result)" -eq 1; and test "$directory" -eq 1
                 set -p escaped cd --
-            else if not string match -q -- './*' "$result[1]"
+            else if test "$directory" -eq 1; or not string match -q -- './*' "$result[1]"
                 set -p escaped nvim --
             end
-        else if test "$widget" != fzf-cd-widget; and test "$(path basename -- "$tokens[1]")" = nvim; and not contains -- -- $tokens; and test -z "$parsed[3]"
+        else if test "$(path basename -- "$tokens[1]")" = nvim; and not contains -- -- $tokens; and test -z "$parsed[3]"
             set -p escaped --
         end
         commandline -rt -- "$(string join -- ' ' $parsed[3]$escaped) "
@@ -139,11 +147,15 @@ function aqsnow_fzf_path_alias --argument-names target
     printf '%s\0' "$aliased"
 end
 
-function aqsnow_fzf_path_quote --argument-names target
+function aqsnow_fzf_path_quote --argument-names target prefix
     for name in $aqsnow_fzf_diralis
         set -l direnv '$'$name
         test "$name" = HOME; and set direnv '~'
         if test "$target" = "$direnv"; or string match -q -- "$direnv/*" "$target"
+            # Tilde expansion only works at the start of a token, not after --option=.
+            if test "$direnv" = '~'; and test -n "$prefix"
+                set target '$HOME'$(string sub --start 2 -- "$target")
+            end
             # Keep the leading $ or ~ expandable; escape everything else.
             string sub --start 2 -- "$(string escape -n -- "$target")"
             return

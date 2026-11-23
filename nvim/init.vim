@@ -16,8 +16,8 @@ set splitright
 set formatoptions-=t
 nnoremap j gj
 nnoremap k gk
-vnoremap j gj
-vnoremap k gk
+xnoremap j gj
+xnoremap k gk
 nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
 nnoremap <C-k> <C-w>k
@@ -88,7 +88,7 @@ inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
 cnoremap <M-f> \V
-nnoremap <Leader>s :if expand('%:p') ==# $MYVIMRC \| update \| endif \| source $MYVIMRC<CR>
+nnoremap <Leader>s :if <SID>is_config_file(expand('%:p')) \| update \| endif \| execute 'source' fnameescape($MYVIMRC)<CR>
 			\:echo 'source' $MYVIMRC<CR>
 nnoremap <Leader>v :e $MYVIMRC<CR>
 let g:netrw_banner = 0
@@ -99,10 +99,10 @@ nnoremap <Leader>h :let v:hlsearch = !v:hlsearch<CR>:echo 'v:hlsearch =' v:hlsea
 nnoremap <Leader>r :%s###g<Left><Left>
 nnoremap <M-r> cgn
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
-vnoremap <Leader>/ "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
-vnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
-vmap <Leader>r <Leader>/<Leader>r
-vnoremap <M-r> :s###g<Left><Left>
+xnoremap <Leader>/ "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
+xnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
+xmap <Leader>r <Leader>/<Leader>r
+xnoremap <M-r> :s###g<Left><Left>
 
 nnoremap q :quit<CR>
 nnoremap <M-q> q
@@ -144,11 +144,11 @@ inoremap <C-k> <C-\><C-o>D
 cnoremap <C-a> <Home>
 cnoremap <C-d> <Del>
 
-vnoremap > >gv
-vnoremap < <gv
+xnoremap > >gv
+xnoremap < <gv
 nmap <C-_> gcc
 imap <C-_> <C-o>gcc
-vmap <C-_> gc
+xmap <C-_> gc
 
 nnoremap ]p ]p=`]
 nnoremap ]P ]P=`]
@@ -160,25 +160,25 @@ nnoremap X "_X
 nnoremap C "_C
 nnoremap c "_c
 nnoremap C "_C
-vnoremap c "_c
+xnoremap c "_c
 nnoremap s "_s
-vnoremap s "_s
+xnoremap s "_s
 nnoremap S "_S
-vnoremap S "_S
+xnoremap S "_S
 nnoremap <BS><BS> "_dd
 nnoremap <BS> "_d
-vnoremap <BS> "_d
+xnoremap <BS> "_d
 nnoremap gp `[v`]
 nnoremap <Leader>p "+p
 nnoremap <Leader>P "+P
 inoremap <M-p> <C-o>"+P
 nnoremap Y "+y
 nnoremap YY m`^"+y$``
-vnoremap Y "+y
-vnoremap C "+c
+xnoremap Y "+y
+xnoremap C "+c
 nnoremap D "+d
 nnoremap DD m`^"+y$``"_dd
-vnoremap D "+d
+xnoremap D "+d
 nnoremap <silent> <Leader>d :t.<CR>
 
 set completeopt=menuone,noselect,popup
@@ -214,14 +214,16 @@ command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 
 nnoremap <Leader>w :keeppatterns %s/\s\+$//<CR>
 nnoremap <Leader>- :keeppatterns %s/^\s*[+-]//<CR>
-vnoremap <Leader>- :keeppatterns s/^\s*[+-]//<CR>
+xnoremap <Leader>- :keeppatterns s/^\s*[+-]//<CR>
 nnoremap <M-n> :next<CR>
 nnoremap <M-p> :prev<CR>
 nnoremap Z zz
 
 function! s:vidir_mcr() abort
 	write !sh
-	set nomodified
+	if v:shell_error == 0
+		set nomodified
+	endif
 endfunction
 
 function! s:vidir() abort
@@ -230,7 +232,16 @@ function! s:vidir() abort
 	normal ggS# :w !sh
 	nnoremap <buffer> <M-CR> :call <SID>vidir_mcr()<CR>
 	inoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
-	silent 2,$s/.*/mv -v '\0' '\0'
+	" Quote for the sh command list, regardless of the interactive shell.
+	let shell = &shell
+	try
+		set shell=sh
+		if line('$') > 1
+			silent 2,$s/.*/\='mv -v -- ' . shellescape(submatch(0)) . ' ' . shellescape(submatch(0))/
+		endif
+	finally
+		let &shell = shell
+	endtry
 	set nomodified
 	set buftype=nofile
 	set filetype=sh
@@ -241,11 +252,15 @@ command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 execute 'luafile' fnameescape(s:config_dir . '/snippets.lua')
 
+function! s:is_config_file(path) abort
+	return index([resolve($MYVIMRC), s:config_dir . '/snippets.lua'], resolve(a:path)) >= 0
+endfunction
+
 " For BufReadPost restore_cursor.
 filetype plugin indent on
 augroup aqsnow
 	autocmd!
-	autocmd FocusLost,BufLeave * nested doautoall <nomodeline> aqsnow User AqsnowAutosave
+	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
 	autocmd BufWritePre,FileWritePre * if expand('<afile>') !~# '://' | call mkdir(expand('<afile>:p:h'), 'p') | endif
@@ -258,7 +273,7 @@ augroup aqsnow
 	autocmd BufReadPost * call <SID>restore_cursor()
 	autocmd filetype fish setlocal formatprg=fish_indent
 	autocmd filetype sh let &l:formatprg='shfmt -s'
-	autocmd BufWritePost $MYVIMRC autocmd aqsnow SafeState * ++once source $MYVIMRC
+	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | execute 'autocmd aqsnow SafeState * ++once execute "source" fnameescape($MYVIMRC)' | endif
 	autocmd filetype gitcommit nnoremap <buffer> ]c /^@@<CR>zz
 	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>zz
 	autocmd filetype netrw nnoremap <buffer> <nowait> q :quit<CR>

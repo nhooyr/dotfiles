@@ -2,15 +2,17 @@ use ignore::gitignore::Gitignore;
 use ignore::Match;
 use std::collections::HashSet;
 use std::env;
-use std::ffi::{OsStr, OsString};
+use std::ffi::{c_int, c_short, OsStr, OsString};
 use std::fs::{self, Metadata};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
-use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt};
+use std::os::fd::AsRawFd;
+use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt, process::CommandExt};
 use std::path::{Component, Path, PathBuf};
-use std::process::{self, Command, Stdio};
-use std::sync::mpsc::{self, SyncSender};
+use std::process::{self, Child, ChildStdout, Command, Stdio};
+use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
+use std::time::Duration;
 
 fn print_help(name: &str) {
     println!(
@@ -31,13 +33,16 @@ needed; different repositories may interleave. fzf may reorder sorted matches.
 With --cdpath, directory modes (-d and -fd) list directories up to two levels
 below each colon-separated root, such as $CDPATH/junegunn/fzf. Missing roots
 are skipped. These choices use the display prefix $CDPATH/; the Fish widgets
-strip it when inserting a choice. Duplicate relative paths are emitted once.
+resolve them as described below. Duplicate relative paths are emitted once.
 Directories named .git and node_modules are skipped at both levels.
 
-The Fish widgets enable CDPATH at command start and for cd/cdc arguments.
-When a $CDPATH choice collides with a local directory, the widgets insert the
-absolute path of the first different match in CDPATH order, abbreviated with
-the most specific dirali when available. Local selections stay relative.
+Alt-C and Alt-V enable CDPATH for any command.
+Selecting multiple directories at command start opens them with nvim --.
+For nvim and other commands, $CDPATH paths become absolute, abbreviated with
+the most specific dirali when available.
+For cd/cdc, $CDPATH choices use the bare name unless it collides with a local
+directory. Collisions are resolved the same way, preferring the first different
+match in CDPATH order. Local selections stay relative.
 An explicit ./ token disables global and CDPATH searches. Ctrl-T (files) and
 Alt-C (directories) use the parsed local query without ./; only Alt-V (files
 and directories) keeps ./ in the query to find local executable paths.
@@ -156,12 +161,14 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Resul
         output: BufWriter::new(io::stdout()),
     };
     let (sender, receiver) = mpsc::sync_channel(256);
+    let git = Arc::new(Mutex::new(GitScans::default()));
     let scanner = Scanner {
         cwd: working_directory()?,
         files_only: args[2] == "-f",
         directories_only: args[2] == "-d",
         keep_dot,
         sender,
+        git: Arc::clone(&git),
     };
     thread::scope(|scope| {
         let local = scanner.clone();
@@ -176,7 +183,15 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Resul
         }
         drop(scanner);
         let result = (|| {
-            while let Ok(candidate) = receiver.recv() {
+            loop {
+                let candidate = match receiver.recv_timeout(Duration::from_millis(50)) {
+                    Ok(candidate) => candidate,
+                    Err(RecvTimeoutError::Disconnected) => break,
+                    Err(RecvTimeoutError::Timeout) if output_closed() => {
+                        return Err(io::ErrorKind::BrokenPipe.into());
+                    }
+                    Err(RecvTimeoutError::Timeout) => continue,
+                };
                 for candidate in std::iter::once(candidate).chain(receiver.try_iter()) {
                     let flush = match candidate {
                         Candidate::Path {
@@ -204,13 +219,83 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Resul
         })();
         // Release blocked senders before joining if writing to fzf failed.
         drop(receiver);
+        if result.is_err() {
+            git.lock().unwrap().cancel();
+        }
         let results: Vec<_> = scans.into_iter().map(|scan| scan.join().unwrap()).collect();
+        let waited = git.lock().unwrap().wait();
         result?;
+        waited?;
         for result in results {
             result?;
         }
         Ok(())
     })
+}
+
+// Check for a closed picker even when a scan has no new paths to write.
+fn output_closed() -> bool {
+    #[repr(C)]
+    struct PollFd {
+        fd: c_int,
+        events: c_short,
+        revents: c_short,
+    }
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    type Nfds = usize;
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    type Nfds = u32;
+    extern "C" {
+        fn poll(fds: *mut PollFd, nfds: Nfds, timeout: c_int) -> c_int;
+    }
+    const POLLOUT: c_short = 4;
+    const POLLERR: c_short = 8;
+    const POLLHUP: c_short = 16;
+    const POLLNVAL: c_short = 32;
+    let mut fd = PollFd {
+        fd: io::stdout().as_raw_fd(),
+        events: POLLOUT, // macOS reports pipe hangups only when writing is requested.
+        revents: 0,
+    };
+    unsafe { poll(&mut fd, 1, 0) > 0 && fd.revents & (POLLERR | POLLHUP | POLLNVAL) != 0 }
+}
+
+#[derive(Default)]
+struct GitScans {
+    cancelled: bool,
+    children: Vec<Child>,
+}
+
+impl GitScans {
+    fn register(&mut self, mut child: Child) -> io::Result<ChildStdout> {
+        let stdout = child.stdout.take().unwrap();
+        self.children.push(child);
+        if self.cancelled {
+            self.cancel();
+            return Err(io::ErrorKind::BrokenPipe.into());
+        }
+        Ok(stdout)
+    }
+
+    fn cancel(&mut self) {
+        self.cancelled = true;
+        extern "C" {
+            fn kill(pid: c_int, signal: c_int) -> c_int;
+        }
+        const SIGKILL: c_int = 9;
+        for child in &self.children {
+            // Kill each private process group, including any Git subprocesses.
+            // Children stay unreaped until wait(), so their IDs cannot be reused.
+            unsafe { kill(-(child.id() as c_int), SIGKILL) };
+        }
+    }
+
+    fn wait(&mut self) -> io::Result<()> {
+        for mut child in self.children.drain(..) {
+            child.wait()?;
+        }
+        Ok(())
+    }
 }
 
 fn ignored(path: &Path, directory: bool, ignores: &[Arc<Gitignore>]) -> bool {
@@ -389,6 +474,7 @@ struct Scanner {
     directories_only: bool,
     keep_dot: bool,
     sender: SyncSender<Candidate>,
+    git: Arc<Mutex<GitScans>>,
 }
 
 impl Scanner {
@@ -429,7 +515,10 @@ impl Scanner {
         if !metadata.is_dir() {
             return Ok(());
         }
-        let absolute = normalize(&self.cwd.join(&path));
+        // Resolve symlinks before .. so ignore rules match the directory we scan.
+        let Ok(absolute) = path.canonicalize() else {
+            return Ok(());
+        };
         let ignores = local_ignores(&absolute);
         let ancestors = vec![(metadata.dev(), metadata.ino())];
         parallel(
@@ -534,9 +623,14 @@ impl Scanner {
             if self.directories_only {
                 git.arg("--format=%(objectmode) %(path)");
             }
-            let mut scan = git.stdin(Stdio::null()).stdout(Stdio::piped()).spawn()?;
+            let child = git
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .process_group(0)
+                .spawn()?;
+            let stdout = self.git.lock().unwrap().register(child)?;
             let mut parents = HashSet::new();
-            for file in BufReader::new(scan.stdout.take().unwrap()).split(0) {
+            for file in BufReader::new(stdout).split(0) {
                 let file = file?;
                 // Git's indexed modes let directory scans skip regular files.
                 let regular_file = self.directories_only && file.starts_with(b"100");
@@ -564,7 +658,6 @@ impl Scanner {
                     }
                 }
             }
-            scan.wait()?;
             Ok(Vec::new())
         })
     }

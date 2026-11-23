@@ -527,6 +527,77 @@ fn closing_the_picker_does_not_leave_workers_blocked() {
 }
 
 #[test]
+fn closing_the_picker_cancels_stalled_git_and_its_subprocesses() {
+    for pending_output in [false, true] {
+        let fixture = Fixture::new();
+        fs::remove_dir_all(&fixture.local).unwrap();
+        fs::create_dir(&fixture.local).unwrap();
+        if pending_output {
+            for index in 0..1005 {
+                write(&fixture.local, &format!("many/file-{index}"));
+            }
+        }
+        let bin = fixture.root.join("bin");
+        fs::create_dir(&bin).unwrap();
+        let git = bin.join("git");
+        fs::write(
+            &git,
+            "#!/bin/sh\n\
+             while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done &\n\
+             : > \"$FZF_TEST_STARTED\"\n\
+             printf 'tracked\\0'\n\
+             wait\n",
+        )
+        .unwrap();
+        make_executable(&git);
+        let started = fixture.root.join("started");
+        let release = fixture.root.join("release");
+        let path = env::join_paths(
+            std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+        )
+        .unwrap();
+        let mut child = fixture
+            .command(&fixture.local, &fixture.global_dir, "-f", &[])
+            .env("PATH", path)
+            .env("FZF_TEST_STARTED", &started)
+            .env("FZF_TEST_RELEASE", &release)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut stdout = BufReader::new(child.stdout.take().unwrap());
+        let mut first = Vec::new();
+        stdout.read_until(0, &mut first).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !started.exists() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let git_started = started.exists();
+        drop(stdout);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let exited = loop {
+            if child.try_wait().unwrap().is_some() {
+                break true;
+            }
+            if Instant::now() >= deadline {
+                break false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        // Unblock the fake Git on failure so the regression cannot leave it running.
+        fs::write(release, "continue").unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(git_started, "Git did not start");
+        assert!(
+            exited,
+            "closing stdout waited for stalled Git (pending_output={pending_output})"
+        );
+        assert!(output.status.success(), "{output:?}");
+        assert!(output.stderr.is_empty(), "{output:?}");
+    }
+}
+
+#[test]
 fn tracked_files_and_parents() {
     let fixture = Fixture::new();
     let paths = fixture.pick();
@@ -1113,6 +1184,48 @@ fn parent_and_nested_gitignore_rules_apply() {
         fixture.run(&mut fixture.command(&fixture.repo.join("nested"), Path::new(""), "-fd", &[]));
     assert!(paths.contains(&"keep.tmp".into()));
     assert!(!paths.contains(&"hide.tmp".into()));
+}
+
+#[test]
+fn symlink_parent_search_uses_the_target_gitignore_rules() {
+    let fixture = Fixture::new();
+    let external = fixture.root.join("external");
+    for name in [
+        "child/placeholder",
+        "shown",
+        "hidden",
+        "nested/keep.tmp",
+        "nested/hide.tmp",
+        "ignored/deep/build.tmp",
+        "ignored/deep/build.cache",
+    ] {
+        write(&external, name);
+    }
+    fs::write(external.join(".gitignore"), "/hidden\n*.tmp\n/ignored/\n").unwrap();
+    fs::write(external.join("nested/.gitignore"), "!keep.tmp\n").unwrap();
+    fs::write(external.join("ignored/.gitignore"), "*.cache\n").unwrap();
+    symlink("../external/child", fixture.local.join("link")).unwrap();
+
+    let scan = |directory: &str| {
+        fixture.run(
+            Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+                .current_dir(&fixture.local)
+                .env("PWD", &fixture.local)
+                .args([directory, "", "-f"]),
+        )
+    };
+    let paths = scan("link/..");
+    assert!(paths.contains(&"link/../shown".into()));
+    assert!(paths.contains(&"link/../nested/keep.tmp".into()));
+    assert!(!paths.contains(&"link/../hidden".into()));
+    assert!(!paths.contains(&"link/../nested/hide.tmp".into()));
+    assert!(!paths
+        .iter()
+        .any(|path| Path::new(path).starts_with("link/../ignored")));
+
+    // Explicitly entering an ignored directory still bypasses outer rules.
+    let paths = scan("link/../ignored/deep");
+    assert_eq!(paths, [OsString::from("link/../ignored/deep/build.tmp")]);
 }
 
 #[test]
