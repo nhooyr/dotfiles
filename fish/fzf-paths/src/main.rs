@@ -1,5 +1,6 @@
 use ignore::Match;
 use ignore::gitignore::Gitignore;
+use lscolors::{Indicator, LsColors, Style};
 use std::collections::HashSet;
 use std::env;
 use std::ffi::{OsStr, OsString, c_int, c_short};
@@ -20,7 +21,7 @@ fn print_help(name: &str) {
         "\
 Generate path candidates for fzf from local files and Git repositories.
 
-usage: {name} [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...
+usage: {name} [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...
 
 Scan <DIR>, Git repositories directly under <GLOBAL_DIR>, and optional CDPATH
 roots concurrently. Stream results as they are found; paths from the three
@@ -52,11 +53,19 @@ The local scan respects .gitignore files, including nested rules and negations.
 Starting inside an ignored directory makes that directory searchable: ignore
 rules above the ignored directory are bypassed, while rules inside still apply.
 Directories named .git and node_modules are skipped unless they are <DIR> itself.
+File searches also include special files and broken symlinks. With an empty
+command line, the Fish widgets use file -- if any selected path is neither
+a regular file nor a directory.
 
 Options:
   -h, --help        Show this help.
   --color          Color alias prefixes cyan. Use fzf --ansi to display them
                    and strip the color escapes from selected paths.
+  --classify       Append ls-style markers: / directories, * executables,
+                   @ symlinks, | FIFOs, = sockets, and > doors where supported.
+                   Other files get an invisible ASCII Unit Separator (0x1f).
+                   With --color, basenames and markers use LS_COLORS.
+                   The Fish widgets remove the final marker.
   --keep-dot        Also offer ./ paths for local executable files.
   --cdpath CDPATH   Include directories from these colon-separated roots.
   --dirali ENV DIR  Abbreviate paths using ENV for DIR. May be repeated.
@@ -66,7 +75,7 @@ Arguments:
   <GLOBAL_DIR>  Dir containing additional Git repositories.
                 Use an empty string to skip global Git repositories.
   <TYPE>        -fd   Files and directories.
-                -f    Files only.
+                -f    Files only, including special files and broken symlinks.
                 -d    Directories only.
 
 Each --dirali maps a directory to an alias, such as '$dotfiles' /path/to/dotfiles.
@@ -78,6 +87,9 @@ is the longer matching prefix.
 
 Output:
   Unique, NUL-separated paths. Filenames may contain spaces or newlines.
+  With --classify, each path ends in one indicator. Ordinary files use an invisible
+  ASCII Unit Separator (0x1f). Removing exactly one indicator preserves literal
+  trailing stars, spaces, and separators in filenames.
   Local paths omit a leading ./. With --keep-dot, local executables also get
   a ./ form. The Fish bindings enable this only when completing a command name.
   Global paths use a matching env when available; otherwise they are absolute.
@@ -99,7 +111,7 @@ Examples (Fish):
 
 fn usage_error(name: &str) -> ! {
     eprintln!(
-        "usage: {name} [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+        "usage: {name} [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
     );
     process::exit(1);
 }
@@ -114,11 +126,14 @@ fn main() {
     let mut args = Vec::new();
     let mut aliases = Vec::new();
     let mut color = false;
+    let mut classify = false;
     let mut keep_dot = false;
     let mut cdpath = None;
     while let Some(arg) = arguments.next() {
         if arg == "--color" {
             color = true;
+        } else if arg == "--classify" {
+            classify = true;
         } else if arg == "--keep-dot" {
             keep_dot = true;
         } else if arg == "--cdpath" {
@@ -140,7 +155,8 @@ fn main() {
         usage_error(&name);
     }
     args.extend(aliases);
-    let result = install_signal_handlers().and_then(|()| run(&args, keep_dot, cdpath, color));
+    let result =
+        install_signal_handlers().and_then(|()| run(&args, keep_dot, cdpath, color, classify));
     let signal = TERMINATING_SIGNAL.load(Ordering::Relaxed);
     if signal != 0 {
         process::exit(128 + signal);
@@ -153,7 +169,13 @@ fn main() {
     }
 }
 
-fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>, color: bool) -> io::Result<()> {
+fn run(
+    args: &[OsString],
+    keep_dot: bool,
+    cdpath: Option<OsString>,
+    color: bool,
+    classify: bool,
+) -> io::Result<()> {
     let mut seen_envs = HashSet::new();
     let mut env_dirs = Vec::new();
     for [name, directory] in args[3..].as_chunks::<2>().0 {
@@ -167,8 +189,15 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>, color: bool)
         env_dirs.push((env.to_vec(), directory.as_bytes().to_vec()));
     }
     env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
+    let colors = (color && classify).then(|| {
+        Arc::new(
+            LsColors::from_env()
+                .unwrap_or_else(|| LsColors::from_string("di=34:ln=36:so=32:pi=32:ex=35")),
+        )
+    });
     let mut picker = Picker {
         color,
+        classify,
         keep_dot,
         env_dirs,
         shown: HashSet::new(),
@@ -181,6 +210,8 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>, color: bool)
         files_only: args[2] == "-f",
         directories_only: args[2] == "-d",
         keep_dot,
+        classify,
+        colors,
         sender,
         git: Arc::clone(&git),
     };
@@ -210,17 +241,16 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>, color: bool)
                 for candidate in std::iter::once(candidate).chain(receiver.try_iter()) {
                     check_signal()?;
                     let flush = match candidate {
-                        Candidate::Path {
-                            path,
-                            local,
-                            executable,
-                        } => {
-                            picker.emit_path(path, local, executable)?;
+                        Candidate::Path { path, local, style } => {
+                            picker.emit_path(path, local, style)?;
                             !local
                         }
-                        Candidate::Cdpath(path) => {
-                            picker
-                                .emit([b"$CDPATH/", path.as_os_str().as_bytes()].concat(), false)?;
+                        Candidate::Cdpath(path, style) => {
+                            picker.emit(
+                                [b"$CDPATH/", path.as_os_str().as_bytes()].concat(),
+                                false,
+                                &style,
+                            )?;
                             true
                         }
                     };
@@ -477,8 +507,57 @@ fn parallel<T: Send>(
     queue.into_inner().unwrap().error.map_or(Ok(()), Err)
 }
 
+struct FileInfo {
+    metadata: Metadata,
+    target: Option<Metadata>,
+}
+
+impl FileInfo {
+    fn new(path: &Path) -> Option<Self> {
+        let metadata = path.symlink_metadata().ok()?;
+        let target = metadata
+            .is_symlink()
+            .then(|| path.metadata().ok())
+            .flatten();
+        Some(Self { metadata, target })
+    }
+
+    fn followed(&self) -> &Metadata {
+        self.target.as_ref().unwrap_or(&self.metadata)
+    }
+}
+
+struct PathStyle {
+    indicator: u8,
+    executable: bool,
+    color: Option<Style>,
+}
+
+impl PathStyle {
+    fn plain(indicator: u8) -> Self {
+        Self {
+            indicator,
+            executable: indicator == b'*',
+            color: None,
+        }
+    }
+}
+
+fn file_indicator(mode: u32) -> u8 {
+    match mode & 0o170000 {
+        0o040000 => b'/',
+        0o120000 => b'@',
+        0o010000 => b'|',
+        0o140000 => b'=',
+        0o150000 => b'>', // Doors on Solaris/illumos.
+        0o100000 if mode & 0o111 != 0 => b'*',
+        _ => b'\x1f', // Unit Separator: no visible suffix, but still unambiguous.
+    }
+}
+
 struct Picker {
     color: bool,
+    classify: bool,
     keep_dot: bool,
     env_dirs: Vec<(Vec<u8>, Vec<u8>)>,
     shown: HashSet<Vec<u8>>,
@@ -486,11 +565,12 @@ struct Picker {
 }
 
 impl Picker {
-    fn emit(&mut self, mut path: Vec<u8>, literal: bool) -> io::Result<()> {
+    fn emit(&mut self, mut path: Vec<u8>, literal: bool, style: &PathStyle) -> io::Result<()> {
         if literal && matches!(path.first(), Some(b'$' | b'~')) {
             path.splice(..0, b"./".iter().copied());
         }
         if self.shown.insert(path.clone()) {
+            let mut path = path.as_slice();
             if self.color && !literal {
                 let end = path
                     .iter()
@@ -499,9 +579,24 @@ impl Picker {
                 self.output.write_all(b"\x1b[36m")?;
                 self.output.write_all(&path[..end])?;
                 self.output.write_all(b"\x1b[0m")?;
-                self.output.write_all(&path[end..])?;
-            } else {
-                self.output.write_all(&path)?;
+                path = &path[end..];
+            }
+            let color = style.color.as_ref().map(Style::to_nu_ansi_term_style);
+            if let Some(color) = color {
+                let basename = path
+                    .iter()
+                    .rposition(|&byte| byte == b'/')
+                    .map_or(0, |i| i + 1);
+                self.output.write_all(&path[..basename])?;
+                write!(self.output, "{}", color.prefix())?;
+                path = &path[basename..];
+            }
+            self.output.write_all(path)?;
+            if self.classify {
+                self.output.write_all(&[style.indicator])?;
+            }
+            if let Some(color) = color {
+                write!(self.output, "{}", color.suffix())?;
             }
             self.output.write_all(b"\0")?;
             if self.shown.len() == 1 {
@@ -511,24 +606,28 @@ impl Picker {
         Ok(())
     }
 
-    fn emit_path(&mut self, path: PathBuf, local: bool, executable: bool) -> io::Result<()> {
+    fn emit_path(&mut self, path: PathBuf, local: bool, style: PathStyle) -> io::Result<()> {
         let mut path = path.into_os_string().into_vec();
         if path.starts_with(b"./") {
             path.drain(..2);
         }
         if local {
-            self.emit(path.clone(), true)?;
-            if self.keep_dot && executable && !path.starts_with(b"/") && !path.starts_with(b"./") {
-                self.emit([b"./", path.as_slice()].concat(), true)?;
+            self.emit(path.clone(), true, &style)?;
+            if self.keep_dot
+                && style.executable
+                && !path.starts_with(b"/")
+                && !path.starts_with(b"./")
+            {
+                self.emit([b"./", path.as_slice()].concat(), true, &style)?;
             }
         }
         if let Some((env, dir)) = self.env_dirs.iter().find(|(_, dir)| {
             path.starts_with(dir) && (path.len() == dir.len() || path.get(dir.len()) == Some(&b'/'))
         }) {
             path.splice(..dir.len(), env.iter().copied());
-            self.emit(path, false)?;
+            self.emit(path, false, &style)?;
         } else if !local {
-            self.emit(path, true)?;
+            self.emit(path, true, &style)?;
         }
         Ok(())
     }
@@ -538,9 +637,9 @@ enum Candidate {
     Path {
         path: PathBuf,
         local: bool,
-        executable: bool,
+        style: PathStyle,
     },
-    Cdpath(PathBuf),
+    Cdpath(PathBuf, PathStyle),
 }
 
 #[derive(Clone)]
@@ -549,6 +648,8 @@ struct Scanner {
     files_only: bool,
     directories_only: bool,
     keep_dot: bool,
+    classify: bool,
+    colors: Option<Arc<LsColors>>,
     sender: SyncSender<Candidate>,
     git: Arc<Mutex<GitScans>>,
 }
@@ -560,28 +661,42 @@ impl Scanner {
             .map_err(|_| io::ErrorKind::BrokenPipe.into())
     }
 
-    fn emit_path(&self, path: PathBuf, local: bool, executable: bool) -> io::Result<()> {
-        self.send(Candidate::Path {
-            path,
-            local,
-            executable,
-        })
+    fn emit_path(&self, path: PathBuf, local: bool, style: PathStyle) -> io::Result<()> {
+        self.send(Candidate::Path { path, local, style })
     }
 
-    fn candidate(&self, path: PathBuf, local: bool, metadata: Option<Metadata>) -> io::Result<()> {
-        let Some(metadata) = metadata.or_else(|| path.metadata().ok()) else {
+    fn style(&self, path: &Path, info: &FileInfo) -> PathStyle {
+        let indicator = file_indicator(info.metadata.mode());
+        let color = self.colors.as_ref().and_then(|colors| {
+            if indicator == b'>' {
+                colors.style_for_indicator(Indicator::Door)
+            } else {
+                colors.style_for_path_with_metadata(path, Some(&info.metadata))
+            }
+        });
+        let followed = info.followed();
+        PathStyle {
+            indicator,
+            executable: followed.is_file() && followed.mode() & 0o111 != 0,
+            color: color.cloned(),
+        }
+    }
+
+    fn candidate(&self, path: PathBuf, local: bool, info: Option<FileInfo>) -> io::Result<()> {
+        let Some(info) = info.or_else(|| FileInfo::new(&path)) else {
             return Ok(());
         };
-        if (self.files_only && !metadata.is_file())
-            || (!metadata.is_dir() && (self.directories_only || !metadata.is_file()))
-        {
+        let metadata = info.followed();
+        let wanted = if metadata.is_dir() {
+            !self.files_only
+        } else {
+            !self.directories_only
+        };
+        if !wanted {
             return Ok(());
         }
-        self.emit_path(
-            path,
-            local,
-            metadata.is_file() && metadata.mode() & 0o111 != 0,
-        )
+        let style = self.style(&path, &info);
+        self.emit_path(path, local, style)
     }
 
     fn walk(&self, path: PathBuf) -> io::Result<()> {
@@ -616,21 +731,22 @@ impl Scanner {
                     }
                     let path = entry.path();
                     let absolute = absolute.join(name);
-                    if regular_file && !self.keep_dot {
+                    if regular_file && !self.keep_dot && !self.classify {
                         if !ignored(&absolute, false, &ignores) {
-                            self.emit_path(path, true, false)?;
+                            self.emit_path(path, true, PathStyle::plain(b'\x1f'))?;
                         }
                         continue;
                     }
-                    let Ok(metadata) = path.metadata() else {
+                    let Some(info) = FileInfo::new(&path) else {
                         continue;
                     };
+                    let metadata = info.followed();
                     let is_directory = metadata.is_dir();
                     if ignored(&absolute, is_directory, &ignores) {
                         continue;
                     }
                     let identity = (metadata.dev(), metadata.ino());
-                    self.candidate(path.clone(), true, Some(metadata))?;
+                    self.candidate(path.clone(), true, Some(info))?;
                     if is_directory && !ancestors.contains(&identity) {
                         let mut ancestors = ancestors.clone();
                         ancestors.push(identity);
@@ -662,14 +778,28 @@ impl Scanner {
                         continue;
                     }
                     let path = entry.path();
-                    if !entry
-                        .file_type()
-                        .is_ok_and(|kind| kind.is_dir() || (kind.is_symlink() && path.is_dir()))
-                    {
+                    let Ok(kind) = entry.file_type() else {
+                        continue;
+                    };
+                    if !kind.is_dir() && !kind.is_symlink() {
                         continue;
                     }
+                    let style = if self.classify {
+                        let Some(info) = FileInfo::new(&path) else {
+                            continue;
+                        };
+                        if !info.followed().is_dir() {
+                            continue;
+                        }
+                        self.style(&path, &info)
+                    } else {
+                        if kind.is_symlink() && !path.is_dir() {
+                            continue;
+                        }
+                        PathStyle::plain(b'/')
+                    };
                     let child = relative.join(name);
-                    self.send(Candidate::Cdpath(child.clone()))?;
+                    self.send(Candidate::Cdpath(child.clone(), style))?;
                     if relative.as_os_str().is_empty() {
                         directories.push((path, child));
                     }
@@ -746,6 +876,23 @@ impl Scanner {
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    #[test]
+    fn file_type_indicators_match_ls() {
+        for (mode, expected) in [
+            (0o040755, b'/'),
+            (0o100755, b'*'),
+            (0o100644, b'\x1f'),
+            (0o120777, b'@'),
+            (0o010644, b'|'),
+            (0o140755, b'='),
+            (0o150755, b'>'),
+            (0o060644, b'\x1f'),
+            (0o020644, b'\x1f'),
+        ] {
+            assert_eq!(file_indicator(mode), expected, "mode {mode:o}");
+        }
+    }
 
     #[test]
     fn discovered_directories_can_run_concurrently() {

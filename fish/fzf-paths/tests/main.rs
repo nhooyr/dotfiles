@@ -3,6 +3,7 @@ use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::{self, BufRead, BufReader};
+use std::os::unix::net::UnixListener;
 use std::os::unix::{ffi::OsStringExt, fs::PermissionsExt, fs::symlink, process::CommandExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -11,6 +12,8 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
+const LS_COLORS: &str =
+    "di=34:ln=36:so=32:pi=32:ex=35:bd=37;42:cd=37;42:su=37;45:sg=37;45:tw=37;44:ow=37;44:st=34";
 
 struct Fixture {
     root: PathBuf,
@@ -127,7 +130,11 @@ impl Fixture {
         env_dirs: &[(&str, &Path)],
     ) -> Command {
         let mut command = Command::new(env!("CARGO_BIN_EXE_fzf-paths"));
-        command.current_dir(cwd).env("PWD", cwd).args(flags);
+        command
+            .current_dir(cwd)
+            .env("PWD", cwd)
+            .env("LS_COLORS", LS_COLORS)
+            .args(flags);
         if let Some(cdpath) = cdpath {
             command.arg("--cdpath").arg(cdpath);
         }
@@ -247,7 +254,8 @@ fn first_local_result_arrives_before_global_scan_finishes() {
     assert_eq!(first.pop(), Some(0));
     let first = OsString::from_vec(first);
     assert!(!Path::new(&first).is_absolute());
-    assert!(fixture.local.join(first).is_file());
+    let first = fixture.local.join(first);
+    assert!(first.symlink_metadata().is_ok() && !first.is_dir());
 }
 
 #[test]
@@ -830,6 +838,322 @@ fn color_wraps_only_the_cdpath_prefix() {
     }));
 }
 
+#[test]
+fn classify_preserves_names_and_marks_file_types() {
+    let fixture = Fixture::new();
+    for name in [
+        "ordinary*",
+        "run*",
+        "space at end ",
+        "unit separator\x1f",
+        "two separators\x1f\x1f",
+        "line\nbreak*",
+        "quote's",
+    ] {
+        write(&fixture.local, name);
+    }
+    make_executable(fixture.local.join("run*"));
+    make_executable(fixture.repo.join("tracked"));
+    fs::create_dir(fixture.local.join("directory*")).unwrap();
+    symlink("executable", fixture.local.join("executable-link")).unwrap();
+    symlink("tracked", fixture.repo.join("tracked-link")).unwrap();
+    fixture.git(&["add", "--", "tracked-link"]);
+
+    for keep_dot in [false, true] {
+        let flags = if keep_dot { vec!["--keep-dot"] } else { vec![] };
+        let raw = fixture.run(&mut fixture.command_with_flags(
+            &flags,
+            &fixture.local,
+            &fixture.global_dir,
+            "-fd",
+            &[],
+        ));
+        let mut flags = flags;
+        flags.push("--classify");
+        let classified = fixture.run(&mut fixture.command_with_flags(
+            &flags,
+            &fixture.local,
+            &fixture.global_dir,
+            "-fd",
+            &[],
+        ));
+        for name in ["unit separator\x1f", "two separators\x1f\x1f"] {
+            assert!(raw.contains(&OsString::from(name)));
+            assert!(classified.contains(&OsString::from(format!("{name}\x1f"))));
+        }
+        let mut restored = HashSet::new();
+        for path in classified {
+            let mut name = path.into_vec();
+            let marker = name.pop().unwrap();
+            let name = OsString::from_vec(name);
+            let metadata = fixture.local.join(&name).symlink_metadata().unwrap();
+            let expected = if metadata.is_symlink() {
+                b'@'
+            } else if metadata.is_dir() {
+                b'/'
+            } else if metadata.permissions().mode() & 0o111 != 0 {
+                b'*'
+            } else {
+                b'\x1f'
+            };
+            assert_eq!(marker, expected, "{name:?}");
+            restored.insert(name);
+        }
+        assert_eq!(restored, raw.into_iter().collect());
+    }
+}
+
+#[test]
+fn classify_colors_basenames_and_suffixes() {
+    let fixture = Fixture::new();
+    make_executable(fixture.repo.join("tracked"));
+    for name in ["run*", "$run", "dir/run*", "dir/exec\nname"] {
+        write(&fixture.local, name);
+        make_executable(fixture.local.join(name));
+    }
+    write(&fixture.local, "ordinary*");
+    fs::create_dir(fixture.local.join("directory*")).unwrap();
+    symlink("executable", fixture.local.join("exec-link")).unwrap();
+    symlink("tracked", fixture.repo.join("tracked-link")).unwrap();
+    write(&fixture.repo, "nested/run*");
+    make_executable(fixture.repo.join("nested/run*"));
+    fixture.git(&["add", "--", "nested/run*", "tracked-link"]);
+    for alias in ["$project", "~"] {
+        let paths = fixture.run(&mut fixture.command_with_flags(
+            &["--classify", "--color", "--keep-dot"],
+            &fixture.local,
+            &fixture.global_dir,
+            "-fd",
+            &[(alias, fixture.repo.as_path())],
+        ));
+        for path in [
+            "file\x1f",
+            "ordinary*\x1f",
+            "./$literal\x1f",
+            "./~literal\x1f",
+            "\x1b[34mdir/\x1b[0m",
+            "\x1b[36mlinked@\x1b[0m",
+            "\x1b[36mbroken@\x1b[0m",
+            "\x1b[34mdirectory*/\x1b[0m",
+            "\x1b[35mexecutable*\x1b[0m",
+            "./\x1b[35mexecutable*\x1b[0m",
+            "\x1b[36mexec-link@\x1b[0m",
+            "./\x1b[36mexec-link@\x1b[0m",
+            "\x1b[35mrun**\x1b[0m",
+            "dir/\x1b[35mrun**\x1b[0m",
+            "dir/\x1b[35mexec\nname*\x1b[0m",
+            "./\x1b[35m$run*\x1b[0m",
+        ] {
+            assert!(paths.contains(&OsString::from(path)), "missing {path:?}");
+        }
+        let prefix = format!("\x1b[36m{alias}\x1b[0m");
+        assert!(paths.contains(&OsString::from(format!("{prefix}\x1b[34m/\x1b[0m"))));
+        assert!(paths.contains(&OsString::from(format!("{prefix}/\x1b[35mtracked*\x1b[0m"))));
+        assert!(paths.contains(&OsString::from(format!(
+            "{prefix}/\x1b[36mtracked-link@\x1b[0m"
+        ))));
+        assert!(paths.contains(&OsString::from(format!("{prefix}/\x1b[34mnested/\x1b[0m"))));
+        assert!(paths.contains(&OsString::from(format!(
+            "{prefix}/nested/\x1b[35mrun**\x1b[0m"
+        ))));
+        assert!(paths.contains(&OsString::from(format!("{prefix}/nested/child\x1f"))));
+    }
+}
+
+#[test]
+fn classify_keeps_invisible_separator_inside_background_color() {
+    let fixture = Fixture::new();
+    write(&fixture.local, "trailing ");
+    write(&fixture.local, "separator\x1f");
+    let paths = fixture.run(
+        fixture
+            .command_with_flags(
+                &["--classify", "--color"],
+                &fixture.local,
+                Path::new(""),
+                "-f",
+                &[],
+            )
+            .env("LS_COLORS", "fi=37;44"),
+    );
+    for name in ["file", "trailing ", "separator\x1f"] {
+        assert!(paths.iter().any(|path| {
+            path.as_encoded_bytes()
+                .ends_with(format!("{name}\x1f\x1b[0m").as_bytes())
+        }));
+    }
+}
+
+#[test]
+fn classify_marks_cdpath_directory_links() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("cdpath");
+    fs::create_dir_all(directory.join("folder*/child ")).unwrap();
+    symlink("folder*", directory.join("linked")).unwrap();
+    symlink("missing", directory.join("broken")).unwrap();
+    write(&directory, "executable");
+    make_executable(directory.join("executable"));
+    let paths = fixture.run(&mut fixture.command_with_cdpath(
+        &["--classify", "--color"],
+        &fixture.local,
+        Path::new(""),
+        Some(directory.as_os_str()),
+        "-d",
+        &[],
+    ));
+    for (parent, name, color, marker) in [
+        ("", "folder*", "34", "/"),
+        ("folder*/", "child ", "34", "/"),
+        ("", "linked", "36", "@"),
+        ("linked/", "child ", "34", "/"),
+    ] {
+        assert!(paths.contains(&OsString::from(format!(
+            "\x1b[36m$CDPATH\x1b[0m/{parent}\x1b[{color}m{name}{marker}\x1b[0m"
+        ))));
+    }
+    assert!(
+        paths
+            .iter()
+            .all(|path| path.as_encoded_bytes().ends_with(b"/\x1b[0m")
+                || path.as_encoded_bytes().ends_with(b"@\x1b[0m"))
+    );
+    assert!(!paths.iter().any(|path| {
+        let path = path.to_string_lossy();
+        path.contains("broken") || path.contains("executable")
+    }));
+}
+
+#[test]
+fn special_files_and_broken_links_are_offered_for_inspection() {
+    let fixture = Fixture::new();
+    checked(Command::new("mkfifo").arg(fixture.local.join("pipe")));
+    let _socket = UnixListener::bind(fixture.local.join("socket")).unwrap();
+    symlink("file", fixture.local.join("file-link")).unwrap();
+    symlink("pipe", fixture.local.join("pipe-link")).unwrap();
+    symlink("socket", fixture.local.join("socket-link")).unwrap();
+    symlink("/dev/null", fixture.local.join("device-link")).unwrap();
+    let special = [
+        "pipe",
+        "socket",
+        "broken",
+        "pipe-link",
+        "socket-link",
+        "device-link",
+    ];
+
+    for kind in ["-f", "-fd"] {
+        let raw = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), kind, &[]));
+        for name in special {
+            assert!(
+                raw.contains(&OsString::from(name)),
+                "missing {name} in {kind}"
+            );
+        }
+        let colored = fixture.run(
+            fixture
+                .command_with_flags(
+                    &["--classify", "--color"],
+                    &fixture.local,
+                    Path::new(""),
+                    kind,
+                    &[],
+                )
+                .env("LS_COLORS", "di=31:ln=32:pi=33:so=34:ex=36"),
+        );
+        for path in [
+            "\x1b[32mfile-link@\x1b[0m",
+            "\x1b[32mbroken@\x1b[0m",
+            "\x1b[32mpipe-link@\x1b[0m",
+            "\x1b[32msocket-link@\x1b[0m",
+            "\x1b[32mdevice-link@\x1b[0m",
+            "\x1b[33mpipe|\x1b[0m",
+            "\x1b[34msocket=\x1b[0m",
+            "\x1b[36mexecutable*\x1b[0m",
+        ] {
+            assert!(
+                colored.contains(&OsString::from(path)),
+                "missing {path:?} in {kind}"
+            );
+        }
+    }
+
+    let directories = fixture.run(&mut fixture.command_with_flags(
+        &["--classify"],
+        &fixture.local,
+        Path::new(""),
+        "-d",
+        &[],
+    ));
+    assert!(directories.contains(&OsString::from("linked@")));
+    for name in [
+        "pipe|",
+        "socket=",
+        "broken@",
+        "pipe-link@",
+        "socket-link@",
+        "device-link@",
+        "file-link@",
+    ] {
+        assert!(!directories.contains(&OsString::from(name)));
+    }
+}
+
+#[test]
+fn global_special_and_broken_symlinks_are_offered_for_inspection() {
+    let fixture = Fixture::new();
+    symlink("absent", fixture.repo.join("broken-link")).unwrap();
+    symlink("/dev/null", fixture.repo.join("device-link")).unwrap();
+    fixture.git(&["add", "--", "broken-link", "device-link"]);
+    for kind in ["-f", "-fd"] {
+        for flags in [&[][..], &["--classify"][..]] {
+            let paths = fixture.run(&mut fixture.command_with_flags(
+                flags,
+                &fixture.local,
+                &fixture.global_dir,
+                kind,
+                &[("$project", &fixture.repo)],
+            ));
+            let suffix = if flags.is_empty() { "" } else { "@" };
+            for name in ["broken-link", "device-link"] {
+                assert!(paths.contains(&OsString::from(format!("$project/{name}{suffix}"))));
+            }
+            assert!(!paths.contains(&OsString::from(format!("$project/removed{suffix}"))));
+        }
+    }
+}
+
+#[test]
+fn classify_uses_permission_specific_ls_colors() {
+    let fixture = Fixture::new();
+    for (name, mode) in [
+        ("writable", 0o777),
+        ("sticky-writable", 0o1777),
+        ("sticky", 0o1700),
+    ] {
+        fs::create_dir(fixture.local.join(name)).unwrap();
+        fs::set_permissions(fixture.local.join(name), fs::Permissions::from_mode(mode)).unwrap();
+    }
+    let paths = fixture.run(
+        fixture
+            .command_with_flags(
+                &["--classify", "--color"],
+                &fixture.local,
+                Path::new(""),
+                "-d",
+                &[],
+            )
+            .env("LS_COLORS", "di=31:ow=32:tw=33:st=34"),
+    );
+    for path in [
+        "\x1b[31mdir/\x1b[0m",
+        "\x1b[32mwritable/\x1b[0m",
+        "\x1b[33msticky-writable/\x1b[0m",
+        "\x1b[34msticky/\x1b[0m",
+    ] {
+        assert!(paths.contains(&OsString::from(path)), "missing {path:?}");
+    }
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn color_preserves_non_utf8_filename_bytes() {
@@ -843,16 +1167,22 @@ fn color_preserves_non_utf8_filename_bytes() {
             .args(["add", "--"])
             .arg(&filename),
     );
-    let colored = fixture.run(&mut fixture.command_with_flags(
-        &["--color"],
-        &fixture.local,
-        &fixture.global_dir,
-        "-f",
-        &[("$project", fixture.repo.as_path())],
-    ));
-    assert!(colored.contains(&OsString::from_vec(
-        b"\x1b[36m$project\x1b[0m/name-\xff".to_vec()
-    )));
+    for classify in [false, true] {
+        let mut command = fixture.command_with_flags(
+            &["--color"],
+            &fixture.local,
+            &fixture.global_dir,
+            "-f",
+            &[("$project", fixture.repo.as_path())],
+        );
+        let mut expected = b"\x1b[36m$project\x1b[0m/name-\xff".to_vec();
+        if classify {
+            command.arg("--classify");
+            expected.push(b'\x1f');
+        }
+        let colored = fixture.run(&mut command);
+        assert!(colored.contains(&OsString::from_vec(expected)));
+    }
 }
 
 #[test]
@@ -889,7 +1219,10 @@ fn files_only_excludes_directories_and_keeps_symlink_files() {
         ] {
             assert!(paths.contains(&fixture.repo.join(name).into_os_string()));
         }
-        assert!(paths.iter().all(|path| fixture.local.join(path).is_file()));
+        assert!(paths.iter().all(|path| {
+            let path = fixture.local.join(path);
+            path.symlink_metadata().is_ok() && !path.is_dir()
+        }));
         assert_eq!(paths.contains(&"./executable".into()), !flags.is_empty());
     }
 }
@@ -1019,7 +1352,10 @@ fn files_only_ignores_cdpath() {
             .iter()
             .any(|path| Path::new(path).starts_with("$CDPATH"))
     );
-    assert!(paths.iter().all(|path| fixture.local.join(path).is_file()));
+    assert!(paths.iter().all(|path| {
+        let path = fixture.local.join(path);
+        path.symlink_metadata().is_ok() && !path.is_dir()
+    }));
 }
 
 #[test]
@@ -1305,12 +1641,13 @@ fn executable_literal_prefixes_are_not_duplicated_or_expanded() {
 }
 
 #[test]
-fn ignored_directories_broken_links_and_cycles() {
+fn ignored_directories_and_cycles_preserve_broken_links() {
     let fixture = Fixture::new();
     let paths = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), "-fd", &[]));
-    for absent in ["node_modules", ".git", "broken"] {
+    for absent in ["node_modules", ".git"] {
         assert!(!paths.contains(&absent.into()));
     }
+    assert!(paths.contains(&"broken".into()));
     assert!(paths.contains(&"linked/child".into()));
     assert!(paths.contains(&"loop".into()));
     assert!(
@@ -1606,7 +1943,7 @@ fn invalid_arguments() {
         assert!(output.stdout.is_empty());
         assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
     }
 }
@@ -1617,6 +1954,8 @@ fn help_uses_invoked_basename() {
         vec!["--help"],
         vec!["-h"],
         vec!["--color", "--help"],
+        vec!["--classify", "--help"],
+        vec!["--color", "--classify", "--help"],
         vec!["--color", "--keep-dot", "--help"],
         vec!["--keep-dot", "--help"],
         vec!["--cdpath", "", "--help"],
@@ -1631,7 +1970,7 @@ fn help_uses_invoked_basename() {
         assert!(output.stderr.is_empty());
         let help = String::from_utf8(output.stdout).unwrap();
         assert!(help.contains(
-            "usage: renamed-picker [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+            "usage: renamed-picker [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
         ));
         assert!(help.contains("Generate path candidates"));
         assert!(help.contains(".gitignore"));
@@ -1661,7 +2000,7 @@ fn incomplete_dirali_is_a_usage_error() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
 }
 

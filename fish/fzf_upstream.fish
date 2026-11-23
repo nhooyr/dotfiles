@@ -103,6 +103,9 @@ function fzf-history-widget -d "Show command history"
     set -l -- current_line (commandline -L)
     set -l -- total_lines (count $command_line)
     set -l -- fzf_query (string escape -- $command_line[$current_line])
+    # Restore exported color lists for the preview's fish_indent builtin.
+    set -l -- preview_init 'for name in $(set --names | string match -- "fish_color_*"); set -g "$name" $(string split " " -- "$$name"); end'
+    set -l -- fzf_shell $(string join ' ' -- $(string escape -n -- $(status fish-path) -C "$preview_init" -c))
 
     set -lx -- FZF_DEFAULT_COMMAND "builtin history -z --show-time=(set_color $fish_color_comment 2>/dev/null; or set_color normal)\"%F %a %T%t%s%t\"(set_color normal)"
 
@@ -118,7 +121,7 @@ function fzf-history-widget -d "Show command history"
     '--bind="alt-t:change-with-nth(1,3..|3..|2..)"' \
     "--bind='shift-delete:execute-silent(eval builtin history delete -Ce -- (string escape -n -- (string split0 -- <{+sf3..})))+reload($FZF_DEFAULT_COMMAND)'" \
     "--bind=ctrl-r:toggle-sort,alt-r:toggle-raw --highlight-line $FZF_CTRL_R_OPTS" \
-    '--accept-nth=3.. --delimiter="\t" --tabstop=4 --ansi --read0 --print0 --with-shell='(status fish-path)\\ -c)
+    '--accept-nth=3.. --delimiter="\t" --tabstop=4 --ansi --read0 --print0 --with-shell='$(string escape -n -- "$fzf_shell"))
 
     # Add dynamic preview options if preview command isn't already set by user
     if string match -qvr -- '--preview[= ]' "$FZF_DEFAULT_OPTS"

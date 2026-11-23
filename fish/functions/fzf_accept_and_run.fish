@@ -13,6 +13,12 @@ function fzf_accept_and_run --argument-names widget
     if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget
         fzf_path_widget "$widget"
     else
+        if test "$widget" = fzf-history-widget
+            # The preview's fish_indent process needs the current syntax colors.
+            for name in $(set --names | string match -- 'fish_color_*')
+                set --function --export "$name" $$name
+            end
+        end
         $widget
     end
     aqsnow_rendezvous
@@ -53,9 +59,9 @@ function fzf_path_widget --argument-names widget
     end
 
     set -l shell $(string join ' ' -- $(string escape -- $(status fish-path) -c))
-    # Score without a leading $, falling back to the full path for queries containing $.
+    # Ignore the leading $ and suffix; \x1f is the invisible marker for ordinary files.
     set -lx FZF_DEFAULT_OPTS $(__fzf_defaults \
-        '--reverse --scheme=path --delimiter=^[$] --nth=2,..' \
+        '--reverse --scheme=path --delimiter="^[$]|[/*=>@|\\\\x1f]$" --nth=2,.. --accept-nth=..' \
         "$opts --ansi --read0 --print0 --with-shell=$(string escape -- "$shell")")
     set -lx FZF_DEFAULT_OPTS_FILE
     printf '%s\0' "$parsed[2]" | read --null --local --array --tokenize query; or return
@@ -66,10 +72,8 @@ function fzf_path_widget --argument-names widget
     else if test "$widget" != fzf-file-widget
         set -a flags --cdpath "$CDPATH"
     end
-    set -l result $(fzf-paths --color $flags "$dir" "$global_dir" "$type" $dirs | fzf --query="$query" | string split0)
+    set -l result $(fzf-paths --color --classify $flags "$dir" "$global_dir" "$type" $dirs | fzf --query="$query" | string split0)
     if set -q result[1]
-        set -l cdpath_selected 0
-        string match -q -- '$CDPATH/*' "$result[1]"; and set cdpath_selected 1
         set -l resolve_cdpath 1
         if contains -- "$tokens[1]" cd cdc
             set resolve_cdpath 0
@@ -102,22 +106,35 @@ function fzf_path_widget --argument-names widget
             end
         end
         if not set -q tokens[1]
-            set -l target "$result[1]"
-            # Resolve directory aliases without evaluating the selected path.
-            for name in $aqsnow_fzf_diralis
-                set -l direnv '$'$name
-                test "$name" = HOME; and set direnv '~'
-                if test "$target" = "$direnv"; or string match -q -- "$direnv/*" "$target"
-                    set -l suffix $(string split --max 1 -- "$direnv" "$target")[2]
-                    set target "$$name$suffix"
-                    break
+            set -l kinds
+            for target in $result
+                if string match -q -- '$CDPATH/*' "$target"
+                    set -a kinds directory
+                    continue
+                end
+                # Resolve directory aliases without evaluating the selected path.
+                for name in $aqsnow_fzf_diralis
+                    set -l direnv '$'$name
+                    test "$name" = HOME; and set direnv '~'
+                    if test "$target" = "$direnv"; or string match -q -- "$direnv/*" "$target"
+                        set -l suffix $(string split --max 1 -- "$direnv" "$target")[2]
+                        set target "$$name$suffix"
+                        break
+                    end
+                end
+                if test -d "$target"
+                    set -a kinds directory
+                else if test -f "$target"
+                    set -a kinds regular
+                else
+                    set -a kinds special
                 end
             end
-            set -l directory "$cdpath_selected"
-            test -d "$target"; and set directory 1
-            if test "$(count $result)" -eq 1; and test "$directory" -eq 1
+            if contains -- special $kinds
+                set -p escaped file --
+            else if test "$(count $result)" -eq 1; and test "$kinds[1]" = directory
                 set -p escaped cd --
-            else if test "$directory" -eq 1; or not string match -q -- './*' "$result[1]"
+            else if test "$kinds[1]" = directory; or not string match -q -- './*' "$result[1]"
                 set -p escaped nvim --
             end
         else if contains -- "$(path basename -- "$tokens[1]")" nvim cd; and not contains -- -- $tokens; and test -z "$parsed[3]"
