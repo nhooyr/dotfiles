@@ -259,9 +259,7 @@ if executable('rg')
   set grepformat=%f:%l:%c:%m
 endif
 nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
-nnoremap <Leader>q <Cmd>execute empty(filter(getwininfo(),
-				\ 'v:val.tabnr == tabpagenr() && v:val.quickfix && !v:val.loclist'))
-				\ ? 'copen' : 'cclose'<CR>
+nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
 nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
 highlight link qfLineNr Type
