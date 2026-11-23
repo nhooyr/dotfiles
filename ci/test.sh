@@ -8,4 +8,4 @@ if [ "${GITHUB_ACTIONS-}" ]; then
 fi
 
 cargo test --manifest-path fish/fzfpaths/Cargo.toml --locked
-python3 fish/github-tests/run.py "$@"
+perl fish/github-tests/run.pl "$@"
