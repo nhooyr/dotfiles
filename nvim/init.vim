@@ -254,10 +254,10 @@ command Vidir call s:vidir()
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
-execute 'luafile' fnameescape(s:config_dir . '/snippets.lua')
+execute 'luafile' fnameescape(s:config_dir . '/snip.lua')
 
 function! s:is_config_file(path) abort
-	return index([resolve($MYVIMRC), s:config_dir . '/snippets.lua'], resolve(a:path)) >= 0
+	return index([resolve($MYVIMRC), s:config_dir . '/snip.lua'], resolve(a:path)) >= 0
 endfunction
 
 " For BufReadPost restore_cursor.
