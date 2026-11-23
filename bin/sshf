@@ -33,7 +33,7 @@ The link uses the actual local SRC_PORT, including when it was selected
 automatically. No HTTP request is made to detect the protocol.
 
 SSH authentication is followed by a five-second forwarding setup deadline.
-Ctrl-C closes the tunnel and disables the SOCKS proxy, if enabled.
+Ctrl-C closes the tunnel and restores the previous SOCKS proxy settings.
 '
 }
 
@@ -76,18 +76,99 @@ print $listener->sockport, "\n";
 	printf '%s\n' "$ports"
 }
 
+proxy_settings() {
+	# Keep native property-list values intact, including authentication settings.
+	# Changing the preferences directly leaves existing Keychain credentials alone.
+	osascript -l JavaScript - "$@" <<'JXA'
+ObjC.import('Foundation');
+ObjC.import('SystemConfiguration');
+
+function run(argv) {
+    var action = argv[0], filename = $(argv[2]);
+    var path = $('/NetworkServices/' + argv[1] + '/Proxies');
+    function check(ok, message) {
+        if (!ok) throw new Error(message + ' (SystemConfiguration ' + $.SCError() + ')');
+    }
+    function socksKeys(dictionary) {
+        return ObjC.deepUnwrap(dictionary.allKeys).filter(function (key) {
+            return key.indexOf('SOCKS') === 0;
+        });
+    }
+    var preferences = $.SCPreferencesCreate(null, $('sshf'), null);
+    check(preferences, 'Could not open network preferences');
+    check($.SCPreferencesLock(preferences, true), 'Could not lock network preferences');
+    try {
+        var original = ObjC.castRefToObject($.SCPreferencesPathGetValue(preferences, path));
+        if (original.isNil()) original = null;
+        if (action === 'save') {
+            var snapshot = $.NSMutableDictionary.dictionary;
+            snapshot.setObjectForKey($(original !== null), $('existed'));
+            snapshot.setObjectForKey(original || $.NSDictionary.dictionary, $('proxies'));
+            check(snapshot.writeToFileAtomically(filename, true), 'Could not save SOCKS settings');
+            return;
+        }
+        var updated = original ? original.mutableCopy : $.NSMutableDictionary.dictionary;
+        socksKeys(updated).forEach(function (key) { updated.removeObjectForKey($(key)); });
+        if (action === 'install') {
+            updated.setObjectForKey($(1), $('SOCKSEnable'));
+            updated.setObjectForKey($('localhost'), $('SOCKSProxy'));
+            updated.setObjectForKey($(1080), $('SOCKSPort'));
+        } else if (action === 'restore') {
+            var saved = $.NSDictionary.dictionaryWithContentsOfFile(filename);
+            check(!saved.isNil(), 'Could not read saved SOCKS settings');
+            var proxies = saved.objectForKey($('proxies'));
+            socksKeys(proxies).forEach(function (key) {
+                updated.setObjectForKey(proxies.objectForKey($(key)), $(key));
+            });
+            if (Number(updated.count) === 0 && !saved.objectForKey($('existed')).boolValue) {
+                if (!original) return;
+                check($.SCPreferencesPathRemoveValue(preferences, path), 'Could not restore absent proxy settings');
+            } else {
+                check($.SCPreferencesPathSetValue(preferences, path, updated), 'Could not restore SOCKS settings');
+            }
+        } else {
+            throw new Error('Unknown proxy settings action');
+        }
+        if (action === 'install') {
+            check($.SCPreferencesPathSetValue(preferences, path, updated), 'Could not configure SOCKS proxy');
+        }
+        check($.SCPreferencesCommitChanges(preferences), 'Could not commit SOCKS settings');
+        check($.SCPreferencesApplyChanges(preferences), 'Could not apply SOCKS settings');
+    } finally {
+        $.SCPreferencesUnlock(preferences);
+    }
+}
+JXA
+}
+
 proxy() {
 	service="$1"
+	service_id="$2"
+	proxy_snapshot="$3"
+	umask 077
 	IFS= read -r forward_command
 	cleanup_proxy() {
+		result=$?
 		trap '' HUP INT TERM
-		networksetup -setsocksfirewallproxystate "$service" off
+		if [ -f "$proxy_snapshot" ]; then
+			if proxy_settings restore "$service_id" "$proxy_snapshot"; then :; else
+				printf '%s: could not restore the saved SOCKS proxy settings for %s\n' "$name" "$service" >&2
+				: >"$proxy_snapshot.failed"
+				printf '%s: private settings snapshot retained at %s\n' "$name" "$proxy_snapshot" >&2
+				[ "$result" -ne 0 ] || result=1
+			fi
+		fi
+		exit "$result"
 	}
 	trap cleanup_proxy EXIT
 	trap 'exit 129' HUP
 	trap 'exit 0' INT
 	trap 'exit 143' TERM
-	networksetup -setsocksfirewallproxy "$service" localhost 1080 off
+	current_settings="$(networksetup -getsocksfirewallproxy "$service")"
+	proxy_settings save "$service_id" "$proxy_snapshot"
+	printf '%s: existing SOCKS proxy settings for %s:\n%s\n' "$name" "$service" "$current_settings" >&2
+	printf '%s: saved these SOCKS settings and will restore them when the SSH connection ends.\n' "$name" >&2
+	proxy_settings install "$service_id" "$proxy_snapshot"
 	printf '%s\n' "$forward_command"
 	while IFS= read -r line; do :; done
 }
@@ -201,7 +282,7 @@ cleanup() {
 	exec 3>&-
 	if [ -n "$proxy_pid" ]; then wait "$proxy_pid" || :; fi
 	if [ -n "$master" ]; then wait "$master" 2>/dev/null || :; fi
-	rm -rf "$directory"
+	if [ ! -f "$directory/proxy.plist.failed" ]; then rm -rf "$directory"; fi
 }
 trap cleanup EXIT
 trap 'exit 129' HUP
@@ -241,7 +322,7 @@ if [ "$direction" = -D ]; then
 	mkfifo "$directory/proxy"
 	exec 3<>"$directory/proxy"
 	(
-		if sudo -n "$0" --proxy "$service"; then exit 0; else
+		if sudo -n "$0" --proxy "$service" "$service_id" "$directory/proxy.plist"; then exit 0; else
 			result=$?
 			kill "$master" 2>/dev/null || :
 			exit "$result"
