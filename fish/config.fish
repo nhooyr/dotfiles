@@ -267,8 +267,8 @@ alias fzf='TERM_PROGRAM=Apple_Terminal command fzf'
 # Use the monochrome base with ANSI input colors enabled.
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
-    --color=bw --color --color=query:regular,info:italic,hl:underline,fg+:regular:reverse:strip,\
-hl+:reverse:underline:strip,pointer:magenta:bold"
+    --color=bw --color \
+    --color=query:regular,info:italic,fg+:regular:reverse:strip,hl+:reverse:strip,pointer:magenta"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
 for mode in default insert
