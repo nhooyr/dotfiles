@@ -140,10 +140,13 @@ abbrali grf _grep -F
 abbrali grer _grep -ER
 abbrali grfr _grep -FR
 function __grep_smart_case
-    argparse --move-unknown e/regexp=+ -- $argv; or return
+    # Only -E/-F/-G/-R and -e/--regexp are understood; unknown options opt out of smart-case.
+    argparse --ignore-unknown E F G R e/regexp=+ -- $argv 2>/dev/null; or return 0
+    string match -qr '^-.+' -- $argv; and return 0
     set -l patterns $_flag_regexp
     set -q patterns[1]; or set patterns $argv[1]
-    set -q patterns[1]; and string match -qr '\p{Uppercase}' -- $patterns; and return
+    set -q patterns[1]; or return 0
+    string match -qr '\p{Uppercase}' -- $patterns; and return 0
     printf '%s\n' -i
 end
 function _grep --wraps 'grep --color -nI'
