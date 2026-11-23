@@ -35,6 +35,7 @@ abbrali v nvim
 abbrali vi nvim
 abbrali vim nvim
 abbrali vid vidir
+abbrali vid. vidir .
 function vidir
     if set -q argv[1]
         cdc "$argv[1]" vidir $argv[2..]
