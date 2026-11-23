@@ -7,6 +7,7 @@ dotln ./bin ~/.local/bin/dotfiles
 dotln ./git/gitconfig ~/.gitconfig
 dotln ./git/gitignore ~/.config/git/ignore
 dotln ./nvim/init.vim ~/.config/nvim/init.vim
+dotln ./nvim/lua ~/.config/nvim/lua
 dotln ./nvim/vimrc ~/.vimrc
 dotln ./less/lesskey ~/.config/lesskey
 dotln ./bat ~/.config/bat
