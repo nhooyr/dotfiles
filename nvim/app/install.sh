@@ -37,7 +37,7 @@ source_hash=$(shasum -a 256 ./install.sh ./nvim.applescript ./icon.png)
 lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 if [ "$source_hash" = "$(cat "$destination/Contents/Resources/dotfiles.sha256" 2>/dev/null)" ] &&
 	codesign --verify --strict "$destination" >/dev/null 2>&1; then
-	printf 'dotfiles: nvim: app/%s: Already installed %s\n' "${0##*/}" "$destination" | hpath
+	printf 'dotfiles: nvim/app: %s: Already installed %s\n' "${0##*/}" "$destination" | hpath
 else
 	mkdir -p "$applications_dir"
 	staging_dir=$(mktemp -d "$applications_dir/.nvim.XXXXXX")
@@ -91,7 +91,7 @@ else
 		mv "$destination" "$staging_dir/previous.app"
 	fi
 	mv "$app" "$destination"
-	printf 'dotfiles: nvim: app/%s: Installed %s\n' "${0##*/}" "$destination" | hpath
+	printf 'dotfiles: nvim/app: %s: Installed %s\n' "${0##*/}" "$destination" | hpath
 fi
 "$lsregister" -f "$destination"
 
@@ -112,5 +112,5 @@ if [ "$set_defaults" = true ]; then
 	/usr/bin/killall -u "$(id -un)" lsd 2>/dev/null || :
 	"$lsregister" -f "$destination"
 	osascript -l JavaScript ./set-defaults.js --verify "$@"
-	printf 'dotfiles: nvim: app/%s: Registered nvim.app as the default for text and code types.\n' "${0##*/}"
+	printf 'dotfiles: nvim/app: %s: Registered nvim.app as the default for text and code types.\n' "${0##*/}"
 fi
