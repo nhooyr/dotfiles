@@ -312,6 +312,7 @@ nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
 nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
 nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
+let &quickfixtextfunc = "v:lua.require'qf'.fmt"
 highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=3
 
@@ -342,7 +343,6 @@ augroup aqsnow
 	autocmd CmdlineEnter : call <SID>update_grepprg()
 	autocmd FocusGained * call <SID>update_grepprg()
 	autocmd QuickFixCmdPost grep ++nested copen
-	autocmd BufWinEnter quickfix lua require('qf').fmt()
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
 			\ require('snips').expand() end
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif

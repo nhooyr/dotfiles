@@ -1,25 +1,41 @@
 local fn = vim.fn
+local kinds = { e = 'error', w = 'warning', i = 'info', n = 'note' }
 
-local function fmt()
-	local lines, names = fn.getline(1, '$'), {}
-	local items = fn.getwininfo(fn.win_getid())[1].loclist == 1 and fn.getloclist(0) or fn.getqflist()
-	for i, text in ipairs(lines) do
+local function range(first, last)
+	return last > 0 and last ~= first and first .. '-' .. last or tostring(first)
+end
+
+local function fmt(info)
+	local request = { id = info.id, items = 0 }
+	local items = (info.quickfix == 1 and fn.getqflist(request)
+		or fn.getloclist(info.winid, request)).items
+	local names, help_names, lines = {}, {}, {}
+	for i = info.start_idx, info.end_idx do
 		local item = items[i]
-		local name = item.module
-		if name == '' and item.bufnr ~= 0 then
-			local key = item.bufnr * 2 + (item.type == '\1' and 1 or 0)
-			names[key] = names[key] or fn.fnamemodify(fn.bufname(item.bufnr), item.type == '\1' and ':t' or ':.')
-			name = names[key]
-		end
-		local boundary = #name + 1
-		if text:sub(1, boundary) == name .. '|' then
-			lines[i] = text:sub(1, boundary) .. text:sub(boundary + 1):gsub('^([%d-]+) col ', '%1:')
+		if item.lnum <= 0 or item.col <= 0 then
+			lines[#lines + 1] = ''
+		else
+			local help = item.type == '\1'
+			local cache = help and help_names or names
+			local name = item.module ~= '' and item.module or cache[item.bufnr]
+			if not name then
+				name = item.bufnr == 0 and '' or fn.bufname(item.bufnr)
+				if help then name = fn.fnamemodify(name, ':t')
+				elseif name:sub(1, 1) == '/' then name = fn.fnamemodify(name, ':.') end
+				cache[item.bufnr] = name
+			end
+			local position = range(item.lnum, item.end_lnum) .. ':' .. range(item.col, item.end_col)
+			local kind = help and '' or (kinds[item.type:lower()] or item.type)
+			if item.nr > 0 then
+				if kind == '' and not help then kind = 'error' end
+				kind = kind .. (' %3d'):format(item.nr)
+			end
+			if kind ~= '' then position = position .. ' ' .. kind end
+			local text = item.text:gsub('^[ \t]*', ''):gsub('\n%s*', ' ')
+			lines[#lines + 1] = name .. '|' .. position .. '| ' .. text
 		end
 	end
-	vim.bo.modifiable = true
-	fn.setline(1, lines)
-	vim.bo.modifiable = false
-	vim.bo.modified = false
+	return lines
 end
 
 return { fmt = fmt }
