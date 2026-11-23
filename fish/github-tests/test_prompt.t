@@ -75,6 +75,38 @@ set -q __aqsnow_vcs_pending; and exit 2
 FISH
 }
 
+sub fake_dotfiles {
+    my ($self, $prompt) = @_;
+    my $fixture = "$self->{root}/dotfiles";
+    make_path("$fixture/fish");
+    write_file("$fixture/fish/prompt.fish", $prompt);
+    symlink "$dotfiles/fish/git_prompt_worker.pl", "$fixture/fish/git_prompt_worker.pl"
+        or die "link prompt supervisor: $!";
+    $self->{env}{TEST_DOTFILES} = $fixture;
+    return $fixture;
+}
+
+sub wait_for_marker {
+    my ($marker) = @_;
+    return <<"FISH";
+for i in \$(seq 1 150)
+    test -f "\$TEST_ROOT/$marker"; and break
+    command sleep 0.02
+end
+test -f "\$TEST_ROOT/$marker"; or exit 3
+FISH
+}
+
+sub wait_for_retired_process {
+    return <<'FISH';
+for i in $(seq 1 150)
+    command kill -0 "$retired_process" 2>/dev/null; or break
+    command sleep 0.02
+end
+command kill -0 "$retired_process" 2>/dev/null; and exit 4
+FISH
+}
+
 sub cached_first_render {
     my ($self) = @_;
     my $cached = " (\e[4mmain\e[0m +*)";
@@ -258,6 +290,160 @@ FISH
         'same-path replacement ultimately caches the new repository prompt');
 }
 
+sub resourcing_keeps_generations_monotonic {
+    my ($self) = @_;
+    write_file("$self->{repo}/.fish_git_prompt", ' (last-known)');
+    my $result = shell($self, "aqsnow_vcs_prompt_restore\nset -g __aqsnow_vcs_pending 1\n"
+        . stage_completion(' (obsolete-before-source)', '0') . <<'FISH');
+aqsnow_vcs_prompt_preexec
+set -l invalidated_generation "$__aqsnow_vcs_generation"
+source "$TEST_SOURCE"
+test "$__aqsnow_vcs_generation" -gt "$invalidated_generation"
+printf 'advanced=%s\n' "$status"
+aqsnow_vcs_prompt_done
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+FISH
+    is(output($result), "advanced=0\n (last-known)\n",
+        're-sourcing advances the generation and cannot revive a pre-command result');
+    is(read_file("$self->{repo}/.fish_git_prompt"), ' (last-known)',
+        're-sourcing does not persist an obsolete result');
+}
+
+sub result_requires_ready_status {
+    my ($self) = @_;
+    write_file("$self->{repo}/.fish_git_prompt", ' (last-known)');
+    my $result = shell($self, "aqsnow_vcs_prompt_restore\nset -g __aqsnow_vcs_pending 1\n"
+        . stage_completion(' (complete-result)', '0') . <<'FISH');
+command rm -- "$__aqsnow_vcs_file.status"
+aqsnow_vcs_prompt_done
+set -q __aqsnow_vcs_pending
+printf 'pending=%s\n%s\n' "$status" "$AQSNOW_FISH_GIT_PROMPT"
+printf '0\n' > "$__aqsnow_vcs_file.status"
+aqsnow_vcs_prompt_done
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+FISH
+    is(output($result), "pending=0\n (last-known)\n (complete-result)\n",
+        'a premature signal retains the request until the status marker is ready');
+    is(read_file("$self->{repo}/.fish_git_prompt"), ' (complete-result)',
+        'the completed request is persisted after its status marker arrives');
+}
+
+sub dead_supervisor_is_recovered {
+    my ($self) = @_;
+    write_file("$self->{repo}/.fish_git_prompt", ' (last-known)');
+    fake_dotfiles($self, <<'FISH');
+function aqsnow_vcs_prompt
+    if not test -e "$TEST_ROOT/first-worker"
+        printf started > "$TEST_ROOT/first-worker"
+        command sleep 20
+    end
+    printf ' (recovered)'
+end
+FISH
+    my $result = shell($self, "aqsnow_vcs_prompt_update\n" . wait_for_marker('first-worker') . <<'FISH' . wait_for_retired_process() . <<'FISH' . wait_for_refresh() . <<'FISH');
+set -l retired_process "$__aqsnow_vcs_process"
+command kill -KILL -- "-$retired_process"
+FISH
+aqsnow_vcs_prompt_update
+test "$__aqsnow_vcs_process" != "$retired_process"
+printf 'restarted=%s\n' "$status"
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+exit 0
+FISH
+    is(output($result), "restarted=0\n (recovered)\n",
+        'a dead supervisor is replaced on the next update without losing cached text');
+    is(read_file("$self->{repo}/.fish_git_prompt"), ' (recovered)', 'recovered worker updates disk cache');
+}
+
+sub missing_control_is_recovered {
+    my ($self) = @_;
+    write_file("$self->{repo}/.fish_git_prompt", ' (last-known)');
+    fake_dotfiles($self, <<'FISH');
+function aqsnow_vcs_prompt
+    if not test -e "$TEST_ROOT/first-worker"
+        printf started > "$TEST_ROOT/first-worker"
+        command sleep 20
+    end
+    printf ' (recovered-control)'
+end
+FISH
+    my $result = shell($self, "aqsnow_vcs_prompt_update\n" . wait_for_marker('first-worker') . <<'FISH' . wait_for_refresh() . <<'FISH' . wait_for_retired_process() . "exit 0\n");
+set -l retired_process "$__aqsnow_vcs_process"
+command rm -- "$__aqsnow_rendezvous_dir/vcs-alive"
+aqsnow_vcs_prompt_update
+test "$__aqsnow_vcs_process" != "$retired_process"
+printf 'restarted=%s\n' "$status"
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+FISH
+    is(output($result), "restarted=0\n (recovered-control)\n",
+        'missing ownership control immediately permits a replacement and retires the old supervisor');
+    is(read_file("$self->{repo}/.fish_git_prompt"), ' (recovered-control)', 'replacement result reaches disk cache');
+}
+
+sub obsolete_worker_does_not_block_new_directory {
+    my ($self) = @_;
+    write_file("$self->{repo}/.fish_git_prompt", ' (main-cached)');
+    write_file("$self->{other}/.fish_git_prompt", ' (other-cached)');
+    fake_dotfiles($self, <<'FISH');
+function aqsnow_vcs_prompt
+    if test "$PWD" = "$TEST_REPO"
+        printf started > "$TEST_ROOT/old-worker"
+        command sleep 20
+        printf ' (obsolete-main)'
+    else
+        printf ' (other-fresh)'
+    end
+end
+FISH
+    my $result = shell($self, "aqsnow_vcs_prompt_update\n" . wait_for_marker('old-worker') . <<'FISH' . wait_for_refresh() . <<'FISH' . wait_for_retired_process() . "exit 0\n");
+set -l retired_process "$__aqsnow_vcs_process"
+aqsnow_vcs_prompt_preexec
+cd -- "$TEST_OTHER"
+aqsnow_vcs_prompt_invalidate
+aqsnow_vcs_prompt_update
+test "$__aqsnow_vcs_process" != "$retired_process"
+printf 'new-worker=%s\n%s\n' "$status" "$AQSNOW_FISH_GIT_PROMPT"
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+FISH
+    is(output($result), "new-worker=0\n (other-cached)\n (other-fresh)\n",
+        'a new directory starts its own refresh while the obsolete slow worker is retired');
+    is(read_file("$self->{repo}/.fish_git_prompt"), ' (main-cached)', 'obsolete repository cache is untouched');
+    is(read_file("$self->{other}/.fish_git_prompt"), ' (other-fresh)', 'current repository gets the fresh result');
+}
+
+sub external_repository_replacement_is_rejected {
+    my ($self) = @_;
+    write_file("$self->{repo}/.fish_git_prompt", ' (last-known)');
+    fake_dotfiles($self, <<'FISH');
+function aqsnow_vcs_prompt
+    set -l branch "$(command git symbolic-ref --short HEAD)"
+    printf started > "$TEST_ROOT/identity-worker"
+    while not test -e "$TEST_ROOT/release-worker"
+        command sleep 0.02
+    end
+    printf ' (%s)' "$branch"
+end
+FISH
+    my $result = shell($self, "aqsnow_vcs_prompt_update\n" . wait_for_marker('identity-worker') . <<'FISH' . wait_for_refresh() . <<'FISH' . wait_for_refresh() . <<'FISH');
+# No preexec/postexec event: model another process replacing this repository.
+command mv .git "$TEST_ROOT/original.git"
+command git init --quiet --initial-branch replacement .
+printf release > "$TEST_ROOT/release-worker"
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
+aqsnow_vcs_prompt_update
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+exit 0
+FISH
+    is(output($result), " (last-known)\n (last-known)\n (replacement)\n",
+        'an actual worker rejects an old repository identity and retries the replacement');
+    is(read_file("$self->{repo}/.fish_git_prompt"), ' (replacement)', 'only the replacement result is cached');
+}
+
 sub failed_refresh_keeps_display {
     my ($self) = @_;
     write_file("$self->{repo}/.fish_git_prompt", ' (last-known)');
@@ -327,15 +513,13 @@ SHELL
 sub real_async_refresh {
     my ($self) = @_;
     write_file("$self->{repo}/.fish_git_prompt", ' (cached)');
-    my $fixture = "$self->{root}/dotfiles";
-    make_path("$fixture/fish");
-    write_file("$fixture/fish/prompt.fish", <<'FISH');
+    fake_dotfiles($self, <<'FISH');
 function aqsnow_vcs_prompt
+    test "$GIT_OPTIONAL_LOCKS" = 0; or return 1
     command sleep 0.2
     printf %s ' (async-refreshed)'
 end
 FISH
-    $self->{env}{TEST_DOTFILES} = $fixture;
     my $result = shell($self, <<'FISH');
 aqsnow_vcs_prompt_update
 printf '%s\n' "$__aqsnow_vcs_prompt"
@@ -347,9 +531,9 @@ printf '%s\n%s\n' "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"
 set -q __aqsnow_vcs_pending; and exit 2
 exit 0
 FISH
-    is(output($result), " (cached)\n (async-refreshed)\n (async-refreshed)\n", 'the controller retains the cache until the real worker completes');
+    is(output($result), " (cached)\n (async-refreshed)\n (async-refreshed)\n", 'the supervisor retains the cache until the real worker completes');
     is(read_file("$self->{repo}/.fish_git_prompt"), ' (async-refreshed)', 'real worker completion persists the result');
-    ok(!-e "$self->{root}/rendezvous/vcs-alive", 'Fish exit cleans controller liveness');
+    ok(!-e "$self->{root}/rendezvous/vcs-alive", 'Fish exit cleans supervisor liveness');
 }
 
 sub real_git_refresh {
@@ -390,6 +574,12 @@ run_cases({
     nested_repository_during_refresh => \&nested_repository_during_refresh,
     removed_repository_during_refresh => \&removed_repository_during_refresh,
     replaced_repository_during_foreground_command => \&replaced_repository_during_foreground_command,
+    resourcing_keeps_generations_monotonic => \&resourcing_keeps_generations_monotonic,
+    result_requires_ready_status => \&result_requires_ready_status,
+    dead_supervisor_is_recovered => \&dead_supervisor_is_recovered,
+    missing_control_is_recovered => \&missing_control_is_recovered,
+    obsolete_worker_does_not_block_new_directory => \&obsolete_worker_does_not_block_new_directory,
+    external_repository_replacement_is_rejected => \&external_repository_replacement_is_rejected,
     failed_refresh_keeps_display => \&failed_refresh_keeps_display,
     successful_refresh_is_atomic => \&successful_refresh_is_atomic,
     unchanged_cache_is_not_rewritten => \&unchanged_cache_is_not_rewritten,

@@ -1,6 +1,11 @@
 set -g __aqsnow_vcs_directory ''
 set -g __aqsnow_vcs_dirty 1
-set -g __aqsnow_vcs_generation 0
+if set -q __aqsnow_vcs_generation
+    set -g __aqsnow_vcs_generation "$(math "$__aqsnow_vcs_generation + 1")"
+else
+    set -g __aqsnow_vcs_generation 0
+end
+set -q __aqsnow_vcs_serial; or set -g __aqsnow_vcs_serial 0
 
 function aqsnow_vcs_prompt_display --argument-names value
     set -g __aqsnow_vcs_prompt "$value"
@@ -22,10 +27,14 @@ function aqsnow_vcs_prompt_root --argument-names directory
 end
 
 function aqsnow_vcs_prompt_restore
+    if test "$__aqsnow_vcs_directory" = "$PWD"; and test "$__aqsnow_vcs_checked_generation" = "$__aqsnow_vcs_generation"
+        return
+    end
     set -l previous_directory "$__aqsnow_vcs_directory"
     set -l previous_root "$__aqsnow_vcs_root"
     set -g __aqsnow_vcs_directory "$PWD"
     set -g __aqsnow_vcs_root "$(aqsnow_vcs_prompt_root "$PWD")"
+    set -g __aqsnow_vcs_checked_generation "$__aqsnow_vcs_generation"
     if test "$previous_directory" = "$PWD"; and test "$previous_root" = "$__aqsnow_vcs_root"
         return
     end
@@ -82,6 +91,18 @@ function aqsnow_vcs_prompt_preexec --on-event fish_preexec
     # Background completions must not repaint over a foreground program.
     set -g __aqsnow_prompt_active 0
     set -g __aqsnow_vcs_generation "$(math "$__aqsnow_vcs_generation + 1")"
+    if set -q __aqsnow_vcs_pending; and set -q __aqsnow_vcs_process
+        aqsnow_vcs_prompt_cancel
+    end
+end
+
+function aqsnow_vcs_prompt_cancel
+    aqsnow_vcs_prompt_cleanup
+    if set -q __aqsnow_vcs_file
+        command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
+    end
+    set -e __aqsnow_vcs_pending __aqsnow_vcs_process __aqsnow_vcs_token
+    set -g __aqsnow_vcs_dirty 1
 end
 
 function aqsnow_vcs_prompt_cleanup --on-event fish_exit
@@ -92,8 +113,9 @@ end
 
 function aqsnow_vcs_prompt_done --on-signal USR1
     set -q __aqsnow_vcs_pending; or return
-    test -f "$__aqsnow_vcs_file"; or return
-    set -e __aqsnow_vcs_pending
+    test -f "$__aqsnow_vcs_file.status"; or return
+    set -l previous "$__aqsnow_vcs_prompt"
+    set -e __aqsnow_vcs_pending __aqsnow_vcs_process
     set -l code
     if test -r "$__aqsnow_vcs_file.status"
         read code <"$__aqsnow_vcs_file.status"
@@ -102,8 +124,10 @@ function aqsnow_vcs_prompt_done --on-signal USR1
     set -l current_root "$(aqsnow_vcs_prompt_root "$__aqsnow_vcs_request_directory")"
     if test "$__aqsnow_vcs_request_generation" != "$__aqsnow_vcs_generation"
         or test "$current_root" != "$__aqsnow_vcs_request_root"
+        or test "$code" = 75
         # A foreground command or new repository can invalidate even the cache destination.
         set -g __aqsnow_vcs_dirty 1
+        set -e __aqsnow_vcs_checked_generation
     else if test "$code" = 0; and test -n "$value"
         if test -n "$__aqsnow_vcs_request_root"; and test -w "$__aqsnow_vcs_request_root"
             set -l cache "$__aqsnow_vcs_request_root/.fish_git_prompt"
@@ -134,61 +158,60 @@ function aqsnow_vcs_prompt_done --on-signal USR1
     command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
     if status is-interactive; and test "$__aqsnow_prompt_active" = 1
         aqsnow_vcs_prompt_update
-        commandline -f repaint
+        if test "$previous" != "$__aqsnow_vcs_prompt"
+            commandline -f repaint
+        end
     end
 end
 
 function aqsnow_vcs_prompt_update
     aqsnow_vcs_prompt_restore
+    if set -q __aqsnow_vcs_pending
+        if not set -q __aqsnow_vcs_process
+            return
+        end
+        set -l owner
+        if test -r "$__aqsnow_rendezvous_dir/vcs-alive"
+            read owner <"$__aqsnow_rendezvous_dir/vcs-alive"
+        end
+        if test "$__aqsnow_vcs_request_generation" != "$__aqsnow_vcs_generation"
+            or test "$__aqsnow_vcs_request_directory" != "$PWD"
+            or test "$owner" != "$__aqsnow_vcs_token"
+            aqsnow_vcs_prompt_cancel
+        else if not command kill -0 "$__aqsnow_vcs_process" 2>/dev/null
+            if test -f "$__aqsnow_vcs_file.status"
+                aqsnow_vcs_prompt_done
+                return
+            end
+            aqsnow_vcs_prompt_cancel
+        else
+            return
+        end
+    end
     set -q __aqsnow_vcs_dirty; or return
-    set -q __aqsnow_vcs_pending; and return
     aqsnow_init_rendezvous; or return
-    printf '' >"$__aqsnow_rendezvous_dir/vcs-alive"; or return
-    set -e __aqsnow_vcs_dirty
+    set -g __aqsnow_vcs_serial "$(math "$__aqsnow_vcs_serial + 1")"
+    set -g __aqsnow_vcs_token "$fish_pid-$__aqsnow_vcs_serial"
+    set -g __aqsnow_vcs_file "$__aqsnow_rendezvous_dir/vcs-prompt-$__aqsnow_vcs_token"
     set -g __aqsnow_vcs_pending 1
     set -g __aqsnow_vcs_request_directory "$PWD"
     set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"
     set -g __aqsnow_vcs_request_generation "$__aqsnow_vcs_generation"
+    printf '%s\n' "$__aqsnow_vcs_token" >"$__aqsnow_rendezvous_dir/vcs-alive"; or begin
+        aqsnow_vcs_prompt_cancel
+        return 1
+    end
+    set -e __aqsnow_vcs_dirty
     set -l interpreter "$(status fish-path)"
-    set -l controller '
-        set -l result "$argv[2]/vcs-prompt-$argv[5]"
-        set -l control "$argv[2]/vcs-alive"
-        printf "" > "$result"; or exit
-        while test -f "$control"; and command kill -0 "$argv[3]" 2>/dev/null
-            read -l owner < "$control"
-            test "$owner" = "$argv[5]"; and break
-            command sleep 0.01
-        end
-        test -f "$control"; and command kill -0 "$argv[3]" 2>/dev/null; or exit
-        set -l interpreter "$(status fish-path)"
-        command "$interpreter" --no-config -c "$argv[4]" "$argv[1]" "$result.status" > "$result" &
-        set -l worker "$last_pid"
-        while test -f "$control"; and command kill -0 "$argv[3]" 2>/dev/null; and jobs --query "$worker"
-            command sleep 0.05
-        end
-        if test -f "$control"; and command kill -0 "$argv[3]" 2>/dev/null
-            command kill -USR1 "$argv[3]"
-        end
-        command kill -TERM -- "-$fish_pid"
-    '
-    # Prompt evaluation suppresses job control, so isolate the controller in a launcher.
-    command "$interpreter" --no-config -c '
-        status job-control full
-        command "$argv[1]" --no-config -c "$argv[2]" "$argv[3]" "$argv[4]" "$argv[5]" "$argv[6]" "$fish_pid" &
-        wait "$last_pid"
-    ' "$interpreter" "$controller" "$dotfiles/fish/prompt.fish" "$__aqsnow_rendezvous_dir" "$fish_pid" \
-        'source "$argv[1]"; and aqsnow_vcs_prompt; set -l code "$status"; printf "%s\n" "$code" > "$argv[2]"' >/dev/null 2>&1 &
+    command perl "$dotfiles/fish/git_prompt_worker.pl" "$interpreter" "$dotfiles/fish/prompt.fish" \
+        "$__aqsnow_rendezvous_dir" "$__aqsnow_vcs_token" "$fish_pid" "$__aqsnow_vcs_root" >/dev/null 2>&1 &
     set -l code "$status"
     if test "$code" -ne 0
-        set -e __aqsnow_vcs_pending
+        aqsnow_vcs_prompt_cancel
         return "$code"
     end
-    set -l worker "$last_pid"
-    set -g __aqsnow_vcs_file "$__aqsnow_rendezvous_dir/vcs-prompt-$worker"
-    disown "$worker"
-    printf '%s\n' "$worker" >"$__aqsnow_rendezvous_dir/vcs-alive"; or begin
-        set -e __aqsnow_vcs_pending
-        aqsnow_vcs_prompt_cleanup
-        return 1
+    if set -q __aqsnow_vcs_pending
+        set -g __aqsnow_vcs_process "$last_pid"
+        disown "$__aqsnow_vcs_process"
     end
 end
