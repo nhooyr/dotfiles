@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+exec rg --vimgrep -LS --no-heading --hidden -g '!.git' --no-require-git "$@"

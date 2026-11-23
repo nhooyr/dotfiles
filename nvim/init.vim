@@ -254,8 +254,8 @@ endfunction
 command Vidir call s:vidir()
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
-if executable('rg')
-  let &grepprg="rg --vimgrep -LS --no-heading --hidden -g '!.git' --no-require-git"
+if executable('vgrep')
+  let &grepprg="vgrep"
   set grepformat=%f:%l:%c:%m
 endif
 nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
