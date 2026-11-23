@@ -44,6 +44,7 @@ abbrali grt git reset
 abbrali grtp git reset -p
 abbrali grth git reset --hard
 abbrali gdc git diff --cached
+abbr -a --command git diffc diff --cached
 abbrali gdcs git diff --cached --stat
 abbrali grm git rm
 abbrali grmr git rm -r
@@ -122,11 +123,6 @@ function scd
     end
     cd -- "$super_root"
 end
-function gg --wraps 'git grep -IE --recurse-submodules'
-    set -l ignore_case $(__grep_smart_case $argv); or return
-    git grep -IE --recurse-submodules $ignore_case $argv
-end
-abbrali ggf gg -F
 abbrali app git apply
 function papp --wraps 'git apply' --description 'git apply from clipboard'
     pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
