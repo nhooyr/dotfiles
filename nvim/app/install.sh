@@ -24,7 +24,7 @@ if [ "$(uname -s)" != Darwin ]; then
 	exit 1
 fi
 : "${HOME:?HOME must be set}"
-CDPATH='' cd -P "$(dirname "$0")"
+CDPATH='' cd -P -- "$(dirname "$0")"
 PATH="$PWD/../../bin:$PATH"
 if grep -qFx 'version https://git-lfs.github.com/spec/v1' ./icon.png; then
 	printf '%s: Run git lfs pull to download icon.png.\n' "${0##*/}" >&2
@@ -91,9 +91,9 @@ else
 		mv "$destination" "$staging_dir/previous.app"
 	fi
 	mv "$app" "$destination"
-	"$lsregister" -f "$destination"
 	printf 'dotfiles: nvim: app/%s: Installed %s\n' "${0##*/}" "$destination" | hpath
 fi
+"$lsregister" -f "$destination"
 
 if [ "$set_defaults" = true ]; then
 	set -- public.text public.plain-text public.source-code \

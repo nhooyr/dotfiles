@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-cd "$(dirname "$0")/.."
+cd -- "$(dirname "$0")/.."
 
 ./ci/fmt.sh
 ./ci/lint.sh

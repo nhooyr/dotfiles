@@ -81,7 +81,7 @@ function fzf_path_widget --argument-names widget
             if string match -q -- '$CDPATH/*' "$target"
                 set -l name $(string split --max 1 -- '$CDPATH/' "$target")[2]
                 set -l selected "$(string escape -n -- "$name")"
-                if test -d "$name"; or test "$resolve_cdpath" -eq 1
+                if test -e "$name"; or test "$resolve_cdpath" -eq 1
                     set -l path
                     for root in $CDPATH
                         test -d "$root/$name"; or continue
@@ -120,7 +120,7 @@ function fzf_path_widget --argument-names widget
             else if test "$directory" -eq 1; or not string match -q -- './*' "$result[1]"
                 set -p escaped nvim --
             end
-        else if test "$(path basename -- "$tokens[1]")" = nvim; and not contains -- -- $tokens; and test -z "$parsed[3]"
+        else if contains -- "$(path basename -- "$tokens[1]")" nvim cd; and not contains -- -- $tokens; and test -z "$parsed[3]"
             set -p escaped --
         end
         commandline -rt -- "$(string join -- ' ' $parsed[3]$escaped) "

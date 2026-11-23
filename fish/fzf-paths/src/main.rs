@@ -1,14 +1,15 @@
-use ignore::gitignore::Gitignore;
 use ignore::Match;
+use ignore::gitignore::Gitignore;
 use std::collections::HashSet;
 use std::env;
-use std::ffi::{c_int, c_short, OsStr, OsString};
+use std::ffi::{OsStr, OsString, c_int, c_short};
 use std::fs::{self, Metadata};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt, process::CommandExt};
 use std::path::{Component, Path, PathBuf};
 use std::process::{self, Child, ChildStdout, Command, Stdio};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -41,7 +42,7 @@ Selecting multiple directories at command start opens them with nvim --.
 For nvim and other commands, $CDPATH paths become absolute, abbreviated with
 the most specific dirali when available.
 For cd/cdc, $CDPATH choices use the bare name unless it collides with a local
-directory. Collisions are resolved the same way, preferring the first different
+path. Collisions are resolved the same way, preferring the first different
 match in CDPATH order. Local selections stay relative.
 An explicit ./ token disables global and CDPATH searches. Ctrl-T (files) and
 Alt-C (directories) use the parsed local query without ./; only Alt-V (files
@@ -95,7 +96,9 @@ Examples (Fish):
 }
 
 fn usage_error(name: &str) -> ! {
-    eprintln!("usage: {name} [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...");
+    eprintln!(
+        "usage: {name} [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+    );
     process::exit(1);
 }
 
@@ -128,30 +131,35 @@ fn main() {
             args.push(arg);
         }
     }
-    if args.len() != 3 {
+    if args.len() != 3 || !matches!(args[2].to_str(), Some("-f" | "-d" | "-fd")) {
         usage_error(&name);
     }
     args.extend(aliases);
-    if let Err(error) = run(&args, keep_dot, cdpath) {
-        if error.kind() != io::ErrorKind::BrokenPipe {
-            eprintln!("{name}: {error}");
-            process::exit(1);
-        }
+    let result = install_signal_handlers().and_then(|()| run(&args, keep_dot, cdpath));
+    let signal = TERMINATING_SIGNAL.load(Ordering::Relaxed);
+    if signal != 0 {
+        process::exit(128 + signal);
+    }
+    if let Err(error) = result
+        && error.kind() != io::ErrorKind::BrokenPipe
+    {
+        eprintln!("{name}: {error}");
+        process::exit(1);
     }
 }
 
 fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Result<()> {
     let mut seen_envs = HashSet::new();
     let mut env_dirs = Vec::new();
-    for pair in args[3..].chunks_exact(2) {
-        let env = pair[0].as_bytes();
+    for [name, directory] in args[3..].as_chunks::<2>().0 {
+        let env = name.as_bytes();
         if !seen_envs.insert(env) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                format!("duplicate env: {}", pair[0].to_string_lossy()),
+                format!("duplicate env: {}", name.to_string_lossy()),
             ));
         }
-        env_dirs.push((env.to_vec(), pair[1].as_bytes().to_vec()));
+        env_dirs.push((env.to_vec(), directory.as_bytes().to_vec()));
     }
     env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
     let mut picker = Picker {
@@ -184,6 +192,7 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Resul
         drop(scanner);
         let result = (|| {
             loop {
+                check_signal()?;
                 let candidate = match receiver.recv_timeout(Duration::from_millis(50)) {
                     Ok(candidate) => candidate,
                     Err(RecvTimeoutError::Disconnected) => break,
@@ -193,6 +202,7 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Resul
                     Err(RecvTimeoutError::Timeout) => continue,
                 };
                 for candidate in std::iter::once(candidate).chain(receiver.try_iter()) {
+                    check_signal()?;
                     let flush = match candidate {
                         Candidate::Path {
                             path,
@@ -233,6 +243,35 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Resul
     })
 }
 
+static TERMINATING_SIGNAL: AtomicI32 = AtomicI32::new(0);
+
+fn install_signal_handlers() -> io::Result<()> {
+    extern "C" fn record_signal(signal: c_int) {
+        // Only the main thread performs cleanup; the handler must not take locks.
+        TERMINATING_SIGNAL.store(signal, Ordering::Relaxed);
+    }
+    unsafe extern "C" {
+        fn signal(signal: c_int, handler: extern "C" fn(c_int)) -> usize;
+    }
+    const SIGHUP: c_int = 1;
+    const SIGINT: c_int = 2;
+    const SIGTERM: c_int = 15;
+    for signum in [SIGHUP, SIGINT, SIGTERM] {
+        if unsafe { signal(signum, record_signal) } == usize::MAX {
+            return Err(io::Error::last_os_error());
+        }
+    }
+    Ok(())
+}
+
+fn check_signal() -> io::Result<()> {
+    if TERMINATING_SIGNAL.load(Ordering::Relaxed) == 0 {
+        Ok(())
+    } else {
+        Err(io::ErrorKind::Interrupted.into())
+    }
+}
+
 // Check for a closed picker even when a scan has no new paths to write.
 fn output_closed() -> bool {
     #[repr(C)]
@@ -245,7 +284,7 @@ fn output_closed() -> bool {
     type Nfds = usize;
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     type Nfds = u32;
-    extern "C" {
+    unsafe extern "C" {
         fn poll(fds: *mut PollFd, nfds: Nfds, timeout: c_int) -> c_int;
     }
     const POLLOUT: c_short = 4;
@@ -279,7 +318,7 @@ impl GitScans {
 
     fn cancel(&mut self) {
         self.cancelled = true;
-        extern "C" {
+        unsafe extern "C" {
             fn kill(pid: c_int, signal: c_int) -> c_int;
         }
         const SIGKILL: c_int = 9;
@@ -291,8 +330,25 @@ impl GitScans {
     }
 
     fn wait(&mut self) -> io::Result<()> {
-        for mut child in self.children.drain(..) {
-            child.wait()?;
+        let mut failed = None;
+        while !self.children.is_empty() {
+            if let Some(status) = self.children.last_mut().unwrap().try_wait()? {
+                self.children.pop();
+                if !self.cancelled && !status.success() {
+                    failed = Some(status);
+                }
+            } else {
+                // Git may close stdout before exiting; keep signals responsive then too.
+                if !self.cancelled
+                    && (TERMINATING_SIGNAL.load(Ordering::Relaxed) != 0 || output_closed())
+                {
+                    self.cancel();
+                }
+                thread::sleep(Duration::from_millis(1));
+            }
+        }
+        if let Some(status) = failed {
+            return Err(io::Error::other(format!("git ls-files failed: {status}")));
         }
         Ok(())
     }
@@ -322,10 +378,10 @@ fn add_ignore_file(directory: &Path, ignores: &mut Vec<Arc<Gitignore>>) {
 
 fn local_ignores(directory: &Path) -> Vec<Arc<Gitignore>> {
     let mut ignores = Vec::new();
-    if !directory.join(".git").exists() {
-        if let Some(parent) = directory.parent() {
-            ignores = local_ignores(parent);
-        }
+    if !directory.join(".git").exists()
+        && let Some(parent) = directory.parent()
+    {
+        ignores = local_ignores(parent);
     }
     if ignored(directory, true, &ignores) {
         // An explicit search inside an ignored directory starts fresh here.
@@ -337,12 +393,12 @@ fn local_ignores(directory: &Path) -> Vec<Arc<Gitignore>> {
 
 fn working_directory() -> io::Result<PathBuf> {
     let cwd = env::current_dir()?;
-    if let Some(pwd) = env::var_os("PWD").map(PathBuf::from) {
-        if let (Ok(a), Ok(b)) = (pwd.metadata(), cwd.metadata()) {
-            if pwd.is_absolute() && (a.dev(), a.ino()) == (b.dev(), b.ino()) {
-                return Ok(pwd);
-            }
-        }
+    if let Some(pwd) = env::var_os("PWD").map(PathBuf::from)
+        && let (Ok(a), Ok(b)) = (pwd.metadata(), cwd.metadata())
+        && pwd.is_absolute()
+        && (a.dev(), a.ino()) == (b.dev(), b.ino())
+    {
+        return Ok(pwd);
     }
     Ok(cwd)
 }
@@ -382,31 +438,33 @@ fn parallel<T: Send>(
     let ready = Condvar::new();
     thread::scope(|scope| {
         for _ in 0..workers {
-            scope.spawn(|| loop {
-                let job = {
+            scope.spawn(|| {
+                loop {
+                    let job = {
+                        let mut queue = queue.lock().unwrap();
+                        loop {
+                            if queue.error.is_some() {
+                                return;
+                            }
+                            if let Some(job) = queue.jobs.pop() {
+                                queue.active += 1;
+                                break job;
+                            }
+                            if queue.active == 0 {
+                                return;
+                            }
+                            queue = ready.wait(queue).unwrap();
+                        }
+                    };
+                    let result = visit(job);
                     let mut queue = queue.lock().unwrap();
-                    loop {
-                        if queue.error.is_some() {
-                            return;
-                        }
-                        if let Some(job) = queue.jobs.pop() {
-                            queue.active += 1;
-                            break job;
-                        }
-                        if queue.active == 0 {
-                            return;
-                        }
-                        queue = ready.wait(queue).unwrap();
+                    queue.active -= 1;
+                    match result {
+                        Ok(jobs) => queue.jobs.extend(jobs),
+                        Err(error) => queue.error = Some(error),
                     }
-                };
-                let result = visit(job);
-                let mut queue = queue.lock().unwrap();
-                queue.active -= 1;
-                match result {
-                    Ok(jobs) => queue.jobs.extend(jobs),
-                    Err(error) => queue.error = Some(error),
+                    ready.notify_all();
                 }
-                ready.notify_all();
             });
         }
     });
@@ -586,7 +644,10 @@ impl Scanner {
                         continue;
                     }
                     let path = entry.path();
-                    if !path.is_dir() {
+                    if !entry
+                        .file_type()
+                        .is_ok_and(|kind| kind.is_dir() || (kind.is_symlink() && path.is_dir()))
+                    {
                         continue;
                     }
                     let child = relative.join(name);

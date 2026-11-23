@@ -27,7 +27,7 @@ end
 cdpath_add . "$dotfiles" "$notes" "$nhooyr" ~/code ~
 
 function multicd
-    echo cd "$(string repeat -n "$(math "$(string length -- "$argv")" - 1)" ../)"
+    echo cd -- "$(string repeat -n "$(math "$(string length -- "$argv")" - 1)" ../)"
 end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
 function cdc --wraps cd --argument-names dir
@@ -60,7 +60,7 @@ function up
     if string match -qr '^[0-9]{1,4}$' -- "$argv"
         test "$argv" -eq 0; and return 0
         set -l up "$(string repeat --count "$argv" ../)"; or return
-        cd "./$up"
+        cd -- "./$up"
         return
     end
 
@@ -93,7 +93,7 @@ function mcd --wraps 'mkdir -p'
     mkdir -p -- "$argv"; or return
     cd -- "$argv"
 end
-abbrali mcdt 'cd "$(mktemp -d)"'
+abbrali mcdt 'cd -- "$(mktemp -d)"'
 
 # From embedded:functions/cd.fish @ line 5
 # Only change I made is to use cdf and increase MAX_DIR_HIST to 999.

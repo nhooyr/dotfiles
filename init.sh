@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-cd "$(dirname "$0")"
+cd -- "$(dirname "$0")"
 PATH="$PWD/bin:$PATH"
 dotln ./bin ~/.local/bin/dotfiles
 dotln ./git/gitconfig ~/.gitconfig

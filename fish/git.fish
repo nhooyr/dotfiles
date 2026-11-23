@@ -109,7 +109,7 @@ abbrali gclx git clean -fdX
 
 function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
-    cd "$git_root"
+    cd -- "$git_root"
 end
 function scd
     set -l super_root "$(git rev-parse --show-superproject-working-tree)"; or return 1
@@ -118,7 +118,7 @@ function scd
         printf '%s: not inside a submodule\n' "$(status function)" >&2
         return 1
     end
-    cd "$super_root"
+    cd -- "$super_root"
 end
 function gg --wraps 'git grep -IE --recurse-submodules'
     git grep -IE --recurse-submodules $argv

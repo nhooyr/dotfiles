@@ -3,7 +3,7 @@ use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::{self, BufRead, BufReader};
-use std::os::unix::{ffi::OsStringExt, fs::symlink, fs::PermissionsExt, process::CommandExt};
+use std::os::unix::{ffi::OsStringExt, fs::PermissionsExt, fs::symlink, process::CommandExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -529,72 +529,156 @@ fn closing_the_picker_does_not_leave_workers_blocked() {
 #[test]
 fn closing_the_picker_cancels_stalled_git_and_its_subprocesses() {
     for pending_output in [false, true] {
-        let fixture = Fixture::new();
-        fs::remove_dir_all(&fixture.local).unwrap();
-        fs::create_dir(&fixture.local).unwrap();
-        if pending_output {
-            for index in 0..1005 {
-                write(&fixture.local, &format!("many/file-{index}"));
-            }
-        }
-        let bin = fixture.root.join("bin");
-        fs::create_dir(&bin).unwrap();
-        let git = bin.join("git");
-        fs::write(
-            &git,
-            "#!/bin/sh\n\
-             while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done &\n\
-             : > \"$FZF_TEST_STARTED\"\n\
-             printf 'tracked\\0'\n\
-             wait\n",
-        )
-        .unwrap();
-        make_executable(&git);
-        let started = fixture.root.join("started");
-        let release = fixture.root.join("release");
-        let path = env::join_paths(
-            std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
-        )
-        .unwrap();
-        let mut child = fixture
-            .command(&fixture.local, &fixture.global_dir, "-f", &[])
-            .env("PATH", path)
-            .env("FZF_TEST_STARTED", &started)
-            .env("FZF_TEST_RELEASE", &release)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-        let mut stdout = BufReader::new(child.stdout.take().unwrap());
-        let mut first = Vec::new();
-        stdout.read_until(0, &mut first).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while !started.exists() && Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(10));
-        }
-        let git_started = started.exists();
-        drop(stdout);
-        let deadline = Instant::now() + Duration::from_secs(2);
-        let exited = loop {
-            if child.try_wait().unwrap().is_some() {
-                break true;
-            }
-            if Instant::now() >= deadline {
-                break false;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        };
-        // Unblock the fake Git on failure so the regression cannot leave it running.
-        fs::write(release, "continue").unwrap();
-        let output = child.wait_with_output().unwrap();
-        assert!(git_started, "Git did not start");
-        assert!(
-            exited,
-            "closing stdout waited for stalled Git (pending_output={pending_output})"
-        );
-        assert!(output.status.success(), "{output:?}");
-        assert!(output.stderr.is_empty(), "{output:?}");
+        assert_stalled_git_stops(pending_output, None, false);
     }
+    assert_stalled_git_stops(false, None, true);
+}
+
+#[test]
+fn terminating_signals_cancel_stalled_git_and_its_subprocesses() {
+    for signal in [1, 2, 15] {
+        for pending_output in [false, true] {
+            assert_stalled_git_stops(pending_output, Some(signal), false);
+        }
+    }
+}
+
+#[test]
+fn terminating_signals_cancel_git_after_stdout_closes() {
+    for signal in [1, 2, 15] {
+        assert_stalled_git_stops(false, Some(signal), true);
+    }
+}
+
+fn assert_stalled_git_stops(pending_output: bool, signal: Option<i32>, close_stdout: bool) {
+    unsafe extern "C" {
+        fn kill(pid: i32, signal: i32) -> i32;
+    }
+    let fixture = Fixture::new();
+    fs::remove_dir_all(&fixture.local).unwrap();
+    fs::create_dir(&fixture.local).unwrap();
+    if pending_output {
+        for index in 0..1005 {
+            write(&fixture.local, &format!("many/file-{index}"));
+        }
+    }
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    fs::write(
+        &git,
+        "#!/bin/sh\n\
+         if [ \"$FZF_TEST_CLOSE_STDOUT\" = 1 ]; then exec 1>&-; else printf 'tracked\\0'; fi\n\
+         while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done &\n\
+         printf '%s\\n' \"$$\" > \"$FZF_TEST_PID\"\n\
+         : > \"$FZF_TEST_STARTED\"\n\
+         wait\n",
+    )
+    .unwrap();
+    make_executable(&git);
+    let started = fixture.root.join("started");
+    let release = fixture.root.join("release");
+    let pid_file = fixture.root.join("git.pid");
+    let path = env::join_paths(
+        std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let mut child = fixture
+        .command(&fixture.local, &fixture.global_dir, "-f", &[])
+        .env("PATH", path)
+        .env("FZF_TEST_STARTED", &started)
+        .env("FZF_TEST_RELEASE", &release)
+        .env("FZF_TEST_PID", &pid_file)
+        .env(
+            "FZF_TEST_CLOSE_STDOUT",
+            if close_stdout { "1" } else { "0" },
+        )
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut first = Vec::new();
+    if !close_stdout {
+        stdout.read_until(0, &mut first).unwrap();
+    }
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !started.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let git_started = started.exists();
+    if close_stdout {
+        // Let the reader reach the wait after Git's output has reached EOF.
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    if let Some(signal) = signal {
+        assert_eq!(unsafe { kill(child.id() as i32, signal) }, 0);
+    } else {
+        drop(stdout);
+    }
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let exited = loop {
+        if child.try_wait().unwrap().is_some() {
+            break true;
+        }
+        if Instant::now() >= deadline {
+            break false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let git_running = fs::read_to_string(pid_file)
+        .ok()
+        .and_then(|pid| pid.trim().parse().ok())
+        .is_some_and(|pid| unsafe { kill(pid, 0) } == 0);
+    // Unblock the fake Git on failure so the regression cannot leave it running.
+    fs::write(release, "continue").unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(git_started, "Git did not start");
+    assert!(!git_running, "Git survived cancellation");
+    assert!(
+        exited,
+        "cancellation waited for stalled Git (pending_output={pending_output}, signal={signal:?})"
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(signal.map_or(0, |signal| 128 + signal)),
+        "{output:?}"
+    );
+    assert!(output.stderr.is_empty(), "{output:?}");
+}
+
+#[test]
+fn failed_git_scan_reports_failure() {
+    let fixture = Fixture::new();
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    fs::write(
+        &git,
+        "#!/bin/sh\nprintf 'simulated Git failure\\n' >&2\nexit 7\n",
+    )
+    .unwrap();
+    make_executable(&git);
+    let path = env::join_paths(
+        std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+        .current_dir(&fixture.local)
+        .env("PATH", path)
+        .arg("")
+        .arg(&fixture.global_dir)
+        .arg("-f")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let error = String::from_utf8(output.stderr).unwrap();
+    assert!(error.contains("simulated Git failure"), "{error}");
+    assert!(
+        error.contains("git ls-files failed: exit status: 7"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -630,9 +714,11 @@ fn longest_env_and_raw_local_copy() {
     ));
     assert!(paths.contains(&"nested/child".into()));
     assert!(paths.contains(&"$project/nested/child".into()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("$global_dir/project")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("$global_dir/project"))
+    );
 }
 
 #[test]
@@ -820,12 +906,16 @@ fn files_only_ignores_cdpath() {
     ));
     assert!(paths.contains(&"file".into()));
     assert!(paths.contains(&fixture.repo.join("tracked").into_os_string()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with(&directory)));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("$CDPATH")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with(&directory))
+    );
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("$CDPATH"))
+    );
     assert!(paths.iter().all(|path| fixture.local.join(path).is_file()));
 }
 
@@ -865,9 +955,11 @@ fn cdpath_environment_is_ignored_without_option() {
             .env("CDPATH", &directory),
     );
     assert!(paths.contains(&"dir".into()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("$CDPATH")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("$CDPATH"))
+    );
 }
 
 #[test]
@@ -906,9 +998,11 @@ fn empty_cdpath_disables_cdpath_choices() {
         &[],
     ));
     assert!(paths.contains(&"dir".into()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("$CDPATH")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("$CDPATH"))
+    );
 }
 
 #[test]
@@ -1116,9 +1210,11 @@ fn ignored_directories_broken_links_and_cycles() {
     }
     assert!(paths.contains(&"linked/child".into()));
     assert!(paths.contains(&"loop".into()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("loop") && path != "loop"));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("loop") && path != "loop")
+    );
 }
 
 #[test]
@@ -1154,9 +1250,11 @@ fn local_gitignore_hides_build_outputs() {
     write(&fixture.repo, "scratch.tmp");
     write(&fixture.repo, "visible");
     let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-fd", &[]));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("target")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("target"))
+    );
     assert!(!paths.contains(&"scratch.tmp".into()));
     assert!(paths.contains(&"visible".into()));
 }
@@ -1167,9 +1265,11 @@ fn ignored_directories_are_not_offered_for_cd() {
     fs::write(fixture.repo.join(".gitignore"), "/target/\n").unwrap();
     write(&fixture.repo, "target/debug/application");
     let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-d", &[]));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("target")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("target"))
+    );
     assert!(paths.contains(&"nested".into()));
 }
 
@@ -1219,9 +1319,11 @@ fn symlink_parent_search_uses_the_target_gitignore_rules() {
     assert!(paths.contains(&"link/../nested/keep.tmp".into()));
     assert!(!paths.contains(&"link/../hidden".into()));
     assert!(!paths.contains(&"link/../nested/hide.tmp".into()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("link/../ignored")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("link/../ignored"))
+    );
 
     // Explicitly entering an ignored directory still bypasses outer rules.
     let paths = scan("link/../ignored/deep");
@@ -1240,9 +1342,11 @@ fn ignored_directory_can_be_searched_from_inside() {
         fixture.run(&mut fixture.command(&fixture.repo.join("target"), Path::new(""), "-fd", &[]));
     assert!(paths.contains(&"application".into()));
     assert!(paths.contains(&"build.tmp".into()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("hidden")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("hidden"))
+    );
 }
 
 #[test]
@@ -1310,9 +1414,11 @@ fn ignored_symlink_cycles_are_not_offered() {
 fn gitignore_does_not_hide_globally_tracked_paths() {
     let fixture = Fixture::new();
     fs::write(fixture.repo.join(".gitignore"), "/nested/\n").unwrap();
-    assert!(fixture
-        .pick()
-        .contains(&fixture.repo.join("nested/child").into_os_string()));
+    assert!(
+        fixture
+            .pick()
+            .contains(&fixture.repo.join("nested/child").into_os_string())
+    );
 }
 
 #[test]
@@ -1329,9 +1435,11 @@ fn escaped_gitignore_patterns_are_respected() {
     let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-fd", &[]));
     assert!(!paths.contains(&"!secret".into()));
     assert!(!paths.contains(&"#secret".into()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("build output")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("build output"))
+    );
     assert!(paths.contains(&"visible".into()));
 }
 
@@ -1355,9 +1463,11 @@ fn dirali_options_work_before_and_after_positions() {
     );
     assert!(paths.contains(&"$project/nested/child".into()));
     assert!(paths.contains(&"./executable".into()));
-    assert!(!paths
-        .iter()
-        .any(|path| Path::new(path).starts_with("$global_dir/project")));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| Path::new(path).starts_with("$global_dir/project"))
+    );
 }
 
 #[test]
@@ -1376,7 +1486,14 @@ fn bare_alias_pairs_are_rejected() {
 
 #[test]
 fn invalid_arguments() {
-    for args in [vec![], vec!["--cdpath"], vec!["--dirali"]] {
+    for args in [
+        vec![],
+        vec!["--cdpath"],
+        vec!["--dirali"],
+        vec!["", "", "wrong"],
+        vec!["", "", ""],
+        vec!["", "", "-df"],
+    ] {
         let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
             .arg0("/some/path/renamed-picker")
             .args(args)

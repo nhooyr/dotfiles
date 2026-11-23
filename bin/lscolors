@@ -6,7 +6,7 @@ trap 'rm -rf "$dir"' 0
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-cd "$dir"
+cd -- "$dir"
 dir="$PWD"
 
 touch regular executable setuid_executable setgid_executable

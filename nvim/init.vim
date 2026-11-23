@@ -84,6 +84,10 @@ noremap ; :
 noremap : ;
 noremap 0 ^
 noremap ^ 0
+sunmap ;
+sunmap :
+sunmap 0
+sunmap ^
 inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"

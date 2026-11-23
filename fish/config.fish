@@ -387,12 +387,12 @@ function note --description '$EDITOR $notes/YYYY/MM/DD.md'
 end
 
 function rootimg --description 'Shrink image to 1/4' --argument-names img
-    if not set -q img; or set -q argv[2]
-        printf 'Usage: %s <img>' >&2
+    if test -z "$img"; or set -q argv[2]
+        printf 'Usage: %s <img>\n' "$(status current-function)" >&2
         return 1
     end
     if contains -- "$img" -h --help
-        printf 'Usage: %s <img>'
+        printf 'Usage: %s <img>\n' "$(status current-function)"
         return 0
     end
     set -l img_dst "$(path basename --no-extension "$img")"
@@ -408,5 +408,5 @@ source "$dotfiles/fish/prompt.fish"
 source "$dotfiles/fish/cd.fish"
 
 if test "$PWD" = "$HOME"
-    cd "$dotfiles"
+    cd -- "$dotfiles"
 end

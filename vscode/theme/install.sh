@@ -19,7 +19,7 @@ case "$*" in
 	;;
 esac
 
-cd "$(dirname "$0")"
+cd -- "$(dirname "$0")"
 publisher=$(jq -r .publisher ./package.json)
 name=$(jq -r .name ./package.json)
 version=$(jq -r .version ./package.json)
