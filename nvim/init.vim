@@ -276,7 +276,8 @@ endfunction
 filetype plugin indent on
 augroup aqsnow
 	autocmd!
-	autocmd QuickFixCmdPost grep copen
+	autocmd QuickFixCmdPost grep ++nested copen
+	autocmd BufReadPost,BufWinEnter quickfix lua require('qf')()
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
