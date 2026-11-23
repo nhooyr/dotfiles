@@ -214,6 +214,7 @@ fn global_files_follow_git_order() {
         fixture.repo.join("nested/child"),
         fixture.repo.join("node_modules/tracked"),
         fixture.repo.join("tracked"),
+        fixture.repo.join("untracked"),
     ]
     .into();
     assert_eq!(files, expected);
@@ -695,7 +696,7 @@ fn failed_git_scan_reports_failure() {
 }
 
 #[test]
-fn tracked_files_and_parents() {
+fn global_files_and_parents() {
     let fixture = Fixture::new();
     let paths = fixture.pick();
     for name in [
@@ -705,12 +706,74 @@ fn tracked_files_and_parents() {
         ".hidden",
         "line\nbreak/end",
         "node_modules/tracked",
+        "untracked",
     ] {
         assert!(paths.contains(&fixture.repo.join(name).into_os_string()));
     }
-    for name in ["untracked", "removed"] {
-        assert!(!paths.contains(&fixture.repo.join(name).into_os_string()));
+    assert!(!paths.contains(&fixture.repo.join("removed").into_os_string()));
+}
+
+#[test]
+fn global_untracked_paths_respect_git_ignores_and_file_types() {
+    let fixture = Fixture::new();
+    fs::write(fixture.repo.join(".gitignore"), "/ignored/\n*.tmp\n").unwrap();
+    fs::write(fixture.repo.join("nested/.gitignore"), "!keep.tmp\n").unwrap();
+    fs::write(fixture.repo.join(".git/info/exclude"), "info-secret\n").unwrap();
+    for name in [
+        "new dir/deep/new\nfile",
+        ".hidden-new",
+        "ignored/skip",
+        "nested/keep.tmp",
+        "nested/skip.tmp",
+        "info-secret",
+    ] {
+        write(&fixture.repo, name);
     }
+    symlink("new dir", fixture.repo.join("new-link")).unwrap();
+    symlink("absent", fixture.repo.join("new-broken")).unwrap();
+
+    for kind in ["-f", "-d", "-fd"] {
+        let paths =
+            fixture.run(&mut fixture.command(&fixture.local, &fixture.global_dir, kind, &[]));
+        for name in [
+            "new dir/deep/new\nfile",
+            ".hidden-new",
+            "nested/keep.tmp",
+            "new-broken",
+        ] {
+            assert_eq!(
+                paths.contains(&fixture.repo.join(name).into_os_string()),
+                kind != "-d",
+                "{kind}: {name:?}"
+            );
+        }
+        for name in ["new dir", "new dir/deep", "new-link"] {
+            assert_eq!(
+                paths.contains(&fixture.repo.join(name).into_os_string()),
+                kind != "-f",
+                "{kind}: {name:?}"
+            );
+        }
+        for name in ["ignored", "ignored/skip", "nested/skip.tmp", "info-secret"] {
+            assert!(
+                !paths.contains(&fixture.repo.join(name).into_os_string()),
+                "{kind}: {name}"
+            );
+        }
+    }
+}
+
+#[test]
+fn global_untracked_paths_use_directory_aliases() {
+    let fixture = Fixture::new();
+    let paths = fixture.run(&mut fixture.command(
+        &fixture.local,
+        &fixture.global_dir,
+        "-f",
+        &[("$project", &fixture.repo)],
+    ));
+    assert!(paths.contains(&OsString::from("$project/untracked")));
+    assert!(!paths.contains(&fixture.repo.join("untracked").into_os_string()));
 }
 
 #[test]

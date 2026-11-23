@@ -30,7 +30,9 @@ searches may interleave, with no guaranteed order between them.
 Local directories and global Git repositories are each scanned by a bounded
 pool of workers. Local paths have no guaranteed traversal order. Within each
 repository, global paths follow Git's order, with parent directories added as
-needed; different repositories may interleave. fzf may reorder sorted matches.
+needed; different repositories may interleave. Tracked paths (including
+submodules) are followed by untracked paths that are not ignored by Git.
+fzf may reorder sorted matches.
 
 With --cdpath, directory modes (-d and -fd) list directories up to two levels
 below each colon-separated root, such as $CDPATH/junegunn/fzf. Missing roots
@@ -101,10 +103,10 @@ Output:
   Global binary executables keep their normal absolute or directory-alias forms.
   Global scans do not read executable contents.
   Global paths use a matching env when available; otherwise they are absolute.
-  Global directory scans (-d, used by Alt-C) use Git's indexed file types. If
-  you replace a tracked regular file with a symlink to a directory, that
-  symlink is omitted until you stage the change with git add. Local scans
-  see the change immediately.
+  For tracked paths, global directory scans (-d, used by Alt-C) use Git's
+  indexed file types. If you replace a tracked regular file with a symlink
+  to a directory, that symlink is omitted until you stage the change with
+  git add. Local scans see the change immediately.
   A file may appear as both a short local path and a global path; identical
   output strings are emitted only once.
   The Fish bindings keep directory aliases in the command line.
@@ -858,45 +860,52 @@ impl Scanner {
             if !self.files_only {
                 self.candidate(repo.clone(), false, None)?;
             }
-            let mut git = Command::new("git");
-            git.arg("-C")
-                .arg(&repo)
-                .args(["ls-files", "--recurse-submodules", "-z"]);
-            if self.directories_only {
-                git.arg("--format=%(objectmode) %(path)");
-            }
-            let child = git
-                .stdin(Stdio::null())
-                .stdout(Stdio::piped())
-                .process_group(0)
-                .spawn()?;
-            let stdout = self.git.lock().unwrap().register(child)?;
             let mut parents = HashSet::new();
-            for file in BufReader::new(stdout).split(0) {
-                let file = file?;
-                // Git's indexed modes let directory scans skip regular files.
-                let regular_file = self.directories_only && file.starts_with(b"100");
-                let path = if self.directories_only {
-                    file.splitn(2, |&byte| byte == b' ')
-                        .nth(1)
-                        .unwrap_or_default()
+            // --recurse-submodules cannot be combined with --others.
+            for tracked in [true, false] {
+                let indexed_modes = tracked && self.directories_only;
+                let mut git = Command::new("git");
+                git.arg("-C").arg(&repo).args(["ls-files", "-z"]);
+                if tracked {
+                    git.arg("--recurse-submodules");
+                    if indexed_modes {
+                        git.arg("--format=%(objectmode) %(path)");
+                    }
                 } else {
-                    &file
-                };
-                let file = Path::new(OsStr::from_bytes(path));
-                if !regular_file {
-                    self.candidate(repo.join(file), false, None)?;
+                    git.args(["--others", "--exclude-standard"]);
                 }
-                if !self.files_only {
-                    for parent in file
-                        .ancestors()
-                        .skip(1)
-                        .filter(|p| !p.as_os_str().is_empty())
-                    {
-                        if !parents.insert(parent.to_path_buf()) {
-                            break;
+                let child = git
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::piped())
+                    .process_group(0)
+                    .spawn()?;
+                let stdout = self.git.lock().unwrap().register(child)?;
+                for file in BufReader::new(stdout).split(0) {
+                    let file = file?;
+                    // Git's indexed modes let directory scans skip regular files.
+                    let regular_file = indexed_modes && file.starts_with(b"100");
+                    let path = if indexed_modes {
+                        file.splitn(2, |&byte| byte == b' ')
+                            .nth(1)
+                            .unwrap_or_default()
+                    } else {
+                        &file
+                    };
+                    let file = Path::new(OsStr::from_bytes(path));
+                    if !regular_file {
+                        self.candidate(repo.join(file), false, None)?;
+                    }
+                    if !self.files_only {
+                        for parent in file
+                            .ancestors()
+                            .skip(1)
+                            .filter(|p| !p.as_os_str().is_empty())
+                        {
+                            if !parents.insert(parent.to_path_buf()) {
+                                break;
+                            }
+                            self.candidate(repo.join(parent), false, None)?;
                         }
-                        self.candidate(repo.join(parent), false, None)?;
                     }
                 }
             }
