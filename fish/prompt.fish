@@ -81,6 +81,11 @@ function fish_mode_prompt
     set_color --reset
     printf ' '
 end
+function aqsnow_vcs_prompt
+    # Inspect the worktree when browsing its Git metadata.
+    cd -- "$(string replace -r '/\.git(/.*)?$' / -- "$PWD")"; or return
+    fish_vcs_prompt
+end
 set -g __fish_git_prompt_showdirtystate 1
 set -g __fish_git_prompt_showuntrackedfiles 1
 set -g __fish_git_prompt_showupstream informative
