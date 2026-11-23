@@ -3,3 +3,4 @@
   my explicit approval.
 - Use `$(...)` instead of `(...)` for Fish command substitutions.
 - Quote scalar variable expansions in shell code wherever possible.
+- Do not add compatibility code (including shims and fallbacks) without my explicit approval.
