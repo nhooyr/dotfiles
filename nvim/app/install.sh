@@ -113,13 +113,14 @@ current_handler() {
 
 apply_defaults() {
 	[ "$set_defaults" = true ] || return 0
+	# HTML associations can also change macOS's HTTP/HTTPS handlers; leave them to the browser.
 	set -- public.text public.plain-text public.source-code \
 		.txt .text .md .markdown .rst .log .csv .tsv \
 		.go .py .pyi .rs .c .h .cc .cpp .cxx .hpp .m .mm .swift \
 		.java .kt .kts .scala .cs .rb .php .pl .r \
 		.js .mjs .cjs .jsx .ts .tsx .vue .svelte \
 		.json .jsonc .jsonl .yaml .yml .toml \
-		.html .svg .htm .css .scss .sass .less .xml .sql \
+		.svg .css .scss .sass .less .xml .sql \
 		.sh .bash .zsh .fish .lua .vim .conf .cfg .ini
 	# Match macOS's preferred types; duti's extension lookup uses a different base type.
 	types=$(run osascript -l JavaScript -e '
