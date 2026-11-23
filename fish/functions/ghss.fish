@@ -1,10 +1,11 @@
 function ghss --description 'Upload a screenshot to GitHub and copy its Markdown'
     set -l usage 'Usage: ghss [PHOTO]
 
-Upload a PNG or JPEG to the current GitHub repository.
+Upload a PNG or JPEG to GitHub (override the repository with GH_REPO).
+Default to OWNER/REPO from the last two path components of $dotfiles.
 Without a path, read a macOS clipboard image using pngpaste.
 Validate the image, then print its Markdown and copy it with pbc.
-Uses gh authentication and repository selection; requires write access.'
+Uses gh authentication; requires write access.'
     0="$(status current-function)" usage="$usage" __ghss $argv
 end
 
@@ -26,6 +27,9 @@ function __ghss_upload --argument-names directory
         return 1
     end
     sips -s format png "$photo" --out "$directory/decoded.png" >/dev/null; or return
+    set -lx GH_REPO "$GH_REPO"
+    set -l parts $(string split -n / -- "$dotfiles")
+    test -n "$GH_REPO"; or set GH_REPO "$(string join / -- $parts[-2..])"
     set -l repository $(gh api --hostname github.com 'repos/{owner}/{repo}' --jq .id); or return
     set -l url "$(gh api --hostname github.com https://uploads.github.com/user-attachments/assets \
         --method POST \

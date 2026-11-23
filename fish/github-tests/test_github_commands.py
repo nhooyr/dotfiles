@@ -1,4 +1,4 @@
-"""Public ghc/ghe/gho regressions; all GitHub traffic stays in temporary repos.
+"""Git and GitHub helper regressions; all remote traffic stays in temporary repos.
 
 Run individual tests in parallel with ./ci/test.sh, or just this module with:
 python3 -m unittest discover -s fish/github-tests -p 'test_github_commands.py'
@@ -168,7 +168,9 @@ if kind == "git":
             else:
                 break
         if j >= len(args):
-            sys.exit("network command without a source")
+            if command != "fetch":
+                sys.exit("network command without a source")
+            args.append("origin")
         source = args[j]
         if ":" not in source and "/" not in source:
             query = subprocess.run(
@@ -280,6 +282,8 @@ elif kind not in ("editor", "open"):
             if command == "ghe_dispatch":
                 script += "function __ghe_checkout\ncommand dispatch $argv\nend\n"
                 command = "ghe"
+            if command == "gbp":
+                script += "function abbrali\nend\nsource " + fish_quote(Path(__file__).resolve().parents[1] / "git.fish") + "; or exit\n"
             script += command + " " + " ".join(fish_quote(arg) for arg in args) + "\n"
         script += 'set -l result $status\nprintf "\\x1e%s" "$PWD"\nexit $result\n'
         result = subprocess.run(
@@ -301,6 +305,41 @@ elif kind not in ("editor", "open"):
 
     def head(self):
         return self.git(self.checkout, "rev-parse", "HEAD").stdout.strip()
+
+    def test_gbp_preserves_live_branch_when_subject_says_gone(self):
+        self.git(self.seed, "switch", "--create", "still-live")
+        self.git(self.seed, "commit", "--allow-empty", "-qm", "document [origin/old: gone]")
+        self.publish("still-live")
+        self.fetch_fixture()
+        self.git(self.checkout, "branch", "--track", "still-live", "origin/still-live")
+
+        self.assert_success(self.run_fish("gbp", cwd=self.checkout))
+        self.git(self.checkout, "show-ref", "--verify", "refs/heads/still-live")
+
+    def test_gbp_deletes_branch_with_apostrophe(self):
+        branch = "quote'branch"
+        self.git(self.seed, "branch", branch)
+        self.publish(branch)
+        self.fetch_fixture()
+        self.git(self.checkout, "branch", "--track", branch, "origin/" + branch)
+        self.git(self.remote, "update-ref", "-d", "refs/heads/" + branch)
+
+        self.assert_success(self.run_fish("gbp", cwd=self.checkout))
+        self.assertNotEqual(self.git(self.checkout, "show-ref", "--verify", "refs/heads/" + branch, check=False).returncode, 0)
+
+    def test_gbp_skips_branch_checked_out_in_another_worktree(self):
+        for branch in ("in-worktree", "gone"):
+            self.git(self.seed, "branch", branch)
+            self.publish(branch)
+        self.fetch_fixture()
+        self.git(self.checkout, "worktree", "add", "--track", "-b", "in-worktree", self.root / "worktree", "origin/in-worktree")
+        self.git(self.checkout, "branch", "--track", "gone", "origin/gone")
+        for branch in ("in-worktree", "gone"):
+            self.git(self.remote, "update-ref", "-d", "refs/heads/" + branch)
+
+        self.assert_success(self.run_fish("gbp", cwd=self.checkout))
+        self.git(self.checkout, "show-ref", "--verify", "refs/heads/in-worktree")
+        self.assertNotEqual(self.git(self.checkout, "show-ref", "--verify", "refs/heads/gone", check=False).returncode, 0)
 
     def test_help_lists_modes_without_side_effects(self):
         for command, name, modes in (
