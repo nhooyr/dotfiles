@@ -124,6 +124,7 @@ nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snips.lua<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 let g:netrw_keepdir = 0
+set autochdir
 nnoremap - <Cmd>execute 'edit' fnameescape(expand('%:p:h'))<CR>
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
