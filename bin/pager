@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+exec less --line-num-width=${N:-3} "$@"

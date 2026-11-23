@@ -20,6 +20,7 @@ set -g notes "$nhooyr/notes"
 
 tabs -4
 set -gx LESS -RXFN -ix4 --use-color -DBK -DCK -DEks -DMcd -Dd- -DNK -DPks -DRKs -DSky
+set -gx PAGER pager
 set -g fish_greeting
 set -gx MANPAGER nvim +Man!
 set -gx EDITOR nvim
