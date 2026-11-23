@@ -69,6 +69,7 @@ set -g fish_pager_color_progress --italic
 set -g fish_pager_color_description cyan --italic
 set -g fish_pager_color_prefix --underline
 set -g fish_pager_color_selected_completion black
+set -g fish_pager_color_selected_background --background=yellow
 set -g fish_pager_color_selected_description black --italic
 set -g fish_color_autosuggestion 808080
 set -g fish_color_comment brblack --italic
