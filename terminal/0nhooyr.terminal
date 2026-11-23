@@ -365,6 +365,8 @@
 	<string>0nhooyr</string>
 	<key>rowCount</key>
 	<integer>30</integer>
+	<key>shiftReturnSendsMetaReturn</key>
+	<true/>
 	<key>type</key>
 	<string>Window Settings</string>
 	<key>useOptionAsMetaKey</key>
