@@ -56,7 +56,7 @@ function fzf_path_widget --argument-names widget
     # Score without a leading $, falling back to the full path for queries containing $.
     set -lx FZF_DEFAULT_OPTS $(__fzf_defaults \
         '--reverse --scheme=path --delimiter=^[$] --nth=2,..' \
-        "$opts --read0 --print0 --with-shell=$(string escape -- "$shell")")
+        "$opts --ansi --read0 --print0 --with-shell=$(string escape -- "$shell")")
     set -lx FZF_DEFAULT_OPTS_FILE
     printf '%s\0' "$parsed[2]" | read --null --local --array --tokenize query; or return
     # ./ selects local search; only Alt-V keeps it in the query.
@@ -66,7 +66,7 @@ function fzf_path_widget --argument-names widget
     else if test "$widget" != fzf-file-widget
         set -a flags --cdpath "$CDPATH"
     end
-    set -l result $(fzf-paths $flags "$dir" "$global_dir" "$type" $dirs | fzf --query="$query" | string split0)
+    set -l result $(fzf-paths --color $flags "$dir" "$global_dir" "$type" $dirs | fzf --query="$query" | string split0)
     if set -q result[1]
         set -l cdpath_selected 0
         string match -q -- '$CDPATH/*' "$result[1]"; and set cdpath_selected 1

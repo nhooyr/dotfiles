@@ -753,6 +753,109 @@ fn different_envs_may_reference_the_same_directory() {
 }
 
 #[test]
+fn color_wraps_only_the_alias_and_preserves_candidates() {
+    let fixture = Fixture::new();
+    for alias in ["$project", "~"] {
+        let env_dirs = [(alias, fixture.repo.as_path())];
+        let raw = fixture.run(&mut fixture.command(
+            &fixture.local,
+            &fixture.global_dir,
+            "-fd",
+            &env_dirs,
+        ));
+        let colored = fixture.run(&mut fixture.command_with_flags(
+            &["--color"],
+            &fixture.local,
+            &fixture.global_dir,
+            "-fd",
+            &env_dirs,
+        ));
+        let prefix = format!("\x1b[36m{alias}\x1b[0m");
+        assert!(colored.contains(&OsString::from(&prefix)));
+        assert!(colored.contains(&OsString::from(format!("{prefix}/nested/child"))));
+        assert!(colored.contains(&OsString::from(format!("{prefix}/line\nbreak/end"))));
+        assert!(colored.contains(&"file".into()));
+        assert!(colored.contains(&"./$literal".into()));
+        assert!(colored.contains(&"./~literal".into()));
+        let plain: HashSet<_> = colored
+            .iter()
+            .map(|path| {
+                let path = path.to_str().unwrap();
+                if path.contains('\x1b') {
+                    assert!(path.starts_with(&prefix), "unexpected coloring: {path:?}");
+                }
+                OsString::from(path.replace("\x1b[36m", "").replace("\x1b[0m", ""))
+            })
+            .collect();
+        assert_eq!(plain, raw.into_iter().collect());
+    }
+}
+
+#[test]
+fn color_leaves_unaliased_paths_plain() {
+    let fixture = Fixture::new();
+    let raw = fixture.pick();
+    let colored = fixture.run(&mut fixture.command_with_flags(
+        &["--color"],
+        &fixture.local,
+        &fixture.global_dir,
+        "-fd",
+        &[],
+    ));
+    assert_eq!(
+        colored.into_iter().collect::<HashSet<_>>(),
+        raw.into_iter().collect()
+    );
+}
+
+#[test]
+fn color_wraps_only_the_cdpath_prefix() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("cdpath");
+    fs::create_dir_all(directory.join("folder space/child 'with\nnewlines")).unwrap();
+    let colored = fixture.run(&mut fixture.command_with_cdpath(
+        &["--color"],
+        &fixture.local,
+        Path::new(""),
+        Some(directory.as_os_str()),
+        "-d",
+        &[],
+    ));
+    assert!(colored.contains(&"\x1b[36m$CDPATH\x1b[0m/folder space".into()));
+    assert!(colored.contains(&"\x1b[36m$CDPATH\x1b[0m/folder space/child 'with\nnewlines".into()));
+    assert!(colored.contains(&"dir".into()));
+    assert!(colored.iter().all(|path| {
+        let path = path.to_str().unwrap();
+        !path.contains('\x1b') || path.starts_with("\x1b[36m$CDPATH\x1b[0m/")
+    }));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn color_preserves_non_utf8_filename_bytes() {
+    let fixture = Fixture::new();
+    let filename = OsString::from_vec(b"name-\xff".to_vec());
+    fs::write(fixture.repo.join(&filename), "fixture").unwrap();
+    checked(
+        Command::new("git")
+            .arg("-C")
+            .arg(&fixture.repo)
+            .args(["add", "--"])
+            .arg(&filename),
+    );
+    let colored = fixture.run(&mut fixture.command_with_flags(
+        &["--color"],
+        &fixture.local,
+        &fixture.global_dir,
+        "-f",
+        &[("$project", fixture.repo.as_path())],
+    ));
+    assert!(colored.contains(&OsString::from_vec(
+        b"\x1b[36m$project\x1b[0m/name-\xff".to_vec()
+    )));
+}
+
+#[test]
 fn files_only_excludes_directories_and_keeps_symlink_files() {
     let fixture = Fixture::new();
     symlink("file", fixture.local.join("file-link")).unwrap();
@@ -1503,7 +1606,7 @@ fn invalid_arguments() {
         assert!(output.stdout.is_empty());
         assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
     }
 }
@@ -1513,6 +1616,8 @@ fn help_uses_invoked_basename() {
     for flags in [
         vec!["--help"],
         vec!["-h"],
+        vec!["--color", "--help"],
+        vec!["--color", "--keep-dot", "--help"],
         vec!["--keep-dot", "--help"],
         vec!["--cdpath", "", "--help"],
         vec!["--keep-dot", "--cdpath", "", "--help"],
@@ -1526,7 +1631,7 @@ fn help_uses_invoked_basename() {
         assert!(output.stderr.is_empty());
         let help = String::from_utf8(output.stdout).unwrap();
         assert!(help.contains(
-            "usage: renamed-picker [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+            "usage: renamed-picker [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
         ));
         assert!(help.contains("Generate path candidates"));
         assert!(help.contains(".gitignore"));
@@ -1556,7 +1661,7 @@ fn incomplete_dirali_is_a_usage_error() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
 }
 

@@ -20,7 +20,7 @@ fn print_help(name: &str) {
         "\
 Generate path candidates for fzf from local files and Git repositories.
 
-usage: {name} [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...
+usage: {name} [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...
 
 Scan <DIR>, Git repositories directly under <GLOBAL_DIR>, and optional CDPATH
 roots concurrently. Stream results as they are found; paths from the three
@@ -55,6 +55,8 @@ Directories named .git and node_modules are skipped unless they are <DIR> itself
 
 Options:
   -h, --help        Show this help.
+  --color          Color alias prefixes cyan. Use fzf --ansi to display them
+                   and strip the color escapes from selected paths.
   --keep-dot        Also offer ./ paths for local executable files.
   --cdpath CDPATH   Include directories from these colon-separated roots.
   --dirali ENV DIR  Abbreviate paths using ENV for DIR. May be repeated.
@@ -97,7 +99,7 @@ Examples (Fish):
 
 fn usage_error(name: &str) -> ! {
     eprintln!(
-        "usage: {name} [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+        "usage: {name} [--color] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
     );
     process::exit(1);
 }
@@ -111,10 +113,13 @@ fn main() {
         .to_string_lossy();
     let mut args = Vec::new();
     let mut aliases = Vec::new();
+    let mut color = false;
     let mut keep_dot = false;
     let mut cdpath = None;
     while let Some(arg) = arguments.next() {
-        if arg == "--keep-dot" {
+        if arg == "--color" {
+            color = true;
+        } else if arg == "--keep-dot" {
             keep_dot = true;
         } else if arg == "--cdpath" {
             cdpath = Some(arguments.next().unwrap_or_else(|| usage_error(&name)));
@@ -135,7 +140,7 @@ fn main() {
         usage_error(&name);
     }
     args.extend(aliases);
-    let result = install_signal_handlers().and_then(|()| run(&args, keep_dot, cdpath));
+    let result = install_signal_handlers().and_then(|()| run(&args, keep_dot, cdpath, color));
     let signal = TERMINATING_SIGNAL.load(Ordering::Relaxed);
     if signal != 0 {
         process::exit(128 + signal);
@@ -148,7 +153,7 @@ fn main() {
     }
 }
 
-fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Result<()> {
+fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>, color: bool) -> io::Result<()> {
     let mut seen_envs = HashSet::new();
     let mut env_dirs = Vec::new();
     for [name, directory] in args[3..].as_chunks::<2>().0 {
@@ -163,6 +168,7 @@ fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Resul
     }
     env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
     let mut picker = Picker {
+        color,
         keep_dot,
         env_dirs,
         shown: HashSet::new(),
@@ -472,6 +478,7 @@ fn parallel<T: Send>(
 }
 
 struct Picker {
+    color: bool,
     keep_dot: bool,
     env_dirs: Vec<(Vec<u8>, Vec<u8>)>,
     shown: HashSet<Vec<u8>>,
@@ -484,7 +491,18 @@ impl Picker {
             path.splice(..0, b"./".iter().copied());
         }
         if self.shown.insert(path.clone()) {
-            self.output.write_all(&path)?;
+            if self.color && !literal {
+                let end = path
+                    .iter()
+                    .position(|&byte| byte == b'/')
+                    .unwrap_or(path.len());
+                self.output.write_all(b"\x1b[36m")?;
+                self.output.write_all(&path[..end])?;
+                self.output.write_all(b"\x1b[0m")?;
+                self.output.write_all(&path[end..])?;
+            } else {
+                self.output.write_all(&path)?;
+            }
             self.output.write_all(b"\0")?;
             if self.shown.len() == 1 {
                 self.output.flush()?;
