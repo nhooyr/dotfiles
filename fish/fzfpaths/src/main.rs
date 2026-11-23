@@ -9,12 +9,12 @@ use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt, process::CommandExt};
 use std::path::{Component, Path, PathBuf};
-use std::process::{self, Child, ChildStdout, Command, Stdio};
+use std::process::{self, Child, ChildStdout, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn print_help(name: &str) {
     println!(
@@ -247,8 +247,16 @@ fn run(
         }
         drop(scanner);
         let result = (|| {
+            let mut last_reap = Instant::now();
             loop {
                 check_signal()?;
+                // Registering a new Git process also reaps finished children;
+                // this periodic sweep handles idle readers without locking for
+                // every small output batch.
+                if last_reap.elapsed() >= Duration::from_millis(50) {
+                    git.lock().unwrap().reap_finished()?;
+                    last_reap = Instant::now();
+                }
                 let candidate = match receiver.recv_timeout(Duration::from_millis(50)) {
                     Ok(candidate) => candidate,
                     Err(RecvTimeoutError::Disconnected) => break,
@@ -303,7 +311,7 @@ static TERMINATING_SIGNAL: AtomicI32 = AtomicI32::new(0);
 
 fn install_signal_handlers() -> io::Result<()> {
     extern "C" fn record_signal(signal: c_int) {
-        // Only the main thread performs cleanup; the handler must not take locks.
+        // Cleanup runs outside the handler, which must not take locks.
         TERMINATING_SIGNAL.store(signal, Ordering::Relaxed);
     }
     unsafe extern "C" {
@@ -358,52 +366,125 @@ fn output_closed() -> bool {
 #[derive(Default)]
 struct GitScans {
     cancelled: bool,
-    children: Vec<Child>,
+    children: Vec<GitChild>,
+    failed: Option<ExitStatus>,
+}
+
+struct GitChild {
+    child: Child,
+    output_open: Arc<AtomicBool>,
+}
+
+struct GitOutput {
+    stdout: ChildStdout,
+    open: Arc<AtomicBool>,
+}
+
+impl Read for GitOutput {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        self.stdout.read(buffer)
+    }
+}
+
+impl Drop for GitOutput {
+    fn drop(&mut self) {
+        self.open.store(false, Ordering::Release);
+    }
+}
+
+fn child_has_exited(child: &Child) -> io::Result<bool> {
+    loop {
+        let mut info = unsafe { std::mem::zeroed::<libc::siginfo_t>() };
+        let result = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                child.id() as libc::id_t,
+                &mut info,
+                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+            )
+        };
+        if result == 0 {
+            return Ok(info.si_signo != 0);
+        }
+        let error = io::Error::last_os_error();
+        if error.kind() != io::ErrorKind::Interrupted {
+            return Err(error);
+        }
+    }
+}
+
+fn kill_group(child: &Child) {
+    unsafe { libc::kill(-(child.id() as libc::pid_t), libc::SIGKILL) };
 }
 
 impl GitScans {
-    fn register(&mut self, mut child: Child) -> io::Result<ChildStdout> {
-        let stdout = child.stdout.take().unwrap();
-        self.children.push(child);
+    fn register(&mut self, mut child: Child) -> io::Result<GitOutput> {
+        let open = Arc::new(AtomicBool::new(true));
+        let output = GitOutput {
+            stdout: child.stdout.take().unwrap(),
+            open: Arc::clone(&open),
+        };
+        self.children.push(GitChild {
+            child,
+            output_open: open,
+        });
         if self.cancelled {
             self.cancel();
             return Err(io::ErrorKind::BrokenPipe.into());
         }
-        Ok(stdout)
+        if let Err(error) = self.reap_finished() {
+            self.cancel();
+            return Err(error);
+        }
+        Ok(output)
+    }
+
+    fn reap_finished(&mut self) -> io::Result<()> {
+        let mut index = 0;
+        while index < self.children.len() {
+            let entry = &mut self.children[index];
+            // A descendant can still be writing after the Git leader exits.
+            if entry.output_open.load(Ordering::Acquire) || !child_has_exited(&entry.child)? {
+                index += 1;
+                continue;
+            }
+            // WNOWAIT keeps the leader's PID reserved until its remaining group
+            // members are killed. Never retain a process-group ID after reaping:
+            // cancellation could otherwise signal an unrelated reused ID.
+            kill_group(&entry.child);
+            let status = entry.child.wait()?;
+            self.children.swap_remove(index);
+            if !self.cancelled && !status.success() {
+                self.failed = Some(status);
+            }
+        }
+        Ok(())
     }
 
     fn cancel(&mut self) {
         self.cancelled = true;
-        unsafe extern "C" {
-            fn kill(pid: c_int, signal: c_int) -> c_int;
-        }
-        const SIGKILL: c_int = 9;
-        for child in &self.children {
-            // Kill each private process group, including any Git subprocesses.
-            // Children stay unreaped until wait(), so their IDs cannot be reused.
-            unsafe { kill(-(child.id() as c_int), SIGKILL) };
+        for entry in &self.children {
+            // Registered children are always unreaped, so these IDs are reserved.
+            kill_group(&entry.child);
         }
     }
 
     fn wait(&mut self) -> io::Result<()> {
-        let mut failed = None;
         while !self.children.is_empty() {
-            if let Some(status) = self.children.last_mut().unwrap().try_wait()? {
-                self.children.pop();
-                if !self.cancelled && !status.success() {
-                    failed = Some(status);
-                }
-            } else {
-                // Git may close stdout before exiting; keep signals responsive then too.
-                if !self.cancelled
-                    && (TERMINATING_SIGNAL.load(Ordering::Relaxed) != 0 || output_closed())
-                {
-                    self.cancel();
-                }
+            self.reap_finished()?;
+            // Git may close stdout before exiting; keep signals responsive then too.
+            if !self.cancelled
+                && (TERMINATING_SIGNAL.load(Ordering::Relaxed) != 0 || output_closed())
+            {
+                self.cancel();
+            }
+            if !self.children.is_empty() {
                 thread::sleep(Duration::from_millis(1));
             }
         }
-        if let Some(status) = failed {
+        if !self.cancelled
+            && let Some(status) = self.failed
+        {
             return Err(io::Error::other(format!("git failed: {status}")));
         }
         Ok(())
@@ -1048,7 +1129,102 @@ impl Scanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
+    use std::os::fd::AsFd;
+    use std::time::{Duration, Instant};
+
+    #[derive(Default)]
+    struct TestScans(GitScans);
+
+    impl Drop for TestScans {
+        fn drop(&mut self) {
+            self.0.cancel();
+            for entry in &self.0.children {
+                entry.output_open.store(false, Ordering::Release);
+            }
+            let _ = self.0.wait();
+        }
+    }
+
+    fn exited_git(script: &str) -> Child {
+        let mut child = Command::new("/bin/sh")
+            .args(["-c", script])
+            .stdout(Stdio::piped())
+            .process_group(0)
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !child_has_exited(&child).unwrap() {
+            if Instant::now() >= deadline {
+                kill_group(&child);
+                let _ = child.wait();
+                panic!("Git fixture did not exit");
+            }
+            thread::sleep(Duration::from_millis(1));
+        }
+        child
+    }
+
+    #[test]
+    fn completed_git_children_are_reaped_while_scans_continue() {
+        let mut scans = TestScans::default();
+        let mut previous = None;
+        for _ in 0..32 {
+            let child = exited_git("exit 0");
+            let pid = child.id();
+            drop(scans.0.register(child).unwrap());
+            assert_eq!(scans.0.children.len(), 1);
+            if let Some(pid) = previous {
+                assert_eq!(
+                    unsafe { libc::waitpid(pid, std::ptr::null_mut(), libc::WNOHANG) },
+                    -1
+                );
+                assert_eq!(
+                    io::Error::last_os_error().raw_os_error(),
+                    Some(libc::ECHILD)
+                );
+            }
+            previous = Some(pid as libc::pid_t);
+        }
+        scans.0.reap_finished().unwrap();
+        assert!(scans.0.children.is_empty());
+        scans.0.wait().unwrap();
+    }
+
+    #[test]
+    fn reaped_git_failures_are_reported_after_other_scans_finish() {
+        let mut scans = TestScans::default();
+        drop(scans.0.register(exited_git("exit 7")).unwrap());
+        drop(scans.0.register(exited_git("exit 0")).unwrap());
+        assert_eq!(scans.0.children.len(), 1);
+        assert_eq!(
+            scans.0.wait().unwrap_err().to_string(),
+            "git failed: exit status: 7"
+        );
+    }
+
+    #[test]
+    fn exited_git_leaders_preserve_output_and_cleanup_their_descendants() {
+        for cancel in [false, true] {
+            let mut scans = TestScans::default();
+            let output = scans.0.register(exited_git("sleep 30 & exit 0")).unwrap();
+            let pipe = output.stdout.as_fd().try_clone_to_owned().unwrap();
+            scans.0.reap_finished().unwrap();
+            assert_eq!(scans.0.children.len(), 1, "output is still being read");
+            if cancel {
+                scans.0.cancel();
+            }
+            drop(output);
+            scans.0.reap_finished().unwrap();
+            assert!(scans.0.children.is_empty());
+            let mut poll = libc::pollfd {
+                fd: pipe.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            assert!(unsafe { libc::poll(&mut poll, 1, 1000) } > 0);
+            assert_ne!(poll.revents & libc::POLLHUP, 0, "descendant survived");
+        }
+    }
 
     #[test]
     fn file_type_indicators_match_ls() {

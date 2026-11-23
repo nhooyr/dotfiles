@@ -5,4 +5,5 @@ publish = false
 
 [dependencies]
 ignore = "0.4.30"
+libc = "0.2.191"
 lscolors = "0.21.0"
