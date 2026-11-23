@@ -119,7 +119,8 @@ abbr -a bfs bfs -L -exclude -name .git
 abbrali rgf rg -F
 abbrali rgi rg -i
 abbrali rgp rg -P
-alias rg="rg -Sn --search-zip --no-heading \
+abbrali rgg "rg -g '*'"
+alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git \
     --colors=path:fg:cyan \
     --colors=line:fg:magenta \
     --colors=match:none \
