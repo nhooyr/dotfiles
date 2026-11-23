@@ -41,7 +41,7 @@ highlight LineNr ctermfg=8
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
 highlight PreProc ctermfg=6
-highlight Error cterm=bold
+highlight Error ctermfg=1 ctermbg=none cterm=underline
 highlight WinSeparator cterm=bold
 
 set list
