@@ -296,10 +296,18 @@ endfunction
 command Vidir call s:vidir()
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
-if executable('vgrep')
-  let &grepprg="vgrep"
-  set grepformat=%f:%l:%c:%m
-endif
+let s:vgrep = shellescape(fnamemodify(resolve(expand('<sfile>:p')), ':h:h') . '/bin/vgrep')
+function s:update_grepprg() abort
+	let in_git = systemlist(['git', 'rev-parse', '--is-inside-work-tree'])
+	if v:shell_error == 0 && get(in_git, 0, '') ==# 'true'
+		let &grepprg = s:vgrep . ' --git'
+		set grepformat=%f:%l:%c:%m
+	else
+		let &grepprg = s:vgrep
+		set grepformat=%f:%l:%m
+	endif
+endfunction
+call s:update_grepprg()
 nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
 nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
@@ -330,6 +338,9 @@ augroup aqsnow
 	autocmd ModeChanged,RecordingEnter * call <SID>set_mode_highlight(v:true)
 	autocmd RecordingEnter * redraw!
 	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
+	autocmd DirChanged * call <SID>update_grepprg()
+	autocmd CmdlineEnter : call <SID>update_grepprg()
+	autocmd FocusGained * call <SID>update_grepprg()
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd BufWinEnter quickfix lua require('qf').fmt()
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then

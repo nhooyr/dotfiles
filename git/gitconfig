@@ -30,6 +30,7 @@
 	log = diff-highlight | $PAGER
 	show = diff-highlight | $PAGER
 	diff = diff-highlight | $PAGER
+	grep = false
 [interactive]
 	diffFilter = diff-highlight
 [merge]

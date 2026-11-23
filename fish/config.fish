@@ -131,14 +131,19 @@ alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git
     --colors=match:bg:yellow \
 "
 function f
-    find . -iname "*$argv*" | grf "$argv"
+    find . -iname "*$argv*" | grepf "$argv"
 end
+abbr -a --set-cursor f "f '%'"
 set -gx GREP_COLORS 'mt=30;43:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '30;43'
-abbrali gre _grep -E
-abbrali grf _grep -F
-abbrali grer _grep -ER
-abbrali grfr _grep -FR
+abbrali grepe grep -E
+abbrali grepf grep -F
+abbrali grepi grep -i
+abbrali grepr grep -R
+abbr -a --command grep e -- -E
+abbr -a --command grep f -- -F
+abbr -a --command grep i -- -i
+abbr -a --command grep r -- -R
 function __grep_smart_case
     # Only -E/-F/-G/-R and -e/--regexp are understood; unknown options opt out of smart-case.
     argparse --ignore-unknown E F G R e/regexp=+ -- $argv 2>/dev/null; or return 0
@@ -149,14 +154,21 @@ function __grep_smart_case
     string match -qr '\p{Uppercase}' -- $patterns; and return 0
     printf '%s\n' -i
 end
-function _grep --wraps 'grep --color -nI'
+function grep --wraps 'grep --color -nI'
     set -l ignore_case $(__grep_smart_case $argv); or return
     if type -q ggrep
         ggrep --color -nI $ignore_case $argv
     else
-        grep --color -nI -SE $ignore_case $argv
+        command grep --color -nI -SE $ignore_case $argv
     end
 end
+function gg --wraps 'git grep -IE --recurse-submodules'
+    set -l ignore_case $(__grep_smart_case $argv); or return
+    git grep -IE --recurse-submodules $ignore_case $argv
+end
+abbrali ggf gg -F
+abbr -a --set-cursor grepw "grep '^\s+%'"
+abbr -a --set-cursor ggw "gg '^[[:space:]]+%'"
 abbrali ws gg "'[[:space:]]+\$'"
 
 abbrali o open
