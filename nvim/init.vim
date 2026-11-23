@@ -210,6 +210,7 @@ inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
 highlight PmenuMatch cterm=underline
 highlight PmenuSel ctermfg=3 ctermbg=0 cterm=none
+highlight PmenuMatchSel cterm=none
 highlight PmenuThumb ctermbg=8
 highlight! link NormalFloat LineNr
 " Only time we use a non-base16 color. Keeps copilot suggestions visible in comments which are cterm=8.
