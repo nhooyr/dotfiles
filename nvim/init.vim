@@ -99,9 +99,11 @@ inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
 cnoremap <M-f> \V
-nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| update \| endif
+nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| silent update \| endif
 				\ \| execute 'source' fnameescape($MYVIMRC) \| echo 'source' $MYVIMRC<CR>
+nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
+nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snip.lua<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 nnoremap - <Cmd>execute 'edit' fnameescape(expand('%:p:h'))<CR>

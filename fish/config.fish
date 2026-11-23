@@ -14,7 +14,7 @@ if not status is-interactive
     return 0
 end
 
-set -g dotfiles "$(path resolve -- "$(status filename)/../..")"
+set -gx dotfiles "$(path resolve -- "$(status filename)/../..")"
 set -g nhooyr ~/code/nhooyr
 set -g notes "$nhooyr/notes"
 
@@ -44,6 +44,7 @@ end
 abbrali e nvim
 abbrali ec v '"$dotfiles/fish/config.fish"'
 abbrali ev v '"$dotfiles/nvim/init.vim"'
+abbrali et v '"$dotfiles/nvim/lua/snip.lua"'
 abbrali cdd cdc '"$dotfiles"'
 abbr -a --command sudo vi nvim
 abbr -a --command sudo vim nvim
