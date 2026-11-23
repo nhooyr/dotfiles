@@ -133,7 +133,12 @@ let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 let g:netrw_keepdir = 0
 set autochdir
-nnoremap - <Cmd>execute 'edit' fnameescape(expand('%:p:h'))<CR>
+function s:edit_parent() abort
+	let path = &filetype ==# 'netrw' ? b:netrw_curdir : expand('%:p')
+	let parent = path =~# '^/\+$' ? '/' : fnamemodify(substitute(path, '/\+$', '', ''), ':h')
+	execute 'edit' fnameescape(parent)
+endfunction
+nnoremap - <Cmd>call <SID>edit_parent()<CR>
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
@@ -386,6 +391,7 @@ augroup aqsnow
 	autocmd filetype gitcommit,diff nnoremap <buffer> ]h /^@@<CR>
 	autocmd filetype gitcommit,diff nnoremap <buffer> [h ?^@@<CR>
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
+	autocmd filetype netrw if exists('b:netrw_curdir') && b:netrw_curdir =~# '^/' | nnoremap <buffer> <nowait> - <Cmd>call <SID>edit_parent()<CR> | endif
 	autocmd VimEnter * lua require('gitstatus').start()
 	autocmd BufEnter,BufFilePost,DirChanged * lua require('gitstatus').refresh()
 	autocmd FocusGained * lua require('gitstatus').focus()
