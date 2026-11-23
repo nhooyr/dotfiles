@@ -21,11 +21,11 @@ mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ./ssh/config
 
-./codex/install.sh
 ./fish/fzfpaths/install.sh
-./bat/install.sh
 ./nvim/app/install.sh --set-defaults
+./codex/install.sh
 ./vscode/theme/install.sh
+./bat/install.sh
 if ! [ -d ~/.config/nvim/pack/github/start/copilot.vim ]; then
 	git clone --depth=1 https://github.com/github/copilot.vim.git \
 		~/.config/nvim/pack/github/start/copilot.vim
