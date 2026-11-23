@@ -24,7 +24,7 @@ if [ "$(uname -s)" != Darwin ]; then
 	exit 1
 fi
 : "${HOME:?HOME must be set}"
-CDPATH='' cd -P -- "$(dirname "$0")"
+cd -- "$(dirname "$0")"
 PATH="$PWD/../../bin:$PATH"
 if grep -qFx 'version https://git-lfs.github.com/spec/v1' ./icon.png; then
 	printf '%s: Run git lfs pull to download icon.png.\n' "${0##*/}" >&2
