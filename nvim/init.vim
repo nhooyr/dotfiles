@@ -273,6 +273,8 @@ augroup aqsnow
 	autocmd filetype html,jsonc,css setlocal et ts=2 sw=0
 	autocmd filetype markdown setlocal et ts=3 sw=0
 	autocmd filetype fish setlocal et ts=4 sw=0
+	autocmd filetype gitconfig let &l:commentstring='# %s'
+	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
 	autocmd BufRead,BufNewFile *.json setlocal filetype=jsonc
 	autocmd BufReadPost * call <SID>restore_cursor()
 	autocmd filetype fish setlocal formatprg=fish_indent
