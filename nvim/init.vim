@@ -166,6 +166,7 @@ function s:quit_and_run() abort
 endfunction
 nnoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
 inoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
+snoremap <M-CR> <Esc><Cmd>call <SID>quit_and_run()<CR>
 function s:fzf_file_widget() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
