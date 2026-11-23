@@ -2,7 +2,9 @@ local snippets = {
 	global = {
 		fx = "Fiat Lux$0",
 		imp = "Improve$0",
-		imps = "imps: ${1:Chat}$0",
+		imps = "Improvements$0",
+		garg = "Gargantuan$0",
+		chat = "chat: ${1:Improvements}$0",
 		todo = "TODO: ${1:desc}$0",
 	},
 	go = {
@@ -41,7 +43,7 @@ local function complete(findstart, base)
 	for trigger, body in pairs(vim.tbl_extend('force', snippets.global, snippets[vim.bo.filetype] or {})) do
 		if trigger:sub(1, #base) == base then
 			local info = ' ' .. body:gsub('\n', '\n ')
-			matches[#matches + 1] = { word = trigger, menu = '[snip.lua]', info = info, user_data = 'snip', dup = 1 }
+			matches[#matches + 1] = { word = trigger, menu = '[snips.lua]', info = info, user_data = 'snip', dup = 1 }
 		end
 	end
 	table.sort(matches, function(a, b) return a.word < b.word end)

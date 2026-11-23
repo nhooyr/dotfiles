@@ -103,7 +103,7 @@ nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| silent update \
 				\ \| execute 'source' fnameescape($MYVIMRC) \| echo 'source' $MYVIMRC<CR>
 nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
-nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snip.lua<CR>
+nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snips.lua<CR>
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 nnoremap - <Cmd>execute 'edit' fnameescape(expand('%:p:h'))<CR>
@@ -195,7 +195,7 @@ nnoremap <Leader>d <Cmd>execute '.,.+' . (v:count1 - 1) . 't.'<CR>
 
 set completeopt=menuone,noselect,popup
 set complete+=U,kspell,i,d,f,o
-set complete^=Fv:lua.require'snip'.complete
+set complete^=Fv:lua.require'snips'.complete
 set pumheight=8
 
 inoremap <C-n> <Cmd>set spell<CR><C-n>
@@ -273,14 +273,14 @@ highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=3
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
-lua package.loaded.qf, package.loaded.snip = nil, nil
-inoremap <M-j> <Cmd>lua require('snip').expand_or_jump()<CR>
-snoremap <M-j> <Cmd>lua require('snip').jump(1)<CR>
-inoremap <M-k> <Cmd>lua require('snip').jump(-1)<CR>
-snoremap <M-k> <Cmd>lua require('snip').jump(-1)<CR>
+lua package.loaded.qf, package.loaded.snips = nil, nil
+inoremap <M-j> <Cmd>lua require('snips').expand_or_jump()<CR>
+snoremap <M-j> <Cmd>lua require('snips').jump(1)<CR>
+inoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
+snoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
 
 function s:is_config_file(path) abort
-	return index([resolve($MYVIMRC), s:config_dir . '/lua/snip.lua',
+	return index([resolve($MYVIMRC), s:config_dir . '/lua/snips.lua',
 				\ s:config_dir . '/lua/qf.lua'], resolve(a:path)) >= 0
 endfunction
 
@@ -291,7 +291,7 @@ augroup aqsnow
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd BufWinEnter quickfix lua require('qf').fmt()
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
-			\ require('snip').expand() end
+			\ require('snips').expand() end
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
