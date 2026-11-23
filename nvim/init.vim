@@ -297,7 +297,10 @@ EOF
 filetype plugin indent on
 augroup aqsnow
 	autocmd!
-	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | silent! wall | endif
+	autocmd FocusLost,BufLeave * nested doautoall <nomodeline> aqsnow User AqsnowAutosave
+	" New files wait for an explicit save.
+	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
+	autocmd BufWritePre,FileWritePre * if expand('<afile>') !~# '://' | call mkdir(expand('<afile>:p:h'), 'p') | endif
 	autocmd filetype gitcommit setlocal noet ts=4 sw=0 tw=80
 	autocmd filetype gitcommit let g:gitcommit_summary_length = &textwidth
 	autocmd filetype html,jsonc,css setlocal et ts=2 sw=0

@@ -374,13 +374,14 @@ end
 abbrali notep 'cdc "$notes" gacmp -em Update'
 function note --description '$EDITOR $notes/YYYY/MM/DD.md'
     set -l note "$notes/$(date '+%Y/%m/%d').md"
-    set -l EDITOR $EDITOR
-    if not test -s "$note"
-        mkdir -p "$(path dirname "$note")"
-        printf '# %s\n* %s *\n\n\n' "$(date '+%B %d, %Y')" "$(date '+%A')" >"$note"
-        set EDITOR $EDITOR '+normal G' +startinsert
+    if test -e "$note"
+        $EDITOR "$note"
+        return
     end
-    $EDITOR "$note"
+    printf '# %s\n* %s *\n\n\n' "$(date '+%B %d, %Y')" "$(date '+%A')" | note="$note" $EDITOR - \
+        '+execute "file " . fnameescape($note)' \
+        '+filetype detect' \
+        '+normal! G' +startinsert
 end
 
 function rootimg --description 'Shrink image to 1/4' --argument-names img
