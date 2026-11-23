@@ -43,16 +43,16 @@ highlight Type ctermfg=5
 highlight PreProc ctermfg=6
 highlight Error ctermfg=1 ctermbg=none cterm=underline
 highlight WinSeparator cterm=bold
+highlight link gitcommitOverflow Error
 
 set list
 set listchars+=extends:>,precedes:<
 highlight! link NonText Comment
 highlight! link Folded Comment
-highlight! link gitcommitOverflow Error
 
 set dictionary=/usr/share/dict/words
 set spelllang=en_ca,en_us
-function! s:set_spell_highlight() abort
+function s:set_spell_highlight() abort
 	let s:spell_visible = get(s:, 'spell_visible', 0)
 	if s:spell_visible ==# 0
 		highlight clear SpellBad
@@ -69,7 +69,7 @@ function! s:set_spell_highlight() abort
 endfunction
 call s:set_spell_highlight()
 " Toggle spell via the highlight groups to keep it active for 'complete' kspell
-function! s:toggle_spell_visible() abort
+function s:toggle_spell_visible() abort
 	let s:spell_visible = !s:spell_visible
 	call s:set_spell_highlight()
 	echo 's:spell_visible =' s:spell_visible
@@ -119,7 +119,7 @@ nnoremap <C-s> <Cmd>xit<CR>
 inoremap <C-s> <Esc>:xit<CR>
 
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
-function! s:quit_and_run() abort
+function s:quit_and_run() abort
 	if mode() ==# 'i'
 		execute "normal! i" . copilot#Accept('')
 	endif
@@ -133,7 +133,7 @@ function! s:quit_and_run() abort
 endfunction
 nnoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
 inoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
-function! s:fzf_file_widget() abort
+function s:fzf_file_widget() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		call writefile(['<M-v>'], $AQSNOW_FISH_RENDEZVOUS)
@@ -201,9 +201,9 @@ endif
 inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
 highlight PmenuMatch cterm=underline
-highlight PmenuSel ctermfg=4
-highlight PmenuMatchSel cterm=underline,bold
-highlight! link PmenuSbar Pmenu
+highlight PmenuSel ctermfg=4 cterm=none
+highlight PmenuMatchSel cterm=underline
+highlight link PmenuSbar Pmenu
 highlight! link PmenuThumb Pmenu
 " Only time we use a non-base16 color. Keeps copilot suggestions visible in comments which are cterm=8.
 highlight CopilotSuggestion ctermfg=244
@@ -224,14 +224,14 @@ nnoremap <M-n> <Cmd>execute v:count1 . 'next'<CR>
 nnoremap <M-p> <Cmd>execute v:count1 . 'prev'<CR>
 nnoremap Z zz
 
-function! s:vidir_mcr() abort
+function s:vidir_mcr() abort
 	write !sh
 	if v:shell_error == 0
 		set nomodified
 	endif
 endfunction
 
-function! s:vidir() abort
+function s:vidir() abort
 	enew
 	silent read !ls -1
 	normal ggS# :w !sh
@@ -268,7 +268,7 @@ highlight QuickFixLine ctermfg=7 ctermbg=0
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 execute 'luafile' fnameescape(s:config_dir . '/snip.lua')
 
-function! s:is_config_file(path) abort
+function s:is_config_file(path) abort
 	return index([resolve($MYVIMRC), s:config_dir . '/snip.lua'], resolve(a:path)) >= 0
 endfunction
 
@@ -298,7 +298,7 @@ augroup aqsnow
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 
-function! s:restore_cursor() abort
+function s:restore_cursor() abort
 	" Commit messages, rebase todos, and diffs start at the top.
 	if &filetype =~# 'commit' || &filetype ==# 'gitrebase' || &diff
 		return
