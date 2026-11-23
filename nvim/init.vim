@@ -261,6 +261,7 @@ command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
 nnoremap <Leader>w <Cmd>%s/\s\+$//<CR>
 nnoremap <Leader>- <Cmd>%s/^\s*[+-]//<CR>
 xnoremap <Leader>- :s/^\s*[+-]//<CR>
+nnoremap <M-w> /^\s\+
 nnoremap <M-n> <Cmd>execute v:count1.'next'<CR>
 nnoremap <M-p> <Cmd>execute v:count1.'prev'<CR>
 nnoremap Z zz
