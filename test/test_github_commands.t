@@ -7,7 +7,7 @@ use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
 
-my $SOURCE = (exists((\%ENV)->{"GITHUB_FISH_TEST_SOURCE"}) ? (\%ENV)->{"GITHUB_FISH_TEST_SOURCE"} : join_path(ancestors(absolute_path(__FILE__))->[1], "functions"));
+my $SOURCE = (exists((\%ENV)->{"GITHUB_FISH_TEST_SOURCE"}) ? (\%ENV)->{"GITHUB_FISH_TEST_SOURCE"} : join_path(ancestors(absolute_path(__FILE__))->[1], "fish/functions"));
 my $FISH = which("fish");
 my $GIT = which("git");
 if ((0+(!($FISH)) || 0+(!($GIT)))) {
@@ -225,7 +225,7 @@ end
         if ((($command eq "gbp"))) {
             $script .= (('function abbrali
 end
-source ' . fish_quote(join_path(ancestors(absolute_path(__FILE__))->[1], "git.fish"))) . '; or exit
+source ' . fish_quote(join_path(ancestors(absolute_path(__FILE__))->[1], "fish/git.fish"))) . '; or exit
 ');
         }
         $script .= ((($command . " ") . join(" ", @{[map { my $arg = $_; fish_quote($arg) } @{$args}]})) . '

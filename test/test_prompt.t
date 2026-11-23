@@ -6,7 +6,7 @@ use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
 
-my $dotfiles = absolute_path("$FindBin::Bin/../..");
+my $dotfiles = absolute_path("$FindBin::Bin/..");
 my $fish = which('fish');
 my $git = which('git');
 my $source = "$dotfiles/fish/functions/aqsnow_vcs_prompt_update.fish";

@@ -7,7 +7,7 @@ use Test::More;
 use POSIX qw(WNOHANG);
 use Time::HiRes qw(time sleep);
 
-my $helper = absolute_path("$FindBin::Bin/../git_prompt_worker.pl");
+my $helper = absolute_path("$FindBin::Bin/../fish/git_prompt_worker.pl");
 my $fish = which('fish');
 
 {

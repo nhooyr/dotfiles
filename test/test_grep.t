@@ -9,7 +9,7 @@ use Test::More;
 
 my $FISH = which("fish");
 my $GIT = which("git");
-my $ROOT = ancestors(absolute_path(__FILE__))->[1];
+my $ROOT = join_path(ancestors(absolute_path(__FILE__))->[1], "fish");
 my $CONFIG = read_file(join_path($ROOT, "config.fish"));
 my $HELPERS = join("\n", map {
     my ($function) = $CONFIG =~ /^(function \Q$_\E\b.*?^end\n)/msg;

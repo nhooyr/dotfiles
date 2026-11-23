@@ -5,7 +5,7 @@ use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
 
-my $sshf = absolute_path("$FindBin::Bin/../../bin/sshf");
+my $sshf = absolute_path("$FindBin::Bin/../bin/sshf");
 my $node = which('node');
 
 sub setup {

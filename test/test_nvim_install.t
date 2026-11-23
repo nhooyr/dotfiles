@@ -7,7 +7,7 @@ use Test::More;
 use POSIX qw(WNOHANG);
 use Time::HiRes qw(time sleep);
 
-my $root = absolute_path("$FindBin::Bin/../..");
+my $root = absolute_path("$FindBin::Bin/..");
 my $source = read_file("$root/nvim/app/install.sh");
 
 sub setup {

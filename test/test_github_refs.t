@@ -7,7 +7,7 @@ use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
 
-my $SOURCE = (exists((\%ENV)->{"GITHUB_FISH_TEST_SOURCE"}) ? (\%ENV)->{"GITHUB_FISH_TEST_SOURCE"} : join_path(ancestors(absolute_path(__FILE__))->[1], "functions"));
+my $SOURCE = (exists((\%ENV)->{"GITHUB_FISH_TEST_SOURCE"}) ? (\%ENV)->{"GITHUB_FISH_TEST_SOURCE"} : join_path(ancestors(absolute_path(__FILE__))->[1], "fish/functions"));
 my $GIT = which("git");
 my $FISH = which("fish");
 my $URL = "https://github.com/example/project.git";

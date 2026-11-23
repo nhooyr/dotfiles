@@ -2,13 +2,12 @@
 use strict;
 use warnings;
 use FindBin;
-use lib "$FindBin::Bin/../fish/github-tests";
+use lib "$FindBin::Bin/../test";
 use TestHelpers qw(run_command read_file);
 use Getopt::Long qw(GetOptions);
 use File::Basename qw(basename);
 use File::Temp qw(tempdir);
 use Time::HiRes qw(time);
-use POSIX qw(WNOHANG);
 
 my $jobs = 8;
 GetOptions('jobs|j=i' => \$jobs) or die "Usage: test.pl [-j JOBS] [test_module[.test_case] ...]\n";
@@ -16,7 +15,7 @@ die "--jobs must be positive\n" if $jobs < 1;
 my @selectors = @ARGV;
 my @tests;
 my %matched;
-for my $file (sort glob "$FindBin::Bin/../fish/github-tests/test_*.t") {
+for my $file (sort glob "$FindBin::Bin/../test/test_*.t") {
     my $module = basename($file, '.t');
     next if @selectors && !grep { $_ eq $module || index($_, "$module.") == 0 } @selectors;
     my $result = run_command([$^X, $file, '--list'], {check => 1});
