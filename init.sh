@@ -21,14 +21,13 @@ mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ./ssh/config
 
-codex_config="$HOME/.codex/config.toml"
-if [ ! -e "$codex_config" ]; then
-	mkdir -p "${codex_config%/*}"
-	printf '[tui]\ntheme = "ansi"\nvim_mode_default = true\n' >"$codex_config"
-	printf 'dotfiles: %s: Created %s\n' "${0##*/}" "$codex_config" | hpath
-elif ! yq -e -o=json '.tui.theme == "ansi" and .tui.vim_mode_default == true' "$codex_config" >/dev/null; then
-	yq -i '.tui.theme = "ansi" | .tui.vim_mode_default = true' "$codex_config"
-	printf 'dotfiles: %s: Updated %s\n' "${0##*/}" "$codex_config" | hpath
+dotln ./codex/AGENTS.md ~/.codex/AGENTS.md
+if [ ! -e ~/.codex/config.toml ]; then
+	printf '[tui]\ntheme = "ansi"\nvim_mode_default = true\n' >~/.codex/config.toml
+	printf 'dotfiles: %s: Created %s\n' "${0##*/}" ~/.codex/config.toml | hpath
+elif ! yq -e -o=json '.tui.theme == "ansi" and .tui.vim_mode_default == true' ~/.codex/config.toml >/dev/null; then
+	yq -i '.tui.theme = "ansi" | .tui.vim_mode_default = true' ~/.codex/config.toml
+	printf 'dotfiles: %s: Updated %s\n' "${0##*/}" ~/.codex/config.toml | hpath
 fi
 
 ./fish/fzfpaths/install.sh
