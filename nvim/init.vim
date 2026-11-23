@@ -35,6 +35,7 @@ nnoremap <Leader>u :Undotree<CR>
 
 set notermguicolors
 colorscheme default
+nnoremap <Leader>i <Cmd>Inspect<CR>
 highlight Comment ctermfg=8 cterm=italic
 highlight LineNr ctermfg=8
 highlight Constant ctermfg=5
@@ -253,6 +254,19 @@ endfunction
 command Vidir call s:vidir()
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
+if executable('rg')
+  let &grepprg="rg --vimgrep -LS --no-heading --hidden -g '!.git' --no-require-git"
+  set grepformat=%f:%l:%c:%m
+endif
+nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
+nnoremap <Leader>q <Cmd>execute empty(filter(getwininfo(),
+				\ 'v:val.tabnr == tabpagenr() && v:val.quickfix && !v:val.loclist'))
+				\ ? 'copen' : 'cclose'<CR>
+nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
+nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
+highlight link qfLineNr Type
+highlight QuickFixLine ctermfg=7 ctermbg=0
+
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 execute 'luafile' fnameescape(s:config_dir . '/snip.lua')
 
@@ -264,6 +278,7 @@ endfunction
 filetype plugin indent on
 augroup aqsnow
 	autocmd!
+	autocmd QuickFixCmdPost grep copen
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
