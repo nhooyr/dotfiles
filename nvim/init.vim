@@ -305,8 +305,8 @@ augroup aqsnow
 	autocmd filetype fish setlocal formatprg=fish_indent
 	autocmd filetype sh let &l:formatprg='shfmt -s'
 	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | execute 'autocmd aqsnow SafeState * ++once execute "source" fnameescape($MYVIMRC)' | endif
-	autocmd filetype gitcommit nnoremap <buffer> ]c /^@@<CR>zz
-	autocmd filetype gitcommit nnoremap <buffer> [c ?^@@<CR>zz
+	autocmd filetype gitcommit nnoremap <buffer> ]c /^diff --<CR>
+	autocmd filetype gitcommit nnoremap <buffer> [c ?^diff --<CR>
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 
