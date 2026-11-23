@@ -31,5 +31,13 @@ if grep -qFx 'version https://git-lfs.github.com/spec/v1' ./icon.jpg; then
 	printf 'dotfiles: vscode/theme: %s: Run git lfs pull to download icon.jpg.\n' "${0##*/}" >&2
 	exit 1
 fi
-NO_COLOR=1 vsce package
-code ${force:+--force} --install-extension "./$name-$version.vsix"
+if output=$(
+	NO_COLOR=1 vsce package 2>&1 &&
+		NODE_NO_WARNINGS=1 code ${force:+--force} --install-extension "./$name-$version.vsix" 2>&1
+); then
+	printf 'dotfiles: vscode/theme: %s: Installed %s.%s@%s\n' "${0##*/}" "$publisher" "$name" "$version"
+else
+	result=$?
+	printf '%s\n' "$output" >&2
+	exit "$result"
+fi
