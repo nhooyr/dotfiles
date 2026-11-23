@@ -10,19 +10,24 @@ my $node = which('node');
 
 sub setup {
     my ($self) = @_;
-    plan skip_all => 'Node is needed to mock the native JavaScript bridge' unless $node;
-    $self->{temporary} = tempdir('sshf-tests-XXXXXX', TMPDIR => 1, CLEANUP => 1);
-    $self->{state} = "$self->{temporary}/state.json";
-    $self->{snapshot} = "$self->{temporary}/saved.plist";
+    plan skip_all => 'Node is needed to mock the native JavaScript bridge'
+      unless $node;
+    $self->{temporary} = tempdir( 'sshf-tests-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+    $self->{state}     = "$self->{temporary}/state.json";
+    $self->{snapshot}  = "$self->{temporary}/saved.plist";
     make_path("$self->{temporary}/bin");
-    $self->{env} = {%ENV, PATH => "$self->{temporary}/bin:$ENV{PATH}",
-        SSHF_TEST_STATE => $self->{state}, SSHF_TEST_NODE => $node,
-        SSHF_TEST_DRIVER => "$self->{temporary}/bridge.js"};
-    write_file("$self->{temporary}/bin/osascript", <<'SH');
+    $self->{env} = {
+        %ENV,
+        PATH             => "$self->{temporary}/bin:$ENV{PATH}",
+        SSHF_TEST_STATE  => $self->{state},
+        SSHF_TEST_NODE   => $node,
+        SSHF_TEST_DRIVER => "$self->{temporary}/bridge.js"
+    };
+    write_file( "$self->{temporary}/bin/osascript", <<'SH' );
 #!/bin/sh
 exec "$SSHF_TEST_NODE" "$SSHF_TEST_DRIVER" "$@"
 SH
-    write_file("$self->{temporary}/bin/networksetup", '#!' . perl_executable() . "\n" . <<'PERL');
+    write_file( "$self->{temporary}/bin/networksetup", '#!' . perl_executable() . "\n" . <<'PERL' );
 use strict;
 use warnings;
 use JSON::PP;
@@ -38,9 +43,10 @@ print 'Port: ', $proxy->{SOCKSPort} // 0, "\n";
 print 'Authenticated Proxy Enabled: ', exists($proxy->{SOCKSUser}) ? 1 : 0, "\n";
 PERL
     chmod 0755, "$self->{temporary}/bin/osascript", "$self->{temporary}/bin/networksetup";
+
     # Run the production JXA with mocked Foundation/SystemConfiguration APIs.
     # No macOS preferences, SSH connection, sudo, or Keychain access is involved.
-    write_file("$self->{temporary}/bridge.js", <<'JS');
+    write_file( "$self->{temporary}/bridge.js", <<'JS' );
 const fs = require('fs');
 const vm = require('vm');
 const filename = process.env.SSHF_TEST_STATE;
@@ -136,114 +142,174 @@ JS
 }
 
 sub run_proxy {
-    my ($self, $original, $options) = @_;
-    write_file($self->{state}, encode_json({current => $original, %{$options // {}}}));
-    my $result = run_command([$sshf, '--proxy', 'Wi-Fi', 'test-service', $self->{snapshot}],
-        {env => $self->{env}, input => "sshu -ND localhost:1080 example\n", timeout => 15});
-    return ($result, decode_json(read_file($self->{state})));
+    my ( $self, $original, $options ) = @_;
+    write_file( $self->{state}, encode_json( { current => $original, %{ $options // {} } } ) );
+    my $result = run_command(
+        [ $sshf, '--proxy', 'Wi-Fi', 'test-service', $self->{snapshot} ],
+        {
+            env     => $self->{env},
+            input   => "sshu -ND localhost:1080 example\n",
+            timeout => 15
+        }
+    );
+    return ( $result, decode_json( read_file( $self->{state} ) ) );
 }
 
 sub enabled_authenticated_proxy {
     my ($self) = @_;
-    my $original = {SOCKSEnable => 1, SOCKSProxy => 'proxy.example', SOCKSPort => 9050,
-        SOCKSUser => 'private-user', SOCKSPassword => 'private-password', HTTPEnable => 1};
-    my ($result, $state) = run_proxy($self, $original);
-    is($result->{returncode}, 0, $result->{stderr});
-    is($result->{stdout}, "sshu -ND localhost:1080 example\n", 'control output contains only the ready command');
-    like($result->{stderr}, qr/Enabled: Yes\nServer: proxy\.example\nPort: 9050\nAuthenticated Proxy Enabled: 1\n/, 'existing settings are shown');
-    like($result->{stderr}, qr/saved these SOCKS settings and will restore them/, 'restoration is announced');
-    unlike($result->{stderr} . $result->{stdout}, qr/private-user|private-password/, 'credentials are never printed');
-    is_deeply($state->{installed}, {SOCKSEnable => 1, SOCKSProxy => 'localhost', SOCKSPort => 1080, HTTPEnable => 1}, 'temporary proxy is unauthenticated');
-    is_deeply($state->{current}, $original, 'server, port, enabled state, and authentication are restored');
-    is((stat $self->{snapshot})[2] & 0777, 0600, 'snapshot is private');
+    my $original = {
+        SOCKSEnable   => 1,
+        SOCKSProxy    => 'proxy.example',
+        SOCKSPort     => 9050,
+        SOCKSUser     => 'private-user',
+        SOCKSPassword => 'private-password',
+        HTTPEnable    => 1
+    };
+    my ( $result, $state ) = run_proxy( $self, $original );
+    is( $result->{returncode}, 0, $result->{stderr} );
+    is(
+        $result->{stdout},
+        "sshu -ND localhost:1080 example\n",
+        'control output contains only the ready command'
+    );
+    like(
+        $result->{stderr},
+        qr/Enabled: Yes\nServer: proxy\.example\nPort: 9050\nAuthenticated Proxy Enabled: 1\n/,
+        'existing settings are shown'
+    );
+    like(
+        $result->{stderr},
+        qr/saved these SOCKS settings and will restore them/,
+        'restoration is announced'
+    );
+    unlike(
+        $result->{stderr} . $result->{stdout},
+        qr/private-user|private-password/,
+        'credentials are never printed'
+    );
+    is_deeply(
+        $state->{installed},
+        {
+            SOCKSEnable => 1,
+            SOCKSProxy  => 'localhost',
+            SOCKSPort   => 1080,
+            HTTPEnable  => 1
+        },
+        'temporary proxy is unauthenticated'
+    );
+    is_deeply( $state->{current}, $original, 'server, port, enabled state, and authentication are restored' );
+    is( ( stat $self->{snapshot} )[2] & 0777, 0600, 'snapshot is private' );
 }
 
 sub disabled_proxy {
     my ($self) = @_;
-    my $original = {SOCKSEnable => 0, SOCKSProxy => 'disabled.example', SOCKSPort => 9000};
-    my ($result, $state) = run_proxy($self, $original);
-    is($result->{returncode}, 0, $result->{stderr});
-    is_deeply($state->{current}, $original, 'disabled proxy retains its original host and port');
-    like($result->{stderr}, qr/Enabled: No/, 'disabled state is displayed');
+    my $original = { SOCKSEnable => 0, SOCKSProxy => 'disabled.example', SOCKSPort => 9000 };
+    my ( $result, $state ) = run_proxy( $self, $original );
+    is( $result->{returncode}, 0, $result->{stderr} );
+    is_deeply( $state->{current}, $original, 'disabled proxy retains its original host and port' );
+    like( $result->{stderr}, qr/Enabled: No/, 'disabled state is displayed' );
 }
 
 sub absent_settings {
     my ($self) = @_;
-    my ($result, $state) = run_proxy($self, undef);
-    is($result->{returncode}, 0, $result->{stderr});
-    is($state->{current}, undef, 'an originally absent proxy dictionary is removed');
+    my ( $result, $state ) = run_proxy( $self, undef );
+    is( $result->{returncode}, 0,     $result->{stderr} );
+    is( $state->{current},     undef, 'an originally absent proxy dictionary is removed' );
 }
 
 sub unrelated_changes_survive {
     my ($self) = @_;
-    my ($result, $state) = run_proxy($self, {SOCKSEnable => 0, HTTPProxy => 'old-http'},
-        {during_tunnel => {HTTPProxy => 'new-http', HTTPPort => 8080}});
-    is($result->{returncode}, 0, $result->{stderr});
-    is_deeply($state->{current}, {SOCKSEnable => 0, HTTPProxy => 'new-http', HTTPPort => 8080}, 'only SOCKS keys are restored');
+    my ( $result, $state ) = run_proxy(
+        $self,
+        { SOCKSEnable   => 0, HTTPProxy => 'old-http' },
+        { during_tunnel => { HTTPProxy => 'new-http', HTTPPort => 8080 } }
+    );
+    is( $result->{returncode}, 0, $result->{stderr} );
+    is_deeply(
+        $state->{current},
+        { SOCKSEnable => 0, HTTPProxy => 'new-http', HTTPPort => 8080 },
+        'only SOCKS keys are restored'
+    );
 }
 
 sub setup_failures_restore {
     my ($self) = @_;
-    my $original = {SOCKSEnable => 1, SOCKSProxy => 'original', SOCKSPort => 1234};
+    my $original = { SOCKSEnable => 1, SOCKSProxy => 'original', SOCKSPort => 1234 };
     for my $operation (qw(lock set commit apply)) {
         unlink $self->{snapshot};
-        my ($result, $state) = run_proxy($self, $original, {failures => {"install:$operation" => 1}});
-        isnt($result->{returncode}, 0, "$operation failure is reported");
-        is($result->{stdout}, '', "$operation failure never reports the tunnel as ready");
-        is_deeply($state->{current}, $original, "$operation failure restores the original settings");
-        ok(grep($_ eq 'restore:apply', @{$state->{calls}}), "$operation failure completes restoration");
+        my ( $result, $state ) = run_proxy( $self, $original, { failures => { "install:$operation" => 1 } } );
+        isnt( $result->{returncode}, 0, "$operation failure is reported" );
+        is( $result->{stdout}, '', "$operation failure never reports the tunnel as ready" );
+        is_deeply( $state->{current}, $original, "$operation failure restores the original settings" );
+        ok( grep( $_ eq 'restore:apply', @{ $state->{calls} } ), "$operation failure completes restoration" );
     }
 }
 
 sub snapshot_failure_does_not_modify {
     my ($self) = @_;
-    my $original = {SOCKSEnable => 1, SOCKSProxy => 'original'};
-    my ($result, $state) = run_proxy($self, $original, {failures => {'save:snapshot' => 1}});
-    isnt($result->{returncode}, 0, 'snapshot failure is reported');
-    is($result->{stdout}, '', 'no ready command');
-    unlike($result->{stderr}, qr/saved these/, 'does not claim an unsuccessful snapshot was saved');
-    is_deeply($state->{current}, $original, 'snapshot failure changes nothing');
-    ok(!grep(/^(?:install|restore):/, @{$state->{calls}}), 'never installs without a snapshot');
+    my $original = { SOCKSEnable => 1, SOCKSProxy => 'original' };
+    my ( $result, $state ) =
+      run_proxy( $self, $original, { failures => { 'save:snapshot' => 1 } } );
+    isnt( $result->{returncode}, 0, 'snapshot failure is reported' );
+    is( $result->{stdout}, '', 'no ready command' );
+    unlike( $result->{stderr}, qr/saved these/, 'does not claim an unsuccessful snapshot was saved' );
+    is_deeply( $state->{current}, $original, 'snapshot failure changes nothing' );
+    ok( !grep( /^(?:install|restore):/, @{ $state->{calls} } ), 'never installs without a snapshot' );
 }
 
 sub restore_failure_is_reported {
-    my ($self) = @_;
-    my ($result) = run_proxy($self, {SOCKSEnable => 0}, {failures => {'restore:commit' => 1}});
-    isnt($result->{returncode}, 0, 'restoration failure fails the proxy worker');
-    like($result->{stderr}, qr/could not restore the saved SOCKS proxy settings/, 'restoration failure is explicit');
-    like($result->{stderr}, qr/private settings snapshot retained at \Q$self->{snapshot}\E/, 'reports the private recovery snapshot');
-    ok(-f "$self->{snapshot}.failed", 'marks the snapshot for preservation by the outer cleanup');
+    my ($self)   = @_;
+    my ($result) = run_proxy( $self, { SOCKSEnable => 0 }, { failures => { 'restore:commit' => 1 } } );
+    isnt( $result->{returncode}, 0, 'restoration failure fails the proxy worker' );
+    like(
+        $result->{stderr},
+        qr/could not restore the saved SOCKS proxy settings/,
+        'restoration failure is explicit'
+    );
+    like(
+        $result->{stderr},
+        qr/private settings snapshot retained at \Q$self->{snapshot}\E/,
+        'reports the private recovery snapshot'
+    );
+    ok( -f "$self->{snapshot}.failed", 'marks the snapshot for preservation by the outer cleanup' );
 }
 
 sub read_failure_does_not_modify {
     my ($self) = @_;
-    my $original = {SOCKSEnable => 0};
-    my ($result, $state) = run_proxy($self, $original, {read_failure => 1});
-    isnt($result->{returncode}, 0, 'settings inspection failure fails setup');
-    is_deeply($state->{current}, $original, 'inspection failure changes nothing');
-    ok(!@{$state->{calls} // []}, 'no native preference write is attempted');
+    my $original = { SOCKSEnable => 0 };
+    my ( $result, $state ) =
+      run_proxy( $self, $original, { read_failure => 1 } );
+    isnt( $result->{returncode}, 0, 'settings inspection failure fails setup' );
+    is_deeply( $state->{current}, $original, 'inspection failure changes nothing' );
+    ok( !@{ $state->{calls} // [] }, 'no native preference write is attempted' );
 }
 
 sub native_property_list_round_trip {
     my ($self) = @_;
-    plan skip_all => 'Native property-list bridging requires macOS' unless $^O eq 'darwin';
+    plan skip_all => 'Native property-list bridging requires macOS'
+      unless $^O eq 'darwin';
     my ($source) = read_file($sshf) =~ /<<'JXA'\n(.*?)\nJXA/s;
     die "Missing JXA helper\n" unless defined $source;
     my $preferences = "$self->{temporary}/preferences.plist";
-    my $native = "$self->{temporary}/native.js";
-    my $env = {%{$self->{env}}, SSHF_TEST_PREFS => $preferences};
+    my $native      = "$self->{temporary}/native.js";
+    my $env         = { %{ $self->{env} }, SSHF_TEST_PREFS => $preferences };
+
     # Use a real, isolated SCPreferences file and native dictionaries. Locking
     # and committing even a temporary preferences file require admin access;
     # replace only those boundaries with a direct write to this test file.
-    $source = replace_literal($source, "SCPreferencesCreate(null, \$('sshf'), null)",
-        "SCPreferencesCreate(null, \$('sshf'), \$.NSProcessInfo.processInfo.environment.objectForKey(\$('SSHF_TEST_PREFS')))");
-    $source = replace_literal($source, '$.SCPreferencesLock(preferences, true)', 'true');
-    $source = replace_literal($source, '$.SCPreferencesCommitChanges(preferences)',
-        'ObjC.castRefToObject($.SCPreferencesPathGetValue(preferences, $("/"))).writeToFileAtomically($.NSProcessInfo.processInfo.environment.objectForKey($("SSHF_TEST_PREFS")), true)');
-    $source = replace_literal($source, '$.SCPreferencesApplyChanges(preferences)', 'true');
-    $source = replace_literal($source, '$.SCPreferencesUnlock(preferences)', 'void 0');
-    write_file($native, $source);
-    write_file($preferences, <<'PLIST');
+    $source = replace_literal(
+        $source,
+        "SCPreferencesCreate(null, \$('sshf'), null)",
+"SCPreferencesCreate(null, \$('sshf'), \$.NSProcessInfo.processInfo.environment.objectForKey(\$('SSHF_TEST_PREFS')))"
+    );
+    $source = replace_literal( $source, '$.SCPreferencesLock(preferences, true)', 'true' );
+    $source = replace_literal( $source, '$.SCPreferencesCommitChanges(preferences)',
+'ObjC.castRefToObject($.SCPreferencesPathGetValue(preferences, $("/"))).writeToFileAtomically($.NSProcessInfo.processInfo.environment.objectForKey($("SSHF_TEST_PREFS")), true)'
+    );
+    $source = replace_literal( $source, '$.SCPreferencesApplyChanges(preferences)', 'true' );
+    $source = replace_literal( $source, '$.SCPreferencesUnlock(preferences)',       'void 0' );
+    write_file( $native,      $source );
+    write_file( $preferences, <<'PLIST' );
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict><key>NetworkServices</key><dict><key>test-service</key><dict><key>Proxies</key><dict>
@@ -253,13 +319,16 @@ sub native_property_list_round_trip {
 <key>HTTPEnable</key><integer>1</integer>
 </dict></dict></dict></dict></plist>
 PLIST
+
     for my $action (qw(save install restore)) {
-        my $result = run_command(['/usr/bin/osascript', '-l', 'JavaScript', $native,
-            $action, 'test-service', $self->{snapshot}], {env => $env});
-        is($result->{returncode}, 0, "native $action succeeds: $result->{stderr}");
-        is($result->{stdout}, '', "native $action prints no settings or credentials");
+        my $result = run_command(
+            [ '/usr/bin/osascript', '-l', 'JavaScript', $native, $action, 'test-service', $self->{snapshot} ],
+            { env => $env }
+        );
+        is( $result->{returncode}, 0,  "native $action succeeds: $result->{stderr}" );
+        is( $result->{stdout},     '', "native $action prints no settings or credentials" );
     }
-    write_file("$self->{temporary}/compare.js", <<'JXA');
+    write_file( "$self->{temporary}/compare.js", <<'JXA' );
 ObjC.import('Foundation');
 function run(argv) {
     var current = $.NSDictionary.dictionaryWithContentsOfFile($(argv[0]))
@@ -268,30 +337,49 @@ function run(argv) {
     return current.isEqualToDictionary(original) ? 'equal' : 'different';
 }
 JXA
-    my $comparison = run_command(['/usr/bin/osascript', '-l', 'JavaScript',
-        "$self->{temporary}/compare.js", $preferences, $self->{snapshot}], {env => $env});
-    is($comparison->{returncode}, 0, $comparison->{stderr});
-    is($comparison->{stdout}, "equal\n", 'native types, absent keys, and authentication values survive the round trip');
-    write_file($preferences, <<'PLIST');
+    my $comparison = run_command(
+        [
+            '/usr/bin/osascript', '-l',
+            'JavaScript',         "$self->{temporary}/compare.js",
+            $preferences,         $self->{snapshot}
+        ],
+        { env => $env }
+    );
+    is( $comparison->{returncode}, 0, $comparison->{stderr} );
+    is( $comparison->{stdout}, "equal\n",
+        'native types, absent keys, and authentication values survive the round trip' );
+    write_file( $preferences, <<'PLIST' );
 <?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>NetworkServices</key><dict><key>test-service</key><dict><key>UserDefinedName</key><string>Mock Wi-Fi</string></dict></dict></dict></plist>
 PLIST
     for my $action (qw(save install restore)) {
-        my $result = run_command(['/usr/bin/osascript', '-l', 'JavaScript', $native,
-            $action, 'test-service', $self->{snapshot}], {env => $env});
-        is($result->{returncode}, 0, "native $action with absent settings succeeds: $result->{stderr}");
+        my $result = run_command(
+            [ '/usr/bin/osascript', '-l', 'JavaScript', $native, $action, 'test-service', $self->{snapshot} ],
+            { env => $env }
+        );
+        is( $result->{returncode}, 0, "native $action with absent settings succeeds: $result->{stderr}" );
     }
-    my $absent = run_command(['/usr/bin/plutil', '-convert', 'json', '-o', '-', $preferences], {env => $env});
-    is_deeply(decode_json($absent->{stdout}), {NetworkServices => {'test-service' => {UserDefinedName => 'Mock Wi-Fi'}}}, 'native absent dictionary is restored');
+    my $absent =
+      run_command( [ '/usr/bin/plutil', '-convert', 'json', '-o', '-', $preferences ], { env => $env } );
+    is_deeply(
+        decode_json( $absent->{stdout} ),
+        {
+            NetworkServices => { 'test-service' => { UserDefinedName => 'Mock Wi-Fi' } }
+        },
+        'native absent dictionary is restored'
+    );
 }
 
-run_cases({
-    enabled_authenticated_proxy => \&enabled_authenticated_proxy,
-    disabled_proxy => \&disabled_proxy,
-    absent_settings => \&absent_settings,
-    unrelated_changes_survive => \&unrelated_changes_survive,
-    setup_failures_restore => \&setup_failures_restore,
-    snapshot_failure_does_not_modify => \&snapshot_failure_does_not_modify,
-    restore_failure_is_reported => \&restore_failure_is_reported,
-    read_failure_does_not_modify => \&read_failure_does_not_modify,
-    native_property_list_round_trip => \&native_property_list_round_trip,
-}, \&setup);
+run_cases(
+    {
+        enabled_authenticated_proxy      => \&enabled_authenticated_proxy,
+        disabled_proxy                   => \&disabled_proxy,
+        absent_settings                  => \&absent_settings,
+        unrelated_changes_survive        => \&unrelated_changes_survive,
+        setup_failures_restore           => \&setup_failures_restore,
+        snapshot_failure_does_not_modify => \&snapshot_failure_does_not_modify,
+        restore_failure_is_reported      => \&restore_failure_is_reported,
+        read_failure_does_not_modify     => \&read_failure_does_not_modify,
+        native_property_list_round_trip  => \&native_property_list_round_trip,
+    },
+    \&setup
+);

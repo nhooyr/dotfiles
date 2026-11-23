@@ -4,33 +4,43 @@ use warnings;
 use Encode qw(decode);
 
 my $git = @ARGV && $ARGV[0] eq '--git' ? shift @ARGV : '';
-my (@patterns, @positional);
+my ( @patterns, @positional );
 my $options = 1;
-for (my $i = 0; $i < @ARGV; ++$i) {
+for ( my $i = 0 ; $i < @ARGV ; ++$i ) {
     my $argument = $ARGV[$i];
-    if ($options && $argument eq '--') {
+    if ( $options && $argument eq '--' ) {
         $options = 0;
-    } elsif ($options && $argument eq '-e') {
-        if (++$i == @ARGV) { push @positional, $argument; last; }
+    }
+    elsif ( $options && $argument eq '-e' ) {
+        if ( ++$i == @ARGV ) { push @positional, $argument; last; }
         push @patterns, $ARGV[$i];
-    } elsif ($options && $argument =~ /\A--(?:r|re|reg|rege|regex|regexp)(?:=(.*))?\z/s) {
-        if (defined $1) { push @patterns, $1; }
-        elsif (++$i < @ARGV) { push @patterns, $ARGV[$i]; }
-        else { push @positional, $argument; }
-    } elsif ($options && $argument =~ /\A-[EFGR]*e(.*)\z/s) {
-        if (length $1) { push @patterns, $1; }
-        elsif (++$i < @ARGV) { push @patterns, $ARGV[$i]; }
-        else { push @positional, $argument; }
-    } elsif (!$options || $argument !~ /\A-[EFGR]+\z/) {
+    }
+    elsif ($options
+        && $argument =~ /\A--(?:r|re|reg|rege|regex|regexp)(?:=(.*))?\z/s )
+    {
+        if    ( defined $1 )   { push @patterns,   $1; }
+        elsif ( ++$i < @ARGV ) { push @patterns,   $ARGV[$i]; }
+        else                   { push @positional, $argument; }
+    }
+    elsif ( $options && $argument =~ /\A-[EFGR]*e(.*)\z/s ) {
+        if    ( length $1 )    { push @patterns,   $1; }
+        elsif ( ++$i < @ARGV ) { push @patterns,   $ARGV[$i]; }
+        else                   { push @positional, $argument; }
+    }
+    elsif ( !$options || $argument !~ /\A-[EFGR]+\z/ ) {
         push @positional, $argument;
     }
 }
-@patterns = ($positional[0]) if !@patterns && @positional;
-my @ignore_case = @patterns
-    && !grep(/\A-.+/, @positional)
-    && !grep(decode('UTF-8', $_) =~ /\p{Uppercase}/, @patterns) ? ('-i') : ();
-my @command = $git
-    ? ('git', '--no-pager', '-c', 'core.quotePath=false', 'grep', '-nIE',
-        '--recurse-submodules', '--no-color', '--column', '--no-full-name', '--no-heading', '--no-break')
-    : ('ggrep', '--color=never', '-nHIR', '--exclude-dir=.git');
-exec {$command[0]} @command, @ignore_case, @ARGV or die "$command[0]: $!\n";
+@patterns = ( $positional[0] ) if !@patterns && @positional;
+my @ignore_case =
+     @patterns
+  && !grep( /\A-.+/,                                  @positional )
+  && !grep( decode( 'UTF-8', $_ ) =~ /\p{Uppercase}/, @patterns ) ? ('-i') : ();
+my @command =
+  $git
+  ? (
+    'git', '--no-pager', '-c', 'core.quotePath=false', 'grep', '-nIE', '--recurse-submodules', '--no-color',
+    '--column', '--no-full-name', '--no-heading', '--no-break'
+  )
+  : ( 'ggrep', '--color=never', '-nHIR', '--exclude-dir=.git' );
+exec { $command[0] } @command, @ignore_case, @ARGV or die "$command[0]: $!\n";

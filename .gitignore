@@ -1,4 +1,5 @@
 *.vsix
+.build/
 __pycache__
 alfred/Alfred.alfredpreferences/snippets/*
 !alfred/Alfred.alfredpreferences/snippets/aqsnow

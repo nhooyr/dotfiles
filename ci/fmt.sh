@@ -4,10 +4,17 @@ cd -- "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
 	sudo add-apt-repository --yes ppa:fish-shell/release-4
-	sudo apt-get install --yes fish shfmt cargo rustfmt
+	sudo apt-get install --yes fish shfmt cargo rustfmt cpanminus
+	perl_lib="$PWD/.build/perltidy-20260826-$(perl -e 'print $^V')"
+	export PERL_CPANM_HOME="$PWD/.build/cpanm"
+	export PERL5LIB="$perl_lib/lib/perl5"
+	export PATH="$perl_lib/bin:$PATH"
+	perl "$(command -v cpanm)" --notest --local-lib-contained "$perl_lib" 'Perl::Tidy@20260826'
 fi
 
 find . -type f -name '*.fish' -exec fish_indent -w {} +
+git ls-files --cached --others --exclude-standard -z -- '*.pl' '*.pm' '*.t' bin/vgrep |
+	xargs -0 -n1 sh -c 'test ! -f "$1" || perltidy -npro -l=110 -conv -b -bext=/ "./$1"' sh
 cargo fmt --quiet --manifest-path fish/fzfpaths/Cargo.toml
 shfmt -s -w .
 
