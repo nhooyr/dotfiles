@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!-- Reserve the Terminal palette's yellow (#FFFF00) for match highlighting and autocomplete
+     selection: yellow backgrounds with black text. Never use it as a foreground color. -->
 <dict>
 	<key>name</key>
 	<string>nhooyr</string>
@@ -16,7 +18,7 @@
 				<key>caret</key>
 				<string>#000000</string>
 				<key>selection</key>
-				<string>#0000b226</string>
+				<string>#0000B326</string>
 				<key>lineHighlight</key>
 				<string>#00000005</string>
 				<key>gutter</key>
@@ -26,7 +28,7 @@
 				<key>invisibles</key>
 				<string>#00000026</string>
 				<key>findHighlight</key>
-				<string>#0000b233</string>
+				<string>#FFFF00</string>
 				<key>findHighlightForeground</key>
 				<string>#000000</string>
 			</dict>
@@ -63,7 +65,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#0000b2</string>
+				<string>#0000B3</string>
 			</dict>
 		</dict>
 		<dict>
@@ -151,7 +153,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#0000b2</string>
+				<string>#0000B3</string>
 			</dict>
 		</dict>
 		<dict>
@@ -206,7 +208,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#0000b2</string>
+				<string>#0000B3</string>
 				<key>fontStyle</key>
 				<string>bold</string>
 			</dict>
@@ -219,7 +221,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#0000b2</string>
+				<string>#0000B3</string>
 			</dict>
 		</dict>
 		<dict>
@@ -296,7 +298,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#0000b2</string>
+				<string>#0000B3</string>
 			</dict>
 		</dict>
 	</array>

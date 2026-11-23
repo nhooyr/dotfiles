@@ -2,7 +2,7 @@
     "name": "theme",
     "displayName": "nhooyr",
     "description": "A light VS Code theme based on my 0nhooyr Terminal.app profile.",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "publisher": "nhooyr",
     "license": "MIT",
     "engines": {

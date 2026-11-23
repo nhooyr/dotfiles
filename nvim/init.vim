@@ -37,11 +37,16 @@ set notermguicolors
 colorscheme default
 nnoremap <Leader>i <Cmd>Inspect<CR>
 highlight Comment ctermfg=8 cterm=italic
+highlight Search ctermfg=0 ctermbg=3
+highlight! link CurSearch Search
 highlight LineNr ctermfg=8
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
 highlight PreProc ctermfg=6
 highlight Error ctermfg=1 ctermbg=none cterm=underline
+highlight WarningMsg ctermfg=6
+highlight! link DiagnosticWarn WarningMsg
+highlight RedrawDebugClear ctermbg=6
 highlight WinSeparator cterm=bold
 highlight link gitcommitOverflow Error
 
@@ -164,7 +169,6 @@ nnoremap x "_x
 nnoremap X "_X
 nnoremap C "_C
 nnoremap c "_c
-nnoremap C "_C
 xnoremap c "_c
 nnoremap s "_s
 xnoremap s "_s
@@ -202,8 +206,7 @@ endif
 inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
 highlight PmenuMatch cterm=underline
-highlight PmenuSel ctermfg=4 cterm=none
-highlight PmenuMatchSel cterm=underline
+highlight PmenuSel ctermfg=3 ctermbg=0 cterm=none
 highlight PmenuThumb ctermbg=8
 highlight! link NormalFloat LineNr
 " Only time we use a non-base16 color. Keeps copilot suggestions visible in comments which are cterm=8.
@@ -264,7 +267,7 @@ nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'cope
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
 nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
 highlight link qfLineNr Type
-highlight QuickFixLine ctermfg=7 ctermbg=0
+highlight QuickFixLine ctermfg=0 ctermbg=3
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 lua package.loaded.qf, package.loaded.snip = nil, nil

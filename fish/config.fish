@@ -19,7 +19,7 @@ set -g nhooyr ~/code/nhooyr
 set -g notes "$nhooyr/notes"
 
 tabs -4
-set -gx LESS -RXF -ix4 --use-color -DBK -DCK -DEms -DMcd -DNcd -DPks -DRKs -DSbws
+set -gx LESS -RXF -ix4 --use-color -DBK -DCK -DEms -DMcd -DNcd -DPks -DRKs -DSky
 set -g fish_greeting
 set -gx MANPAGER nvim +Man!
 set -gx EDITOR nvim
@@ -124,14 +124,14 @@ alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git
     --colors=path:fg:cyan \
     --colors=line:fg:magenta \
     --colors=match:none \
-    --colors=match:fg:white \
-    --colors=match:bg:blue \
+    --colors=match:fg:black \
+    --colors=match:bg:yellow \
 "
 function f
     find . -iname "*$argv*" | grf "$argv"
 end
-set -gx GREP_COLORS 'mt=37;44:fn=36:ln=35:bn=35:se=00'
-set -gx GREP_COLOR '37;44'
+set -gx GREP_COLORS 'mt=30;43:fn=36:ln=35:bn=35:se=00'
+set -gx GREP_COLOR '30;43'
 abbrali gre _grep -E
 abbrali grf _grep -F
 abbrali grer _grep -ER
@@ -268,7 +268,8 @@ alias fzf='TERM_PROGRAM=Apple_Terminal command fzf'
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
     --color=bw --color \
-    --color=query:regular,info:italic,fg+:regular:reverse:strip,hl+:reverse:strip,pointer:magenta"
+    --color=query:regular,info:italic,pointer:black,\
+fg+:black:regular:strip,bg+:yellow,hl+:black:regular:underline:strip"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
 for mode in default insert

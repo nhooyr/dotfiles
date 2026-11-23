@@ -77,7 +77,7 @@
 	filename = cyan
 	lineNumber = magenta
 	column = magenta
-	match = white blue
+	match = black yellow
 	separator = normal
 [blame]
 	date = relative
