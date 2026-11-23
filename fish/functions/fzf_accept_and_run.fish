@@ -124,7 +124,7 @@ function fzf_path_widget --argument-names widget
                                 set execute 1
                             end
                             set -l header
-                            if not read --nchars 2 header 2>/dev/null < "$target"; or test "$header" != '#!'
+                            if not read --nchars 2 header 2>/dev/null <"$target"; or test "$header" != '#!'
                                 set next_kind executable
                                 if not set -q kind[1]; and string match -q -- '*/*' "$result[1]"
                                     set execute 1
