@@ -23,8 +23,8 @@ local function refresh()
 	if not directory or vim.fn.isdirectory(directory) == 0 then return end
 	local current_timer = timer
 	job = vim.system({
-		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and fish_vcs_prompt', vim.env.dotfiles,
-	}, { text = true, cwd = directory, env = { TERM = 'dumb', GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
+		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
+	}, { text = true, detach = true, cwd = directory, env = { TERM = 'dumb', GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
 		if timer ~= current_timer then return end
 		job = nil
 		if vim.api.nvim_buf_is_valid(buf) then
@@ -67,7 +67,8 @@ local function stop()
 	timer = nil
 	focus_timer = nil
 	focus_pending = false
-	if job then job:kill(15) end
+	-- A live handle keeps the private process-group ID from being reused.
+	if job and not job:is_closing() then vim.uv.kill(-job.pid, 15) end
 	job = nil
 end
 
