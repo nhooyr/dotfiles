@@ -2,7 +2,8 @@ source "$(status dirname)/../fzf_upstream.fish"; or return
 
 function fzf_accept_and_run --argument-names widget
     aqsnow_init_rendezvous; or return
-    set -l action "alt-enter:execute-silent(printf %s {+} > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
+    # Indices preserve fzf's empty-selection guard without copying filenames.
+    set -l action "alt-enter:execute-silent(test -n '{+n}'; and printf exec > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
     set -l option "--bind=$(string escape -- "$action")"
 
     for name in FZF_CTRL_R_OPTS FZF_CTRL_T_OPTS FZF_ALT_C_OPTS FZF_COMPLETION_OPTS FZF_EXPANSION_OPTS
@@ -20,17 +21,15 @@ end
 function fzf_path_widget --argument-names widget
     set -l parsed $(__fzf_parse_commandline)
     set -l dir "$(string unescape -- "$parsed[1]")"
-    # Skip whole-home scans; the HOME alias below still abbreviates paths.
-    if test "$dir" -ef ~
+    set -l token "$(commandline --current-token --tokens-expanded)"
+    # Only scan the whole home directory when ./ explicitly requests it.
+    if test "$dir" -ef ~; and not string match -q -- './*' "$token"
         set dir ''
     end
+    set -l global_dir "$nhooyr"
     set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
     while contains -- "$tokens[1]" and or not '!' command builtin exec time if while
         set -e tokens[1]
-    end
-    set -l --unexport CDPATH $CDPATH
-    if not set -q tokens[1]; or contains -- "$tokens[1]" cd cdc
-        set -x CDPATH $CDPATH
     end
     set -l type -fd
     set -l flags
@@ -50,7 +49,7 @@ function fzf_path_widget --argument-names widget
         test -d "$$name"; or continue
         set -l direnv '$'$name
         test "$name" = HOME; and set direnv '~'
-        set -a dirs "$direnv" $(path normalize -Z -- "$$name" | string split0)
+        set -a dirs --dirali "$direnv" $(path normalize -Z -- "$$name" | string split0)
     end
 
     set -l shell $(string join ' ' -- $(string escape -- $(status fish-path) -c))
@@ -60,12 +59,14 @@ function fzf_path_widget --argument-names widget
         "$opts --read0 --print0 --with-shell=$(string escape -- "$shell")")
     set -lx FZF_DEFAULT_OPTS_FILE
     printf '%s\0' "$parsed[2]" | read --null --local --array --tokenize query; or return
-    # Upstream path parsing normalizes away an explicit execution prefix.
-    set -l token "$(commandline --current-token --tokens-expanded)"
+    # ./ selects local search; keep the execution prefix only for file/path queries.
     if string match -q -- './*' "$token"
-        set query "$token"
+        test "$widget" = fzf-cd-widget; or set query "$token"
+        set global_dir ''
+    else if not set -q tokens[1]; or contains -- "$tokens[1]" cd cdc
+        set -a flags --cdpath "$CDPATH"
     end
-    set -l result $(fzf-paths $flags "$dir" "$nhooyr" "$type" $dirs | fzf --query="$query" | string split0)
+    set -l result $(fzf-paths $flags "$dir" "$global_dir" "$type" $dirs | fzf --query="$query" | string split0)
     if set -q result[1]
         set -l cdpath_selected 0
         string match -q -- '$CDPATH/*' "$result[1]"; and set cdpath_selected 1
@@ -73,7 +74,21 @@ function fzf_path_widget --argument-names widget
         for target in $result
             if string match -q -- '$CDPATH/*' "$target"
                 set -l name $(string split --max 1 -- '$CDPATH/' "$target")[2]
-                set -a escaped "$(string escape -n -- "$name")"
+                set -l selected "$(string escape -n -- "$name")"
+                if test -d "$name"
+                    for root in $CDPATH
+                        # Skip the local directory and use the first different CDPATH match.
+                        if test -d "$root/$name"; and not test "$name" -ef "$root/$name"
+                            set -l path "$root/$name"
+                            string match -q -- '/*' "$path"; or set path "$PWD/$path"
+                            set path $(path normalize -Z -- "$path" | string split0)
+                            set path $(aqsnow_fzf_path_alias "$path" | string split0)
+                            set selected "$(aqsnow_fzf_path_quote "$path")"
+                            break
+                        end
+                    end
+                end
+                set -a escaped "$selected"
             else
                 set -a escaped "$(aqsnow_fzf_path_quote "$target")"
             end
@@ -105,23 +120,32 @@ function fzf_path_widget --argument-names widget
     commandline -f repaint
 end
 
+function aqsnow_fzf_path_alias --argument-names target
+    set -l aliased "$target"
+    set -l longest 0
+    for name in $aqsnow_fzf_diralis
+        test -d "$$name"; or continue
+        set -l directory $(path normalize -Z -- "$$name" | string split0)
+        set -l length $(string length -- "$directory")
+        test "$length" -gt "$longest"; or continue
+        if string match -qr -- '^'$(string escape --style=regex -- "$directory")'(/|$)' "$target"
+            set -l direnv '$'$name
+            test "$name" = HOME; and set direnv '~'
+            set -l suffix $(string split --max 1 -- "$directory" "$target")[2]
+            set aliased "$direnv$suffix"
+            set longest "$length"
+        end
+    end
+    printf '%s\0' "$aliased"
+end
+
 function aqsnow_fzf_path_quote --argument-names target
     for name in $aqsnow_fzf_diralis
         set -l direnv '$'$name
         test "$name" = HOME; and set direnv '~'
         if test "$target" = "$direnv"; or string match -q -- "$direnv/*" "$target"
-            if test "$direnv" = '~'
-                string replace -- '\~' '~' "$(string escape -n -- "$target")"
-            else
-                set -l suffix $(string split --max 1 -- "$direnv" "$target")[2]
-                printf '"%s' "$direnv"
-                # Escape only characters that are special inside double quotes.
-                for char in $(string split '' -- "$suffix")
-                    contains -- "$char" '\\' '"' '$'; and printf '\\'
-                    printf '%s' "$char"
-                end
-                printf '"\n'
-            end
+            # Keep the leading $ or ~ expandable; escape everything else.
+            string sub --start 2 -- "$(string escape -n -- "$target")"
             return
         end
     end

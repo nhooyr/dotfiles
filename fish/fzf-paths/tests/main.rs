@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::env;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::{self, BufRead, BufReader};
 use std::os::unix::{ffi::OsStringExt, fs::symlink, fs::PermissionsExt, process::CommandExt};
@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
 
@@ -114,17 +114,26 @@ impl Fixture {
         kind: &str,
         env_dirs: &[(&str, &Path)],
     ) -> Command {
+        self.command_with_cdpath(flags, cwd, global_dir, None, kind, env_dirs)
+    }
+
+    fn command_with_cdpath(
+        &self,
+        flags: &[&str],
+        cwd: &Path,
+        global_dir: &Path,
+        cdpath: Option<&OsStr>,
+        kind: &str,
+        env_dirs: &[(&str, &Path)],
+    ) -> Command {
         let mut command = Command::new(env!("CARGO_BIN_EXE_fzf-paths"));
-        command
-            .current_dir(cwd)
-            .env("PWD", cwd)
-            .env_remove("CDPATH")
-            .args(flags)
-            .arg(".")
-            .arg(global_dir)
-            .arg(kind);
+        command.current_dir(cwd).env("PWD", cwd).args(flags);
+        if let Some(cdpath) = cdpath {
+            command.arg("--cdpath").arg(cdpath);
+        }
+        command.arg(".").arg(global_dir).arg(kind);
         for (env, path) in env_dirs {
-            command.arg(env).arg(path);
+            command.arg("--dirali").arg(env).arg(path);
         }
         command
     }
@@ -153,27 +162,28 @@ impl Drop for Fixture {
 }
 
 #[test]
-fn local_paths_are_first_and_unique() {
+fn local_and_global_paths_are_unique() {
     let fixture = Fixture::new();
     let paths = fixture.pick();
-    let first_global = paths.iter().position(|path| path == &fixture.repo).unwrap();
-    assert!(first_global > 0);
-    assert!(paths[..first_global]
-        .iter()
-        .all(|path| !Path::new(path).is_absolute()));
+    assert!(paths.contains(&"file".into()));
+    assert!(paths.contains(&fixture.repo.clone().into_os_string()));
     assert_eq!(paths.len(), paths.iter().collect::<HashSet<_>>().len());
 }
 
 #[test]
-fn local_subdirectories_are_scanned_depth_first() {
+fn local_subdirectory_searches_keep_nested_paths() {
     let fixture = Fixture::new();
     write(&fixture.local, "first/deep/leaf");
     write(&fixture.local, "second/deep/leaf");
     let paths = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), "-fd", &[]));
-    let index = |name: &str| paths.iter().position(|path| path == name).unwrap();
-    let first = (index("first/deep"), index("first/deep/leaf"));
-    let second = (index("second/deep"), index("second/deep/leaf"));
-    assert!(first.1 < second.0 || second.1 < first.0);
+    for name in [
+        "first/deep",
+        "first/deep/leaf",
+        "second/deep",
+        "second/deep/leaf",
+    ] {
+        assert!(paths.contains(&name.into()));
+    }
 }
 
 #[test]
@@ -194,6 +204,148 @@ fn global_files_follow_git_order() {
     ]
     .into();
     assert_eq!(files, expected);
+}
+
+#[test]
+fn first_local_result_arrives_before_global_scan_finishes() {
+    let fixture = Fixture::new();
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    fs::write(
+        &git,
+        "#!/bin/sh\nwhile [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\nprintf 'tracked\\0'\n",
+    )
+    .unwrap();
+    make_executable(&git);
+    let release = fixture.root.join("release");
+    let path = env::join_paths(
+        std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let mut child = fixture
+        .command(&fixture.local, &fixture.global_dir, "-f", &[])
+        .env("PATH", path)
+        .env("FZF_TEST_RELEASE", &release)
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let (sender, receiver) = mpsc::channel();
+    let reader = std::thread::spawn(move || {
+        let mut stdout = BufReader::new(stdout);
+        let mut first = Vec::new();
+        stdout.read_until(0, &mut first).unwrap();
+        sender.send(first).unwrap();
+        io::copy(&mut stdout, &mut io::sink()).unwrap();
+    });
+    let first = receiver.recv_timeout(Duration::from_secs(5));
+    fs::write(release, "continue").unwrap();
+    assert!(child.wait().unwrap().success());
+    reader.join().unwrap();
+    let mut first = first.expect("first local result was buffered while Git waited");
+    assert_eq!(first.pop(), Some(0));
+    let first = OsString::from_vec(first);
+    assert!(!Path::new(&first).is_absolute());
+    assert!(fixture.local.join(first).is_file());
+}
+
+#[test]
+fn global_scan_starts_while_local_output_is_blocked() {
+    let fixture = Fixture::new();
+    // Long paths fill the stdout pipe well before the former 1,000-result gate.
+    let directory = vec!["long".repeat(40); 4].join("/");
+    for index in 0..1005 {
+        write(&fixture.local, &format!("{directory}/file-{index}"));
+    }
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    fs::write(
+        &git,
+        "#!/bin/sh\n: > \"$FZF_TEST_STARTED\"\nprintf 'tracked\\0'\n",
+    )
+    .unwrap();
+    make_executable(&git);
+    let started = fixture.root.join("started");
+    let path = env::join_paths(
+        std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let child = fixture
+        .command(&fixture.local, &fixture.global_dir, "-f", &[])
+        .env("PATH", path)
+        .env("FZF_TEST_STARTED", &started)
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !started.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let concurrent = started.exists();
+    // Always drain stdout so even a regression can finish before we assert.
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(concurrent, "Git waited for the blocked local scan");
+}
+
+#[test]
+fn cdpath_results_arrive_while_git_is_waiting() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("cdpath");
+    fs::create_dir_all(directory.join("junegunn/fzf")).unwrap();
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    fs::write(
+        &git,
+        "#!/bin/sh\nwhile [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\nprintf 'nested/child\\0'\n",
+    )
+    .unwrap();
+    make_executable(&git);
+    let release = fixture.root.join("release");
+    let path = env::join_paths(
+        std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let mut child = fixture
+        .command_with_cdpath(
+            &[],
+            &fixture.local,
+            &fixture.global_dir,
+            Some(directory.as_os_str()),
+            "-fd",
+            &[],
+        )
+        .env("PATH", path)
+        .env("FZF_TEST_RELEASE", &release)
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let (sender, receiver) = mpsc::channel();
+    let reader = std::thread::spawn(move || {
+        for path in BufReader::new(stdout).split(0) {
+            sender.send(path.unwrap()).unwrap();
+        }
+    });
+    let mut local = false;
+    let mut cdpath = false;
+    while !local || !cdpath {
+        match receiver.recv_timeout(Duration::from_secs(5)) {
+            Ok(path) => {
+                local |= path == b"file";
+                cdpath |= path == b"$CDPATH/junegunn/fzf";
+            }
+            Err(_) => break,
+        }
+    }
+    fs::write(release, "continue").unwrap();
+    assert!(child.wait().unwrap().success());
+    reader.join().unwrap();
+    assert!(local, "local results waited for Git");
+    assert!(cdpath, "CDPATH results waited for Git");
 }
 
 #[test]
@@ -246,7 +398,67 @@ fn global_results_arrive_before_git_finishes() {
 }
 
 #[test]
-fn local_scan_resumes_after_global_paths_at_one_thousand_results() {
+fn a_slow_repository_does_not_hold_back_other_repositories() {
+    let fixture = Fixture::new();
+    let second = fixture.global_dir.join("second");
+    fs::create_dir_all(second.join(".git")).unwrap();
+    write(&second, "tracked");
+    let blocked = fs::read_dir(&fixture.global_dir)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let other = if blocked == second {
+        &fixture.repo
+    } else {
+        &second
+    };
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    fs::write(
+        &git,
+        "#!/bin/sh\nif [ \"$2\" = \"$FZF_TEST_BLOCKED_REPO\" ]; then\n  while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\nfi\nprintf 'tracked\\0'\n",
+    )
+    .unwrap();
+    make_executable(&git);
+    let release = fixture.root.join("release");
+    let path = env::join_paths(
+        std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let mut child = fixture
+        .command(&fixture.local, &fixture.global_dir, "-f", &[])
+        .env("PATH", path)
+        .env("FZF_TEST_BLOCKED_REPO", blocked)
+        .env("FZF_TEST_RELEASE", &release)
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let (sender, receiver) = mpsc::channel();
+    let reader = std::thread::spawn(move || {
+        for path in BufReader::new(stdout).split(0) {
+            sender.send(path.unwrap()).unwrap();
+        }
+    });
+    let wanted = other.join("tracked").into_os_string().into_vec();
+    let streamed = loop {
+        match receiver.recv_timeout(Duration::from_secs(5)) {
+            Ok(path) if path == wanted => break true,
+            Ok(_) => continue,
+            Err(_) => break false,
+        }
+    };
+    fs::write(release, "continue").unwrap();
+    assert!(child.wait().unwrap().success());
+    reader.join().unwrap();
+    assert!(streamed, "a slow repository held back another repository");
+}
+
+#[test]
+fn parallel_searches_keep_all_local_paths() {
     let fixture = Fixture::new();
     let local = fixture.root.join("large");
     for i in 0..1005 {
@@ -262,18 +474,10 @@ fn local_scan_resumes_after_global_paths_at_one_thousand_results() {
             "-fd",
             &[],
         ));
-        let first_global = paths.iter().position(|path| path == &fixture.repo).unwrap();
-        assert_eq!(first_global, 1000);
-        let last_global = paths
+        assert!(paths.contains(&fixture.repo.clone().into_os_string()));
+        let local_paths: HashSet<_> = paths
             .iter()
-            .rposition(|path| Path::new(path).is_absolute())
-            .unwrap();
-        assert!(paths[first_global..=last_global]
-            .iter()
-            .all(|path| Path::new(path).is_absolute()));
-        let local_paths: HashSet<_> = paths[..first_global]
-            .iter()
-            .chain(&paths[last_global + 1..])
+            .filter(|path| !Path::new(path).is_absolute())
             .collect();
         let forms = if flags.is_empty() { 1 } else { 2 };
         assert_eq!(local_paths.len(), 1 + 1005 * forms);
@@ -287,6 +491,39 @@ fn local_scan_resumes_after_global_paths_at_one_thousand_results() {
     }
     let paths = fixture.run(&mut fixture.command(&local, Path::new(""), "-fd", &[]));
     assert_eq!(paths.len(), 1006);
+}
+
+#[test]
+fn closing_the_picker_does_not_leave_workers_blocked() {
+    let fixture = Fixture::new();
+    for index in 0..1005 {
+        write(&fixture.local, &format!("many/file-{index}"));
+    }
+    let mut child = fixture
+        .command(&fixture.local, &fixture.global_dir, "-fd", &[])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut first = Vec::new();
+    stdout.read_until(0, &mut first).unwrap();
+    drop(stdout);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let exited = loop {
+        if child.try_wait().unwrap().is_some() {
+            break true;
+        }
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            break false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let output = child.wait_with_output().unwrap();
+    assert!(exited, "workers stayed blocked after stdout closed");
+    assert!(output.status.success(), "{output:?}");
+    assert!(output.stderr.is_empty(), "{output:?}");
 }
 
 #[test]
@@ -320,12 +557,8 @@ fn longest_env_and_raw_local_copy() {
             ("$project", &fixture.repo),
         ],
     ));
-    let raw = paths.iter().position(|p| p == "nested/child").unwrap();
-    let env = paths
-        .iter()
-        .position(|p| p == "$project/nested/child")
-        .unwrap();
-    assert!(raw < env);
+    assert!(paths.contains(&"nested/child".into()));
+    assert!(paths.contains(&"$project/nested/child".into()));
     assert!(!paths
         .iter()
         .any(|path| Path::new(path).starts_with("$global_dir/project")));
@@ -402,12 +635,14 @@ fn files_only_excludes_directories_and_keeps_symlink_files() {
 }
 
 #[test]
-fn cdpath_adds_immediate_directories_from_all_roots() {
+fn cdpath_adds_two_directory_levels_from_all_roots() {
     let fixture = Fixture::new();
     let first = fixture.root.join("cdpath");
     let second = fixture.root.join("cdpath2");
     for directory in [
-        "one/inside",
+        "one/inside/deeper",
+        "one/.git/excluded",
+        "one/node_modules/excluded",
         "two",
         ".hidden",
         ".git/excluded",
@@ -429,18 +664,33 @@ fn cdpath_adds_immediate_directories_from_all_roots() {
     .unwrap();
 
     for kind in ["-d", "-fd"] {
-        let paths = fixture.run(
-            fixture
-                .command(&fixture.local, &fixture.global_dir, kind, &[])
-                .env("CDPATH", &cdpath),
-        );
-        for directory in ["one", "two", ".hidden", "linked"] {
+        let paths = fixture.run(&mut fixture.command_with_cdpath(
+            &[],
+            &fixture.local,
+            &fixture.global_dir,
+            Some(&cdpath),
+            kind,
+            &[],
+        ));
+        for directory in [
+            "one",
+            "one/inside",
+            "two",
+            ".hidden",
+            "linked",
+            "linked/inside",
+        ] {
             assert!(paths.contains(&format!("$CDPATH/{directory}").into()));
         }
         assert!(paths.contains(&"$CDPATH/three".into()));
         assert!(paths.contains(&"$CDPATH/dir".into()));
         for omitted in [
-            "one/inside",
+            "one/inside/deeper",
+            "linked/inside/deeper",
+            "one/.git",
+            "one/node_modules",
+            "linked/.git",
+            "linked/node_modules",
             "not-a-directory",
             "broken",
             ".git",
@@ -464,11 +714,14 @@ fn cdpath_labels_are_independent_of_aliases_and_global_repositories() {
         &fixture.root.join("missing"),
         &fixture.global_dir,
     ] {
-        let paths = fixture.run(
-            fixture
-                .command(&fixture.local, global_dir, "-d", &[("$places", &directory)])
-                .env("CDPATH", &cdpath),
-        );
+        let paths = fixture.run(&mut fixture.command_with_cdpath(
+            &[],
+            &fixture.local,
+            global_dir,
+            Some(&cdpath),
+            "-d",
+            &[("$places", &directory)],
+        ));
         assert!(paths.contains(&"$CDPATH/child\nwith spaces".into()));
         assert_eq!(
             paths
@@ -486,11 +739,14 @@ fn files_only_ignores_cdpath() {
     let directory = fixture.root.join("cdpath");
     fs::create_dir_all(directory.join("child")).unwrap();
     write(&directory, "file");
-    let paths = fixture.run(
-        fixture
-            .command(&fixture.local, &fixture.global_dir, "-f", &[])
-            .env("CDPATH", &directory),
-    );
+    let paths = fixture.run(&mut fixture.command_with_cdpath(
+        &[],
+        &fixture.local,
+        &fixture.global_dir,
+        Some(directory.as_os_str()),
+        "-f",
+        &[],
+    ));
     assert!(paths.contains(&"file".into()));
     assert!(paths.contains(&fixture.repo.join("tracked").into_os_string()));
     assert!(!paths
@@ -503,17 +759,20 @@ fn files_only_ignores_cdpath() {
 }
 
 #[test]
-fn many_cdpath_directories_do_not_restart_scanning() {
+fn many_cdpath_directories_are_unique() {
     let fixture = Fixture::new();
     let directory = fixture.root.join("cdpath");
     for index in 0..1005 {
         fs::create_dir_all(directory.join(format!("dir-{index}"))).unwrap();
     }
-    let paths = fixture.run(
-        fixture
-            .command(&fixture.local, &fixture.global_dir, "-d", &[])
-            .env("CDPATH", &directory),
-    );
+    let paths = fixture.run(&mut fixture.command_with_cdpath(
+        &[],
+        &fixture.local,
+        &fixture.global_dir,
+        Some(directory.as_os_str()),
+        "-d",
+        &[],
+    ));
     assert_eq!(
         paths
             .iter()
@@ -525,13 +784,56 @@ fn many_cdpath_directories_do_not_restart_scanning() {
 }
 
 #[test]
-fn empty_cdpath_disables_cdpath_choices() {
+fn cdpath_environment_is_ignored_without_option() {
     let fixture = Fixture::new();
+    let directory = fixture.root.join("cdpath");
+    fs::create_dir_all(directory.join("child")).unwrap();
     let paths = fixture.run(
         fixture
             .command(&fixture.local, &fixture.global_dir, "-d", &[])
-            .env("CDPATH", ""),
+            .env("CDPATH", &directory),
     );
+    assert!(paths.contains(&"dir".into()));
+    assert!(!paths
+        .iter()
+        .any(|path| Path::new(path).starts_with("$CDPATH")));
+}
+
+#[test]
+fn cdpath_and_keep_dot_flags_work_in_both_orders() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("cdpath");
+    fs::create_dir_all(directory.join("child")).unwrap();
+    for keep_dot_first in [false, true] {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_fzf-paths"));
+        command
+            .current_dir(&fixture.local)
+            .env("PWD", &fixture.local);
+        if keep_dot_first {
+            command.arg("--keep-dot");
+        }
+        command.arg("--cdpath").arg(&directory);
+        if !keep_dot_first {
+            command.arg("--keep-dot");
+        }
+        command.arg(".").arg(&fixture.global_dir).arg("-fd");
+        let paths = fixture.run(&mut command);
+        assert!(paths.contains(&"$CDPATH/child".into()));
+        assert!(paths.contains(&"./executable".into()));
+    }
+}
+
+#[test]
+fn empty_cdpath_disables_cdpath_choices() {
+    let fixture = Fixture::new();
+    let paths = fixture.run(&mut fixture.command_with_cdpath(
+        &[],
+        &fixture.local,
+        &fixture.global_dir,
+        Some(OsStr::new("")),
+        "-d",
+        &[],
+    ));
     assert!(paths.contains(&"dir".into()));
     assert!(!paths
         .iter()
@@ -754,7 +1056,10 @@ fn empty_or_missing_global_dir() {
     let empty = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), "-fd", &[]));
     let missing =
         fixture.run(&mut fixture.command(&fixture.local, &fixture.root.join("absent"), "-fd", &[]));
-    assert_eq!(empty, missing);
+    assert_eq!(
+        HashSet::<_>::from_iter(empty),
+        HashSet::<_>::from_iter(missing)
+    );
 }
 
 #[test]
@@ -764,7 +1069,10 @@ fn logical_working_directory() {
     symlink(&fixture.local, &link).unwrap();
     let mut command = fixture.command(&fixture.local, &fixture.global_dir, "-fd", &[]);
     command.env("PWD", link);
-    assert_eq!(fixture.pick(), fixture.run(&mut command));
+    assert_eq!(
+        HashSet::<_>::from_iter(fixture.pick()),
+        HashSet::<_>::from_iter(fixture.run(&mut command))
+    );
 }
 
 #[test]
@@ -915,22 +1223,70 @@ fn escaped_gitignore_patterns_are_respected() {
 }
 
 #[test]
-fn invalid_arguments() {
-    let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
-        .arg0("/some/path/renamed-picker")
+fn dirali_options_work_before_and_after_positions() {
+    let fixture = Fixture::new();
+    let paths = fixture.run(
+        Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+            .current_dir(&fixture.local)
+            .env("PWD", &fixture.local)
+            .arg("--dirali")
+            .arg("$global_dir")
+            .arg(&fixture.global_dir)
+            .arg(".")
+            .arg(&fixture.global_dir)
+            .arg("--keep-dot")
+            .arg("--dirali")
+            .arg("$project")
+            .arg(&fixture.repo)
+            .arg("-fd"),
+    );
+    assert!(paths.contains(&"$project/nested/child".into()));
+    assert!(paths.contains(&"./executable".into()));
+    assert!(!paths
+        .iter()
+        .any(|path| Path::new(path).starts_with("$global_dir/project")));
+}
+
+#[test]
+fn bare_alias_pairs_are_rejected() {
+    let fixture = Fixture::new();
+    let output = fixture
+        .command(&fixture.local, &fixture.global_dir, "-fd", &[])
+        .arg("$project")
+        .arg(&fixture.repo)
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
-    assert_eq!(
+    assert!(output.stderr.starts_with(b"usage: "));
+}
+
+#[test]
+fn invalid_arguments() {
+    for args in [vec![], vec!["--cdpath"], vec!["--dirali"]] {
+        let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+            .arg0("/some/path/renamed-picker")
+            .args(args)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert!(output.stdout.is_empty());
+        assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--keep-dot] <DIR> <GLOBAL_DIR> <TYPE> [<ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
+    }
 }
 
 #[test]
 fn help_uses_invoked_basename() {
-    for flags in [vec!["--help"], vec!["-h"], vec!["--keep-dot", "--help"]] {
+    for flags in [
+        vec!["--help"],
+        vec!["-h"],
+        vec!["--keep-dot", "--help"],
+        vec!["--cdpath", "", "--help"],
+        vec!["--keep-dot", "--cdpath", "", "--help"],
+    ] {
         let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
             .arg0("/some/path/renamed-picker")
             .args(flags)
@@ -940,20 +1296,16 @@ fn help_uses_invoked_basename() {
         assert!(output.stderr.is_empty());
         let help = String::from_utf8(output.stdout).unwrap();
         assert!(help.contains(
-            "usage: renamed-picker [--keep-dot] <DIR> <GLOBAL_DIR> <TYPE> [<ENV> <DIR>]..."
+            "usage: renamed-picker [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
         ));
         assert!(help.contains("Generate path candidates"));
         assert!(help.contains(".gitignore"));
         assert!(help.contains("Options:"));
         assert!(help.contains("NUL-separated"));
         assert!(help.contains("Examples (Fish):"));
-        assert!(help.contains("emit local paths first"));
-        assert!(help.contains("1,000 unique local results"));
-        assert!(help.contains("Then resume any remaining local paths."));
-        assert!(help.contains("streamed directly in Git's order"));
         assert!(help.contains("GLOBAL_DIR"));
-        assert!(help.contains("Repeated <ENV> <DIR> pairs"));
-        assert!(help.contains("CDPATH environment variable"));
+        assert!(help.contains("Each --dirali"));
+        assert!(help.contains("colon-separated roots"));
         assert!(help.contains("Fish bindings keep directory aliases in the command line"));
         assert!(help.contains("shell expands them when the command is executed"));
         assert!(help.contains("--keep-dot"));
@@ -964,17 +1316,17 @@ fn help_uses_invoked_basename() {
 }
 
 #[test]
-fn unpaired_env_is_a_usage_error() {
+fn incomplete_dirali_is_a_usage_error() {
     let output = Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
         .arg0("/some/path/renamed-picker")
-        .args([".", "", "-fd", "unpaired"])
+        .args([".", "", "-fd", "--dirali", "unpaired"])
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--keep-dot] <DIR> <GLOBAL_DIR> <TYPE> [<ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
 }
 

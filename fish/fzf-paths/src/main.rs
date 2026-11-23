@@ -8,30 +8,39 @@ use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt};
 use std::path::{Component, Path, PathBuf};
 use std::process::{self, Command, Stdio};
-use std::rc::Rc;
+use std::sync::mpsc::{self, SyncSender};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
 
 fn print_help(name: &str) {
     println!(
         "\
 Generate path candidates for fzf from local files and Git repositories.
 
-usage: {name} [--keep-dot] <DIR> <GLOBAL_DIR> <TYPE> [<ENV> <DIR>]...
+usage: {name} [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...
 
-Scan <DIR> in depth-first order and emit local paths first, streaming them
-as they are found. After 1,000 unique local results (or when the local scan
-finishes), scan Git repositories directly under <GLOBAL_DIR> for tracked files
-and their parent directories. Then resume any remaining local paths.
+Scan <DIR>, Git repositories directly under <GLOBAL_DIR>, and optional CDPATH
+roots concurrently. Stream results as they are found; paths from the three
+searches may interleave, with no guaranteed order between them.
 
-The local scan explores one subdirectory tree before the next. Global paths
-are streamed directly in Git's order, with their parent directories added as
-needed. The 1,000-result limit counts output paths, including extra ./ forms
-from --keep-dot; it limits results, not elapsed time.
-fzf may reorder matches when sorting is enabled.
+Local directories and global Git repositories are each scanned by a bounded
+pool of workers. Local paths have no guaranteed traversal order. Within each
+repository, global paths follow Git's order, with parent directories added as
+needed; different repositories may interleave. fzf may reorder sorted matches.
 
-Directory modes (-d and -fd) also list the immediate subdirectories of each
-entry in the colon-separated CDPATH environment variable. Missing roots are
-skipped. These choices use the display prefix $CDPATH/; the Fish widgets strip
-it when inserting a choice. Duplicate directory names are emitted only once.
+With --cdpath, directory modes (-d and -fd) list directories up to two levels
+below each colon-separated root, such as $CDPATH/junegunn/fzf. Missing roots
+are skipped. These choices use the display prefix $CDPATH/; the Fish widgets
+strip it when inserting a choice. Duplicate relative paths are emitted once.
+Directories named .git and node_modules are skipped at both levels.
+
+The Fish widgets enable CDPATH at command start and for cd/cdc arguments.
+When a $CDPATH choice collides with a local directory, the widgets insert the
+absolute path of the first different match in CDPATH order, abbreviated with
+the most specific dirali when available. Local selections stay relative.
+An explicit ./ token disables global and CDPATH searches. Alt-C uses the
+parsed local query without ./; Ctrl-T (files) and Alt-V (files and directories)
+keep ./ in the query to find local executable paths.
 
 The local scan respects .gitignore files, including nested rules and negations.
 Starting inside an ignored directory makes that directory searchable: ignore
@@ -39,19 +48,25 @@ rules above the ignored directory are bypassed, while rules inside still apply.
 Directories named .git and node_modules are skipped unless they are <DIR> itself.
 
 Options:
-  -h, --help  Show this help.
-  --keep-dot  Also offer ./ paths for local executable files.
+  -h, --help        Show this help.
+  --keep-dot        Also offer ./ paths for local executable files.
+  --cdpath CDPATH   Include directories from these colon-separated roots.
+  --dirali ENV DIR  Abbreviate paths using ENV for DIR. May be repeated.
 
 Arguments:
   <DIR>         Directory to search locally. Use . for the current directory.
   <GLOBAL_DIR>  Dir containing additional Git repositories.
-                Use an empty string to search only <DIR>.
+                Use an empty string to skip global Git repositories.
   <TYPE>        -fd   Files and directories.
                 -f    Files only.
                 -d    Directories only.
-  <ENV> <DIR>
-                Repeated <ENV> <DIR> pairs, such as '$dotfiles' /path/to/dotfiles.
-                Each env must be unique. The longest matching directory wins.
+
+Each --dirali maps a directory to an alias, such as '$dotfiles' /path/to/dotfiles.
+Each env must be unique. The longest matching directory wins.
+
+For example, --dirali '$code' /code --dirali '$dotfiles' /code/dotfiles
+turns /code/dotfiles/init.sh into $dotfiles/init.sh, since /code/dotfiles
+is the longer matching prefix.
 
 Output:
   Unique, NUL-separated paths. Filenames may contain spaces or newlines.
@@ -68,10 +83,15 @@ Output:
   The shell expands them when the command is executed.
 
 Examples (Fish):
-  {name} . \"$nhooyr\" -fd '$dotfiles' \"$dotfiles\" | fzf --read0
-  {name} . '' -d | fzf --read0
+  {name} --cdpath \"$CDPATH\" . \"$nhooyr\" -fd --dirali '$dotfiles' \"$dotfiles\" | fzf --read0
+  {name} --cdpath \"$CDPATH\" . '' -d | fzf --read0
   {name} --keep-dot . '' -f | fzf --read0"
     );
+}
+
+fn usage_error(name: &str) -> ! {
+    eprintln!("usage: {name} [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...");
+    process::exit(1);
 }
 
 fn main() {
@@ -81,22 +101,33 @@ fn main() {
         .file_name()
         .unwrap_or(&invoked)
         .to_string_lossy();
-    let args: Vec<_> = arguments.collect();
-    let (keep_dot, args) = if args.first().is_some_and(|arg| arg == "--keep-dot") {
-        (true, &args[1..])
-    } else {
-        (false, args.as_slice())
-    };
-    let help = args.len() == 1 && (args[0] == "--help" || args[0] == "-h");
-    if help {
-        print_help(&name);
-        return;
+    let mut args = Vec::new();
+    let mut aliases = Vec::new();
+    let mut keep_dot = false;
+    let mut cdpath = None;
+    while let Some(arg) = arguments.next() {
+        if arg == "--keep-dot" {
+            keep_dot = true;
+        } else if arg == "--cdpath" {
+            cdpath = Some(arguments.next().unwrap_or_else(|| usage_error(&name)));
+        } else if arg == "--dirali" {
+            aliases.push(arguments.next().unwrap_or_else(|| usage_error(&name)));
+            aliases.push(arguments.next().unwrap_or_else(|| usage_error(&name)));
+        } else if arg == "--help" || arg == "-h" {
+            print_help(&name);
+            return;
+        } else if arg == "--" {
+            args.extend(arguments);
+            break;
+        } else {
+            args.push(arg);
+        }
     }
-    if args.len() < 3 || (args.len() - 3) % 2 != 0 {
-        eprintln!("usage: {name} [--keep-dot] <DIR> <GLOBAL_DIR> <TYPE> [<ENV> <DIR>]...");
-        process::exit(1);
+    if args.len() != 3 {
+        usage_error(&name);
     }
-    if let Err(error) = run(args, keep_dot) {
+    args.extend(aliases);
+    if let Err(error) = run(&args, keep_dot, cdpath) {
         if error.kind() != io::ErrorKind::BrokenPipe {
             eprintln!("{name}: {error}");
             process::exit(1);
@@ -104,7 +135,7 @@ fn main() {
     }
 }
 
-fn run(args: &[OsString], keep_dot: bool) -> io::Result<()> {
+fn run(args: &[OsString], keep_dot: bool, cdpath: Option<OsString>) -> io::Result<()> {
     let mut seen_envs = HashSet::new();
     let mut env_dirs = Vec::new();
     for pair in args[3..].chunks_exact(2) {
@@ -119,20 +150,70 @@ fn run(args: &[OsString], keep_dot: bool) -> io::Result<()> {
     }
     env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
     let mut picker = Picker {
+        keep_dot,
+        env_dirs,
+        shown: HashSet::new(),
+        output: BufWriter::new(io::stdout()),
+    };
+    let (sender, receiver) = mpsc::sync_channel(256);
+    let scanner = Scanner {
         cwd: working_directory()?,
         files_only: args[2] == "-f",
         directories_only: args[2] == "-d",
         keep_dot,
-        env_dirs,
-        shown: HashSet::new(),
-        global_dir: Some(PathBuf::from(&args[1])),
-        output: BufWriter::new(io::stdout()),
+        sender,
     };
-    picker.walk(PathBuf::from(&args[0]))?;
-    picker.global_paths()
+    thread::scope(|scope| {
+        let local = scanner.clone();
+        let mut scans = vec![scope.spawn(move || local.walk(PathBuf::from(&args[0])))];
+        if !args[1].is_empty() {
+            let global = scanner.clone();
+            scans.push(scope.spawn(move || global.global_paths(PathBuf::from(&args[1]))));
+        }
+        if let Some(cdpath) = cdpath.filter(|value| !value.is_empty() && !scanner.files_only) {
+            let cd = scanner.clone();
+            scans.push(scope.spawn(move || cd.cdpath(cdpath)));
+        }
+        drop(scanner);
+        let result = (|| {
+            while let Ok(candidate) = receiver.recv() {
+                for candidate in std::iter::once(candidate).chain(receiver.try_iter()) {
+                    let flush = match candidate {
+                        Candidate::Path {
+                            path,
+                            local,
+                            executable,
+                        } => {
+                            picker.emit_path(path, local, executable)?;
+                            !local
+                        }
+                        Candidate::Cdpath(path) => {
+                            picker
+                                .emit([b"$CDPATH/", path.as_os_str().as_bytes()].concat(), false)?;
+                            true
+                        }
+                    };
+                    if flush {
+                        picker.output.flush()?;
+                    }
+                }
+                // Never wait for a slower scan with local results still buffered.
+                picker.output.flush()?;
+            }
+            picker.output.flush()
+        })();
+        // Release blocked senders before joining if writing to fzf failed.
+        drop(receiver);
+        let results: Vec<_> = scans.into_iter().map(|scan| scan.join().unwrap()).collect();
+        result?;
+        for result in results {
+            result?;
+        }
+        Ok(())
+    })
 }
 
-fn ignored(path: &Path, directory: bool, ignores: &[Rc<Gitignore>]) -> bool {
+fn ignored(path: &Path, directory: bool, ignores: &[Arc<Gitignore>]) -> bool {
     for matcher in ignores.iter().rev() {
         match matcher.matched(path, directory) {
             Match::Ignore(_) => return true,
@@ -143,18 +224,18 @@ fn ignored(path: &Path, directory: bool, ignores: &[Rc<Gitignore>]) -> bool {
     false
 }
 
-fn add_ignore_file(directory: &Path, ignores: &mut Vec<Rc<Gitignore>>) {
+fn add_ignore_file(directory: &Path, ignores: &mut Vec<Arc<Gitignore>>) {
     let path = directory.join(".gitignore");
     if !path.is_file() {
         return;
     }
     let (matcher, _) = Gitignore::new(path);
     if !matcher.is_empty() {
-        ignores.push(Rc::new(matcher));
+        ignores.push(Arc::new(matcher));
     }
 }
 
-fn local_ignores(directory: &Path) -> Vec<Rc<Gitignore>> {
+fn local_ignores(directory: &Path) -> Vec<Arc<Gitignore>> {
     let mut ignores = Vec::new();
     if !directory.join(".git").exists() {
         if let Some(parent) = directory.parent() {
@@ -193,14 +274,64 @@ fn normalize(path: &Path) -> PathBuf {
     result
 }
 
+fn parallelism() -> usize {
+    // Filesystem and Git work can overlap even on a single CPU.
+    thread::available_parallelism().map_or(2, |count| count.get().max(2))
+}
+
+fn parallel<T: Send>(
+    jobs: Vec<T>,
+    workers: usize,
+    visit: impl Fn(T) -> io::Result<Vec<T>> + Sync,
+) -> io::Result<()> {
+    struct Queue<T> {
+        jobs: Vec<T>,
+        active: usize,
+        error: Option<io::Error>,
+    }
+    let queue = Mutex::new(Queue {
+        jobs,
+        active: 0,
+        error: None,
+    });
+    let ready = Condvar::new();
+    thread::scope(|scope| {
+        for _ in 0..workers {
+            scope.spawn(|| loop {
+                let job = {
+                    let mut queue = queue.lock().unwrap();
+                    loop {
+                        if queue.error.is_some() {
+                            return;
+                        }
+                        if let Some(job) = queue.jobs.pop() {
+                            queue.active += 1;
+                            break job;
+                        }
+                        if queue.active == 0 {
+                            return;
+                        }
+                        queue = ready.wait(queue).unwrap();
+                    }
+                };
+                let result = visit(job);
+                let mut queue = queue.lock().unwrap();
+                queue.active -= 1;
+                match result {
+                    Ok(jobs) => queue.jobs.extend(jobs),
+                    Err(error) => queue.error = Some(error),
+                }
+                ready.notify_all();
+            });
+        }
+    });
+    queue.into_inner().unwrap().error.map_or(Ok(()), Err)
+}
+
 struct Picker {
-    cwd: PathBuf,
-    files_only: bool,
-    directories_only: bool,
     keep_dot: bool,
     env_dirs: Vec<(Vec<u8>, Vec<u8>)>,
     shown: HashSet<Vec<u8>>,
-    global_dir: Option<PathBuf>,
     output: BufWriter<io::Stdout>,
 }
 
@@ -212,34 +343,11 @@ impl Picker {
         if self.shown.insert(path.clone()) {
             self.output.write_all(&path)?;
             self.output.write_all(b"\0")?;
-            if self.shown.len() == 1000 {
-                // Pause local output for global results, then resume here.
+            if self.shown.len() == 1 {
                 self.output.flush()?;
-                self.global_paths()?;
             }
         }
         Ok(())
-    }
-
-    fn candidate(
-        &mut self,
-        path: PathBuf,
-        local: bool,
-        metadata: Option<Metadata>,
-    ) -> io::Result<()> {
-        let Some(metadata) = metadata.or_else(|| path.metadata().ok()) else {
-            return Ok(());
-        };
-        if (self.files_only && !metadata.is_file())
-            || (!metadata.is_dir() && (self.directories_only || !metadata.is_file()))
-        {
-            return Ok(());
-        }
-        self.emit_path(
-            path,
-            local,
-            metadata.is_file() && metadata.mode() & 0o111 != 0,
-        )
     }
 
     fn emit_path(&mut self, path: PathBuf, local: bool, executable: bool) -> io::Result<()> {
@@ -261,13 +369,60 @@ impl Picker {
         } else if !local {
             self.emit(path, true)?;
         }
-        if local {
-            self.output.flush()?;
-        }
         Ok(())
     }
+}
 
-    fn walk(&mut self, path: PathBuf) -> io::Result<()> {
+enum Candidate {
+    Path {
+        path: PathBuf,
+        local: bool,
+        executable: bool,
+    },
+    Cdpath(PathBuf),
+}
+
+#[derive(Clone)]
+struct Scanner {
+    cwd: PathBuf,
+    files_only: bool,
+    directories_only: bool,
+    keep_dot: bool,
+    sender: SyncSender<Candidate>,
+}
+
+impl Scanner {
+    fn send(&self, candidate: Candidate) -> io::Result<()> {
+        self.sender
+            .send(candidate)
+            .map_err(|_| io::ErrorKind::BrokenPipe.into())
+    }
+
+    fn emit_path(&self, path: PathBuf, local: bool, executable: bool) -> io::Result<()> {
+        self.send(Candidate::Path {
+            path,
+            local,
+            executable,
+        })
+    }
+
+    fn candidate(&self, path: PathBuf, local: bool, metadata: Option<Metadata>) -> io::Result<()> {
+        let Some(metadata) = metadata.or_else(|| path.metadata().ok()) else {
+            return Ok(());
+        };
+        if (self.files_only && !metadata.is_file())
+            || (!metadata.is_dir() && (self.directories_only || !metadata.is_file()))
+        {
+            return Ok(());
+        }
+        self.emit_path(
+            path,
+            local,
+            metadata.is_file() && metadata.mode() & 0o111 != 0,
+        )
+    }
+
+    fn walk(&self, path: PathBuf) -> io::Result<()> {
         let Ok(metadata) = path.metadata() else {
             return Ok(());
         };
@@ -277,89 +432,87 @@ impl Picker {
         let absolute = normalize(&self.cwd.join(&path));
         let ignores = local_ignores(&absolute);
         let ancestors = vec![(metadata.dev(), metadata.ino())];
-        let mut directories = vec![(path, absolute, ancestors, ignores)];
-        while let Some((path, absolute, ancestors, ignores)) = directories.pop() {
-            let Ok(entries) = fs::read_dir(path) else {
-                continue;
-            };
-            for entry in entries.flatten() {
-                let name = entry.file_name();
-                if name == ".git" || name == "node_modules" {
-                    continue;
-                }
-                let regular_file = entry.file_type().is_ok_and(|kind| kind.is_file());
-                if self.directories_only && regular_file {
-                    continue;
-                }
-                let path = entry.path();
-                let absolute = absolute.join(name);
-                if regular_file && !self.keep_dot {
-                    if !ignored(&absolute, false, &ignores) {
-                        self.emit_path(path, true, false)?;
-                    }
-                    continue;
-                }
-                let Ok(metadata) = path.metadata() else {
-                    continue;
+        parallel(
+            vec![(path, absolute, ancestors, ignores)],
+            parallelism(),
+            |(path, absolute, ancestors, ignores)| {
+                let mut directories = Vec::new();
+                let Ok(entries) = fs::read_dir(path) else {
+                    return Ok(directories);
                 };
-                let is_directory = metadata.is_dir();
-                if ignored(&absolute, is_directory, &ignores) {
-                    continue;
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    if name == ".git" || name == "node_modules" {
+                        continue;
+                    }
+                    let regular_file = entry.file_type().is_ok_and(|kind| kind.is_file());
+                    if self.directories_only && regular_file {
+                        continue;
+                    }
+                    let path = entry.path();
+                    let absolute = absolute.join(name);
+                    if regular_file && !self.keep_dot {
+                        if !ignored(&absolute, false, &ignores) {
+                            self.emit_path(path, true, false)?;
+                        }
+                        continue;
+                    }
+                    let Ok(metadata) = path.metadata() else {
+                        continue;
+                    };
+                    let is_directory = metadata.is_dir();
+                    if ignored(&absolute, is_directory, &ignores) {
+                        continue;
+                    }
+                    let identity = (metadata.dev(), metadata.ino());
+                    self.candidate(path.clone(), true, Some(metadata))?;
+                    if is_directory && !ancestors.contains(&identity) {
+                        let mut ancestors = ancestors.clone();
+                        ancestors.push(identity);
+                        let mut ignores = ignores.clone();
+                        add_ignore_file(&absolute, &mut ignores);
+                        directories.push((path, absolute, ancestors, ignores));
+                    }
                 }
-                let identity = (metadata.dev(), metadata.ino());
-                self.candidate(path.clone(), true, Some(metadata))?;
-                if is_directory && !ancestors.contains(&identity) {
-                    let mut ancestors = ancestors.clone();
-                    ancestors.push(identity);
-                    let mut ignores = ignores.clone();
-                    add_ignore_file(&absolute, &mut ignores);
-                    directories.push((path, absolute, ancestors, ignores));
-                }
-            }
-        }
-        Ok(())
+                Ok(directories)
+            },
+        )
     }
 
-    fn cdpath(&mut self) -> io::Result<()> {
-        let Some(cdpath) = env::var_os("CDPATH").filter(|value| !value.is_empty()) else {
-            return Ok(());
-        };
+    fn cdpath(&self, cdpath: OsString) -> io::Result<()> {
         let mut roots = HashSet::new();
         for root in env::split_paths(&cdpath) {
             let root = normalize(&self.cwd.join(root));
             if !roots.insert(root.clone()) {
                 continue;
             }
-            let Ok(entries) = fs::read_dir(root) else {
-                continue;
-            };
-            for entry in entries.flatten() {
-                let name = entry.file_name();
-                if name == ".git" || name == "node_modules" {
-                    continue;
-                }
-                let path = entry.path();
-                let Ok(metadata) = path.metadata() else {
+            let mut directories = vec![(root, PathBuf::new())];
+            while let Some((directory, relative)) = directories.pop() {
+                let Ok(entries) = fs::read_dir(directory) else {
                     continue;
                 };
-                if metadata.is_dir() {
-                    self.emit([b"$CDPATH/", name.as_bytes()].concat(), false)?;
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    if name == ".git" || name == "node_modules" {
+                        continue;
+                    }
+                    let path = entry.path();
+                    if !path.is_dir() {
+                        continue;
+                    }
+                    let child = relative.join(name);
+                    self.send(Candidate::Cdpath(child.clone()))?;
+                    if relative.as_os_str().is_empty() {
+                        directories.push((path, child));
+                    }
                 }
             }
-            self.output.flush()?;
         }
         Ok(())
     }
 
-    fn global_paths(&mut self) -> io::Result<()> {
-        // Take this before emitting so global output cannot restart the scan.
-        let Some(global_dir) = self.global_dir.take() else {
-            return Ok(());
-        };
-        if !self.files_only {
-            self.cdpath()?;
-        }
-        if global_dir.as_os_str().is_empty() || !global_dir.is_dir() {
+    fn global_paths(&self, global_dir: PathBuf) -> io::Result<()> {
+        if !global_dir.is_dir() {
             return Ok(());
         }
         let global_dir = normalize(&self.cwd.join(global_dir));
@@ -369,61 +522,87 @@ impl Picker {
             .map(|entry| entry.path())
             .filter(|repo| repo.join(".git").exists())
             .collect();
-        if !self.files_only {
-            for repo in &repos {
+        let workers = parallelism().min(repos.len());
+        parallel(repos, workers, |repo| {
+            if !self.files_only {
                 self.candidate(repo.clone(), false, None)?;
-                self.output.flush()?;
             }
-        }
-        let jobs = std::thread::available_parallelism().map_or(1, |count| count.get());
-        for repos in repos.chunks(jobs) {
-            let scans = repos
-                .iter()
-                .map(|repo| {
-                    let mut git = Command::new("git");
-                    git.arg("-C")
-                        .arg(repo)
-                        .args(["ls-files", "--recurse-submodules", "-z"]);
-                    if self.directories_only {
-                        git.arg("--format=%(objectmode) %(path)");
-                    }
-                    git.stdin(Stdio::null()).stdout(Stdio::piped()).spawn()
-                })
-                .collect::<io::Result<Vec<_>>>()?;
-            for (repo, mut scan) in repos.iter().zip(scans) {
-                let mut parents = HashSet::new();
-                for file in BufReader::new(scan.stdout.take().unwrap()).split(0) {
-                    let file = file?;
-                    // Git's indexed modes let directory scans skip regular files.
-                    let regular_file = self.directories_only && file.starts_with(b"100");
-                    let path = if self.directories_only {
-                        file.splitn(2, |&byte| byte == b' ')
-                            .nth(1)
-                            .unwrap_or_default()
-                    } else {
-                        &file
-                    };
-                    let file = Path::new(OsStr::from_bytes(path));
-                    if !regular_file {
-                        self.candidate(repo.join(file), false, None)?;
-                    }
-                    if !self.files_only {
-                        for parent in file
-                            .ancestors()
-                            .skip(1)
-                            .filter(|p| !p.as_os_str().is_empty())
-                        {
-                            if !parents.insert(parent.to_path_buf()) {
-                                break;
-                            }
-                            self.candidate(repo.join(parent), false, None)?;
-                        }
-                    }
-                    self.output.flush()?;
+            let mut git = Command::new("git");
+            git.arg("-C")
+                .arg(&repo)
+                .args(["ls-files", "--recurse-submodules", "-z"]);
+            if self.directories_only {
+                git.arg("--format=%(objectmode) %(path)");
+            }
+            let mut scan = git.stdin(Stdio::null()).stdout(Stdio::piped()).spawn()?;
+            let mut parents = HashSet::new();
+            for file in BufReader::new(scan.stdout.take().unwrap()).split(0) {
+                let file = file?;
+                // Git's indexed modes let directory scans skip regular files.
+                let regular_file = self.directories_only && file.starts_with(b"100");
+                let path = if self.directories_only {
+                    file.splitn(2, |&byte| byte == b' ')
+                        .nth(1)
+                        .unwrap_or_default()
+                } else {
+                    &file
+                };
+                let file = Path::new(OsStr::from_bytes(path));
+                if !regular_file {
+                    self.candidate(repo.join(file), false, None)?;
                 }
-                scan.wait()?;
+                if !self.files_only {
+                    for parent in file
+                        .ancestors()
+                        .skip(1)
+                        .filter(|p| !p.as_os_str().is_empty())
+                    {
+                        if !parents.insert(parent.to_path_buf()) {
+                            break;
+                        }
+                        self.candidate(repo.join(parent), false, None)?;
+                    }
+                }
             }
-        }
-        Ok(())
+            scan.wait()?;
+            Ok(Vec::new())
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn discovered_directories_can_run_concurrently() {
+        let (started, running) = mpsc::sync_channel(1);
+        let running = Mutex::new(running);
+        let (release, finish) = mpsc::sync_channel(1);
+        let finish = Mutex::new(finish);
+        parallel(vec![0], 2, |job| {
+            let wait = |receiver: &Mutex<mpsc::Receiver<()>>| {
+                receiver
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(5))
+                    .map_err(|_| io::Error::from(io::ErrorKind::TimedOut))
+            };
+            match job {
+                0 => return Ok(vec![1, 2]),
+                1 => {
+                    started.send(()).unwrap();
+                    wait(&finish)?;
+                }
+                2 => {
+                    wait(&running)?;
+                    release.send(()).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            Ok(Vec::new())
+        })
+        .expect("one directory blocked its sibling");
     }
 }
