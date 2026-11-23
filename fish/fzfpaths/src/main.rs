@@ -196,7 +196,13 @@ fn run(
                 format!("duplicate env: {}", name.to_string_lossy()),
             ));
         }
-        env_dirs.push((env.to_vec(), directory.as_bytes().to_vec()));
+        let directory = Path::new(directory);
+        let directory = if directory.is_absolute() {
+            normalize(directory)
+        } else {
+            directory.to_path_buf()
+        };
+        env_dirs.push((env.to_vec(), directory.into_os_string().into_vec()));
     }
     env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
     let colors = (color && classify).then(|| {
@@ -453,12 +459,22 @@ fn working_directory() -> io::Result<PathBuf> {
 }
 
 fn normalize(path: &Path) -> PathBuf {
+    let has_parent = path.components().any(|part| part == Component::ParentDir);
+    if has_parent && !path.is_dir() {
+        return path.to_path_buf();
+    }
     let mut result = PathBuf::new();
-    for component in path.components() {
-        if component == Component::ParentDir {
+    for part in path.components() {
+        if part == Component::ParentDir {
+            // Resolve only links crossed by ..; keep other spellings for aliases.
+            while let Ok(target) = result.read_link() {
+                result.pop();
+                result.push(target);
+                result = normalize(&result);
+            }
             result.pop();
         } else {
-            result.push(component);
+            result.push(part);
         }
     }
     result

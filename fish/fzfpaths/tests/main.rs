@@ -1745,6 +1745,103 @@ fn logical_working_directory() {
 }
 
 #[test]
+fn relative_directory_aliases_do_not_drop_parent_components() {
+    let fixture = Fixture::new();
+    write(&fixture.local, "global_dir/file");
+    let paths = fixture.run(&mut fixture.command(
+        &fixture.local,
+        Path::new(""),
+        "-f",
+        &[("$external", Path::new("../global_dir"))],
+    ));
+    assert!(paths.contains(&"global_dir/file".into()));
+    assert!(!paths.contains(&"$external/file".into()));
+}
+
+#[test]
+fn global_symlink_parent_roots_use_the_target_and_preserve_aliases() {
+    let fixture = Fixture::new();
+    let child = fixture.global_dir.join("child");
+    fs::create_dir(&child).unwrap();
+    let link = fixture.local.join("global-link");
+    symlink("../global_dir/child", fixture.local.join("middle-link")).unwrap();
+    let root = link.join("..");
+    let alias = root.join("project");
+    let wrong = fixture.local.join("wrong-project");
+    checked(Command::new("git").args(["init", "-q"]).arg(&wrong));
+    write(&wrong, "wrong-file");
+
+    for target in [
+        child.as_path(),
+        Path::new("../global_dir/child"),
+        Path::new("middle-link"),
+    ] {
+        symlink(target, &link).unwrap();
+        for aliases in [
+            vec![],
+            vec![("$project", fixture.repo.as_path())],
+            vec![("$project", alias.as_path())],
+        ] {
+            let paths = fixture.run(&mut fixture.command(&fixture.local, &root, "-f", &aliases));
+            let expected = if aliases.is_empty() {
+                fixture.repo.join("tracked").into_os_string()
+            } else {
+                OsString::from("$project/tracked")
+            };
+            assert!(paths.contains(&expected), "target {target:?}");
+            assert!(!paths.iter().any(|path| Path::new(path).starts_with(&wrong)));
+        }
+        fs::remove_file(&link).unwrap();
+    }
+
+    // Without .., preserve the caller's symlink spelling and matching alias.
+    let root = fixture.root.join("logical-global");
+    symlink(&fixture.global_dir, &root).unwrap();
+    let alias = root.join("project");
+    let paths = fixture.run(&mut fixture.command(&fixture.local, &root, "-f", &[]));
+    assert!(paths.contains(&alias.join("tracked").into_os_string()));
+    let paths =
+        fixture.run(&mut fixture.command(&fixture.local, &root, "-f", &[("$project", &alias)]));
+    assert!(paths.contains(&"$project/tracked".into()));
+}
+
+#[test]
+fn cdpath_symlink_parent_roots_use_the_target() {
+    let fixture = Fixture::new();
+    let child = fixture.global_dir.join("child");
+    fs::create_dir(&child).unwrap();
+    let link = fixture.local.join("global-link");
+    symlink(&child, &link).unwrap();
+    let root = link.join("..");
+    let paths = fixture.run(&mut fixture.command_with_cdpath(
+        &[],
+        &fixture.local,
+        Path::new(""),
+        Some(root.as_os_str()),
+        "-d",
+        &[],
+    ));
+    assert!(paths.contains(&"$CDPATH/project".into()));
+    assert!(!paths.contains(&"$CDPATH/dir".into()));
+
+    // A missing component cannot be cancelled by .. during filesystem lookup.
+    let missing = fixture.local.join("missing/..");
+    let paths = fixture.run(&mut fixture.command_with_cdpath(
+        &[],
+        &fixture.local,
+        Path::new(""),
+        Some(missing.as_os_str()),
+        "-d",
+        &[],
+    ));
+    assert!(
+        !paths
+            .iter()
+            .any(|path| path.as_encoded_bytes().starts_with(b"$CDPATH/"))
+    );
+}
+
+#[test]
 fn local_gitignore_hides_build_outputs() {
     let fixture = Fixture::new();
     fs::write(fixture.repo.join(".gitignore"), "/target/\n*.tmp\n").unwrap();

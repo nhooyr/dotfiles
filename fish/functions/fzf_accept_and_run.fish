@@ -28,7 +28,7 @@ function fzf_path_widget --argument-names widget
     end
     set -l global_dir "$nhooyr"
     set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
-    while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else
+    while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else; or string match -qr '^[[:alnum:]_]+=' -- "$tokens[1]"
         set -e tokens[1]
     end
     set -l type -fd
@@ -142,6 +142,7 @@ function fzf_path_widget --argument-names widget
                 set kind "$next_kind"
                 test "$kind" = special; and break
             end
+            test "$(count $result)" -eq 1; or set execute 0
             if test "$kind" = special; or test "$kind" = executable -a "$execute" -eq 0
                 set -p escaped file --
             else if test "$(count $result)" -eq 1; and test "$kind" = directory
