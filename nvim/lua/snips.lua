@@ -10,6 +10,8 @@ local snippets = {
 		imps = "improvements$0",
 		Garg = "Gargantuan$0",
 		garg = "gargantuan$0",
+
+		play = "hello world: ${1:One} ${2:Two} ${3:Three} $1$0",
 	},
 	go = {
 		ife = "if err != nil {\n\t${1:return err}\n}\n$0",
