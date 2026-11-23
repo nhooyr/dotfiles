@@ -77,13 +77,11 @@ print $listener->sockport, "\n";
 }
 
 proxy() {
-	name="$1"
-	service="$2"
+	service="$1"
 	IFS= read -r forward_command
 	cleanup_proxy() {
 		trap '' HUP INT TERM
 		networksetup -setsocksfirewallproxystate "$service" off
-		printf '%s: proxy disabled on %s\n' "$name" "$service"
 	}
 	trap cleanup_proxy EXIT
 	trap 'exit 129' HUP
@@ -243,7 +241,7 @@ if [ "$direction" = -D ]; then
 	mkfifo "$directory/proxy"
 	exec 3<>"$directory/proxy"
 	(
-		if sudo -n "$0" --proxy "$name" "$service"; then exit 0; else
+		if sudo -n "$0" --proxy "$service"; then exit 0; else
 			result=$?
 			kill "$master" 2>/dev/null || :
 			exit "$result"
