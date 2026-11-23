@@ -162,7 +162,7 @@ abbrali of finder
 abbrali fi finder
 abbrali finder open -R
 abbrali safari open -a Safari
-abbrali chrome open -a 'Google Chrome'
+abbrali chrome open -a '"Google Chrome"'
 abbrali t time
 abbrali diff diff -r
 abbrali esc string escape

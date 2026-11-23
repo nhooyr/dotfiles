@@ -355,13 +355,12 @@ augroup aqsnow
 	autocmd filetype gitcommit,diff nnoremap <buffer> ]h /^@@<CR>
 	autocmd filetype gitcommit,diff nnoremap <buffer> [h ?^@@<CR>
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
-	autocmd VimEnter * lua require('gitstatus').refresh()
-	autocmd BufEnter,WinEnter,BufFilePost,BufWritePost,DirChanged,FocusGained,ShellCmdPost,TermClose *
-			\ lua if vim.v.vim_did_enter == 1 then require('gitstatus').schedule() end
+	autocmd VimEnter * lua require('gitstatus').start()
+	autocmd FocusGained * lua require('gitstatus').focus()
 	autocmd VimLeavePre * lua if package.loaded.gitstatus then package.loaded.gitstatus.stop() end
 augroup END
 if v:vim_did_enter
-	lua require('gitstatus').refresh()
+	lua require('gitstatus').start()
 endif
 
 function s:restore_cursor() abort

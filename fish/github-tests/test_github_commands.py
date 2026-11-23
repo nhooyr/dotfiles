@@ -578,7 +578,7 @@ elif kind not in ("editor", "open"):
         opened = self.run_fish("gho", "unknown-owner/unknown-repo")
         self.assert_success(opened)
         self.assertEqual(opened.stdout.strip(), "https://github.com/unknown-owner/unknown-repo")
-        self.assertEqual(self.calls("git"), [])
+        self.assertEqual([call["command"] for call in self.calls("git")], ["ls-files"])
 
     def test_rejects_traversal_and_controls_without_side_effects(self):
         for suffix in ("blob/main/%2e%2e/escape", "blob/main/a%0ab", "blob/main/a\nb"):
@@ -1065,6 +1065,23 @@ gho"""
                 opened = self.run_fish("gho", self.checkout / "file.txt", offline=True)
                 self.assert_success(opened)
                 self.assertEqual(opened.stdout.strip(), self.url + "/blob/main/file.txt")
+
+    def test_gho_opens_deleted_tracked_files(self):
+        (self.checkout / "file.txt").unlink()
+        for target, cwd in (("file.txt", self.checkout), (self.checkout / "file.txt", self.sandbox)):
+            with self.subTest(target=target):
+                opened = self.run_fish("gho", target, cwd=cwd, offline=True)
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), self.url + "/blob/main/file.txt")
+
+    def test_gho_opens_deleted_file_in_a_deleted_directory(self):
+        shutil.rmtree(self.checkout / "dir")
+        for target, cwd in (("dir/nested.txt", self.checkout),
+                            (self.checkout / "dir/nested.txt", self.sandbox)):
+            with self.subTest(target=target):
+                opened = self.run_fish("gho", target, cwd=cwd, offline=True)
+                self.assert_success(opened)
+                self.assertEqual(opened.stdout.strip(), self.url + "/blob/main/dir/nested.txt")
 
     def test_implicit_head_mapping_cannot_prove_topic_tracking(self):
         self.seed_commit({"file.txt": "topic branch\n"}, branch="topic", create=True)

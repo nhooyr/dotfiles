@@ -27,13 +27,30 @@ function __gho_url --argument-names target
     set -l name "$(path basename -- "$target")"
     set -l entry "$parent/$name"
     if not test -e "$target"; and not test -L "$entry"
-        set -l github $(__gh_parse "$target"); or return
-        set -l url "https://$github[4]/$github[1]"
-        if test -n "$github[2]"
-            set url "$url/$(string escape --style=url -- "$github[2]")"
+        # Deleted files may have missing parent directories too.
+        set -l base "$parent"
+        set -l relative "$name"
+        set -l tracked
+        if not string match -qr '^(https?://|ssh://|git@)' -- "$target"
+            while not test -d "$base"
+                set relative "$(path basename -- "$base")/$relative"
+                set base "$(path dirname -- "$base")"
+            end
+            set tracked $(git -C "$base" --literal-pathspecs ls-files -z -- "$relative" 2>/dev/null | string split0)
         end
-        printf '%s%s\n' "$url" "$(string match -r '[?#].*$' -- "$target")"
-        return
+        if test "$(count $tracked)" -eq 1; and test "$tracked[1]" = "$relative"
+            set parent "$base"
+            set name "$relative"
+            set entry "$parent/$name"
+        else
+            set -l github $(__gh_parse "$target"); or return
+            set -l url "https://$github[4]/$github[1]"
+            if test -n "$github[2]"
+                set url "$url/$(string escape --style=url -- "$github[2]")"
+            end
+            printf '%s%s\n' "$url" "$(string match -r '[?#].*$' -- "$target")"
+            return
+        end
     end
 
     set -l dir "$target"
@@ -53,7 +70,7 @@ function __gho_url --argument-names target
         return 1
     end
     if test "$kind" = blob
-        if not test -L "$entry"
+        if test -e "$entry"; and not test -L "$entry"
             set name "$(path basename -- "$(path resolve -- "$entry")")"
         end
         set repo_path "$repo_path$name"
@@ -127,6 +144,10 @@ function __gho --argument-names target
     end
     if test "$(count $argv)" -gt 1
         printf 'Usage: %s [PATH | OWNER/REPO | GITHUB_URL]\n' "$0" >&2
+        return 1
+    end
+    if string match -qr '[[:cntrl:]]' -- "$GH_HOST"
+        printf '%s: invalid GitHub hostname\n' "$0" >&2
         return 1
     end
     set -q argv[1]; or set target "$PWD"

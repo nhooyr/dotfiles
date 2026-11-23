@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -103,4 +103,106 @@ fn variable_assignments_preserve_command_position() {
         run("VAR=1 1foo=2 nvim ", "README.md"),
         ("-- README.md ".into(), false)
     );
+}
+
+fn path_case(script: &str, token: &str) -> Vec<u8> {
+    let id = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
+    let fixture =
+        Fixture(env::temp_dir().join(format!("fzf-path-widget-{}-{id}", std::process::id())));
+    fs::create_dir_all(fixture.0.join("external/child")).unwrap();
+    fs::create_dir(fixture.0.join("external/target")).unwrap();
+    fs::create_dir(fixture.0.join("new\n")).unwrap();
+    symlink("external/child", fixture.0.join("link")).unwrap();
+    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../functions/fzf_accept_and_run.fish");
+    let setup = r#"
+source "$WIDGET_SOURCE"
+set -g nhooyr ''
+set -g aqsnow_fzf_diralis
+set -g CDPATH link/..
+function commandline
+    switch "$argv[1]"
+        case -Cp
+            printf 0
+        case -p
+            printf ''
+        case --current-token
+            printf '%s\n' "$TEST_TOKEN"
+        case --cut-at-cursor
+            printf nvim
+        case -rt
+            set -g inserted "$argv[3]"
+    end
+end
+"#;
+    let output = Command::new("fish")
+        .args(["--no-config", "-c", &format!("{setup}\n{script}")])
+        .current_dir(&fixture.0)
+        .env("WIDGET_SOURCE", widget)
+        .env("TEST_TOKEN", token)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert!(output.stderr.is_empty(), "{output:?}");
+    output.stdout
+}
+
+#[test]
+fn parser_preserves_symlink_parents_and_newline_directories() {
+    for (token, directory, query, prefix) in [
+        ("link/../tar", "link/..", "tar", ""),
+        ("./link/../tar", "./link/..", "tar", ""),
+        ("link/../target/", "link/../target/", "", ""),
+        ("link/../word space", "link/..", "word space", ""),
+        ("--file=link/../tar", "link/..", "tar", "--file="),
+        ("new\n", "new\n", "", ""),
+    ] {
+        let output = path_case("__fzf_parse_commandline", token);
+        assert_eq!(
+            output,
+            format!("{directory}\0{query}\0{prefix}\0").as_bytes(),
+            "{token:?}"
+        );
+    }
+}
+
+#[test]
+fn cdpath_insertion_preserves_symlink_parents_and_aliases() {
+    let script = r#"
+function fzfpaths
+    printf '\0'
+end
+function fzf
+    cat >/dev/null
+    printf '%s\0' '$CDPATH/target'
+end
+set -g TEST_TOKEN ''
+fzf_path_widget fzf-path-widget
+eval "set -l paths $inserted"
+test -d "$paths[-1]"; or exit 1
+string match -q -- '*/link/../target ' "$inserted"; or exit 1
+set -g test_alias "$PWD/link/../"
+set -g aqsnow_fzf_diralis test_alias
+fzf_path_widget fzf-path-widget
+test "$inserted" = '-- $test_alias/target '; or exit 1
+eval "set -l paths $inserted"
+test -d "$paths[-1]"; or exit 1
+"#;
+    assert!(path_case(script, "").is_empty());
+}
+
+#[test]
+fn widget_passes_newline_directory_to_the_scanner() {
+    let script = r#"
+function fzfpaths
+    test "$argv[5]" = "$TEST_TOKEN"; or exit 1
+    test -d "$argv[5]"; or exit 1
+    printf '%s\0' "$argv[5]"
+end
+function fzf
+    cat > scanned
+end
+fzf_path_widget fzf-path-widget
+cat scanned
+"#;
+    assert_eq!(path_case(script, "new\n"), b"new\n\0");
 }

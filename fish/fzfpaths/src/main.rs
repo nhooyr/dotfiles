@@ -1,5 +1,5 @@
 use ignore::Match;
-use ignore::gitignore::Gitignore;
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use lscolors::{Indicator, LsColors, Style};
 use std::collections::HashSet;
 use std::env;
@@ -10,7 +10,7 @@ use std::os::fd::AsRawFd;
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt, process::CommandExt};
 use std::path::{Component, Path, PathBuf};
 use std::process::{self, Child, ChildStdout, Command, Stdio};
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -51,7 +51,8 @@ An explicit ./ token disables global and CDPATH searches. Ctrl-T (files) and
 Alt-C (directories) use the parsed local query without ./; only Alt-V (files
 and directories) keeps ./ in the query to find local executable paths.
 
-The local scan respects .gitignore files, including nested rules and negations.
+The local scan respects .gitignore files, including nested rules and negations,
+the repository's info/exclude, and Git's configured global ignore file.
 Starting inside an ignored directory makes that directory searchable: ignore
 rules above the ignored directory are bypassed, while rules inside still apply.
 Directories named .git and node_modules are skipped unless they are <DIR> itself.
@@ -222,6 +223,7 @@ fn run(
     };
     let (sender, receiver) = mpsc::sync_channel(256);
     let git = Arc::new(Mutex::new(GitScans::default()));
+    let cancelled = Arc::new(AtomicBool::new(false));
     let scanner = Scanner {
         cwd: working_directory()?,
         files_only: args[2] == "-f",
@@ -230,6 +232,7 @@ fn run(
         colors,
         sender,
         git: Arc::clone(&git),
+        cancelled: Arc::clone(&cancelled),
     };
     thread::scope(|scope| {
         let local = scanner.clone();
@@ -279,6 +282,7 @@ fn run(
             }
             picker.output.flush()
         })();
+        cancelled.store(true, Ordering::Relaxed);
         // Release blocked senders before joining if writing to fzf failed.
         drop(receiver);
         if result.is_err() {
@@ -400,7 +404,7 @@ impl GitScans {
             }
         }
         if let Some(status) = failed {
-            return Err(io::Error::other(format!("git ls-files failed: {status}")));
+            return Err(io::Error::other(format!("git failed: {status}")));
         }
         Ok(())
     }
@@ -425,25 +429,17 @@ fn add_ignore_file(directory: &Path, ignores: &mut Vec<Arc<Gitignore>>) {
     {
         return;
     }
-    let (matcher, _) = Gitignore::new(path);
-    if !matcher.is_empty() {
-        ignores.push(Arc::new(matcher));
-    }
+    add_excludes(directory, &path, ignores);
 }
 
-fn local_ignores(directory: &Path) -> Vec<Arc<Gitignore>> {
-    let mut ignores = Vec::new();
-    if !directory.join(".git").exists()
-        && let Some(parent) = directory.parent()
+fn add_excludes(root: &Path, path: &Path, ignores: &mut Vec<Arc<Gitignore>>) {
+    let mut builder = GitignoreBuilder::new(root);
+    builder.add(path);
+    if let Ok(matcher) = builder.build()
+        && !matcher.is_empty()
     {
-        ignores = local_ignores(parent);
+        ignores.push(Arc::new(matcher));
     }
-    if ignored(directory, true, &ignores) {
-        // An explicit search inside an ignored directory starts fresh here.
-        ignores.clear();
-    }
-    add_ignore_file(directory, &mut ignores);
-    ignores
 }
 
 fn working_directory() -> io::Result<PathBuf> {
@@ -704,9 +700,100 @@ struct Scanner {
     colors: Option<Arc<LsColors>>,
     sender: SyncSender<Candidate>,
     git: Arc<Mutex<GitScans>>,
+    cancelled: Arc<AtomicBool>,
 }
 
 impl Scanner {
+    fn check_cancelled(&self) -> io::Result<()> {
+        if self.cancelled.load(Ordering::Relaxed) {
+            return Err(io::ErrorKind::BrokenPipe.into());
+        }
+        check_signal()
+    }
+
+    fn git_output(&self, directory: &Path, args: &[&str]) -> io::Result<Vec<u8>> {
+        self.check_cancelled()?;
+        let child = Command::new("git")
+            .arg("-C")
+            .arg(directory)
+            .args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .process_group(0)
+            .spawn()?;
+        let mut stdout = self.git.lock().unwrap().register(child)?;
+        let mut output = Vec::new();
+        stdout.read_to_end(&mut output)?;
+        Ok(output)
+    }
+
+    fn local_ignores(&self, directory: &Path) -> io::Result<Vec<Arc<Gitignore>>> {
+        let git_root = directory
+            .ancestors()
+            .find(|parent| parent.join(".git").exists());
+        let root = git_root.unwrap_or(directory);
+        let mut ignores = Vec::new();
+        let mut global = self.git_output(
+            root,
+            &[
+                "config",
+                "--null",
+                "--path",
+                "--default",
+                "",
+                "--get",
+                "core.excludesFile",
+            ],
+        )?;
+        global.pop(); // Git terminates the value with NUL, including an empty default.
+        let global = if global.is_empty() {
+            env::var_os("XDG_CONFIG_HOME")
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+                .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+                .map(|config| config.join("git/ignore"))
+        } else {
+            Some(root.join(OsString::from_vec(global)))
+        };
+        if let Some(global) = global {
+            add_excludes(root, &global, &mut ignores);
+        }
+        if let Some(root) = git_root {
+            let git_dir = root.join(".git");
+            let exclude = if git_dir.is_dir() {
+                git_dir.join("info/exclude")
+            } else {
+                let mut path = self.git_output(
+                    root,
+                    &[
+                        "rev-parse",
+                        "--path-format=absolute",
+                        "--git-path",
+                        "info/exclude",
+                    ],
+                )?;
+                path.pop(); // rev-parse terminates the path with one newline.
+                PathBuf::from(OsString::from_vec(path))
+            };
+            add_excludes(root, &exclude, &mut ignores);
+        }
+        let mut ancestors = Vec::new();
+        for parent in directory.ancestors() {
+            ancestors.push(parent);
+            if Some(parent) == git_root {
+                break;
+            }
+        }
+        for parent in ancestors.into_iter().rev() {
+            if ignored(parent, true, &ignores) {
+                // An explicit search inside an ignored directory starts fresh here.
+                ignores.clear();
+            }
+            add_ignore_file(parent, &mut ignores);
+        }
+        Ok(ignores)
+    }
+
     fn send(&self, candidate: Candidate) -> io::Result<()> {
         self.sender
             .send(candidate)
@@ -767,17 +854,19 @@ impl Scanner {
         let Ok(absolute) = path.canonicalize() else {
             return Ok(());
         };
-        let ignores = local_ignores(&absolute);
+        let ignores = self.local_ignores(&absolute)?;
         let ancestors = vec![(metadata.dev(), metadata.ino())];
         parallel(
             vec![(path, absolute, ancestors, ignores)],
             parallelism(),
             |(path, absolute, ancestors, ignores)| {
+                self.check_cancelled()?;
                 let mut directories = Vec::new();
                 let Ok(entries) = fs::read_dir(path) else {
                     return Ok(directories);
                 };
                 for entry in entries.flatten() {
+                    self.check_cancelled()?;
                     let name = entry.file_name();
                     if name == ".git" || name == "node_modules" {
                         continue;
@@ -801,8 +890,13 @@ impl Scanner {
                     if is_directory && !ancestors.contains(&identity) {
                         let mut ancestors = ancestors.clone();
                         ancestors.push(identity);
-                        let mut ignores = ignores.clone();
-                        add_ignore_file(&absolute, &mut ignores);
+                        let ignores = if absolute.join(".git").exists() {
+                            self.local_ignores(&absolute)?
+                        } else {
+                            let mut ignores = ignores.clone();
+                            add_ignore_file(&absolute, &mut ignores);
+                            ignores
+                        };
                         directories.push((path, absolute, ancestors, ignores));
                     }
                 }
@@ -814,6 +908,7 @@ impl Scanner {
     fn cdpath(&self, cdpath: OsString) -> io::Result<()> {
         let mut roots = HashSet::new();
         for root in env::split_paths(&cdpath) {
+            self.check_cancelled()?;
             let root = normalize(&self.cwd.join(root));
             if !roots.insert(root.clone()) {
                 continue;
@@ -824,6 +919,7 @@ impl Scanner {
                     continue;
                 };
                 for entry in entries.flatten() {
+                    self.check_cancelled()?;
                     let name = entry.file_name();
                     if name == ".git" || name == "node_modules" {
                         continue;
@@ -873,6 +969,7 @@ impl Scanner {
             .collect();
         let workers = parallelism().min(repos.len());
         parallel(repos, workers, |repo| {
+            self.check_cancelled()?;
             if !self.files_only {
                 self.candidate(repo.clone(), false, None)?;
             }
@@ -897,6 +994,7 @@ impl Scanner {
                     .spawn()?;
                 let stdout = self.git.lock().unwrap().register(child)?;
                 for file in BufReader::new(stdout).split(0) {
+                    self.check_cancelled()?;
                     let file = file?;
                     // Git's indexed modes let directory scans skip regular files.
                     let regular_file = indexed_modes && file.starts_with(b"100");

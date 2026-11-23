@@ -28,6 +28,18 @@ fn checked(command: &mut Command) -> Output {
     output
 }
 
+fn mock_ls_files(path: &Path, script: &str) -> io::Result<()> {
+    // These fixtures mock slow repository scans, not configuration reads.
+    fs::write(
+        path,
+        script.replacen(
+            "#!/bin/sh\n",
+            "#!/bin/sh\nif [ \"$3\" = config ]; then printf '\\0'; exit 0; fi\n",
+            1,
+        ),
+    )
+}
+
 fn write(root: &Path, name: &str) {
     let path = root.join(name);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -226,7 +238,7 @@ fn first_local_result_arrives_before_global_scan_finishes() {
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(
+    mock_ls_files(
         &git,
         "#!/bin/sh\nwhile [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\nprintf 'tracked\\0'\n",
     )
@@ -276,7 +288,7 @@ fn global_scan_starts_while_local_output_is_blocked() {
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(
+    mock_ls_files(
         &git,
         "#!/bin/sh\n: > \"$FZF_TEST_STARTED\"\nprintf 'tracked\\0'\n",
     )
@@ -313,7 +325,7 @@ fn cdpath_results_arrive_while_git_is_waiting() {
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(
+    mock_ls_files(
         &git,
         "#!/bin/sh\nwhile [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\nprintf 'nested/child\\0'\n",
     )
@@ -369,7 +381,7 @@ fn global_results_arrive_before_git_finishes() {
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(
+    mock_ls_files(
         &git,
         "#!/bin/sh\nprintf 'nested/child\\0'\nwhile [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\nprintf 'tracked\\0'\n",
     )
@@ -432,7 +444,7 @@ fn a_slow_repository_does_not_hold_back_other_repositories() {
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(
+    mock_ls_files(
         &git,
         "#!/bin/sh\nif [ \"$2\" = \"$FZF_TEST_BLOCKED_REPO\" ]; then\n  while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\nfi\nprintf 'tracked\\0'\n",
     )
@@ -579,7 +591,7 @@ fn assert_stalled_git_stops(pending_output: bool, signal: Option<i32>, close_std
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(
+    mock_ls_files(
         &git,
         "#!/bin/sh\n\
          if [ \"$FZF_TEST_CLOSE_STDOUT\" = 1 ]; then exec 1>&-; else printf 'tracked\\0'; fi\n\
@@ -667,7 +679,7 @@ fn failed_git_scan_reports_failure() {
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(
+    mock_ls_files(
         &git,
         "#!/bin/sh\nprintf 'simulated Git failure\\n' >&2\nexit 7\n",
     )
@@ -689,10 +701,7 @@ fn failed_git_scan_reports_failure() {
     assert!(output.stdout.is_empty());
     let error = String::from_utf8(output.stderr).unwrap();
     assert!(error.contains("simulated Git failure"), "{error}");
-    assert!(
-        error.contains("git ls-files failed: exit status: 7"),
-        "{error}"
-    );
+    assert!(error.contains("git failed: exit status: 7"), "{error}");
 }
 
 #[test]
@@ -1856,6 +1865,164 @@ fn local_gitignore_hides_build_outputs() {
     );
     assert!(!paths.contains(&"scratch.tmp".into()));
     assert!(paths.contains(&"visible".into()));
+}
+
+#[test]
+fn local_exclusions_follow_git_precedence() {
+    let fixture = Fixture::new();
+    let global = fixture.root.join("global-ignore");
+    fs::write(&global, "*.tmp\n*.cache\n/root-hidden/\n").unwrap();
+    fixture.git(&["config", "core.excludesFile", global.to_str().unwrap()]);
+    fs::write(
+        fixture.repo.join(".git/info/exclude"),
+        "!from-info.tmp\n*.info\n",
+    )
+    .unwrap();
+    fs::write(
+        fixture.repo.join(".gitignore"),
+        "!from-repo.tmp\n!from-repo.info\n",
+    )
+    .unwrap();
+    fs::write(fixture.repo.join("nested/.gitignore"), "!from-nested.tmp\n").unwrap();
+    for name in [
+        "drop.tmp",
+        "drop.cache",
+        "drop.info",
+        "from-info.tmp",
+        "from-repo.tmp",
+        "from-repo.info",
+        "nested/from-nested.tmp",
+        "nested/drop.tmp",
+        "root-hidden/file",
+    ] {
+        write(&fixture.repo, name);
+    }
+    let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-f", &[]));
+    for name in [
+        "from-info.tmp",
+        "from-repo.tmp",
+        "from-repo.info",
+        "nested/from-nested.tmp",
+    ] {
+        assert!(paths.contains(&name.into()), "missing {name}");
+    }
+    for name in [
+        "drop.tmp",
+        "drop.cache",
+        "drop.info",
+        "nested/drop.tmp",
+        "root-hidden/file",
+    ] {
+        assert!(!paths.contains(&name.into()), "ignored {name} was shown");
+    }
+}
+
+#[test]
+fn local_exclusions_use_the_default_xdg_file() {
+    let fixture = Fixture::new();
+    let config = fixture.root.join("config");
+    fs::create_dir_all(config.join("git")).unwrap();
+    fs::write(config.join("git/ignore"), ".DS_Store\n").unwrap();
+    write(&fixture.repo, ".DS_Store");
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.repo, Path::new(""), "-f", &[])
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("XDG_CONFIG_HOME", config),
+    );
+    assert!(!paths.contains(&".DS_Store".into()));
+    assert!(paths.contains(&"tracked".into()));
+}
+
+#[test]
+fn local_worktree_exclusions_respect_included_configuration() {
+    let fixture = Fixture::new();
+    let global = fixture.root.join("global-ignore");
+    fs::write(&global, "global-secret\n").unwrap();
+    let included = fixture.root.join("included-config");
+    fixture.git(&[
+        "config",
+        "--file",
+        included.to_str().unwrap(),
+        "core.excludesFile",
+        global.to_str().unwrap(),
+    ]);
+    fixture.git(&["config", "include.path", included.to_str().unwrap()]);
+    fs::write(fixture.repo.join(".git/info/exclude"), "info-secret\n").unwrap();
+    fixture.git(&[
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "-qm",
+        "fixture",
+    ]);
+    let worktree = fixture.root.join("worktree");
+    fixture.git(&["worktree", "add", "--detach", worktree.to_str().unwrap()]);
+    write(&worktree, "global-secret");
+    write(&worktree, "info-secret");
+    let paths = fixture.run(&mut fixture.command(&worktree, Path::new(""), "-f", &[]));
+    assert!(paths.contains(&"tracked".into()));
+    assert!(!paths.contains(&"global-secret".into()));
+    assert!(!paths.contains(&"info-secret".into()));
+}
+
+#[test]
+fn cancelling_a_walk_with_no_file_results_stops_the_workers() {
+    for signal in [None, Some(15)] {
+        let fixture = Fixture::new();
+        let graph = fixture.root.join("graph");
+        for level in 0..23 {
+            let directory = graph.join(level.to_string());
+            fs::create_dir_all(&directory).unwrap();
+            if level > 0 {
+                for name in ["a", "b"] {
+                    symlink(format!("../{}", level - 1), directory.join(name)).unwrap();
+                }
+            }
+        }
+        let mut child = fixture
+            .command(&graph.join("22"), Path::new(""), "-f", &[])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(
+            child.try_wait().unwrap().is_none(),
+            "fixture finished before cancellation"
+        );
+        if let Some(signal) = signal {
+            unsafe extern "C" {
+                fn kill(pid: i32, signal: i32) -> i32;
+            }
+            assert_eq!(unsafe { kill(child.id() as i32, signal) }, 0);
+        } else {
+            drop(child.stdout.take());
+        }
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let stopped = loop {
+            if child.try_wait().unwrap().is_some() {
+                break true;
+            }
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                break false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let output = child.wait_with_output().unwrap();
+        assert!(stopped, "empty-result traversal ignored cancellation");
+        assert_eq!(
+            output.status.code(),
+            Some(signal.map_or(0, |signal| 128 + signal))
+        );
+        assert!(output.stderr.is_empty(), "{output:?}");
+    }
 }
 
 #[test]

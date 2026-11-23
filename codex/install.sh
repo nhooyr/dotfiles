@@ -3,6 +3,8 @@ set -eu
 cd -- "$(dirname "$0")"
 PATH="$PWD/../bin:$PATH"
 
+dotln ./AGENTS.md ~/.codex/AGENTS.md
+
 if [ -e ~/.codex/config.toml ]; then
 	merge='(select(fileIndex == 0) // {}) * select(fileIndex == 1)'
 	unchanged=$(yq eval-all -o=json "(select(fileIndex == 0) | to_json) == (($merge) | to_json)" \
@@ -16,4 +18,3 @@ else
 	action=Created
 fi
 printf 'dotfiles: codex: %s: %s %s\n' "${0##*/}" "$action" ~/.codex/config.toml | hpath
-dotln ./codex/AGENTS.md ~/.codex/AGENTS.md

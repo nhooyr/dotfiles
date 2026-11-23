@@ -100,7 +100,7 @@ if [ "$set_defaults" = true ]; then
 		.txt .text .md .markdown .rst .log .csv .tsv \
 		.go .py .pyi .rs .c .h .cc .cpp .cxx .hpp .m .mm .swift \
 		.java .kt .kts .scala .cs .rb .php .pl .r \
-		.js .mjs .cjs .jsx .tsx .vue .svelte \
+		.js .mjs .cjs .jsx .ts .tsx .vue .svelte \
 		.json .jsonc .jsonl .yaml .yml .toml \
 		.html .svg .htm .css .scss .sass .less .xml .sql \
 		.sh .bash .zsh .fish .lua .vim .conf .cfg .ini

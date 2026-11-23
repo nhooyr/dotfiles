@@ -44,7 +44,7 @@ function __fzfcmd
     end
 end
 
-function __fzf_parse_commandline -d 'Parse the current command line token and return split of existing filepath, fzf query, and optional -option= prefix'
+function __fzf_parse_commandline -d 'Return the directory, query and option prefix as NUL-separated fields'
     set -l fzf_query ''
     set -l prefix ''
     set -l dir '.'
@@ -53,49 +53,25 @@ function __fzf_parse_commandline -d 'Parse the current command line token and re
     set -l -- prefix_regex '^-[^\\s=]+=|^-(?!-)\\S'
 
     # Don't use option prefix if " -- " is preceded.
-    string match -qv -- '* -- *' (string sub -l (commandline -Cp) -- (commandline -p))
+    string match -qv -- '* -- *' "$(string sub -l "$(commandline -Cp)" -- "$(commandline -p)")"
     and set -- match_regex "(?<prefix>$prefix_regex)?$match_regex"
 
     # Set $prefix and expanded $fzf_query with preserved trailing newlines.
-    if string match -qr -- '^\\d\\d+|^[4-9]' $version
-        # fish v4.0.0 and newer
-        string match -q -r -- $match_regex (commandline --current-token --tokens-expanded | string collect -N)
-    else
-        string match -q -r -- $match_regex (commandline --current-token --tokenize | string collect -N)
-        eval set -- fzf_query (string escape -n -- $fzf_query | string replace -r -a '^\\\\(?=~)|\\\\(?=\\$\\w)' '')
-    end
+    string match -q -r -- "$match_regex" $(commandline --current-token --tokens-expanded | string collect -N)
 
     if test -n "$fzf_query"
-        # Normalize path in $fzf_query, set $dir to the longest existing directory.
-        if string match -qr -- '^\\d\\d+|^4|^3\\.[5-9]' $version
-            # fish v3.5.0 and newer
-            set -- fzf_query (path normalize -- $fzf_query)
-            set -- dir $fzf_query
-            while not path is -d $dir
-                set -- dir (path dirname $dir)
-            end
-        else
-            string match -q -r -- '(?<fzf_query>^[\\s\\S]*?(?=\\n?$)$)' \
-                (string replace -r -a -- '(?<=/)/|(?<!^)/+(?!\\n)$' '' $fzf_query | string collect -N)
-            set -- dir $fzf_query
-            while not test -d "$dir"
-                set -- dir (dirname -z -- "$dir" | string split0)
-            end
+        # Keep link/.. intact while finding the longest existing directory.
+        set -- dir "$fzf_query"
+        while not path is -d -- "$dir"
+            set -- dir $(path dirname -Z -- "$dir" | string split0)
         end
 
-        if not string match -q -- '.' $dir; or string match -qr -- '^\\.(/|$)' $fzf_query
-            # Strip $dir from $fzf_query - preserve trailing newlines.
-            if string match -qr -- '^\\d\\d+|^[4-9]' $version
-                # fish v4.0.0 and newer
-                string match -q -r -- '^'(string escape --style=regex -- $dir)'/?(?<fzf_query>[\\s\\S]*)' $fzf_query
-            else
-                string match -q -r -- '^/?(?<fzf_query>[\\s\\S]*?(?=\\n?$)$)' \
-                    (string replace -- "$dir" '' $fzf_query | string collect -N)
-            end
+        if test "$dir" != .; or string match -qr -- '^\\.(/|$)' "$fzf_query"
+            string match -q -r -- '^'$(string escape --style=regex -- "$dir")'/*(?<fzf_query>[\\s\\S]*)' "$fzf_query"
         end
     end
 
-    string escape -n -- "$dir" "$fzf_query" "$prefix"
+    printf '%s\0' "$dir" "$fzf_query" "$prefix"
 end
 
 function fzf-history-widget -d "Show command history"

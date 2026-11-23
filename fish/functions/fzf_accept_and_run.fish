@@ -19,8 +19,8 @@ function fzf_accept_and_run --argument-names widget
 end
 
 function fzf_path_widget --argument-names widget
-    set -l parsed $(__fzf_parse_commandline)
-    set -l dir "$(string unescape -- "$parsed[1]")"
+    set -l parsed $(__fzf_parse_commandline | string split0)
+    set -l dir "$parsed[1]"
     set -l token "$(commandline --current-token --tokens-expanded)"
     # Only scan the whole home directory when ./ explicitly requests it.
     if test "$dir" -ef ~; and not string match -q -- './*' "$token"
@@ -49,7 +49,7 @@ function fzf_path_widget --argument-names widget
         test -d "$$name"; or continue
         set -l direnv '$'$name
         test "$name" = HOME; and set direnv '~'
-        set -a dirs --dirali "$direnv" $(path normalize -Z -- "$$name" | string split0)
+        set -a dirs --dirali "$direnv" "$$name"
     end
 
     set -l shell $(string join ' ' -- $(string escape -- $(status fish-path) -c))
@@ -58,7 +58,7 @@ function fzf_path_widget --argument-names widget
         '--reverse --scheme=path --delimiter="^[$]|[/*=>@|\\\\x1f]$" --nth=2,.. --accept-nth=..' \
         "$opts --ansi --read0 --print0 --with-shell=$(string escape -- "$shell")")
     set -lx FZF_DEFAULT_OPTS_FILE
-    printf '%s\0' "$parsed[2]" | read --null --local --array --tokenize query; or return
+    set -l query "$parsed[2]"
     # ./ selects local search; only Alt-V keeps it in the query.
     if string match -q -- './*' "$token"
         test "$widget" = fzf-path-widget; and set query "$token"
@@ -89,7 +89,6 @@ function fzf_path_widget --argument-names widget
                     end
                     if set -q path[1]
                         string match -q -- '/*' "$path"; or set path "$PWD/$path"
-                        set path $(path normalize -Z -- "$path" | string split0)
                         set path $(aqsnow_fzf_path_alias "$path" | string split0)
                         set selected "$(aqsnow_fzf_path_quote "$path" "$parsed[3]")"
                     end
@@ -163,7 +162,7 @@ function aqsnow_fzf_path_alias --argument-names target
     set -l longest 0
     for name in $aqsnow_fzf_diralis
         test -d "$$name"; or continue
-        set -l directory $(path normalize -Z -- "$$name" | string split0)
+        set -l directory $(path dirname -Z -- "$$name/." | string split0)
         set -l length $(string length -- "$directory")
         test "$length" -gt "$longest"; or continue
         if string match -qr -- '^'$(string escape --style=regex -- "$directory")'(/|$)' "$target"
