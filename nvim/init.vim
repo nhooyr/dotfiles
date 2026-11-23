@@ -258,18 +258,25 @@ nnoremap <M-p> <Cmd>execute v:count1.'prev'<CR>
 nnoremap Z zz
 
 function s:vidir_mcr() abort
-	write !sh
+	execute 'write !cd -- ' . shellescape(b:vidir_dir, 1) . ' && sh'
 	if v:shell_error == 0
-		set nomodified
+		setlocal nomodified
 	endif
 endfunction
 
 function s:vidir() abort
+	let directory = getcwd()
+	for buffer in getbufinfo()
+		if get(buffer.variables, 'vidir_dir', '') ==# directory
+			execute 'buffer' buffer.bufnr
+			return
+		endif
+	endfor
 	enew
-	execute 'file' fnameescape('vidir://' . luaeval("require('dirali').shorten(_A)", getcwd()))
-	silent read !LC_COLLATE=C gls -1A -v --group-directories-first -r
-	call setline(1, '#!/bin/sh')
-	call append(1, 'set -eu')
+	let b:vidir_dir = directory
+	call nvim_buf_set_name(0, 'vidir://' . luaeval("require('dirali').shorten(_A)", directory))
+	call setline(1, ['#!/bin/sh', 'set -eu'])
+	silent $read !LC_COLLATE=C gls -1A -v --group-directories-first -r
 	autocmd BufWriteCmd <buffer> call <SID>vidir_mcr()
 	nnoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
 	inoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
@@ -283,9 +290,7 @@ function s:vidir() abort
 	finally
 		let &shell = shell
 	endtry
-	set nomodified
-	set buftype=acwrite
-	set filetype=sh
+	setlocal nomodified buftype=acwrite filetype=sh
 endfunction
 command Vidir call s:vidir()
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
@@ -341,6 +346,7 @@ augroup aqsnow
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
 	autocmd BufRead,BufNewFile *.json setlocal filetype=json5
 	autocmd BufReadPost * call <SID>restore_cursor()
+	autocmd BufEnter,WinEnter * if &autochdir && exists('b:vidir_dir') | call nvim_set_current_dir(b:vidir_dir) | endif
 	autocmd filetype fish setlocal formatprg=fish_indent
 	autocmd filetype sh let &l:formatprg='shfmt -s'
 	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | execute 'autocmd aqsnow SafeState * ++once execute "source" fnameescape($MYVIMRC)' | endif
