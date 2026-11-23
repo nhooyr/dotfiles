@@ -7,6 +7,12 @@ set laststatus=3
 set title
 set titlestring=%{v:lua.require'dirali'.filename()}%(\ %M%)%a\ -\ nvim
 let &statusline = substitute(&statusline, '%f', "%{v:lua.require'dirali'.filename()}", '')
+" Remove our previous VCS field before rebuilding the status line.
+if exists('s:vcs_statusline')
+	let &statusline = substitute(&statusline, '\V' . s:vcs_statusline, '', 'g')
+endif
+let s:vcs_statusline = "%{get(b:,'vcs_prompt','')} "
+let &statusline = substitute(&statusline, '%=', '%=' . s:vcs_statusline, '')
 set textwidth=110
 set foldmethod=indent
 set foldlevel=999
@@ -296,7 +302,8 @@ highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=3
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
-lua package.loaded.dirali, package.loaded.qf, package.loaded.snips = nil, nil, nil
+lua if package.loaded.gitstatus then package.loaded.gitstatus.stop() end
+lua package.loaded.dirali, package.loaded.gitstatus, package.loaded.qf, package.loaded.snips = nil, nil, nil, nil
 inoremap <M-j> <Cmd>lua require('snips').expand_or_jump()<CR>
 snoremap <M-j> <Cmd>lua require('snips').jump(1)<CR>
 inoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
@@ -306,7 +313,8 @@ function s:is_config_file(path) abort
 	return index([resolve($MYVIMRC),
 				\ s:config_dir . '/lua/snips.lua',
 				\ s:config_dir . '/lua/qf.lua',
-				\ s:config_dir . '/lua/dirali.lua'], resolve(a:path)) >= 0
+				\ s:config_dir . '/lua/dirali.lua',
+				\ s:config_dir . '/lua/gitstatus.lua'], resolve(a:path)) >= 0
 endfunction
 
 " For BufReadPost's restore_cursor.
@@ -341,7 +349,14 @@ augroup aqsnow
 	autocmd filetype gitcommit,diff nnoremap <buffer> ]h /^@@<CR>
 	autocmd filetype gitcommit,diff nnoremap <buffer> [h ?^@@<CR>
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
+	autocmd VimEnter * lua require('gitstatus').refresh()
+	autocmd BufEnter,WinEnter,BufFilePost,BufWritePost,DirChanged,FocusGained,ShellCmdPost,TermClose *
+			\ lua if vim.v.vim_did_enter == 1 then require('gitstatus').schedule() end
+	autocmd VimLeavePre * lua if package.loaded.gitstatus then package.loaded.gitstatus.stop() end
 augroup END
+if v:vim_did_enter
+	lua require('gitstatus').refresh()
+endif
 
 function s:restore_cursor() abort
 	" Commit messages, rebase todos, and diffs start at the top.
