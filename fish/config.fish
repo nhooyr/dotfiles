@@ -319,6 +319,9 @@ abbrali shf shfmt -s -w .
 abbrali fmti fmtinv
 abbrali dnsq 'sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder'
 
+abbrali goi 'go install'
+abbr -a --command go i install
+
 function tex --argument-names texfile
     if test -z "$texfile"; or not test -f "$texfile"
         printf 'Usage: %s %s\n' "$(status function)" '<main.tex>' >&2
