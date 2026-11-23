@@ -116,6 +116,16 @@ alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
 abbr -a fd fd -HLE .git
 abbr -a bfs bfs -L -exclude -name .git
+abbrali rgf rg -F
+abbrali rgi rg -i
+abbrali rgp rg -P
+alias rg="rg -Sn --search-zip --no-heading \
+    --colors=path:fg:cyan \
+    --colors=line:fg:magenta \
+    --colors=match:none \
+    --colors=match:fg:white \
+    --colors=match:bg:blue \
+"
 function f
     find . -iname "*$argv*" | grf "$argv"
 end
