@@ -1,5 +1,6 @@
 set -g __aqsnow_vcs_directory ''
 set -g __aqsnow_vcs_dirty 1
+set -g __aqsnow_vcs_generation 0
 
 function aqsnow_vcs_prompt_display --argument-names value
     set -g __aqsnow_vcs_prompt "$value"
@@ -8,19 +9,25 @@ function aqsnow_vcs_prompt_display --argument-names value
     set -gx AQSNOW_FISH_GIT_PROMPT "$(string replace -ra -- "$ansi" '' "$value")"
 end
 
-function aqsnow_vcs_prompt_restore
-    set -g __aqsnow_vcs_directory "$PWD"
-    set -l previous_root "$__aqsnow_vcs_root"
-    set -g __aqsnow_vcs_root ''
-    set -l directory "$PWD"
+function aqsnow_vcs_prompt_root --argument-names directory
     while true
         if test -d "$directory/.git"; or test -f "$directory/.git"
-            set -g __aqsnow_vcs_root "$directory"
-            break
+            printf '%s\n' "$directory"
+            return
         end
         set -l parent "$(path dirname -- "$directory")"
         test "$parent" != "$directory"; or break
         set directory "$parent"
+    end
+end
+
+function aqsnow_vcs_prompt_restore
+    set -l previous_directory "$__aqsnow_vcs_directory"
+    set -l previous_root "$__aqsnow_vcs_root"
+    set -g __aqsnow_vcs_directory "$PWD"
+    set -g __aqsnow_vcs_root "$(aqsnow_vcs_prompt_root "$PWD")"
+    if test "$previous_directory" = "$PWD"; and test "$previous_root" = "$__aqsnow_vcs_root"
+        return
     end
     if test -z "$__aqsnow_vcs_root"
         aqsnow_vcs_prompt_display ''
@@ -59,17 +66,22 @@ function aqsnow_vcs_prompt_restore
     aqsnow_vcs_prompt_display " ($branch)"
 end
 
-# Commands refresh asynchronously; directory changes immediately select their own cache.
-function aqsnow_vcs_prompt_invalidate --on-event fish_postexec --on-variable PWD
+# A command can initialize, remove, or replace a repository without changing PWD.
+function aqsnow_vcs_prompt_invalidate --on-event fish_postexec
+    set -g __aqsnow_vcs_generation "$(math "$__aqsnow_vcs_generation + 1")"
     set -g __aqsnow_vcs_dirty 1
-    if test "$__aqsnow_vcs_directory" != "$PWD"
-        aqsnow_vcs_prompt_restore
-    end
+    aqsnow_vcs_prompt_restore
+end
+
+function aqsnow_vcs_prompt_chdir --on-variable PWD
+    set -g __aqsnow_vcs_dirty 1
+    aqsnow_vcs_prompt_restore
 end
 
 function aqsnow_vcs_prompt_preexec --on-event fish_preexec
     # Background completions must not repaint over a foreground program.
     set -g __aqsnow_prompt_active 0
+    set -g __aqsnow_vcs_generation "$(math "$__aqsnow_vcs_generation + 1")"
 end
 
 function aqsnow_vcs_prompt_cleanup --on-event fish_exit
@@ -87,7 +99,12 @@ function aqsnow_vcs_prompt_done --on-signal USR1
         read code <"$__aqsnow_vcs_file.status"
     end
     set -l value "$(string collect < "$__aqsnow_vcs_file")"
-    if test "$code" = 0; and test -n "$value"
+    set -l current_root "$(aqsnow_vcs_prompt_root "$__aqsnow_vcs_request_directory")"
+    if test "$__aqsnow_vcs_request_generation" != "$__aqsnow_vcs_generation"
+        or test "$current_root" != "$__aqsnow_vcs_request_root"
+        # A foreground command or new repository can invalidate even the cache destination.
+        set -g __aqsnow_vcs_dirty 1
+    else if test "$code" = 0; and test -n "$value"
         if test -n "$__aqsnow_vcs_request_root"; and test -w "$__aqsnow_vcs_request_root"
             set -l cache "$__aqsnow_vcs_request_root/.fish_git_prompt"
             begin
@@ -122,9 +139,7 @@ function aqsnow_vcs_prompt_done --on-signal USR1
 end
 
 function aqsnow_vcs_prompt_update
-    if test "$__aqsnow_vcs_directory" != "$PWD"
-        aqsnow_vcs_prompt_restore
-    end
+    aqsnow_vcs_prompt_restore
     set -q __aqsnow_vcs_dirty; or return
     set -q __aqsnow_vcs_pending; and return
     aqsnow_init_rendezvous; or return
@@ -133,6 +148,7 @@ function aqsnow_vcs_prompt_update
     set -g __aqsnow_vcs_pending 1
     set -g __aqsnow_vcs_request_directory "$PWD"
     set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"
+    set -g __aqsnow_vcs_request_generation "$__aqsnow_vcs_generation"
     set -l interpreter "$(status fish-path)"
     set -l controller '
         set -l result "$argv[2]/vcs-prompt-$argv[5]"

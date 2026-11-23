@@ -51,14 +51,28 @@ sub output {
     return $result->{stdout};
 }
 
-sub fake_completion {
+sub stage_completion {
     my ($value, $status) = @_;
     return 'set -g __aqsnow_vcs_request_directory "$PWD"' . "\n"
         . 'set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"' . "\n"
+        . 'set -g __aqsnow_vcs_request_generation "$__aqsnow_vcs_generation"' . "\n"
         . 'set -g __aqsnow_vcs_file "$TEST_ROOT/result"' . "\n"
         . 'printf %s ' . shell_quote($value) . ' > "$__aqsnow_vcs_file"' . "\n"
-        . 'printf %s ' . shell_quote($status) . ' > "$__aqsnow_vcs_file.status"' . "\n"
-        . "aqsnow_vcs_prompt_done\n";
+        . 'printf %s ' . shell_quote($status) . ' > "$__aqsnow_vcs_file.status"' . "\n";
+}
+
+sub fake_completion {
+    return stage_completion(@_) . "aqsnow_vcs_prompt_done\n";
+}
+
+sub wait_for_refresh {
+    return <<'FISH';
+for i in $(seq 1 100)
+    set -q __aqsnow_vcs_pending; or break
+    command sleep 0.03
+end
+set -q __aqsnow_vcs_pending; and exit 2
+FISH
 }
 
 sub cached_first_render {
@@ -143,6 +157,7 @@ set -g __aqsnow_vcs_pending 1
 aqsnow_vcs_prompt_update
 set -g __aqsnow_vcs_request_directory "$PWD"
 set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"
+set -g __aqsnow_vcs_request_generation "$__aqsnow_vcs_generation"
 set -g __aqsnow_vcs_file "$TEST_ROOT/result"
 cd -- "$TEST_OTHER"
 aqsnow_vcs_prompt_update
@@ -158,6 +173,89 @@ FISH
     is(output($result), " (other-cached)\n (other-cached)\n (other-cached)\n<>\n<>\n", 'pending old repository cannot repaint new repository or non-Git directory');
     is(read_file("$self->{repo}/.fish_git_prompt"), ' (main-refreshed)', 'old repository still receives its refreshed cache');
     is(read_file("$self->{other}/.fish_git_prompt"), ' (other-cached)', 'other repository cache is untouched');
+}
+
+sub initialized_repository_in_same_directory {
+    my ($self) = @_;
+    my $result = shell($self, <<'FISH' . wait_for_refresh() . <<'FISH', $self->{plain});
+set -g __aqsnow_vcs_pending 1
+aqsnow_vcs_prompt_update
+printf '<%s>\n' "$AQSNOW_FISH_GIT_PROMPT"
+set -e __aqsnow_vcs_pending
+command git init --quiet --initial-branch fresh .
+aqsnow_vcs_prompt_invalidate
+printf '%s\n' "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
+aqsnow_vcs_prompt_update
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+exit 0
+FISH
+    like(output($result), qr/^<>\n\Q$self->{plain}\E\n \(fresh\)\n \(fresh[^\n]*\)\n$/,
+        'git init discovers the new root and keeps an immediate branch while refreshing');
+    like(read_file("$self->{plain}/.fish_git_prompt"), qr/\(.*fresh/,
+        'new repository receives a persistent cache without changing directory');
+}
+
+sub nested_repository_during_refresh {
+    my ($self) = @_;
+    my $nested = "$self->{repo}/nested";
+    make_path($nested);
+    write_file("$self->{repo}/.fish_git_prompt", ' (parent-cached)');
+    my $result = shell($self, "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+        . stage_completion(' (wrong-parent-result)', '0') . <<'FISH' . wait_for_refresh() . <<'FISH', $nested);
+command git init --quiet --initial-branch nested .
+aqsnow_vcs_prompt_invalidate
+aqsnow_vcs_prompt_done
+printf '%s\n%s\n' "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
+aqsnow_vcs_prompt_update
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+exit 0
+FISH
+    like(output($result), qr/^\Q$nested\E\n \(nested\)\n \(nested[^\n]*\)\n$/,
+        'nested git init discards the old request and refreshes its own branch');
+    is(read_file("$self->{repo}/.fish_git_prompt"), ' (parent-cached)',
+        'in-flight result cannot overwrite the parent repository cache');
+    like(read_file("$nested/.fish_git_prompt"), qr/\(.*nested/,
+        'nested repository receives its own persistent cache');
+}
+
+sub removed_repository_during_refresh {
+    my ($self) = @_;
+    write_file("$self->{repo}/.fish_git_prompt", ' (last-known)');
+    my $result = shell($self, "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+        . stage_completion(' (obsolete)', '0') . <<'FISH');
+command rm -rf -- .git
+aqsnow_vcs_prompt_invalidate
+aqsnow_vcs_prompt_done
+printf '<%s>\n<%s>\n' "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
+FISH
+    is(output($result), "<>\n<>\n", 'removing .git clears the branch without changing directory');
+    is(read_file("$self->{repo}/.fish_git_prompt"), ' (last-known)',
+        'removed repository rejects its obsolete in-flight result');
+}
+
+sub replaced_repository_during_foreground_command {
+    my ($self) = @_;
+    write_file("$self->{repo}/.fish_git_prompt", ' (last-known)');
+    my $result = shell($self, "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+        . stage_completion(' (obsolete)', '0') . <<'FISH' . wait_for_refresh() . <<'FISH');
+aqsnow_vcs_prompt_preexec
+command rm -rf -- .git
+command git init --quiet --initial-branch replacement .
+# Completion can arrive before fish_postexec observes the replacement.
+aqsnow_vcs_prompt_done
+printf '%s\n' "$(string collect < .fish_git_prompt)"
+aqsnow_vcs_prompt_invalidate
+aqsnow_vcs_prompt_update
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+exit 0
+FISH
+    like(output($result), qr/^ \(last-known\)\n \(replacement[^\n]*\)\n$/,
+        'replacement during a foreground command retains the cache until a fresh result');
+    like(read_file("$self->{repo}/.fish_git_prompt"), qr/\(.*replacement/,
+        'same-path replacement ultimately caches the new repository prompt');
 }
 
 sub failed_refresh_keeps_display {
@@ -288,6 +386,10 @@ run_cases({
     subdirectories_and_metadata => \&subdirectories_and_metadata,
     linked_worktrees => \&linked_worktrees,
     directory_switch_while_pending => \&directory_switch_while_pending,
+    initialized_repository_in_same_directory => \&initialized_repository_in_same_directory,
+    nested_repository_during_refresh => \&nested_repository_during_refresh,
+    removed_repository_during_refresh => \&removed_repository_during_refresh,
+    replaced_repository_during_foreground_command => \&replaced_repository_during_foreground_command,
     failed_refresh_keeps_display => \&failed_refresh_keeps_display,
     successful_refresh_is_atomic => \&successful_refresh_is_atomic,
     unchanged_cache_is_not_rewritten => \&unchanged_cache_is_not_rewritten,

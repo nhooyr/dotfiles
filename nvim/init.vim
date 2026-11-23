@@ -297,9 +297,14 @@ command Vidir call s:vidir()
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
 let s:vgrep = shellescape(fnamemodify(resolve(expand('<sfile>:p')), ':h:h') . '/bin/vgrep')
+let s:grep_repositories = get(s:, 'grep_repositories', {})
 function s:update_grepprg() abort
-	let in_git = systemlist(['git', 'rev-parse', '--is-inside-work-tree'])
-	if v:shell_error == 0 && get(in_git, 0, '') ==# 'true'
+	let directory = getcwd()
+	if !has_key(s:grep_repositories, directory)
+		let in_git = systemlist(['git', 'rev-parse', '--is-inside-work-tree'])
+		let s:grep_repositories[directory] = v:shell_error == 0 && get(in_git, 0, '') ==# 'true'
+	endif
+	if s:grep_repositories[directory]
 		let &grepprg = s:vgrep . ' --git'
 		set grepformat=%f:%l:%c:%m
 	else
@@ -317,7 +322,6 @@ highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=3
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
-lua if package.loaded.gitstatus then package.loaded.gitstatus.stop() end
 lua package.loaded.dirali, package.loaded.gitstatus, package.loaded.qf, package.loaded.snips = nil, nil, nil, nil
 inoremap <M-j> <Cmd>lua require('snips').expand_or_jump()<CR>
 snoremap <M-j> <Cmd>lua require('snips').jump(1)<CR>
@@ -340,8 +344,6 @@ augroup aqsnow
 	autocmd RecordingEnter * redraw!
 	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
 	autocmd DirChanged * call <SID>update_grepprg()
-	autocmd CmdlineEnter : call <SID>update_grepprg()
-	autocmd FocusGained * call <SID>update_grepprg()
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
 			\ require('snips').expand() end
@@ -367,12 +369,10 @@ augroup aqsnow
 	autocmd filetype gitcommit,diff nnoremap <buffer> ]h /^@@<CR>
 	autocmd filetype gitcommit,diff nnoremap <buffer> [h ?^@@<CR>
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
-	autocmd VimEnter * lua require('gitstatus').start()
-	autocmd FocusGained * lua require('gitstatus').focus()
-	autocmd VimLeavePre * lua if package.loaded.gitstatus then package.loaded.gitstatus.stop() end
+	autocmd VimEnter,BufEnter,FocusGained * lua require('gitstatus').refresh()
 augroup END
 if v:vim_did_enter
-	lua require('gitstatus').start()
+	lua require('gitstatus').refresh()
 endif
 
 function s:restore_cursor() abort
