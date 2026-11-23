@@ -50,6 +50,7 @@ highlight! link DiagnosticWarn WarningMsg
 highlight RedrawDebugClear ctermbg=6
 highlight WinSeparator cterm=bold
 highlight link gitcommitOverflow Error
+highlight link json5Key Statement
 
 function s:set_mode_highlight(check_record) abort
 	let mode = mode(1)
@@ -321,7 +322,7 @@ augroup aqsnow
 	autocmd filetype fish setlocal et ts=4 sw=0
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
-	autocmd BufRead,BufNewFile *.json setlocal filetype=json5 | hi link json5Key Statement
+	autocmd BufRead,BufNewFile *.json setlocal filetype=json5
 	autocmd BufReadPost * call <SID>restore_cursor()
 	autocmd filetype fish setlocal formatprg=fish_indent
 	autocmd filetype sh let &l:formatprg='shfmt -s'
