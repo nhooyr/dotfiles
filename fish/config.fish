@@ -58,17 +58,15 @@ function realpathc --argument-names path --description "Print and copy an absolu
     realpath "$path" | hpath | pbc
 end
 fish_hybrid_key_bindings
-set -g fish_color_error normal
+set -g fish_color_error red --underline
 set -g fish_color_quote green
-set -g fish_color_search_match normal --reverse
-set -g fish_color_selection white --background=black
-set -g fish_pager_color_progress cyan --underline --italic
+set -g fish_color_search_match black --background=yellow
+set -g fish_color_selection black --background=yellow
+set -g fish_pager_color_progress --italic
 set -g fish_pager_color_description cyan --italic
 set -g fish_pager_color_prefix --underline
-set -g fish_pager_color_selected_background --background=black
-set -g fish_pager_color_selected_prefix white --underline --bold
-set -g fish_pager_color_selected_completion white
-set -g fish_pager_color_selected_description white
+set -g fish_pager_color_selected_completion black
+set -g fish_pager_color_selected_description black --italic
 set -g fish_color_autosuggestion 808080
 set -g fish_color_comment brblack --italic
 abbrali r reload

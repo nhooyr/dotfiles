@@ -39,6 +39,7 @@ nnoremap <Leader>i <Cmd>Inspect<CR>
 highlight Comment ctermfg=8 cterm=italic
 highlight Search ctermfg=0 ctermbg=3
 highlight! link CurSearch Search
+highlight! link Visual Search
 highlight LineNr ctermfg=8
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
