@@ -188,6 +188,7 @@ nnoremap <Leader>d <Cmd>execute '.,.+' . (v:count1 - 1) . 't.'<CR>
 
 set completeopt=menuone,noselect,popup
 set complete+=U,kspell,i,d,f,o
+set complete^=Fv:lua.require'snip'.complete
 set pumheight=8
 
 inoremap <C-n> <Cmd>set spell<CR><C-n>
@@ -266,10 +267,15 @@ highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=7 ctermbg=0
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
-execute 'luafile' fnameescape(s:config_dir . '/snip.lua')
+lua package.loaded.qf, package.loaded.snip = nil, nil
+inoremap <M-j> <Cmd>lua require('snip').expand_or_jump()<CR>
+snoremap <M-j> <Cmd>lua require('snip').jump(1)<CR>
+inoremap <M-k> <Cmd>lua require('snip').jump(-1)<CR>
+snoremap <M-k> <Cmd>lua require('snip').jump(-1)<CR>
 
 function s:is_config_file(path) abort
-	return index([resolve($MYVIMRC), s:config_dir . '/snip.lua'], resolve(a:path)) >= 0
+	return index([resolve($MYVIMRC), s:config_dir . '/lua/snip.lua',
+				\ s:config_dir . '/lua/qf.lua'], resolve(a:path)) >= 0
 endfunction
 
 " For BufReadPost restore_cursor.
@@ -278,6 +284,8 @@ augroup aqsnow
 	autocmd!
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd BufReadPost,BufWinEnter quickfix lua require('qf')()
+	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
+			\ require('snip').expand_or_jump(true) end
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif

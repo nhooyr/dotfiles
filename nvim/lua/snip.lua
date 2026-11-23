@@ -15,8 +15,8 @@ local function jump_snippet(direction)
 	end
 end
 
-local function expand_or_jump_snippet()
-	if vim.snippet.active() then
+local function expand_or_jump_snippet(expand_only)
+	if not expand_only and vim.snippet.active() then
 		jump_snippet(1)
 		return
 	end
@@ -31,6 +31,16 @@ local function expand_or_jump_snippet()
 	vim.snippet.expand(body)
 end
 
-vim.keymap.set('i', '<M-j>', expand_or_jump_snippet)
-vim.keymap.set('s', '<M-j>', function() jump_snippet(1) end)
-vim.keymap.set({ 'i', 's' }, '<M-k>', function() jump_snippet(-1) end)
+local function complete(findstart, base)
+	if findstart == 1 then return vim.fn.getline('.'):sub(1, vim.fn.col('.') - 1):find('[%w_]*$') - 1 end
+	local matches = {}
+	for trigger, body in pairs(vim.tbl_extend('force', snippets.global, snippets[vim.bo.filetype] or {})) do
+		if trigger:sub(1, #base) == base then
+			matches[#matches + 1] = { word = trigger, menu = '[snip]', info = body, user_data = 'snip', dup = 1 }
+		end
+	end
+	table.sort(matches, function(a, b) return a.word < b.word end)
+	return matches
+end
+
+return { expand_or_jump = expand_or_jump_snippet, jump = jump_snippet, complete = complete }
