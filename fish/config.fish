@@ -200,10 +200,8 @@ abbrali ssha ssh-add
 abbrali sshfl sshf -L
 abbrali sshfr sshf -R
 abbrali sshfs sshf -D
-abbrali py python3
-function pyc --wraps 'python3 -c'
-    python3 -c "print($argv)"
-end
+abbrali pl perl
+abbr -a --set-cursor plc perl -E "'say %'"
 abbrali b brew
 abbrali bi brew install
 abbrali bu brew upgrade
