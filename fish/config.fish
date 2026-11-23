@@ -119,7 +119,7 @@ abbr -a bfs bfs -L -exclude -name .git
 abbrali rgf rg -F
 abbrali rgi rg -i
 abbrali rgp rg -P
-abbrali rgg "rg -g '*'"
+abbr -a --set-cursor rgg "rg -g '*%'"
 alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git \
     --colors=path:fg:cyan \
     --colors=line:fg:magenta \
