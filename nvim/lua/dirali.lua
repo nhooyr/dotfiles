@@ -1,9 +1,16 @@
+local names = vim.env.AQSNOW_DIRALIS
+if not names then
+	vim.cmd.echoerr('"AQSNOW_DIRALIS is not set"')
+elseif not (':' .. names .. ':'):find(':HOME:', 1, true) then
+	vim.cmd.echoerr('"AQSNOW_DIRALIS must include HOME"')
+end
+
 local aliases = {}
-for name in ('HOME:' .. (vim.env.AQSNOW_DIRALIS or '')):gmatch('[^:]+') do
+for name in names:gmatch('[^:]+') do
 	local directory = vim.env[name]
 	if directory and directory ~= '' and vim.fn.isdirectory(directory) == 1 then
 		directory = vim.fs.normalize(vim.fn.fnamemodify(directory, ':p'), { expand_env = false })
-		aliases[#aliases + 1] = { directory = directory, name = name == 'HOME' and '~' or '$' .. name }
+		aliases[#aliases + 1] = { directory = directory, label = name == 'HOME' and '~' or '$' .. name }
 	end
 end
 
@@ -11,6 +18,7 @@ local function shorten(path)
 	local result, longest = path, -1
 	for _, alias in ipairs(aliases) do
 		local directory = alias.directory
+		-- Match a whole directory, so /repo never abbreviates /repository.
 		local prefix = directory == '/' and '/' or directory .. '/'
 		local suffix
 		if path == directory then
@@ -19,7 +27,7 @@ local function shorten(path)
 			suffix = '/' .. path:sub(#prefix + 1)
 		end
 		if suffix and #directory > longest then
-			result, longest = alias.name .. suffix, #directory
+			result, longest = alias.label .. suffix, #directory
 		end
 	end
 	return result
@@ -31,6 +39,7 @@ local function filename()
 	end
 	local path = vim.api.nvim_buf_get_name(0)
 	local shortened = shorten(path)
+	-- Keep Neovim's own names for buffers without a matching alias.
 	if shortened == path then return vim.api.nvim_eval_statusline('%f', {}).str end
 	return vim.fn.strtrans(shortened)
 end
