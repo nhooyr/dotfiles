@@ -299,8 +299,8 @@ function s:is_config_file(path) abort
 				\ s:config_dir . '/lua/qf.lua'], resolve(a:path)) >= 0
 endfunction
 
-" For BufReadPost restore_cursor.
-filetype plugin indent on
+" For BufReadPost's restore_cursor.
+filetype on
 augroup aqsnow
 	autocmd!
 	autocmd ModeChanged,RecordingEnter * call <SID>set_mode_highlight(v:true)
