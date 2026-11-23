@@ -12,7 +12,7 @@ local function fmt(info)
 	local names, help_names, lines = {}, {}, {}
 	for i = info.start_idx, info.end_idx do
 		local item = items[i]
-		if item.lnum <= 0 or item.col <= 0 then
+		if item.lnum <= 0 then
 			lines[#lines + 1] = ''
 		else
 			local help = item.type == '\1'
@@ -24,7 +24,7 @@ local function fmt(info)
 				elseif name:sub(1, 1) == '/' then name = fn.fnamemodify(name, ':.') end
 				cache[item.bufnr] = name
 			end
-			local position = range(item.lnum, item.end_lnum) .. ':' .. range(item.col, item.end_col)
+			local position = range(item.lnum, item.end_lnum)
 			local kind = help and '' or (kinds[item.type:lower()] or item.type)
 			if item.nr > 0 then
 				if kind == '' and not help then kind = 'error' end
