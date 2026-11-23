@@ -21,15 +21,7 @@ mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ./ssh/config
 
-dotln ./codex/AGENTS.md ~/.codex/AGENTS.md
-if [ ! -e ~/.codex/config.toml ]; then
-	printf '[tui]\ntheme = "ansi"\nvim_mode_default = true\n' >~/.codex/config.toml
-	printf 'dotfiles: %s: Created %s\n' "${0##*/}" ~/.codex/config.toml | hpath
-elif ! yq -e -o=json '.tui.theme == "ansi" and .tui.vim_mode_default == true' ~/.codex/config.toml >/dev/null; then
-	yq -i '.tui.theme = "ansi" | .tui.vim_mode_default = true' ~/.codex/config.toml
-	printf 'dotfiles: %s: Updated %s\n' "${0##*/}" ~/.codex/config.toml | hpath
-fi
-
+./codex/install.sh
 ./fish/fzfpaths/install.sh
 ./bat/install.sh
 ./nvim/app/install.sh --set-defaults

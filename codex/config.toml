@@ -1,0 +1,3 @@
+[tui]
+theme = "ansi"
+vim_mode_default = true
