@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::env;
 use std::ffi::{OsStr, OsString, c_int, c_short};
 use std::fs::{self, Metadata};
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt, process::CommandExt};
 use std::path::{Component, Path, PathBuf};
@@ -54,8 +54,10 @@ Starting inside an ignored directory makes that directory searchable: ignore
 rules above the ignored directory are bypassed, while rules inside still apply.
 Directories named .git and node_modules are skipped unless they are <DIR> itself.
 File searches also include special files and broken symlinks. With an empty
-command line, the Fish widgets use file -- if any selected path is neither
-a regular file nor a directory.
+command line, the Fish widgets distinguish directories, regular files, and
+executables without a #! shebang by following symlink targets. Mixed file types
+and special files use file --. Executables without a shebang run directly;
+scripts with a shebang also run when selected with their explicit ./ form.
 
 Options:
   -h, --help        Show this help.
@@ -66,7 +68,7 @@ Options:
                    Other files get an invisible ASCII Unit Separator (0x1f).
                    With --color, basenames and markers use LS_COLORS.
                    The Fish widgets remove the final marker.
-  --keep-dot        Also offer ./ paths for local executable files.
+  --keep-dot        Also offer ./ paths for local scripts with a shebang.
   --cdpath CDPATH   Include directories from these colon-separated roots.
   --dirali ENV DIR  Abbreviate paths using ENV for DIR. May be repeated.
 
@@ -90,8 +92,14 @@ Output:
   With --classify, each path ends in one indicator. Ordinary files use an invisible
   ASCII Unit Separator (0x1f). Removing exactly one indicator preserves literal
   trailing stars, spaces, and separators in filenames.
-  Local paths omit a leading ./. With --keep-dot, local executables also get
+  Local binary executables are offered only as ./ paths, even without --keep-dot.
+  The local scan reads only the first two bytes of each executable. Files without
+  a #! shebang, including executable text files, are treated as binary, as are
+  unreadable files. The Fish widgets use the same check for selected executables.
+  Other local paths omit a leading ./. With --keep-dot, scripts also get
   a ./ form. The Fish bindings enable this only when completing a command name.
+  Global binary executables keep their normal absolute or directory-alias forms.
+  Global scans do not read executable contents.
   Global paths use a matching env when available; otherwise they are absolute.
   Global directory scans (-d, used by Alt-C) use Git's indexed file types. If
   you replace a tracked regular file with a symlink to a directory, that
@@ -199,6 +207,7 @@ fn run(
         color,
         classify,
         keep_dot,
+        physical_cwd: env::current_dir()?,
         env_dirs,
         shown: HashSet::new(),
         output: BufWriter::new(io::stdout()),
@@ -209,7 +218,6 @@ fn run(
         cwd: working_directory()?,
         files_only: args[2] == "-f",
         directories_only: args[2] == "-d",
-        keep_dot,
         classify,
         colors,
         sender,
@@ -403,7 +411,10 @@ fn ignored(path: &Path, directory: bool, ignores: &[Arc<Gitignore>]) -> bool {
 
 fn add_ignore_file(directory: &Path, ignores: &mut Vec<Arc<Gitignore>>) {
     let path = directory.join(".gitignore");
-    if !path.is_file() {
+    if !path
+        .symlink_metadata()
+        .is_ok_and(|metadata| metadata.is_file())
+    {
         return;
     }
     let (matcher, _) = Gitignore::new(path);
@@ -530,6 +541,7 @@ impl FileInfo {
 struct PathStyle {
     indicator: u8,
     executable: bool,
+    binary_executable: bool,
     color: Option<Style>,
 }
 
@@ -538,6 +550,7 @@ impl PathStyle {
         Self {
             indicator,
             executable: indicator == b'*',
+            binary_executable: false,
             color: None,
         }
     }
@@ -555,10 +568,17 @@ fn file_indicator(mode: u32) -> u8 {
     }
 }
 
+fn has_shebang(path: &Path) -> io::Result<bool> {
+    let mut header = [0; 2];
+    fs::File::open(path)?.read_exact(&mut header)?;
+    Ok(header == *b"#!")
+}
+
 struct Picker {
     color: bool,
     classify: bool,
     keep_dot: bool,
+    physical_cwd: PathBuf,
     env_dirs: Vec<(Vec<u8>, Vec<u8>)>,
     shown: HashSet<Vec<u8>>,
     output: BufWriter<io::Stdout>,
@@ -607,6 +627,21 @@ impl Picker {
     }
 
     fn emit_path(&mut self, path: PathBuf, local: bool, style: PathStyle) -> io::Result<()> {
+        if local && style.binary_executable {
+            let mut relative = PathBuf::from(".");
+            if path.is_absolute() {
+                for ancestor in self.physical_cwd.ancestors() {
+                    if let Ok(rest) = path.strip_prefix(ancestor) {
+                        relative.push(rest);
+                        break;
+                    }
+                    relative.push("..");
+                }
+            } else {
+                relative.push(path.strip_prefix(".").unwrap_or(&path));
+            }
+            return self.emit(relative.into_os_string().into_vec(), true, &style);
+        }
         let mut path = path.into_os_string().into_vec();
         if path.starts_with(b"./") {
             path.drain(..2);
@@ -647,7 +682,6 @@ struct Scanner {
     cwd: PathBuf,
     files_only: bool,
     directories_only: bool,
-    keep_dot: bool,
     classify: bool,
     colors: Option<Arc<LsColors>>,
     sender: SyncSender<Candidate>,
@@ -675,9 +709,11 @@ impl Scanner {
             }
         });
         let followed = info.followed();
+        let executable = followed.is_file() && followed.mode() & 0o111 != 0;
         PathStyle {
             indicator,
-            executable: followed.is_file() && followed.mode() & 0o111 != 0,
+            executable,
+            binary_executable: false,
             color: color.cloned(),
         }
     }
@@ -695,7 +731,10 @@ impl Scanner {
         if !wanted {
             return Ok(());
         }
-        let style = self.style(&path, &info);
+        let mut style = self.style(&path, &info);
+        if local && style.executable {
+            style.binary_executable = !has_shebang(&path).unwrap_or(false);
+        }
         self.emit_path(path, local, style)
     }
 
@@ -731,12 +770,6 @@ impl Scanner {
                     }
                     let path = entry.path();
                     let absolute = absolute.join(name);
-                    if regular_file && !self.keep_dot && !self.classify {
-                        if !ignored(&absolute, false, &ignores) {
-                            self.emit_path(path, true, PathStyle::plain(b'\x1f'))?;
-                        }
-                        continue;
-                    }
                     let Some(info) = FileInfo::new(&path) else {
                         continue;
                     };

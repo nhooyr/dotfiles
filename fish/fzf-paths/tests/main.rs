@@ -38,6 +38,13 @@ fn make_executable(path: impl AsRef<Path>) {
     fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
 }
 
+fn write_script(root: &Path, name: &str) {
+    let path = root.join(name);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(&path, "#!/bin/sh\n").unwrap();
+    make_executable(path);
+}
+
 impl Fixture {
     fn new() -> Self {
         let root = loop {
@@ -73,7 +80,6 @@ impl Fixture {
         write(&fixture.repo, "untracked");
         for name in [
             "file",
-            "executable",
             "$literal",
             "~literal",
             "dir/child",
@@ -82,7 +88,7 @@ impl Fixture {
         ] {
             write(&fixture.local, name);
         }
-        make_executable(fixture.local.join("executable"));
+        write_script(&fixture.local, "executable");
         symlink(fixture.local.join("dir"), fixture.local.join("linked")).unwrap();
         symlink(&fixture.local, fixture.local.join("loop")).unwrap();
         symlink(fixture.local.join("missing"), fixture.local.join("broken")).unwrap();
@@ -471,8 +477,7 @@ fn parallel_searches_keep_all_local_paths() {
     let local = fixture.root.join("large");
     for i in 0..1005 {
         let name = format!("items/file-{i:04}");
-        write(&local, &name);
-        make_executable(local.join(name));
+        write_script(&local, &name);
     }
     for flags in [&[][..], &["--keep-dot"][..]] {
         let paths = fixture.run(&mut fixture.command_with_flags(
@@ -843,7 +848,6 @@ fn classify_preserves_names_and_marks_file_types() {
     let fixture = Fixture::new();
     for name in [
         "ordinary*",
-        "run*",
         "space at end ",
         "unit separator\x1f",
         "two separators\x1f\x1f",
@@ -852,8 +856,8 @@ fn classify_preserves_names_and_marks_file_types() {
     ] {
         write(&fixture.local, name);
     }
-    make_executable(fixture.local.join("run*"));
-    make_executable(fixture.repo.join("tracked"));
+    write_script(&fixture.local, "run*");
+    write_script(&fixture.repo, "tracked");
     fs::create_dir(fixture.local.join("directory*")).unwrap();
     symlink("executable", fixture.local.join("executable-link")).unwrap();
     symlink("tracked", fixture.repo.join("tracked-link")).unwrap();
@@ -906,17 +910,15 @@ fn classify_preserves_names_and_marks_file_types() {
 #[test]
 fn classify_colors_basenames_and_suffixes() {
     let fixture = Fixture::new();
-    make_executable(fixture.repo.join("tracked"));
+    write_script(&fixture.repo, "tracked");
     for name in ["run*", "$run", "dir/run*", "dir/exec\nname"] {
-        write(&fixture.local, name);
-        make_executable(fixture.local.join(name));
+        write_script(&fixture.local, name);
     }
     write(&fixture.local, "ordinary*");
     fs::create_dir(fixture.local.join("directory*")).unwrap();
     symlink("executable", fixture.local.join("exec-link")).unwrap();
     symlink("tracked", fixture.repo.join("tracked-link")).unwrap();
-    write(&fixture.repo, "nested/run*");
-    make_executable(fixture.repo.join("nested/run*"));
+    write_script(&fixture.repo, "nested/run*");
     fixture.git(&["add", "--", "nested/run*", "tracked-link"]);
     for alias in ["$project", "~"] {
         let paths = fixture.run(&mut fixture.command_with_flags(
@@ -991,8 +993,7 @@ fn classify_marks_cdpath_directory_links() {
     fs::create_dir_all(directory.join("folder*/child ")).unwrap();
     symlink("folder*", directory.join("linked")).unwrap();
     symlink("missing", directory.join("broken")).unwrap();
-    write(&directory, "executable");
-    make_executable(directory.join("executable"));
+    write_script(&directory, "executable");
     let paths = fixture.run(&mut fixture.command_with_cdpath(
         &["--classify", "--color"],
         &fixture.local,
@@ -1520,8 +1521,7 @@ fn keep_dot_is_opt_in() {
 fn executable_paths_work_with_dot_roots_and_symlinks() {
     let fixture = Fixture::new();
     let name = "run with\nspaces";
-    write(&fixture.local, name);
-    make_executable(fixture.local.join(name));
+    write_script(&fixture.local, name);
     symlink(
         fixture.local.join(name),
         fixture.local.join("linked-executable"),
@@ -1547,8 +1547,7 @@ fn executable_paths_work_with_dot_roots_and_symlinks() {
 #[test]
 fn executable_subdirectory_paths_get_both_forms() {
     let fixture = Fixture::new();
-    write(&fixture.local, "fzf-paths/install.sh");
-    make_executable(fixture.local.join("fzf-paths/install.sh"));
+    write_script(&fixture.local, "fzf-paths/install.sh");
     for directory in [".", "fzf-paths"] {
         let paths = fixture.run(
             Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
@@ -1564,7 +1563,7 @@ fn executable_subdirectory_paths_get_both_forms() {
 #[test]
 fn executable_choices_preserve_plain_paths_and_env_dirs() {
     let fixture = Fixture::new();
-    make_executable(fixture.repo.join("tracked"));
+    write_script(&fixture.repo, "tracked");
     let paths = fixture.run(&mut fixture.command_with_flags(
         &["--keep-dot"],
         &fixture.repo,
@@ -1629,7 +1628,7 @@ fn literal_prefixes_are_escaped() {
 fn executable_literal_prefixes_are_not_duplicated_or_expanded() {
     let fixture = Fixture::new();
     for name in ["$literal", "~literal"] {
-        make_executable(fixture.local.join(name));
+        write_script(&fixture.local, name);
     }
     let paths = fixture.pick();
     for name in ["$literal", "~literal"] {
@@ -2015,4 +2014,114 @@ fn runtime_errors_use_invoked_basename() {
         .unwrap();
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stderr.starts_with(b"renamed-picker: "));
+}
+
+#[test]
+fn local_binary_executables_only_offer_dot_paths() {
+    let fixture = Fixture::new();
+    fs::write(fixture.local.join("binary"), b"\x7fELF\0content").unwrap();
+    make_executable(fixture.local.join("binary"));
+    symlink("binary", fixture.local.join("binary-link")).unwrap();
+    for flags in [
+        vec![],
+        vec!["--keep-dot"],
+        vec!["--classify"],
+        vec!["--classify", "--keep-dot"],
+    ] {
+        let paths = fixture.run(&mut fixture.command_with_flags(
+            &flags,
+            &fixture.local,
+            Path::new(""),
+            "-f",
+            &[],
+        ));
+        let marked = flags.contains(&"--classify");
+        let marker = if marked { "*" } else { "" };
+        let link_marker = if marked { "@" } else { "" };
+        assert!(paths.contains(&OsString::from(format!("./binary{marker}"))));
+        assert!(!paths.contains(&OsString::from(format!("binary{marker}"))));
+        assert!(paths.contains(&OsString::from(format!("./binary-link{link_marker}"))));
+        assert!(!paths.contains(&OsString::from(format!("binary-link{link_marker}"))));
+    }
+}
+
+#[test]
+fn global_binary_executables_keep_absolute_and_alias_paths() {
+    let fixture = Fixture::new();
+    fs::write(fixture.repo.join("binary"), b"\x7fELF\0content").unwrap();
+    make_executable(fixture.repo.join("binary"));
+    fixture.git(&["add", "binary"]);
+    let paths = fixture.run(&mut fixture.command(&fixture.local, &fixture.global_dir, "-f", &[]));
+    assert!(paths.contains(&fixture.repo.join("binary").into_os_string()));
+    let paths = fixture.run(&mut fixture.command(
+        &fixture.repo,
+        &fixture.global_dir,
+        "-f",
+        &[("$project", &fixture.repo)],
+    ));
+    assert!(paths.contains(&OsString::from("./binary")));
+    assert!(paths.contains(&OsString::from("$project/binary")));
+    assert!(!paths.contains(&OsString::from("binary")));
+}
+
+#[test]
+fn local_executable_detection_only_checks_shebang() {
+    let fixture = Fixture::new();
+    for (name, content) in [
+        ("empty", b"".as_slice()),
+        ("short", b"#".as_slice()),
+        ("text", b"printf hello\n".as_slice()),
+        ("late-shebang", b" #!/bin/sh\n".as_slice()),
+        ("shebang", b"#!".as_slice()),
+        ("shebang-with-nul", b"#!/bin/sh\n\0".as_slice()),
+    ] {
+        fs::write(fixture.local.join(name), content).unwrap();
+        make_executable(fixture.local.join(name));
+    }
+    fs::write(fixture.local.join("data"), b"\0content").unwrap();
+    let paths = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), "-f", &[]));
+    for name in ["empty", "short", "text", "late-shebang"] {
+        assert!(paths.contains(&OsString::from(format!("./{name}"))));
+        assert!(!paths.contains(&OsString::from(name)));
+    }
+    for name in ["shebang", "shebang-with-nul", "data"] {
+        assert!(paths.contains(&OsString::from(name)));
+        assert!(!paths.contains(&OsString::from(format!("./{name}"))));
+    }
+}
+
+#[test]
+fn absolute_local_binary_paths_are_relative_to_the_physical_cwd() {
+    let fixture = Fixture::new();
+    let external = fixture.root.join("outside");
+    fs::create_dir(&external).unwrap();
+    fs::write(external.join("binary"), b"\0content").unwrap();
+    make_executable(external.join("binary"));
+    let logical = fixture.root.join("deep/alias");
+    fs::create_dir_all(logical.parent().unwrap()).unwrap();
+    symlink(&fixture.local, &logical).unwrap();
+    let paths = fixture.run(
+        Command::new(env!("CARGO_BIN_EXE_fzf-paths"))
+            .current_dir(&fixture.local)
+            .env("PWD", &logical)
+            .arg(&external)
+            .args(["", "-f"]),
+    );
+    assert_eq!(paths.len(), 1);
+    assert!(paths[0].as_encoded_bytes().starts_with(b"./"));
+    assert_eq!(
+        fixture.local.join(&paths[0]).canonicalize().unwrap(),
+        external.join("binary").canonicalize().unwrap()
+    );
+}
+
+#[test]
+fn local_gitignore_does_not_follow_symlinks() {
+    let fixture = Fixture::new();
+    let rules = fixture.root.join("ignore-rules");
+    fs::write(&rules, "*.tmp\n").unwrap();
+    symlink(&rules, fixture.repo.join(".gitignore")).unwrap();
+    write(&fixture.repo, "keep.tmp");
+    let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-f", &[]));
+    assert!(paths.contains(&OsString::from("keep.tmp")));
 }

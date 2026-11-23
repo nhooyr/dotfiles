@@ -13,12 +13,6 @@ function fzf_accept_and_run --argument-names widget
     if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget
         fzf_path_widget "$widget"
     else
-        if test "$widget" = fzf-history-widget
-            # The preview's fish_indent process needs the current syntax colors.
-            for name in $(set --names | string match -- 'fish_color_*')
-                set --function --export "$name" $$name
-            end
-        end
         $widget
     end
     aqsnow_rendezvous
@@ -34,7 +28,7 @@ function fzf_path_widget --argument-names widget
     end
     set -l global_dir "$nhooyr"
     set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
-    while contains -- "$tokens[1]" and or not '!' command builtin exec time if while
+    while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else
         set -e tokens[1]
     end
     set -l type -fd
@@ -106,35 +100,53 @@ function fzf_path_widget --argument-names widget
             end
         end
         if not set -q tokens[1]
-            set -l kinds
+            set -l kind
+            set -l execute 0
             for target in $result
-                if string match -q -- '$CDPATH/*' "$target"
-                    set -a kinds directory
-                    continue
-                end
-                # Resolve directory aliases without evaluating the selected path.
-                for name in $aqsnow_fzf_diralis
-                    set -l direnv '$'$name
-                    test "$name" = HOME; and set direnv '~'
-                    if test "$target" = "$direnv"; or string match -q -- "$direnv/*" "$target"
-                        set -l suffix $(string split --max 1 -- "$direnv" "$target")[2]
-                        set target "$$name$suffix"
-                        break
+                set -l next_kind directory
+                if not string match -q -- '$CDPATH/*' "$target"
+                    # Resolve directory aliases without evaluating the selected path.
+                    for name in $aqsnow_fzf_diralis
+                        set -l direnv '$'$name
+                        test "$name" = HOME; and set direnv '~'
+                        if test "$target" = "$direnv"; or string match -q -- "$direnv/*" "$target"
+                            set -l suffix $(string split --max 1 -- "$direnv" "$target")[2]
+                            set target "$$name$suffix"
+                            break
+                        end
+                    end
+                    if test -d "$target"
+                        set next_kind directory
+                    else if test -f "$target"
+                        set next_kind file
+                        if test -x "$target"
+                            if not set -q kind[1]; and string match -q -- './*' "$result[1]"
+                                set execute 1
+                            end
+                            set -l header
+                            if not read --nchars 2 header 2>/dev/null < "$target"; or test "$header" != '#!'
+                                set next_kind executable
+                                if not set -q kind[1]; and string match -q -- '*/*' "$result[1]"
+                                    set execute 1
+                                end
+                            end
+                        end
+                    else
+                        set next_kind special
                     end
                 end
-                if test -d "$target"
-                    set -a kinds directory
-                else if test -f "$target"
-                    set -a kinds regular
-                else
-                    set -a kinds special
+                if set -q kind[1]; and test "$kind" != "$next_kind"
+                    set kind special
+                    break
                 end
+                set kind "$next_kind"
+                test "$kind" = special; and break
             end
-            if contains -- special $kinds
+            if test "$kind" = special; or test "$kind" = executable -a "$execute" -eq 0
                 set -p escaped file --
-            else if test "$(count $result)" -eq 1; and test "$kinds[1]" = directory
+            else if test "$(count $result)" -eq 1; and test "$kind" = directory
                 set -p escaped cd --
-            else if test "$kinds[1]" = directory; or not string match -q -- './*' "$result[1]"
+            else if test "$execute" -eq 0
                 set -p escaped nvim --
             end
         else if contains -- "$(path basename -- "$tokens[1]")" nvim cd; and not contains -- -- $tokens; and test -z "$parsed[3]"
