@@ -7,6 +7,8 @@ set laststatus=3
 set title
 set titlestring=%{v:lua.require'dirali'.filename()}%(\ %M%)%a\ -\ nvim
 let &statusline = substitute(&statusline, '%f', "%{v:lua.require'dirali'.filename()}", '')
+" File-watcher activity should not flash a busy symbol beside the Git prompt.
+let &statusline = substitute(&statusline, "%{ &busy > 0 ? '[^']*' : '' }", '', 'g')
 " Remove our previous VCS field before rebuilding the status line.
 if exists('s:vcs_statusline')
 	let &statusline = substitute(&statusline, '\V' . s:vcs_statusline, '', 'g')
@@ -385,7 +387,9 @@ augroup aqsnow
 	autocmd filetype gitcommit,diff nnoremap <buffer> [h ?^@@<CR>
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 	autocmd VimEnter * lua require('gitstatus').start()
-	autocmd BufEnter,BufFilePost,DirChanged,FocusGained * lua require('gitstatus').refresh()
+	autocmd BufEnter,BufFilePost,DirChanged * lua require('gitstatus').refresh()
+	autocmd FocusGained * lua require('gitstatus').focus()
+	autocmd BufWritePost,FileWritePost * lua require('gitstatus').written(tonumber(vim.fn.expand('<abuf>')))
 	autocmd User AqsnowGitStatusStop lua require('gitstatus').stop()
 	autocmd VimLeavePre * lua require('gitstatus').stop()
 augroup END

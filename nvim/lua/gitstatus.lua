@@ -1,14 +1,18 @@
 local uv = vim.uv
-local prompts, directories = {}, {}
-local timer, job, loading
+-- Keep data across config reloads; timers and processes belong to each module instance.
+local state = package.loaded['gitstatus.state'] or { prompts = {}, directories = {}, pending = {} }
+package.loaded['gitstatus.state'] = state
+local prompts, directories, pending = state.prompts, state.directories, state.pending
+local timer, queued_timer, job, loading
 local interval = 2000
 local refresh
 
-local function current_directory()
-	if vim.b.vidir_dir then return vim.b.vidir_dir end
-	if vim.bo.filetype == 'netrw' then return vim.b.netrw_curdir end
-	if vim.bo.buftype ~= '' then return nil end
-	local name = vim.api.nvim_buf_get_name(0)
+local function current_directory(buf)
+	buf = buf or vim.api.nvim_get_current_buf()
+	if vim.b[buf].vidir_dir then return vim.b[buf].vidir_dir end
+	if vim.bo[buf].filetype == 'netrw' then return vim.b[buf].netrw_curdir end
+	if vim.bo[buf].buftype ~= '' then return nil end
+	local name = vim.api.nvim_buf_get_name(buf)
 	return name == '' and vim.fn.getcwd() or vim.fs.dirname(name)
 end
 
@@ -40,6 +44,8 @@ local function same_file(a, b)
 end
 
 local function read_cache(root, cached, done)
+	-- Once we have live status, an older Fish cache must never replace it.
+	if cached.live then done() return end
 	local path = vim.fs.joinpath(root, '.fish_git_prompt')
 	uv.fs_stat(path, vim.schedule_wrap(function(_, stat)
 		if not stat or stat.type ~= 'file' or stat.size == 0 or same_file(cached.disk, stat) then done() return end
@@ -70,18 +76,31 @@ end
 local function update(root, cached)
 	if job then return end
 	local now = uv.hrtime() / 1e6
-	if cached.started and now - cached.started < interval then return end
+	if not cached.urgent and cached.started and now - cached.started < interval then
+		if cached.pending and not queued_timer then
+			queued_timer = vim.fn.timer_start(math.ceil(interval - (now - cached.started)), function(id)
+				if queued_timer ~= id then return end
+				queued_timer = nil
+				refresh()
+			end)
+		end
+		return
+	end
+	if queued_timer then vim.fn.timer_stop(queued_timer) queued_timer = nil end
 	cached.started = now
-	local request = {}
+	local request = { cached = cached, urgent = cached.urgent }
+	cached.pending, cached.urgent = nil, nil
 	job = request
 	local ok, process = pcall(vim.system, {
 		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
 	}, { text = true, detach = true, cwd = root, env = { TERM = 'dumb', GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
 		if job ~= request then return end
 		job = nil
-		if result.code == 0 and result.stdout and result.stdout ~= '' then
+		if request.obsolete then
+			cached.pending, cached.urgent = true, true
+		elseif result.code == 0 and result.stdout and result.stdout ~= '' then
 			local text = plain(result.stdout)
-			if text ~= '' then cached.prompt = text end
+			if text ~= '' then cached.prompt, cached.live = text, true end
 		end
 		refresh()
 	end))
@@ -103,15 +122,44 @@ refresh = function()
 		if not root then loading = nil display('') return end
 		local cached = prompts[root] or { prompt = '' }
 		prompts[root] = cached
+		if pending[directory] then
+			cached.pending = true
+			cached.urgent = cached.urgent or pending[directory].urgent
+			pending[directory] = nil
+		end
 		display(cached.prompt)
 		read_cache(root, cached, function(text, stat)
 			if not timer or loading ~= request then return end
 			loading = nil
-			if text and text ~= '' then cached.prompt, cached.disk = text, stat end
+			if text and text ~= '' and not cached.live then cached.prompt, cached.disk = text, stat end
 			display(cached.prompt)
 			update(root, cached)
 		end)
 	end)
+end
+
+local function enqueue(directory, urgent)
+	if not directory then return end
+	local cached = prompts[directories[directory]]
+	if cached then
+		cached.pending = true
+		cached.urgent = cached.urgent or urgent
+	else
+		local queued = pending[directory] or {}
+		queued.urgent = queued.urgent or urgent
+		pending[directory] = queued
+	end
+	-- A result started before a write can no longer describe the worktree.
+	if urgent and job then job.obsolete = true end
+	refresh()
+end
+
+local function focus()
+	enqueue(current_directory(), false)
+end
+
+local function written(buf)
+	enqueue(current_directory(buf), true)
 end
 
 local function start()
@@ -122,13 +170,17 @@ end
 
 local function stop()
 	if timer then vim.fn.timer_stop(timer) end
+	if queued_timer then vim.fn.timer_stop(queued_timer) end
 	timer = nil
+	queued_timer = nil
 	loading = nil
 	local request = job
 	job = nil
-	if request and request.process and not request.process:is_closing() then
-		uv.kill(-request.process.pid, 15)
+	if request then
+		request.cached.pending = true
+		request.cached.urgent = request.cached.urgent or request.urgent
+		if request.process and not request.process:is_closing() then uv.kill(-request.process.pid, 15) end
 	end
 end
 
-return { start = start, refresh = refresh, stop = stop, worktree = worktree }
+return { start = start, refresh = refresh, focus = focus, written = written, stop = stop, worktree = worktree }
