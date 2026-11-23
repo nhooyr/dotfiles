@@ -369,7 +369,7 @@ augroup aqsnow
 	autocmd filetype gitcommit,diff nnoremap <buffer> ]h /^@@<CR>
 	autocmd filetype gitcommit,diff nnoremap <buffer> [h ?^@@<CR>
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
-	autocmd VimEnter,BufEnter,FocusGained * lua require('gitstatus').refresh()
+	autocmd VimEnter,BufEnter,BufFilePost,DirChanged,FocusGained * lua require('gitstatus').refresh()
 augroup END
 if v:vim_did_enter
 	lua require('gitstatus').refresh()
