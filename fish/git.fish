@@ -85,7 +85,9 @@ function gbp
         end
     end
     git fetch --prune
-    and git branch -vv | awk '/: gone]/{print $1}' | xargs -r git branch $delete_flag
+    and git branch -vv |
+        awk '$3 ~ /^\[.*:$/ && $4 == "gone]" {printf "%s%c", $1, 0}' |
+        xargs -0 -r git branch "$delete_flag" --
 end
 abbrali gst git stash push -u
 abbrali gstk git stash push -u --keep-index
