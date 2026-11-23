@@ -19,7 +19,7 @@ set -g nhooyr ~/code/nhooyr
 set -g notes "$nhooyr/notes"
 
 tabs -4
-set -gx LESS -RXFN -ix4 --use-color -DBK -DCK -DEks -DMcd -Dd- -DNK -DPks -DRKs -DSky
+set -gx LESS -RXF -ix4 --use-color -DBK -DCK -DEks -DMcd -Dd- -DNK -DPks -DRKs -DSky
 set -gx PAGER pager
 set -g fish_greeting
 set -gx MANPAGER nvim +Man!
@@ -117,6 +117,7 @@ alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
 abbr -a fd fd -HLE .git
 abbr -a bfs bfs -L -exclude -name .git
+set -gx BAT_PAGER 'N=0 pager'
 abbrali rgf rg -F
 abbrali rgi rg -i
 abbrali rgp rg -P
