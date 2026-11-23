@@ -38,9 +38,9 @@ The Fish widgets enable CDPATH at command start and for cd/cdc arguments.
 When a $CDPATH choice collides with a local directory, the widgets insert the
 absolute path of the first different match in CDPATH order, abbreviated with
 the most specific dirali when available. Local selections stay relative.
-An explicit ./ token disables global and CDPATH searches. Alt-C uses the
-parsed local query without ./; Ctrl-T (files) and Alt-V (files and directories)
-keep ./ in the query to find local executable paths.
+An explicit ./ token disables global and CDPATH searches. Ctrl-T (files) and
+Alt-C (directories) use the parsed local query without ./; only Alt-V (files
+and directories) keeps ./ in the query to find local executable paths.
 
 The local scan respects .gitignore files, including nested rules and negations.
 Starting inside an ignored directory makes that directory searchable: ignore

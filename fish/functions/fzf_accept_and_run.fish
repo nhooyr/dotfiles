@@ -59,9 +59,9 @@ function fzf_path_widget --argument-names widget
         "$opts --read0 --print0 --with-shell=$(string escape -- "$shell")")
     set -lx FZF_DEFAULT_OPTS_FILE
     printf '%s\0' "$parsed[2]" | read --null --local --array --tokenize query; or return
-    # ./ selects local search; keep the execution prefix only for file/path queries.
+    # ./ selects local search; only Alt-V keeps it in the query.
     if string match -q -- './*' "$token"
-        test "$widget" = fzf-cd-widget; or set query "$token"
+        test "$widget" = fzf-path-widget; and set query "$token"
         set global_dir ''
     else if not set -q tokens[1]; or contains -- "$tokens[1]" cd cdc
         set -a flags --cdpath "$CDPATH"
