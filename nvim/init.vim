@@ -289,7 +289,7 @@ filetype plugin indent on
 augroup aqsnow
 	autocmd!
 	autocmd QuickFixCmdPost grep ++nested copen
-	autocmd BufReadPost,BufWinEnter quickfix lua require('qf')()
+	autocmd BufWinEnter quickfix lua require('qf').fmt()
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
 			\ require('snip').expand() end
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
