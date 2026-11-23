@@ -81,7 +81,7 @@ impl Fixture {
             "tracked",
             "nested/child",
             ".hidden",
-            "line\nbreak/end",
+            "line break/end",
             "removed",
             "node_modules/tracked",
         ] {
@@ -222,7 +222,7 @@ fn global_files_follow_git_order() {
         .collect();
     let expected: Vec<_> = [
         fixture.repo.join(".hidden"),
-        fixture.repo.join("line\nbreak/end"),
+        fixture.repo.join("line break/end"),
         fixture.repo.join("nested/child"),
         fixture.repo.join("node_modules/tracked"),
         fixture.repo.join("tracked"),
@@ -713,7 +713,7 @@ fn global_files_and_parents() {
         "nested",
         "nested/child",
         ".hidden",
-        "line\nbreak/end",
+        "line break/end",
         "node_modules/tracked",
         "untracked",
     ] {
@@ -729,7 +729,7 @@ fn global_untracked_paths_respect_git_ignores_and_file_types() {
     fs::write(fixture.repo.join("nested/.gitignore"), "!keep.tmp\n").unwrap();
     fs::write(fixture.repo.join(".git/info/exclude"), "info-secret\n").unwrap();
     for name in [
-        "new dir/deep/new\nfile",
+        "new dir/deep/new file",
         ".hidden-new",
         "ignored/skip",
         "nested/keep.tmp",
@@ -745,7 +745,7 @@ fn global_untracked_paths_respect_git_ignores_and_file_types() {
         let paths =
             fixture.run(&mut fixture.command(&fixture.local, &fixture.global_dir, kind, &[]));
         for name in [
-            "new dir/deep/new\nfile",
+            "new dir/deep/new file",
             ".hidden-new",
             "nested/keep.tmp",
             "new-broken",
@@ -858,7 +858,7 @@ fn color_wraps_only_the_alias_and_preserves_candidates() {
         let prefix = format!("\x1b[36m{alias}\x1b[0m");
         assert!(colored.contains(&OsString::from(&prefix)));
         assert!(colored.contains(&OsString::from(format!("{prefix}/nested/child"))));
-        assert!(colored.contains(&OsString::from(format!("{prefix}/line\nbreak/end"))));
+        assert!(colored.contains(&OsString::from(format!("{prefix}/line break/end"))));
         assert!(colored.contains(&"file".into()));
         assert!(colored.contains(&"./$literal".into()));
         assert!(colored.contains(&"./~literal".into()));
@@ -897,7 +897,7 @@ fn color_leaves_unaliased_paths_plain() {
 fn color_wraps_only_the_cdpath_prefix() {
     let fixture = Fixture::new();
     let directory = fixture.root.join("cdpath");
-    fs::create_dir_all(directory.join("folder space/child 'with\nnewlines")).unwrap();
+    fs::create_dir_all(directory.join("folder space/child 'with spaces")).unwrap();
     let colored = fixture.run(&mut fixture.command_with_cdpath(
         &["--color"],
         &fixture.local,
@@ -907,7 +907,7 @@ fn color_wraps_only_the_cdpath_prefix() {
         &[],
     ));
     assert!(colored.contains(&"\x1b[36m$CDPATH\x1b[0m/folder space".into()));
-    assert!(colored.contains(&"\x1b[36m$CDPATH\x1b[0m/folder space/child 'with\nnewlines".into()));
+    assert!(colored.contains(&"\x1b[36m$CDPATH\x1b[0m/folder space/child 'with spaces".into()));
     assert!(colored.contains(&"dir".into()));
     assert!(colored.iter().all(|path| {
         let path = path.to_str().unwrap();
@@ -923,7 +923,7 @@ fn classify_preserves_names_and_marks_file_types() {
         "space at end ",
         "unit separator\x1f",
         "two separators\x1f\x1f",
-        "line\nbreak*",
+        "line break*",
         "quote's",
     ] {
         write(&fixture.local, name);
@@ -983,7 +983,7 @@ fn classify_preserves_names_and_marks_file_types() {
 fn classify_colors_basenames_and_suffixes() {
     let fixture = Fixture::new();
     write_script(&fixture.repo, "tracked");
-    for name in ["run*", "$run", "dir/run*", "dir/exec\nname"] {
+    for name in ["run*", "$run", "dir/run*", "dir/exec name"] {
         write_script(&fixture.local, name);
     }
     write(&fixture.local, "ordinary*");
@@ -1015,7 +1015,7 @@ fn classify_colors_basenames_and_suffixes() {
             "./\x1b[36mexec-link@\x1b[0m",
             "\x1b[35mrun**\x1b[0m",
             "dir/\x1b[35mrun**\x1b[0m",
-            "dir/\x1b[35mexec\nname*\x1b[0m",
+            "dir/\x1b[35mexec name*\x1b[0m",
             "./\x1b[35m$run*\x1b[0m",
         ] {
             assert!(paths.contains(&OsString::from(path)), "missing {path:?}");
@@ -1372,7 +1372,7 @@ fn cdpath_adds_two_directory_levels_from_all_roots() {
 fn cdpath_labels_are_independent_of_aliases_and_global_repositories() {
     let fixture = Fixture::new();
     let directory = fixture.root.join("cdpath with spaces");
-    fs::create_dir_all(directory.join("child\nwith spaces")).unwrap();
+    fs::create_dir_all(directory.join("child with spaces")).unwrap();
     fs::create_dir_all(directory.join("project")).unwrap();
     let cdpath = env::join_paths([&directory, &fixture.global_dir]).unwrap();
     for global_dir in [
@@ -1388,7 +1388,7 @@ fn cdpath_labels_are_independent_of_aliases_and_global_repositories() {
             "-d",
             &[("$places", &directory)],
         ));
-        assert!(paths.contains(&"$CDPATH/child\nwith spaces".into()));
+        assert!(paths.contains(&"$CDPATH/child with spaces".into()));
         assert_eq!(
             paths
                 .iter()
@@ -1531,7 +1531,7 @@ fn directories_only() {
 fn global_directories_include_symlinks_and_submodules() {
     let fixture = Fixture::new();
     for (name, target) in [
-        ("directory link\t\n", "nested"),
+        ("directory link\tname", "nested"),
         ("file-link", "tracked"),
         ("broken-link", "absent"),
     ] {
@@ -1540,7 +1540,7 @@ fn global_directories_include_symlinks_and_submodules() {
     fixture.git(&[
         "add",
         "--",
-        "directory link\t\n",
+        "directory link\tname",
         "file-link",
         "broken-link",
     ]);
@@ -1561,9 +1561,9 @@ fn global_directories_include_symlinks_and_submodules() {
     let expected = [
         "",
         "nested",
-        "line\nbreak",
+        "line break",
         "node_modules",
-        "directory link\t\n",
+        "directory link\tname",
         "module",
     ]
     .map(|path| fixture.repo.join(path));
@@ -1592,7 +1592,7 @@ fn keep_dot_is_opt_in() {
 #[test]
 fn executable_paths_work_with_dot_roots_and_symlinks() {
     let fixture = Fixture::new();
-    let name = "run with\nspaces";
+    let name = "run with spaces";
     write_script(&fixture.local, name);
     symlink(
         fixture.local.join(name),
@@ -1918,7 +1918,61 @@ fn local_exclusions_follow_git_precedence() {
 }
 
 #[test]
-fn local_exclusions_use_the_default_xdg_file() {
+fn local_ignore_sources_respect_core_ignorecase() {
+    let fixture = Fixture::new();
+    let global = fixture.root.join("global-ignore");
+    fs::write(&global, "*.GLOBAL\n").unwrap();
+    fixture.git(&["config", "core.excludesFile", global.to_str().unwrap()]);
+    fs::write(fixture.repo.join(".gitignore"), "*.LOCAL\n").unwrap();
+    fs::write(fixture.repo.join(".git/info/exclude"), "*.INFO\n").unwrap();
+    for name in ["file.local", "file.global", "file.info"] {
+        write(&fixture.repo, name);
+    }
+    for (setting, shown) in [("false", true), ("true", false)] {
+        fixture.git(&["config", "core.ignorecase", setting]);
+        let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-f", &[]));
+        for name in ["file.local", "file.global", "file.info"] {
+            assert_eq!(paths.contains(&name.into()), shown, "{setting}: {name}");
+        }
+        assert!(paths.contains(&"tracked".into()));
+    }
+    let config = fixture.repo.join(".git/config");
+    let mut text = fs::read_to_string(&config).unwrap();
+    text.push_str("\n[core]\nignorecase\n");
+    fs::write(config, text).unwrap();
+    let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-f", &[]));
+    assert!(!paths.contains(&"file.local".into()));
+}
+
+#[test]
+fn nested_repositories_use_their_own_ignorecase_setting() {
+    let fixture = Fixture::new();
+    let nested = fixture.repo.join("nested-repository");
+    fixture.git(&["init", "-q", nested.to_str().unwrap()]);
+    fs::write(fixture.repo.join(".gitignore"), "*.CACHE\n").unwrap();
+    fs::write(nested.join(".gitignore"), "*.CACHE\n").unwrap();
+    write(&fixture.repo, "outer.cache");
+    write(&nested, "inner.cache");
+    for (outer, inner) in [("true", "false"), ("false", "true")] {
+        fixture.git(&["config", "core.ignorecase", outer]);
+        fixture.git(&[
+            "-C",
+            nested.to_str().unwrap(),
+            "config",
+            "core.ignorecase",
+            inner,
+        ]);
+        let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-f", &[]));
+        assert_eq!(paths.contains(&"outer.cache".into()), outer == "false");
+        assert_eq!(
+            paths.contains(&"nested-repository/inner.cache".into()),
+            inner == "false"
+        );
+    }
+}
+
+#[test]
+fn local_exclusions_distinguish_unset_and_empty_global_file() {
     let fixture = Fixture::new();
     let config = fixture.root.join("config");
     fs::create_dir_all(config.join("git")).unwrap();
@@ -1929,10 +1983,20 @@ fn local_exclusions_use_the_default_xdg_file() {
             .command(&fixture.repo, Path::new(""), "-f", &[])
             .env("GIT_CONFIG_GLOBAL", "/dev/null")
             .env("GIT_CONFIG_NOSYSTEM", "1")
-            .env("XDG_CONFIG_HOME", config),
+            .env("XDG_CONFIG_HOME", &config),
     );
     assert!(!paths.contains(&".DS_Store".into()));
     assert!(paths.contains(&"tracked".into()));
+
+    fixture.git(&["config", "core.excludesFile", ""]);
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.repo, Path::new(""), "-f", &[])
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("XDG_CONFIG_HOME", config),
+    );
+    assert!(paths.contains(&".DS_Store".into()));
 }
 
 #[test]

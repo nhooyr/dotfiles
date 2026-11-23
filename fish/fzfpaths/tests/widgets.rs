@@ -111,7 +111,6 @@ fn path_case(script: &str, token: &str) -> Vec<u8> {
         Fixture(env::temp_dir().join(format!("fzf-path-widget-{}-{id}", std::process::id())));
     fs::create_dir_all(fixture.0.join("external/child")).unwrap();
     fs::create_dir(fixture.0.join("external/target")).unwrap();
-    fs::create_dir(fixture.0.join("new\n")).unwrap();
     symlink("external/child", fixture.0.join("link")).unwrap();
     let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../functions/fzf_accept_and_run.fish");
     let setup = r#"
@@ -147,14 +146,13 @@ end
 }
 
 #[test]
-fn parser_preserves_symlink_parents_and_newline_directories() {
+fn parser_preserves_symlink_parents() {
     for (token, directory, query, prefix) in [
         ("link/../tar", "link/..", "tar", ""),
         ("./link/../tar", "./link/..", "tar", ""),
         ("link/../target/", "link/../target/", "", ""),
         ("link/../word space", "link/..", "word space", ""),
         ("--file=link/../tar", "link/..", "tar", "--file="),
-        ("new\n", "new\n", "", ""),
     ] {
         let output = path_case("__fzf_parse_commandline", token);
         assert_eq!(
@@ -188,21 +186,4 @@ eval "set -l paths $inserted"
 test -d "$paths[-1]"; or exit 1
 "#;
     assert!(path_case(script, "").is_empty());
-}
-
-#[test]
-fn widget_passes_newline_directory_to_the_scanner() {
-    let script = r#"
-function fzfpaths
-    test "$argv[5]" = "$TEST_TOKEN"; or exit 1
-    test -d "$argv[5]"; or exit 1
-    printf '%s\0' "$argv[5]"
-end
-function fzf
-    cat > scanned
-end
-fzf_path_widget fzf-path-widget
-cat scanned
-"#;
-    assert_eq!(path_case(script, "new\n"), b"new\n\0");
 }

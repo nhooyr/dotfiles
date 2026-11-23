@@ -49,15 +49,15 @@ function __fzf_parse_commandline -d 'Return the directory, query and option pref
     set -l prefix ''
     set -l dir '.'
 
-    set -l -- match_regex '(?<fzf_query>[\\s\\S]*?(?=\\n?$)$)'
+    set -l -- match_regex '(?<fzf_query>.*)$'
     set -l -- prefix_regex '^-[^\\s=]+=|^-(?!-)\\S'
 
     # Don't use option prefix if " -- " is preceded.
     string match -qv -- '* -- *' "$(string sub -l "$(commandline -Cp)" -- "$(commandline -p)")"
     and set -- match_regex "(?<prefix>$prefix_regex)?$match_regex"
 
-    # Set $prefix and expanded $fzf_query with preserved trailing newlines.
-    string match -q -r -- "$match_regex" $(commandline --current-token --tokens-expanded | string collect -N)
+    # Split any option prefix from the expanded token.
+    string match -q -r -- "$match_regex" "$(commandline --current-token --tokens-expanded)"
 
     if test -n "$fzf_query"
         # Keep link/.. intact while finding the longest existing directory.
@@ -67,7 +67,7 @@ function __fzf_parse_commandline -d 'Return the directory, query and option pref
         end
 
         if test "$dir" != .; or string match -qr -- '^\\.(/|$)' "$fzf_query"
-            string match -q -r -- '^'$(string escape --style=regex -- "$dir")'/*(?<fzf_query>[\\s\\S]*)' "$fzf_query"
+            string match -q -r -- '^'$(string escape --style=regex -- "$dir")'/*(?<fzf_query>.*)' "$fzf_query"
         end
     end
 

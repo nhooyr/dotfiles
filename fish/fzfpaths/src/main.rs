@@ -91,7 +91,7 @@ turns /code/dotfiles/init.sh into $dotfiles/init.sh, since /code/dotfiles
 is the longer matching prefix.
 
 Output:
-  Unique, NUL-separated paths. Filenames may contain spaces or newlines.
+  Unique, NUL-separated paths. Filenames may contain spaces.
   With --classify, each path ends in one indicator. Ordinary files use an invisible
   ASCII Unit Separator (0x1f). Removing exactly one indicator preserves literal
   trailing stars, spaces, and separators in filenames.
@@ -410,8 +410,14 @@ impl GitScans {
     }
 }
 
-fn ignored(path: &Path, directory: bool, ignores: &[Arc<Gitignore>]) -> bool {
-    for matcher in ignores.iter().rev() {
+#[derive(Clone)]
+struct LocalIgnores {
+    matchers: Vec<Arc<Gitignore>>,
+    case_insensitive: bool,
+}
+
+fn ignored(path: &Path, directory: bool, ignores: &LocalIgnores) -> bool {
+    for matcher in ignores.matchers.iter().rev() {
         match matcher.matched(path, directory) {
             Match::Ignore(_) => return true,
             Match::Whitelist(_) => return false,
@@ -421,7 +427,7 @@ fn ignored(path: &Path, directory: bool, ignores: &[Arc<Gitignore>]) -> bool {
     false
 }
 
-fn add_ignore_file(directory: &Path, ignores: &mut Vec<Arc<Gitignore>>) {
+fn add_ignore_file(directory: &Path, ignores: &mut LocalIgnores) {
     let path = directory.join(".gitignore");
     if !path
         .symlink_metadata()
@@ -432,13 +438,14 @@ fn add_ignore_file(directory: &Path, ignores: &mut Vec<Arc<Gitignore>>) {
     add_excludes(directory, &path, ignores);
 }
 
-fn add_excludes(root: &Path, path: &Path, ignores: &mut Vec<Arc<Gitignore>>) {
+fn add_excludes(root: &Path, path: &Path, ignores: &mut LocalIgnores) {
     let mut builder = GitignoreBuilder::new(root);
+    builder.case_insensitive(ignores.case_insensitive).unwrap();
     builder.add(path);
     if let Ok(matcher) = builder.build()
         && !matcher.is_empty()
     {
-        ignores.push(Arc::new(matcher));
+        ignores.matchers.push(Arc::new(matcher));
     }
 }
 
@@ -711,7 +718,11 @@ impl Scanner {
         check_signal()
     }
 
-    fn git_output(&self, directory: &Path, args: &[&str]) -> io::Result<Vec<u8>> {
+    fn git_output(
+        &self,
+        directory: &Path,
+        args: impl IntoIterator<Item = impl AsRef<OsStr>>,
+    ) -> io::Result<Vec<u8>> {
         self.check_cancelled()?;
         let child = Command::new("git")
             .arg("-C")
@@ -727,36 +738,42 @@ impl Scanner {
         Ok(output)
     }
 
-    fn local_ignores(&self, directory: &Path) -> io::Result<Vec<Arc<Gitignore>>> {
+    fn local_ignores(&self, directory: &Path) -> io::Result<LocalIgnores> {
         let git_root = directory
             .ancestors()
             .find(|parent| parent.join(".git").exists());
         let root = git_root.unwrap_or(directory);
-        let mut ignores = Vec::new();
-        let mut global = self.git_output(
+        let case_insensitive = self.git_output(
             root,
-            &[
+            [
                 "config",
                 "--null",
-                "--path",
+                "--bool",
                 "--default",
-                "",
+                "false",
                 "--get",
-                "core.excludesFile",
+                "core.ignorecase",
             ],
-        )?;
-        global.pop(); // Git terminates the value with NUL, including an empty default.
-        let global = if global.is_empty() {
-            env::var_os("XDG_CONFIG_HOME")
-                .filter(|value| !value.is_empty())
-                .map(PathBuf::from)
-                .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
-                .map(|config| config.join("git/ignore"))
-        } else {
-            Some(root.join(OsString::from_vec(global)))
+        )? == b"true\0";
+        let mut ignores = LocalIgnores {
+            matchers: Vec::new(),
+            case_insensitive,
         };
-        if let Some(global) = global {
-            add_excludes(root, &global, &mut ignores);
+        let default = env::var_os("XDG_CONFIG_HOME")
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+            .map(|config| config.join("git/ignore"))
+            .unwrap_or_default();
+        let mut args = ["config", "--null", "--path", "--default"]
+            .map(OsString::from)
+            .to_vec();
+        args.push(default.into_os_string());
+        args.extend(["--get", "core.excludesFile"].map(OsString::from));
+        let mut global = self.git_output(root, args)?;
+        global.pop(); // Git terminates the path with NUL, even when explicitly empty.
+        if !global.is_empty() {
+            add_excludes(root, &root.join(OsString::from_vec(global)), &mut ignores);
         }
         if let Some(root) = git_root {
             let git_dir = root.join(".git");
@@ -765,7 +782,7 @@ impl Scanner {
             } else {
                 let mut path = self.git_output(
                     root,
-                    &[
+                    [
                         "rev-parse",
                         "--path-format=absolute",
                         "--git-path",
@@ -787,7 +804,7 @@ impl Scanner {
         for parent in ancestors.into_iter().rev() {
             if ignored(parent, true, &ignores) {
                 // An explicit search inside an ignored directory starts fresh here.
-                ignores.clear();
+                ignores.matchers.clear();
             }
             add_ignore_file(parent, &mut ignores);
         }
