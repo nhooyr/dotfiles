@@ -7,7 +7,7 @@
 [gpg "ssh"]
 	allowedSignersFile = ~/.ssh/allowed_signers
 [commit]
-	verbose = 2
+	verbose = true
 	gpgsign = true
 [rebase]
 	autoSquash = true
