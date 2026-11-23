@@ -1,7 +1,7 @@
 if not set -q HOMEBREW_PREFIX
     /opt/homebrew/bin/brew shellenv fish | source
 end
-set -gx GOPATH ~/.local/share/go
+set -gx GOPATH ~/.local/share/gopath
 fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     ~/.local/share/bin \
     ~/.local/bin \
@@ -243,6 +243,8 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
             git push
     end
 end
+# Always disable bracketed paste queries. https://github.com/junegunn/fzf/issues/4963
+alias fzf='TERM_PROGRAM=Apple_Terminal command fzf'
 set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-height=0 --cycle \
     --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
     --color=bw,query:regular,info:italic,hl:underline,fg+:regular:reverse,\
