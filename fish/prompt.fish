@@ -1,5 +1,7 @@
 function fish_prompt
     set -l last_status "$status"
+    set -g __aqsnow_prompt_active 1
+    aqsnow_vcs_prompt_update
     set -l normal "$(set_color --reset)"
     set -l cwd_color "$(set_color $fish_color_cwd)"
     set -l prompt_status ""
@@ -16,7 +18,7 @@ function fish_prompt
         set suffix "$status_color$(set_color --underline)$suffix$(set_color --reset)"
     end
 
-    printf '%s %s%s\n' "$(prompt_login)" "$cwd_color$(prompt_pwd)$normal" "$(fish_vcs_prompt)$prompt_status"
+    printf '%s %s%s\n' "$(prompt_login)" "$cwd_color$(prompt_pwd)$normal" "$__aqsnow_vcs_prompt$prompt_status"
     printf '%s[%s%s]%s ' "$suffix_color" "$suffix" "$suffix_color" "$normal"
 end
 set -g fish_prompt_pwd_dir_length 0
