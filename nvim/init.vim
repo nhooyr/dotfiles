@@ -307,6 +307,8 @@ augroup aqsnow
 	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | execute 'autocmd aqsnow SafeState * ++once execute "source" fnameescape($MYVIMRC)' | endif
 	autocmd filetype gitcommit nnoremap <buffer> ]c /^diff --<CR>
 	autocmd filetype gitcommit nnoremap <buffer> [c ?^diff --<CR>
+	autocmd filetype gitcommit,diff nnoremap <buffer> ]h /^@@<CR>
+	autocmd filetype gitcommit,diff nnoremap <buffer> [h ?^@@<CR>
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 

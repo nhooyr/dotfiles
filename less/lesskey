@@ -1,3 +1,9 @@
-#command
-^E forw-line 2j
-^Y back-line 2k
+^E noaction 2j
+^Y noaction 2k
+]c forw-search ^K\^diff\ --\nn
+[c back-search ^K\^diff\ --\nn
+]h forw-search ^K\^@@\nn
+[h back-search ^K\^@@\nn
+\\h undo-hilite
+\en next-file
+\ep prev-file
