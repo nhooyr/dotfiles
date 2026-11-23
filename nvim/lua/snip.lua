@@ -15,12 +15,7 @@ local function jump_snippet(direction)
 	end
 end
 
-local function expand_or_jump_snippet(expand_only)
-	if not expand_only and vim.snippet.active() then
-		jump_snippet(1)
-		return
-	end
-
+local function expand_snippet()
 	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 	local line = vim.api.nvim_get_current_line()
 	local trigger = line:sub(1, col):match('[%w_]+$')
@@ -31,16 +26,30 @@ local function expand_or_jump_snippet(expand_only)
 	vim.snippet.expand(body)
 end
 
+local function expand_or_jump_snippet()
+	if vim.snippet.active() then
+		jump_snippet(1)
+	else
+		expand_snippet()
+	end
+end
+
 local function complete(findstart, base)
 	if findstart == 1 then return vim.fn.getline('.'):sub(1, vim.fn.col('.') - 1):find('[%w_]*$') - 1 end
 	local matches = {}
 	for trigger, body in pairs(vim.tbl_extend('force', snippets.global, snippets[vim.bo.filetype] or {})) do
 		if trigger:sub(1, #base) == base then
-			matches[#matches + 1] = { word = trigger, menu = '[snip]', info = body, user_data = 'snip', dup = 1 }
+			local info = ' ' .. body:gsub('\n', '\n ')
+			matches[#matches + 1] = { word = trigger, menu = '[snip.lua]', info = info, user_data = 'snip', dup = 1 }
 		end
 	end
 	table.sort(matches, function(a, b) return a.word < b.word end)
 	return matches
 end
 
-return { expand_or_jump = expand_or_jump_snippet, jump = jump_snippet, complete = complete }
+return {
+	expand = expand_snippet,
+	expand_or_jump = expand_or_jump_snippet,
+	jump = jump_snippet,
+	complete = complete,
+}

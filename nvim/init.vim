@@ -204,8 +204,8 @@ inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
 highlight PmenuMatch cterm=underline
 highlight PmenuSel ctermfg=4 cterm=none
 highlight PmenuMatchSel cterm=underline
-highlight link PmenuSbar Pmenu
-highlight! link PmenuThumb Pmenu
+highlight PmenuThumb ctermbg=8
+highlight! link NormalFloat LineNr
 " Only time we use a non-base16 color. Keeps copilot suggestions visible in comments which are cterm=8.
 highlight CopilotSuggestion ctermfg=244
 let g:copilot_filetypes = {
@@ -285,7 +285,7 @@ augroup aqsnow
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd BufReadPost,BufWinEnter quickfix lua require('qf')()
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
-			\ require('snip').expand_or_jump(true) end
+			\ require('snip').expand() end
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
