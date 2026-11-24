@@ -5,9 +5,12 @@ use Cwd                   qw(abs_path);
 use File::Basename        qw(basename);
 use File::Path            qw(make_path);
 use File::Spec::Functions qw(tmpdir);
-use File::Temp            qw(tempfile tmpfile);
+use File::Temp            qw(tempfile);
+use Fcntl                 qw(F_SETFL O_NONBLOCK);
 use Getopt::Long          qw(GetOptions);
-use Text::ParseWords      qw(shellwords);
+use IO::Select;
+use IPC::Open2;
+use Text::ParseWords qw(shellwords);
 
 my $name = basename($0);
 my ( $recursive, $no_ignore, $help );
@@ -68,24 +71,47 @@ sub directory_quote {
     return '"' . $label . $suffix . '"';
 }
 
+my ( $ignore_input, $ignore_output, $ignore_pid );
+
 sub ignored_paths {
     return () unless @_;
-
-    # File-backed input avoids filling both pipes during a large batch.
-    my $input = tmpfile()            or die "$name: temporary input: $!\n";
-    print {$input} map { "$_\0" } @_ or die "$name: write: $!\n";
-    seek( $input, 0, 0 )             or die "$name: seek: $!\n";
-    my $pid = open( my $output, '-|' );
-    die "$name: fork: $!\n" unless defined $pid;
-    if ( !$pid ) {
-        open STDIN, '<&', $input or die "$name: stdin: $!\n";
-        exec 'git', '-C', $directory, 'check-ignore', '--no-index', '--stdin', '-z';
-        die "$name: git: $!\n";
+    if ( !defined $ignore_pid ) {
+        local $ENV{GIT_FLUSH} = 1;
+        my @command =
+          ( 'git', '-C', $directory, 'check-ignore', qw(--no-index --stdin -z --verbose --non-matching) );
+        $ignore_pid = open2( $ignore_output, $ignore_input, @command );
+        fcntl( $ignore_input, F_SETFL, O_NONBLOCK ) or die "$name: nonblocking git input: $!\n";
     }
-    local $/ = "\0";
-    my %ignored = map { chomp; $_ => 1 } <$output>;
-    my $success = close $output;
-    die "$name: git check-ignore failed\n" unless $success || $? == 256;
+    my $input = join( "\0", @_ ) . "\0";
+    my ( $sent, $received, $buffer ) = ( 0, 0, '' );
+    my %ignored;
+    my $read  = IO::Select->new($ignore_output);
+    my $write = IO::Select->new($ignore_input);
+    local $SIG{PIPE} = 'IGNORE';
+    while ( $received < @_ ) {
+
+        # Drain replies while sending the batch so neither pipe can fill and block the other.
+        my ( $readable, $writable ) = IO::Select->select( $read, $write );
+        die "$name: wait for git: $!\n" unless defined $readable;
+        if (@$readable) {
+            my $count = sysread( $ignore_output, my $chunk, 65536 );
+            die "$name: incomplete git check-ignore response\n" unless $count;
+            $buffer .= $chunk;
+
+            # Each reply contains a source, line, pattern and path separated by NULs.
+            while ( $buffer =~ /\G[^\0]*\0[^\0]*\0([^\0]*)\0([^\0]*)\0/gc ) {
+                $ignored{$2} = 1 if length($1) && substr( $1, 0, 1 ) ne '!';
+                ++$received;
+            }
+            substr( $buffer, 0, pos($buffer) // 0, '' );
+        }
+        if (@$writable) {
+            my $count = syswrite( $ignore_input, $input, length($input) - $sent, $sent );
+            die "$name: write to git: $!\n" unless $count;
+            $sent += $count;
+            $write->remove($ignore_input) if $sent == length($input);
+        }
+    }
     return %ignored;
 }
 
@@ -119,6 +145,12 @@ make_path( $temporary, { mode => 0700 } );
 my ( $file, $script ) = tempfile( "$prefix.XXXXXX", SUFFIX => '.sh', DIR => $temporary, UNLINK => 0 );
 print {$file} "#!/bin/sh\nset -eu\ncd -- ", directory_quote($directory), "\n";
 write_paths( $directory, '', $file );
+if ( defined $ignore_pid ) {
+    close $ignore_input                      or die "$name: close git input: $!\n";
+    waitpid( $ignore_pid, 0 ) == $ignore_pid or die "$name: wait for git: $!\n";
+    die "$name: git check-ignore failed\n" unless $? == 0 || $? == 256;
+    close $ignore_output or die "$name: close git output: $!\n";
+}
 close $file or die "$name: $script: $!\n";
 my $status = system @editor, $script;
 die "$name: could not run editor: $!\n" if $status == -1;

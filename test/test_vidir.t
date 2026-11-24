@@ -192,6 +192,78 @@ sub ignore_files_outside_git_do_not_filter {
     ok( grep( $_ eq 'original', @$paths ), 'ignore rules apply only inside Git repositories' );
 }
 
+sub persistent_ignore_batches_preserve_rules {
+    my ($self) = @_;
+    my $directory = $self->{directory};
+    run_command( [ 'git', '-C', $directory, 'init', '--quiet' ], { env => $self->{env}, check => 1 } );
+    write_file( "$directory/.gitignore",        "*.tmp\n!keep.tmp\n" );
+    write_file( "$directory/nested/.gitignore", "keep.tmp\n!saved.tmp\n" );
+    write_file( "$directory/nested/keep.tmp",   'ignored' );
+    write_file( "$directory/nested/saved.tmp",  'included' );
+    my @kept;
+
+    for my $i ( 0 .. 399 ) {
+        my $name = sprintf 'file%04d-%s.%s', $i, 'x' x 160, $i % 2 ? 'tmp' : 'txt';
+        write_file( "$directory/$name", 'contents' );
+        push @kept, $name if $i % 2 == 0;
+    }
+    my $long = join '/', map { 'd' x 120 } 1 .. 4;
+    make_path("$directory/$long");
+    write_file( "$directory/$long/keep.tmp", 'included' );
+    write_file( "$directory/$long/skip.tmp", 'ignored' );
+    make_path("$self->{root}/bin");
+    write_file( "$self->{root}/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
+use strict;
+use warnings;
+if (grep { $_ eq 'check-ignore' } @ARGV) {
+    open my $log, '>>', $ENV{TEST_GIT_LOG} or die $!;
+    print {$log} "$$\n";
+    close $log;
+}
+exec $ENV{TEST_GIT}, @ARGV;
+die $!;
+PERL
+    chmod 0755, "$self->{root}/bin/git";
+    $self->{env}{TEST_GIT}     = which('git');
+    $self->{env}{TEST_GIT_LOG} = "$self->{root}/git.log";
+    $self->{env}{PATH}         = "$self->{root}/bin:$ENV{PATH}";
+    my $paths = listed_paths( script_path( $self, invoke( $self, '-r' ) ) );
+    is_deeply( [ grep { /^file/ } @$paths ],
+        \@kept, 'large batches keep version ordering and filter ignored names without filling the pipes' );
+    ok( grep( $_ eq 'nested/saved.tmp', @$paths ), 'nested negation rules are retained' );
+    ok( !grep( $_ eq 'nested/keep.tmp', @$paths ), 'nested rules override a parent negation' );
+    ok( grep( $_ eq "$long/keep.tmp",   @$paths ), 'paths longer than a pipe atomic write are handled' );
+    ok( !grep( $_ eq "$long/skip.tmp",  @$paths ), 'long ignored paths remain excluded' );
+    is( scalar( split /\n/, read_file( $self->{env}{TEST_GIT_LOG} ) ),
+        1, 'all visited directories share one ignore process' );
+}
+
+sub invalid_ignore_replies_stop_before_editor {
+    my ($self) = @_;
+    make_path("$self->{root}/bin");
+    write_file( "$self->{root}/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
+use strict;
+use warnings;
+$| = 1;
+if (grep { $_ eq 'rev-parse' } @ARGV) { print "true\n"; exit }
+print STDERR "expected git failure\n";
+if ($ENV{TEST_GIT_PARTIAL}) { print "source\0"; exit }
+local $/ = "\0";
+while (<STDIN>) { print "\0\0\0$_" }
+exit 2;
+PERL
+    chmod 0755, "$self->{root}/bin/git";
+    $self->{env}{PATH} = "$self->{root}/bin:$ENV{PATH}";
+    for my $partial ( 0, 1 ) {
+        $self->{env}{TEST_GIT_PARTIAL} = $partial;
+        my $result = invoke($self);
+        isnt( $result->{returncode}, 0, 'incomplete replies or Git failure stop the scan' );
+        like( $result->{stderr}, qr/expected git failure/, 'Git diagnostics remain visible' );
+        is( $result->{stdout}, '', 'failed checks do not print a script command' );
+        ok( !-e $self->{env}{TEST_EDITOR_LOG}, 'failed checks do not open the editor' );
+    }
+}
+
 sub includes_its_own_script {
     my ($self) = @_;
     $self->{env}{TMPDIR} = $self->{directory};
@@ -315,6 +387,8 @@ run_cases(
         usage_and_missing_editor                    => \&usage_and_missing_editor,
         ordering_matches_ls                         => \&ordering_matches_ls,
         git_ignore_and_override                     => \&git_ignore_and_override,
+        persistent_ignore_batches_preserve_rules    => \&persistent_ignore_batches_preserve_rules,
+        invalid_ignore_replies_stop_before_editor   => \&invalid_ignore_replies_stop_before_editor,
         ignore_files_outside_git_do_not_filter      => \&ignore_files_outside_git_do_not_filter,
         includes_its_own_script                     => \&includes_its_own_script,
         scan_errors_stop_before_editor              => \&scan_errors_stop_before_editor,
