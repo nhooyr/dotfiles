@@ -1,0 +1,171 @@
+use strict;
+use warnings;
+use FindBin;
+use lib $FindBin::Bin;
+use TestHelpers;
+use Test::More;
+
+my $root = absolute_path("$FindBin::Bin/..");
+my $nvim = which('nvim');
+
+sub setup {
+    my ($self) = @_;
+    $self->{temporary} = tempdir( 'nvim-setup-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+    my $directory = absolute_path( $self->{temporary} ) . '/source tree/nvim';
+    my $bin       = "$self->{temporary}/bin";
+    make_path( "$directory/app", "$directory/lua", "$self->{temporary}/source tree/ci", $bin );
+    copy_preserve( "$root/nvim/install.sh",      "$directory/install.sh" );
+    copy_preserve( "$root/nvim/lua/plugins.lua", "$directory/lua/plugins.lua" );
+    copy_preserve( "$root/ci/test.sh",           "$self->{temporary}/source tree/ci/test.sh" );
+    $self->{directory} = $directory;
+    $self->{bin}       = $bin;
+    $self->{env}       = {
+        %ENV,
+        PATH           => "$bin:/usr/bin:/bin",
+        GITHUB_ACTIONS => '',
+        TEST_CALLS     => "$self->{temporary}/calls",
+        TEST_DIRECTORY => $directory,
+    };
+    write_file( "$bin/nvim", '#!' . perl_executable() . "\n" . <<'PERL' );
+use JSON::PP;
+$| = 1;
+open my $log, '>>', $ENV{TEST_CALLS} or die $!;
+print {$log} encode_json(['nvim', @ARGV]), "\n";
+print "plugin progress\n";
+if ($ENV{TEST_PLUGIN_FAIL}) {
+    print STDERR "plugin failed\n";
+    exit 7;
+}
+PERL
+    write_file( "$directory/app/install.sh", '#!' . perl_executable() . "\n" . <<'PERL' );
+use JSON::PP;
+use Cwd qw(getcwd);
+open my $log, '>>', $ENV{TEST_CALLS} or die $!;
+print {$log} encode_json(['app', getcwd(), @ARGV]), "\n";
+if ($ENV{TEST_APP_FAIL}) {
+    print STDERR "app failed\n";
+    exit 9;
+}
+print "app installed\n";
+PERL
+    chmod 0755, "$bin/nvim", "$directory/app/install.sh";
+}
+
+sub run_install {
+    my ($self) = @_;
+    return run_command(
+        ["$self->{directory}/install.sh"],
+        {
+            cwd => $self->{temporary},
+            env => $self->{env},
+        }
+    );
+}
+
+sub calls {
+    my ($self) = @_;
+    return [ map { decode_json($_) } split /\n/, read_file( $self->{env}{TEST_CALLS} ) ];
+}
+
+sub installs_plugins_and_app_quietly {
+    my ($self) = @_;
+    my $result = run_install($self);
+    is( $result->{returncode}, 0, 'installation succeeds' );
+    is(
+        $result->{stdout},
+        "dotfiles: nvim: install.sh: Installed plugins.\napp installed\n",
+        'plugin progress is hidden while concise statuses remain'
+    );
+    is( $result->{stderr}, '', 'successful installation has no errors' );
+    is_deeply(
+        calls($self),
+        [
+            [ 'nvim', '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', './lua/plugins.lua' ],
+            [ 'app',  $self->{directory}, '--set-defaults' ],
+        ],
+        'the installer handles plugins and app defaults from its own directory'
+    );
+}
+
+sub plugin_failure_stops_before_app_installation {
+    my ($self) = @_;
+    $self->{env}{TEST_PLUGIN_FAIL} = 1;
+    my $result = run_install($self);
+    isnt( $result->{returncode}, 0, 'plugin failure returns an error' );
+    is( $result->{stdout}, '',                                 'failure does not print a success status' );
+    is( $result->{stderr}, "plugin progress\nplugin failed\n", 'failure reveals captured diagnostics' );
+    is( scalar @{ calls($self) }, 1,                           'the app installer is not called' );
+}
+
+sub app_failure_is_returned {
+    my ($self) = @_;
+    $self->{env}{TEST_APP_FAIL} = 1;
+    my $result = run_install($self);
+    is( $result->{returncode}, 9,              'app failure status is preserved' );
+    is( $result->{stderr},     "app failed\n", 'app diagnostic remains visible' );
+}
+
+sub missing_nvim_fails_ci {
+    my ($self) = @_;
+    unlink "$self->{bin}/nvim" or die $!;
+    symlink which('dirname'), "$self->{bin}/dirname" or die $!;
+    $self->{env}{PATH} = $self->{bin};
+    my $result = run_command(
+        ["$self->{temporary}/source tree/ci/test.sh"],
+        {
+            cwd => $self->{temporary},
+            env => $self->{env},
+        }
+    );
+    is( $result->{returncode}, 127, 'CI fails when Neovim is missing' );
+    like( $result->{stderr}, qr/nvim/, 'the missing dependency is identified' );
+}
+
+sub native_lua_errors_fail_installation {
+    my ($self) = @_;
+    die 'Neovim is required' unless $nvim;
+    unlink "$self->{bin}/nvim" or die $!;
+    symlink $nvim, "$self->{bin}/nvim" or die $!;
+    write_file( "$self->{directory}/lua/plugins.lua", "error('expected plugin setup failure')\n" );
+    my $result = run_install($self);
+    isnt( $result->{returncode}, 0, 'a real Lua initialization failure returns an error' );
+    like( $result->{stderr}, qr/expected plugin setup failure/, 'the Lua diagnostic is visible' );
+    ok( !-e $self->{env}{TEST_CALLS}, 'the app installer is not called after a Lua failure' );
+}
+
+sub package_file_sets_its_own_lock_path {
+    my ($self) = @_;
+    die 'Neovim is required' unless $nvim;
+    my $check = <<'LUA';
+lua vim.pack.add = function(specs, opts)
+    assert(vim.o.packlockfile == vim.env.TEST_DIRECTORY .. '/nvim-pack-lock.json')
+    assert(specs[1].src == 'https://github.com/nhooyr/copilot.vim.git')
+    assert(specs[1].version == 'fix-partial-accept-preview')
+    assert(specs[2] == 'https://github.com/justinmk/vim-dirvish.git')
+    assert(opts.confirm == false)
+end
+LUA
+    my $result = run_command(
+        [
+            $nvim,   '--headless', '-u', 'NONE', '-n', '-i', 'NONE',
+            '--cmd', $check,       '-l', "$self->{directory}/lua/plugins.lua"
+        ],
+        {
+            cwd => $self->{temporary},
+            env => $self->{env},
+        }
+    );
+    is( $result->{returncode}, 0, "the package file is independent of caller cwd: $result->{stderr}" );
+}
+
+run_cases(
+    {
+        installs_plugins_and_app_quietly             => \&installs_plugins_and_app_quietly,
+        plugin_failure_stops_before_app_installation => \&plugin_failure_stops_before_app_installation,
+        app_failure_is_returned                      => \&app_failure_is_returned,
+        missing_nvim_fails_ci                        => \&missing_nvim_fails_ci,
+        native_lua_errors_fail_installation          => \&native_lua_errors_fail_installation,
+        package_file_sets_its_own_lock_path          => \&package_file_sets_its_own_lock_path,
+    },
+    \&setup
+);

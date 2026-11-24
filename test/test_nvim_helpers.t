@@ -129,7 +129,7 @@ local config = vim.env.TEST_DOTFILES .. '/nvim'
 local registrations = #vim.api.nvim_get_autocmds({ group = 'aqsnow' })
 eq(is_config(config .. '/init.vim'), 1, 'the config init file is watched')
 eq(is_config(vim.env.MYVIMRC), 0, 'an external init wrapper is not a config file')
-eq(is_config(config .. '/plugins.vim'), 1, 'the package declaration is watched')
+eq(is_config(config .. '/lua/plugins.lua'), 1, 'the package declaration is watched')
 eq(is_config(config .. '/after/ftplugin/example.vim'), 1, 'nested Vim config files are watched')
 eq(is_config(config .. '/settings.txt'), 0, 'other filetypes are not watched')
 eq(is_config(config .. '/lua/rendezvous.lua'), 1, 'new Lua helpers are watched')
@@ -299,7 +299,7 @@ sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
     make_path("$copy/nvim/lua/nested");
-    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim plugins.vim nvim-pack-lock.json);
+    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim nvim-pack-lock.json);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
         copy_preserve( $source, "$copy/nvim/lua/" . basename($source) );
     }

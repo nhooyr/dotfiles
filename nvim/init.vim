@@ -1,5 +1,5 @@
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
-execute 'source' fnameescape(s:config_dir . '/plugins.vim')
+execute 'luafile' fnameescape(s:config_dir . '/lua/plugins.lua')
 
 set number
 set tabstop=4

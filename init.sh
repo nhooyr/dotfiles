@@ -24,13 +24,7 @@ chmod 600 ./ssh/config
 ./fish/fzfpaths/install.sh
 dotln ./fish/fzfpaths_ignore ~/.config/fzfpaths/ignore
 
-./nvim/app/install.sh --set-defaults
+./nvim/install.sh
 ./codex/install.sh
 ./vscode/theme/install.sh
 ./bat/install.sh
-output=$(nvim --headless -u ./nvim/plugins.vim -n -i NONE \
-	+'if !empty(v:errmsg) | cquit | endif' +qa 2>&1) || {
-	printf '%s\n' "$output" >&2
-	exit 1
-}
-printf 'dotfiles: nvim: %s: Installed plugins.\n' "${0##*/}"
