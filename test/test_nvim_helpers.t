@@ -1283,6 +1283,19 @@ eq({ items[1].lnum, items[1].col }, { 2, 8 }, 'uppercase search keeps the correc
 LUA
 }
 
+sub markdown_tabs {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.cmd.enew()
+vim.bo.filetype = 'markdown'
+feed('i<Tab>X<Esc>')
+eq(vim.api.nvim_get_current_line(), '   X', 'Markdown indentation uses three spaces')
+vim.api.nvim_set_current_line('')
+feed('iX<Tab>Y<Esc>')
+eq(vim.api.nvim_get_current_line(), 'X  Y', 'Markdown inline tabs use the same three-column stops')
+LUA
+}
+
 sub markdown_checkbox_abbreviation {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1712,6 +1725,7 @@ run_cases(
         gitstatus_ignores_editor_repository     => \&gitstatus_ignores_editor_repository,
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         find_files_quickfix                     => \&find_files_quickfix,
+        markdown_tabs                           => \&markdown_tabs,
         markdown_checkbox_abbreviation          => \&markdown_checkbox_abbreviation,
         find_files_async_results                => \&find_files_async_results,
         find_files_config_reload                => \&find_files_config_reload,

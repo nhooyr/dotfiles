@@ -329,7 +329,7 @@ augroup aqsnow
 	autocmd BufWritePre,FileWritePre * if expand('<afile>') !~# '://' | call mkdir(expand('<afile>:p:h'), 'p') | endif
 	autocmd filetype gitcommit lua require('gitcommit').setup()
 	autocmd filetype html,jsonc,css setlocal et ts=2
-	autocmd filetype markdown setlocal et ts=3 sw=0
+	autocmd filetype markdown setlocal et ts=3 sts=-1 sw=0
 	autocmd FileType markdown inoreabbrev <buffer> [] - [ ]
 	autocmd filetype fish setlocal et formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
