@@ -90,7 +90,7 @@ for _, mode in ipairs({ 'n', 'i' }) do
         'recent picker mapping routes to the lazy helper in ' .. mode)
 end
 eq(vim.fn.maparg('<M-r>', 'n'), 'cgn', 'Alt-r retains its existing mapping')
-eq(vim.fn.maparg('<M-g>', 'n'), ":silent grep '' .<Left><Left><Left>", 'Alt-g opens the grep prompt')
+eq(vim.fn.maparg('<M-g>', 'n'), ":silent grep ''<Left>", 'Alt-g opens the grep prompt without an explicit root')
 assert(vim.fn.maparg('<M-f>', 'i'):find('copilot#AcceptWord', 1, true), 'Insert Alt-f still accepts Copilot words')
 eq(vim.fn.maparg([[\f]], 'n'), ':Find ', 'Leader-f opens the regex search prompt')
 eq(vim.fn.maparg('<M-f>', 'n'), ':Findg **<Left>', 'Alt-f starts a glob with the cursor between stars')

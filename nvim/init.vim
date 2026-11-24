@@ -265,8 +265,8 @@ command Vidir lua require('vidir').open()
 nnoremap <Leader>e <Cmd>terminal<CR><Cmd>startinsert<CR>
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
-nnoremap <M-g> :silent grep '' .<Left><Left><Left>
-nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
+nnoremap <M-g> :silent grep ''<Left>
+nnoremap <Leader>g :silent grep ''<Left>
 command -nargs=+ Find lua require('find').run(<q-args>)
 command -nargs=+ Findg lua require('find').run(<q-args>, 'g')
 command -nargs=+ Findf lua require('find').run(<q-args>, 'F')
