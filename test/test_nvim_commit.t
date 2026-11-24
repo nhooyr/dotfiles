@@ -42,6 +42,7 @@ SH
     chmod 0755, "$self->{temporary}/editor";
     write_file( $self->{env}{TEST_INIT}, <<'VIM' );
 execute 'set runtimepath^=' . fnameescape($TEST_DOTFILES . '/nvim')
+lua vim.pack.add = function() end
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
 vim.api.nvim_create_autocmd('VimEnter', { callback = function()
