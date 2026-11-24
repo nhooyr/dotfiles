@@ -37,6 +37,19 @@ sub preserves_timestamp_options {
     is( ( stat "$self->{root}/nested/output" )[9], 946684800, 'reference options reach native touch' );
 }
 
+sub creates_trailing_slash_directories {
+    my ($self) = @_;
+    make_path("$self->{root}/existing");
+    utime 946684800, 946684800, "$self->{root}/existing" or die $!;
+    my $result = touch( $self, 'file', 'first/nested/', 'second/nested/', 'third/file', 'existing/' );
+    is( $result->{returncode}, 0, $result->{stderr} );
+    ok( -d "$self->{root}/$_", "created directory $_" ) for qw(first/nested second/nested);
+    ok( -f "$self->{root}/$_", "created file $_" )      for qw(file third/file);
+    is( ( stat "$self->{root}/existing" )[9], 946684800, 'directory timestamps are not touched' );
+    $result = touch( $self, 'directory-only/' );
+    is( $result->{returncode}, 0, 'directory-only calls succeed without invoking native touch' );
+}
+
 sub no_create_stays_no_create {
     my ($self) = @_;
     my $result = touch( $self, '-c', 'missing/child' );
@@ -63,11 +76,12 @@ sub reference_is_not_an_output {
 
 run_cases(
     {
-        creates_each_parent         => \&creates_each_parent,
-        preserves_timestamp_options => \&preserves_timestamp_options,
-        no_create_stays_no_create   => \&no_create_stays_no_create,
-        stops_after_parent_failure  => \&stops_after_parent_failure,
-        reference_is_not_an_output  => \&reference_is_not_an_output,
+        creates_each_parent                => \&creates_each_parent,
+        creates_trailing_slash_directories => \&creates_trailing_slash_directories,
+        preserves_timestamp_options        => \&preserves_timestamp_options,
+        no_create_stays_no_create          => \&no_create_stays_no_create,
+        stops_after_parent_failure         => \&stops_after_parent_failure,
+        reference_is_not_an_output         => \&reference_is_not_an_output,
     },
     \&setup
 );
