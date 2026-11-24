@@ -1106,7 +1106,9 @@ impl Scanner {
             for tracked in [true, false] {
                 let indexed_modes = tracked && self.directories_only;
                 let mut git = Command::new("git");
-                git.arg("-C").arg(&repo).args(["ls-files", "-z"]);
+                git.arg("-C")
+                    .arg(&repo)
+                    .args(["ls-files", "--sparse", "-z"]);
                 if tracked {
                     git.arg("--recurse-submodules");
                     if indexed_modes {

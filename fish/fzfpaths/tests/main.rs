@@ -233,6 +233,44 @@ fn global_files_follow_git_order() {
 }
 
 #[test]
+fn global_scan_keeps_sparse_indexes_sparse() {
+    let fixture = Fixture::new();
+    write(&fixture.repo, "removed");
+    fixture.git(&[
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "-qm",
+        "fixture",
+    ]);
+    fixture.git(&[
+        "sparse-checkout",
+        "set",
+        "--cone",
+        "--sparse-index",
+        "nested",
+    ]);
+    let indexed = checked(
+        Command::new("git")
+            .current_dir(&fixture.repo)
+            .args(["ls-files", "--sparse", "-z"]),
+    );
+    assert!(
+        indexed
+            .stdout
+            .split(|&byte| byte == 0)
+            .any(|path| path == b"line break/")
+    );
+    let paths = fixture.run(&mut fixture.command(&fixture.local, &fixture.global_dir, "-f", &[]));
+    assert!(paths.contains(&fixture.repo.join("nested/child").into_os_string()));
+    assert!(!paths.contains(&fixture.repo.join("line break/end").into_os_string()));
+}
+
+#[test]
 fn first_local_result_arrives_before_global_scan_finishes() {
     let fixture = Fixture::new();
     let bin = fixture.root.join("bin");
