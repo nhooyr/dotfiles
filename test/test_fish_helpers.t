@@ -95,6 +95,38 @@ FISH
     ok( !-e "$self->{root}/injected", 'remote path metacharacters remain literal' );
 }
 
+sub sshv_expands_only_remote_home_prefixes {
+    my ($self) = @_;
+    my $home = "$self->{root}/remote home's \$(literal)";
+    make_path( "$home/notes", "$self->{root}/\$HOME" );
+    write_file( "$home/report's [draft].txt", 'remote file' );
+    write_file( "$self->{root}/\$HOME/notes", 'literal variable path' );
+    write_file( "$self->{root}/~someone",     'literal named tilde path' );
+    $self->{env}{TEST_REMOTE_HOME} = $home;
+    my $result = fish( $self, <<'FISH' );
+function ssh
+    HOME="$TEST_REMOTE_HOME" command sh -c "$argv[3]"
+end
+function nvim
+    printf '%s\n' $argv
+end
+sshv server '~'
+sshv server '~/'
+sshv server '~/notes'
+sshv server "~/report's [draft].txt"
+sshv server '$HOME/notes'
+sshv server '~someone'
+FISH
+    is(
+        $result->{stdout},
+        "--\nscp://server/~/\n--\nscp://server/~/\n--\nscp://server/~/notes/\n"
+          . "--\nscp://server/~/report's [draft].txt\n--\nscp://server/\$HOME/notes\n"
+          . "--\nscp://server/~someone\n",
+        'remote home prefixes expand only for the probe while editor URLs and other paths stay literal'
+    );
+    is( $result->{stderr}, '', 'quoted remote home paths have no filesystem errors' );
+}
+
 sub sshv_stops_on_ssh_failure {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -503,6 +535,7 @@ run_cases(
         rendezvous_routes_both_file_pickers             => \&rendezvous_routes_both_file_pickers,
         sshv_preserves_remote_paths                     => \&sshv_preserves_remote_paths,
         sshv_stops_on_ssh_failure                       => \&sshv_stops_on_ssh_failure,
+        sshv_expands_only_remote_home_prefixes          => \&sshv_expands_only_remote_home_prefixes,
         sshv_stops_on_missing_paths                     => \&sshv_stops_on_missing_paths,
         nvim_preserves_native_command_line_options      => \&nvim_preserves_native_command_line_options,
         alias_registration_updates_the_exported_name_list =>

@@ -4,7 +4,10 @@ function sshv --description 'Open a remote path with netrw' --argument-names ser
         return 1
     end
     set -l quoted_path "'$(string replace -a "'" "'\\''" -- "$path")'"
-    set -l probe 'ls -Ld -- "${1:-.}" >/dev/null || exit
+    set -l probe 'case "$1" in
+    "~"|"~/"*) set -- "$HOME${1#\~}" ;;
+esac
+ls -Ld -- "${1:-.}" >/dev/null || exit
 if test -d "${1:-.}"; then printf /; fi'
     set -l directory "$(ssh -- "$server" "sh -c '$probe' sh $quoted_path")"; or return
     set -l target "scp://$server/$path"
