@@ -31,8 +31,8 @@ nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
 nnoremap <C-k> <C-w>k
 nnoremap <C-l> <C-w>l
-nnoremap <C-e> 2<C-e>
-nnoremap <C-y> 2<C-y>
+nnoremap <C-e> <Cmd>execute 'normal!' (v:count1 * 2)."\<C-e>"<CR>
+nnoremap <C-y> <Cmd>execute 'normal!' (v:count1 * 2)."\<C-y>"<CR>
 
 set backup
 set backupdir-=.
@@ -218,11 +218,12 @@ nnoremap <Leader>p "+p
 nnoremap <Leader>P "+P
 inoremap <M-p> <C-o>"+P
 nnoremap Y "+y
-nnoremap YY m`^"+y$``
+nnoremap <expr> YY 'm`^"+y'.min([v:count1, line('$') - line('.') + 1]).'$``'
 xnoremap Y "+y
 xnoremap C "+c
 nnoremap D "+d
-nnoremap DD m`^"+y$``"_dd
+nnoremap <expr> DD 'm`^"+y'.min([v:count1, line('$') - line('.') + 1]).'$``"_'.
+			\ min([v:count1, line('$') - line('.') + 1]).'dd'
 xnoremap D "+d
 nnoremap <Leader>d <Cmd>execute '.,.+'.(v:count1-1).'t.'<CR>
 
