@@ -271,8 +271,8 @@ command -nargs=+ Find lua require('find').run(<q-args>)
 command -nargs=+ Findr lua require('find').run(<q-args>, 'G')
 command -nargs=+ Finde lua require('find').run(<q-args>, 'E')
 command -nargs=+ Findf lua require('find').run(<q-args>, 'F')
-nnoremap <Leader>f :Find<Space>
 nnoremap <M-f> :Find<Space>
+nnoremap <Leader>f :Find<Space>
 nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
 nnoremap <Leader>l <Cmd>execute getloclist(0, {'winid': 0}).winid ? 'lclose' : 'lopen'<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
