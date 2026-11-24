@@ -154,6 +154,7 @@ if ( defined $ignore_pid ) {
     close $ignore_output or die "$name: close git output: $!\n";
 }
 close $file or die "$name: $script: $!\n";
+chmod 0700, $script or die "$name: $script: $!\n";
 my $status = system @editor, $script;
 die "$name: could not run editor: $!\n" if $status == -1;
 
@@ -161,5 +162,7 @@ if ($status) {
     warn "$name: editor failed; script kept at $script\n";
     exit( ( $status & 127 ) ? 128 + ( $status & 127 ) : $status >> 8 );
 }
+
+# Editors may replace the file on save.
 chmod 0700, $script or die "$name: $script: $!\n";
 print path_quote( abs_path($script) ), "\n";

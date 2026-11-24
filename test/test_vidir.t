@@ -27,6 +27,13 @@ sub setup {
 use strict;
 use warnings;
 use JSON::PP;
+if ($ENV{TEST_RUN_IN_EDITOR}) {
+    die "script is not executable in editor\n" unless -x $ARGV[-1];
+    system { $ARGV[-1] } $ARGV[-1];
+    die "script failed in editor\n" if $?;
+    open my $marker, '>', "$ARGV[-1].ran" or die $!;
+    close $marker;
+}
 open my $log, '>', $ENV{TEST_EDITOR_LOG} or die $!;
 print {$log} encode_json(\@ARGV);
 close $log;
@@ -406,6 +413,15 @@ sub editor_failure_keeps_script_without_command {
     like( $result->{stderr}, qr/editor failed; script kept at/, 'the retained script is identified' );
 }
 
+sub script_is_executable_inside_editor {
+    my ($self) = @_;
+    $self->{env}{TEST_RUN_IN_EDITOR} = 1;
+    my $path = script_path( $self, invoke($self) );
+    ok( -f "$path.ran",                   'the editor can execute the generated script' );
+    ok( -x $path,                         'atomic editor replacement remains executable after exit' );
+    ok( -f "$self->{directory}/original", 'running the unchanged script performs no moves' );
+}
+
 sub editor_without_options {
     my ($self) = @_;
     $self->{env}{EDITOR} = shell_quote("$self->{root}/editor bin/editor");
@@ -459,6 +475,7 @@ run_cases(
         editor_changes_wait_for_manual_execution     => \&editor_changes_wait_for_manual_execution,
         editor_failure_keeps_script_without_command  => \&editor_failure_keeps_script_without_command,
         editor_without_options                       => \&editor_without_options,
+        script_is_executable_inside_editor           => \&script_is_executable_inside_editor,
         empty_alias_does_not_change_script_directory => \&empty_alias_does_not_change_script_directory,
         usage_and_missing_editor                     => \&usage_and_missing_editor,
         ordering_matches_ls                          => \&ordering_matches_ls,
