@@ -1397,24 +1397,29 @@ vim.g.clipboard = {
     name = 'test', copy = { ['+'] = copy, ['*'] = copy },
     paste = { ['+'] = paste, ['*'] = paste }, cache_enabled = 0,
 }
+local original = { '  alpha beta  ', '', 'next' }
 for _, case in ipairs({
-    { 'Yw', 'alpha ', { '  alpha beta', 'next' } },
-    { '<M-y>w', 'alpha ', { '  alpha beta', 'next' } },
-    { 'YY', 'alpha beta', { '  alpha beta', 'next' } },
-    { 'viwY', 'alpha', { '  alpha beta', 'next' } },
-    { 'Dw', 'alpha ', { '  beta', 'next' } },
-    { 'DD', 'alpha beta', { 'next' } },
-    { 'viwD', 'alpha', { '   beta', 'next' } },
+    { 'Yw', 'alpha ', original },
+    { '<M-y>w', 'alpha ', original },
+    { 'YY', '  alpha beta  \n', original, 'V' },
+    { '2YY', '  alpha beta  \n\n', original, 'V' },
+    { 'jYY', '\n', original, 'V' },
+    { 'viwY', 'alpha', original },
+    { 'Dw', 'alpha ', { '  beta  ', '', 'next' } },
+    { 'DD', '  alpha beta  \n', { '', 'next' }, 'V' },
+    { '2DD', '  alpha beta  \n\n', { 'next' }, 'V' },
+    { 'jDD', '\n', { '  alpha beta  ', 'next' }, 'V' },
+    { 'viwD', 'alpha', { '   beta  ', '', 'next' } },
 }) do
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { '  alpha beta', 'next' })
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, original)
     vim.api.nvim_win_set_cursor(0, { 1, 2 })
     vim.fn.setreg('+', 'sentinel')
     feed(case[1])
-    eq(vim.fn.getreg('+'), case[2], case[1] .. ' copies to the clipboard without a newline')
-    eq(vim.fn.getregtype('+'), 'v', case[1] .. ' uses the characterwise clipboard')
+    eq(vim.fn.getreg('+'), case[2], case[1] .. ' copies the exact text to the clipboard')
+    eq(vim.fn.getregtype('+'), case[4] or 'v', case[1] .. ' uses the correct clipboard type')
     eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), case[3], case[1] .. ' preserves or cuts the text')
-    if case[1] == 'YY' then
-        eq(vim.api.nvim_win_get_cursor(0), { 1, 2 }, 'YY restores the original cursor')
+    if case[1] == 'YY' or case[1] == '2YY' then
+        eq(vim.api.nvim_win_get_cursor(0), { 1, 2 }, case[1] .. ' preserves the original cursor')
     end
 end
 LUA
