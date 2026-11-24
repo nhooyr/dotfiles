@@ -1,29 +1,7 @@
-local function shell_safe(path)
-	return path:match('^[%w_./-]+$') ~= nil
-end
-
-local function shell_quote(path)
-	if shell_safe(path) then return path end
-	return "'" .. path:gsub("'", "'\\''") .. "'"
-end
-
-local function refresh()
-	local files = vim.fn.systemlist({
-		'env', 'LC_COLLATE=C', 'gls', '-1A', '-v', '--group-directories-first', '-r', '--', vim.b.vidir_dir,
-	})
-	if vim.v.shell_error ~= 0 then error(table.concat(files, '\n')) end
-	local commands = { '#!/bin/sh', 'set -eu' }
-	for _, path in ipairs(files) do
-		local quoted = shell_quote(path)
-		commands[#commands + 1] = 'mv -v -- ' .. quoted .. ' ' .. quoted
-	end
-	vim.api.nvim_buf_set_lines(0, 0, -1, false, commands)
-	vim.bo.modified = false
-end
-
 local function run()
-	vim.cmd('write !cd -- ' .. vim.fn.shellescape(vim.b.vidir_dir, true) .. ' && sh')
-	if vim.v.shell_error == 0 then refresh() end
+	vim.cmd.write()
+	vim.cmd('!sh ' .. vim.fn.shellescape(vim.api.nvim_buf_get_name(0), true))
+	if vim.v.shell_error == 0 then vim.cmd.close() end
 end
 
 local function open(path)
@@ -40,20 +18,12 @@ local function open(path)
 		vim.notify('Not a directory: ' .. path, vim.log.levels.ERROR)
 		return
 	end
-	for _, buffer in ipairs(vim.fn.getbufinfo()) do
-		if buffer.variables.vidir_dir == directory then
-			vim.cmd.buffer(buffer.bufnr)
-			return
-		end
-	end
-	vim.cmd.enew()
-	vim.b.vidir_dir = directory
-	vim.api.nvim_buf_set_name(0, 'vidir://' .. require('dirali').shorten(directory))
-	refresh()
-	vim.api.nvim_create_autocmd('BufWriteCmd', { buffer = 0, command = "lua require('vidir').run()" })
-	vim.keymap.set({ 'n', 'i' }, '<M-CR>', "<Cmd>lua require('vidir').run()<CR>", { buffer = true })
-	vim.bo.buftype = 'acwrite'
-	vim.bo.filetype = 'sh'
+	vim.cmd('Dirvish ' .. vim.fn.fnameescape(directory))
+	local listing = vim.api.nvim_get_current_buf()
+	vim.cmd('%Shdo mv -v -- {} {}')
+	if vim.api.nvim_get_current_buf() == listing then return end
+	vim.api.nvim_buf_set_lines(0, 0, 0, false, { '#!/bin/sh', 'set -eu' })
+	vim.keymap.set({ 'n', 'i' }, '<M-CR>', run, { buffer = true })
 end
 
 return { open = open, run = run }

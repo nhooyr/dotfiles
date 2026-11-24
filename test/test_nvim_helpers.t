@@ -560,29 +560,29 @@ LUA
 sub vidir_directory_arguments {
     my ($self) = @_;
     my $root = "$self->{temporary}/project";
-    make_path( "$root/child space", "$root/target/deep", "$self->{temporary}/bin" );
-    write_file( "$root/file.txt", "contents\n" );
+    make_path( "$root/child space", "$root/target/deep" );
+    write_file( "$root/file.txt",          'contents' );
+    write_file( "$root/child space/entry", 'contents' );
+    write_file( "$root/target/entry",      'contents' );
     symlink 'target/deep', "$root/link" or die $!;
-    write_file( "$self->{temporary}/bin/gls", "#!/bin/sh\nprintf '%s\\n' entry\n" );
-    chmod 0755, "$self->{temporary}/bin/gls";
-    local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
     $self->{env}{TEST_VIDIR_ROOT} = $root;
     run_script( $self, <<'LUA' );
 local root = vim.fn.resolve(vim.env.TEST_VIDIR_ROOT)
+local function target(command, expected)
+    vim.cmd(command)
+    local directory = vim.bo.filetype == 'dirvish' and vim.api.nvim_buf_get_name(0) or vim.fn.getcwd()
+    eq(vim.fs.normalize(directory), expected, 'Vidir selects the requested directory')
+    if vim.bo.filetype == 'sh' then vim.cmd('close!') end
+end
 vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/file.txt'))
-vim.cmd.Vidir()
-eq(vim.b.vidir_dir, root, 'a normal file defaults to its parent directory')
+target('Vidir', root)
 vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/child space'))
-vim.cmd.Vidir()
-eq(vim.b.vidir_dir, root .. '/child space', 'a browser defaults to its displayed directory')
+target('Vidir', root .. '/child space')
 vim.cmd.enew()
 vim.cmd.cd(root)
-vim.cmd.Vidir()
-eq(vim.b.vidir_dir, root, 'an unnamed buffer defaults to the working directory')
-vim.cmd([[Vidir child\ space]])
-eq(vim.b.vidir_dir, root .. '/child space', 'relative arguments preserve spaces')
-vim.cmd('Vidir link/..')
-eq(vim.b.vidir_dir, root .. '/target', 'symlink parents are resolved by the filesystem')
+target('Vidir', root)
+target([[Vidir child\ space]], root .. '/child space')
+target('Vidir link/..', root .. '/target')
 local before, errors = vim.api.nvim_get_current_buf(), {}
 vim.notify = function(message) errors[#errors + 1] = message end
 vim.cmd('Vidir missing')
@@ -597,156 +597,117 @@ LUA
 sub vidir_buffer_directory {
     my ($self) = @_;
     my $directory = "$self->{temporary}/rename's dir";
-    make_path( $directory, "$self->{temporary}/bin" );
-    write_file( "$directory/entry",           "content\n" );
-    write_file( "$self->{temporary}/bin/gls", "#!/bin/sh\nprintf '%s\\n' entry\n" );
-    chmod 0755, "$self->{temporary}/bin/gls";
-    local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
+    make_path($directory);
+    write_file( "$directory/entry", 'content' );
     $self->{env}{TEST_VIDIR_DIRECTORY} = $directory;
     run_script( $self, <<'LUA' );
-local directory = vim.env.TEST_VIDIR_DIRECTORY
-vim.cmd('cd ' .. vim.fn.fnameescape(directory))
+local directory = vim.fn.resolve(vim.env.TEST_VIDIR_DIRECTORY)
+local cwd = vim.fn.getcwd()
 vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
-local buffer = vim.api.nvim_get_current_buf()
-eq(vim.fn.resolve(vim.b.vidir_dir), vim.fn.resolve(directory), 'Vidir records its directory')
-eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Vidir starts in its directory')
-eq(vim.api.nvim_buf_get_lines(buffer, 0, -1, false),
-    { '#!/bin/sh', 'set -eu', 'mv -v -- entry entry' }, 'Vidir keeps directory changes out of the script')
-eq(vim.fn.haslocaldir(), 0, 'Vidir does not set a local working directory')
-vim.cmd.cd('/')
-for _ = 1, 3 do
-    vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
-    eq(vim.fn.getcwd(), '/', 'opening ordinary files keeps the selected directory')
-    vim.cmd.buffer(buffer)
-    eq(vim.fn.getcwd(), '/', 'returning to Vidir keeps the selected directory')
-end
+local buffer, path = vim.api.nvim_get_current_buf(), vim.api.nvim_buf_get_name(0)
+eq(vim.bo.filetype, 'sh', 'Shdo opens a shell script')
+eq(#vim.api.nvim_tabpage_list_wins(0), 2, 'Shdo opens the script in a split')
+eq(vim.fn.filereadable(path), 1, 'Shdo creates its temporary file immediately')
+eq(vim.fn.getcwd(), directory, 'the script window uses the target directory')
+eq(vim.fn.haslocaldir(), 1, 'Shdo gives the script a window-local directory')
+eq(vim.api.nvim_buf_get_lines(buffer, 0, 2, false), { '#!/bin/sh', 'set -eu' },
+    'scripts use sh and stop on errors')
+assert(not vim.bo.undofile, 'temporary scripts do not create persistent undo files')
+vim.cmd.write()
+eq(vim.fn.filereadable(directory .. '/entry'), 1, 'writing only saves the script')
+vim.cmd.close()
+eq(vim.bo.filetype, 'dirvish', 'closing the script returns to Dirvish')
+eq(vim.fn.getcwd(), cwd, 'the directory window retains the original working directory')
 LUA
 }
 
 sub vidir_quotes_shell_directory {
-    my ($self) = @_;
-    my $literal = q{quote's" $cash `cmd` \ % # path};
-    $self->{env}{AQSNOW_DIRALIS}    = 'HOME:TEST_ALIAS_BASE:TEST_SPACED_ALIAS';
-    $self->{env}{TEST_ALIAS_BASE}   = "$self->{temporary}/project";
-    $self->{env}{TEST_SPACED_ALIAS} = "$self->{temporary}/project root";
-    $self->{env}{TEST_OUTSIDE}      = "$self->{temporary}/outside";
-    make_path(
-        "$self->{env}{TEST_ALIAS_BASE}/$literal", "$self->{env}{TEST_ALIAS_BASE}/plain/path",
-        "$self->{env}{HOME}/home's folder",       "$self->{env}{HOME}/plain/path",
-        $self->{env}{TEST_SPACED_ALIAS},          $self->{env}{TEST_OUTSIDE},
-        "$self->{temporary}/bin"
-    );
-    $self->{env}{$_} = absolute_path( $self->{env}{$_} )
-      for qw(HOME TEST_ALIAS_BASE TEST_SPACED_ALIAS TEST_OUTSIDE);
-    write_file( "$self->{temporary}/bin/gls", "#!/bin/sh\nprintf '%s\\n' '\$TEST_ALIAS_BASE' plain 'a;b'\n" );
-    write_file( "$self->{temporary}/bin/sh",  "#!/bin/sh\npwd -P > \"\$TEST_SHELL_CWD\"\ncat >/dev/null\n" );
-    chmod 0755, "$self->{temporary}/bin/gls", "$self->{temporary}/bin/sh";
+    my ($self)    = @_;
+    my $directory = "$self->{temporary}/project space's dir";
+    my @names     = ( q{$cash}, q{quote's" name}, q{a;b}, 'plain' );
+    make_path( $directory, "$self->{temporary}/bin" );
+    write_file( "$directory/$_",             'contents' ) for @names;
+    write_file( "$self->{temporary}/bin/mv", '#!' . perl_executable() . "\n" . <<'MOCK' );
+use strict;
+use warnings;
+use Cwd qw(getcwd);
+use JSON::PP;
+open my $log, '>>', $ENV{TEST_MOVE_LOG} or die $!;
+print {$log} encode_json({cwd => getcwd, args => \@ARGV}), "\n";
+MOCK
+    chmod 0755, "$self->{temporary}/bin/mv";
     local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
-    $self->{env}{TEST_SHELL_CWD} = "$self->{temporary}/shell-cwd";
+    $self->{env}{TEST_VIDIR_DIRECTORY} = $directory;
+    $self->{env}{TEST_MOVE_LOG}        = "$self->{temporary}/moves";
     run_script( $self, <<'LUA' );
-local cases = {
-    vim.env.TEST_ALIAS_BASE,
-    vim.env.TEST_ALIAS_BASE .. '/plain/path',
-    vim.env.TEST_ALIAS_BASE .. [[/quote's" $cash `cmd` \ % # path]],
-    vim.env.TEST_SPACED_ALIAS,
-    vim.env.HOME,
-    vim.env.HOME .. '/plain/path',
-    vim.env.HOME .. "/home's folder",
-    vim.env.TEST_OUTSIDE,
-}
-for _, directory in ipairs(cases) do
-    vim.cmd('cd ' .. vim.fn.fnameescape(directory))
-    vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
-    local commands = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    eq(commands[3], [[mv -v -- '$TEST_ALIAS_BASE' '$TEST_ALIAS_BASE']], 'filenames stay literal')
-    eq(commands[4], 'mv -v -- plain plain', 'plain filenames do not need quotes')
-    eq(commands[5], [[mv -v -- 'a;b' 'a;b']], 'shell operators in filenames stay quoted')
-    vim.cmd.cd('/')
-    require('vidir').run()
-    eq(vim.v.shell_error, 0, 'the shell invocation succeeds')
-    eq(vim.fn.readfile(vim.env.TEST_SHELL_CWD)[1], vim.fn.resolve(directory),
-        'the shell enters the original directory with literal special characters')
-    eq(vim.fn.getcwd(), '/', 'the shell invocation leaves the editor directory unchanged')
-end
+vim.cmd('Vidir ' .. vim.fn.fnameescape(vim.env.TEST_VIDIR_DIRECTORY))
+require('vidir').run()
+eq(vim.v.shell_error, 0, 'generated commands execute successfully')
+eq(vim.bo.filetype, 'dirvish', 'successful execution returns to the listing')
 LUA
+    my @calls = map { decode_json($_) } split /\n/, read_file( $self->{env}{TEST_MOVE_LOG} );
+    is_deeply(
+        [ sort map { $_->{args}[2] } @calls ],
+        [ sort @names ],
+        'shell metacharacters remain literal filenames'
+    );
+
+    for my $call (@calls) {
+        is( $call->{cwd}, absolute_path($directory), 'each command runs in the original directory' );
+        is_deeply(
+            $call->{args},
+            [ '-v', '--', $call->{args}[2], $call->{args}[2] ],
+            'each filename stays one argument'
+        );
+    }
 }
 
 sub vidir_refresh_after_success {
-    my ($self)    = @_;
+    my ($self) = @_;
     my $directory = "$self->{temporary}/rename's dir";
-    my $bin       = "$self->{temporary}/bin";
-    make_path( $directory, $bin );
-    write_file( "$directory/original", "original\n" );
-    write_file( "$directory/other",    "other\n" );
-    write_file( "$bin/gls",            '#!' . perl_executable() . "\n" . <<'PERL' );
-use strict;
-use warnings;
-my $path = $ARGV[-1] =~ /^-/ ? '.' : $ARGV[-1];
-opendir my $directory, $path or die $!;
-print "$_\n" for sort grep { $_ ne '.' && $_ ne '..' } readdir $directory;
-PERL
-    write_file( "$bin/mv", '#!' . perl_executable() . "\n" . <<'PERL' );
+    make_path( $directory, "$self->{temporary}/bin" );
+    write_file( "$directory/original",       "original\n" );
+    write_file( "$directory/other",          "other\n" );
+    write_file( "$self->{temporary}/bin/mv", '#!' . perl_executable() . "\n" . <<'MOCK' );
 use strict;
 use warnings;
 @ARGV == 4 && $ARGV[0] eq '-v' && $ARGV[1] eq '--' or die 'unexpected mv arguments';
-my ( $from, $to ) = @ARGV[ 2, 3 ];
+my ($from, $to) = @ARGV[2, 3];
 exit 0 if $from eq $to;
 rename $from, $to or die $!;
-PERL
-    chmod 0755, "$bin/gls", "$bin/mv";
-    local $self->{env}{PATH} = "$bin:$ENV{PATH}";
+MOCK
+    chmod 0755, "$self->{temporary}/bin/mv";
+    local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
     $self->{env}{TEST_VIDIR_DIRECTORY} = $directory;
     run_script( $self, <<'LUA' );
-local directory = vim.env.TEST_VIDIR_DIRECTORY
-vim.cmd('cd ' .. vim.fn.fnameescape(directory))
+local directory = vim.fn.resolve(vim.env.TEST_VIDIR_DIRECTORY)
 vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
 local buffer = vim.api.nvim_get_current_buf()
-local function lines() return vim.api.nvim_buf_get_lines(buffer, 0, -1, false) end
-local function rename_command(from, to)
-    local commands, found = lines(), false
-    for i, command in ipairs(commands) do
-        if command == 'mv -v -- ' .. from .. ' ' .. from then
-            commands[i], found = 'mv -v -- ' .. from .. ' ' .. to, true
-        end
-    end
-    assert(found, 'the file has a generated rename command')
-    vim.api.nvim_buf_set_lines(buffer, 0, -1, false, commands)
+local commands = vim.api.nvim_buf_get_lines(buffer, 0, -1, false)
+for i, command in ipairs(commands) do
+    if command:find("'original'", 1, true) then commands[i] = "mv -v -- 'original' 'renamed'" end
 end
+vim.api.nvim_buf_set_lines(buffer, 0, -1, false, commands)
 vim.fn.setreg('a', 'named sentinel')
 vim.fn.setreg('"', 'unnamed sentinel')
-rename_command('original', 'renamed')
-local pending = lines()
-vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
-vim.cmd('cd ' .. vim.fn.fnameescape(directory))
-vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
-eq(vim.api.nvim_get_current_buf(), buffer, 'reentry keeps the existing rename buffer')
-eq(lines(), pending, 'reentry preserves unapplied edits')
-assert(vim.bo.modified, 'unapplied commands remain modified')
-eq(vim.fn.filereadable(directory .. '/original'), 1, 'reentry does not execute commands')
-vim.cmd.cd(vim.fs.dirname(vim.env.TEST_ORIGINAL))
 vim.cmd.write()
-eq(vim.fn.filereadable(directory .. '/renamed'), 1, 'the requested rename ran')
+eq(vim.fn.filereadable(directory .. '/original'), 1, 'saving does not execute the script')
+feed('<M-CR>')
+eq(vim.v.shell_error, 0, 'Alt-Enter runs the saved commands')
+eq(vim.fn.filereadable(directory .. '/renamed'), 1, 'the rename ran')
 eq(vim.fn.filereadable(directory .. '/original'), 0, 'the old filename is gone')
-assert(vim.tbl_contains(lines(), 'mv -v -- renamed renamed'), 'success refreshes the command list')
-eq(lines()[2], 'set -eu', 'success retains the script header')
-assert(not vim.bo.modified, 'the refreshed command list is unmodified')
-vim.cmd.write()
-eq(vim.v.shell_error, 0, 'applying the refreshed list does not retry the old source')
-rename_command('other', 'second')
-vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
-vim.cmd.wall()
-eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(vim.fs.dirname(vim.env.TEST_ORIGINAL)),
-    'wall preserves the selected working directory')
-eq(vim.fn.filereadable(directory .. '/second'), 1, 'wall executes commands in the rename directory')
-assert(vim.tbl_contains(lines(), 'mv -v -- second second'), 'wall refreshes the rename directory')
-vim.cmd.buffer(buffer)
-local failing = { '#!/bin/sh', 'set -eu', 'false', "mv -v -- 'renamed' 'never'" }
-vim.api.nvim_buf_set_lines(buffer, 0, -1, false, failing)
-vim.cmd.write()
+eq(vim.bo.filetype, 'dirvish', 'successful execution closes the script')
+assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false), directory .. '/renamed'),
+    'successful execution refreshes the directory listing')
+vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
+local failed_buffer = vim.api.nvim_get_current_buf()
+local failing = { '#!/bin/sh', 'set -eu', 'false', "touch should-not-exist" }
+vim.api.nvim_buf_set_lines(failed_buffer, 0, -1, false, failing)
+feed('<M-CR>')
 assert(vim.v.shell_error ~= 0, 'the failed command reports an error')
-eq(lines(), failing, 'failed commands remain available for correction')
-assert(vim.bo.modified, 'the failed command list stays modified')
-eq(vim.fn.filereadable(directory .. '/never'), 0, 'commands after the failure do not run')
+eq(vim.api.nvim_get_current_buf(), failed_buffer, 'failure keeps the script open')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), failing, 'failure preserves commands for correction')
+eq(vim.fn.filereadable(directory .. '/should-not-exist'), 0, 'commands after the failure do not run')
 eq(vim.fn.getreg('a'), 'named sentinel', 'named registers are preserved')
 eq(vim.fn.getreg('"'), 'unnamed sentinel', 'the unnamed register is preserved')
 LUA
