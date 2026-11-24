@@ -132,6 +132,7 @@ cnoremap <M-f> \V
 nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| silent update \| endif
 				\ \| execute 'source' fnameescape($MYVIMRC) \| echo 'source' $MYVIMRC<CR>
 " nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
+command Cdh execute 'cd' fnameescape(isdirectory(expand('%:p')) ? expand('%:p') : expand('%:p:h'))
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
 nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snips.lua<CR>
 " Local directories use Dirvish.

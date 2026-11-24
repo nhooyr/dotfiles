@@ -490,11 +490,17 @@ local directory = vim.env.TEST_NAV_DIRECTORY
 local cwd = vim.fn.getcwd()
 vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
 eq(vim.fn.getcwd(), cwd, 'opening a file does not change the working directory')
+vim.cmd.Cdh()
+eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh changes to the current file parent')
+vim.cmd.cd(cwd)
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(directory),
     'normal - opens the file parent with spaces')
 eq(vim.bo.filetype, 'dirvish', 'local folders use Dirvish')
 eq(vim.fn.getcwd(), cwd, 'browsing a directory preserves the selected working directory')
+vim.cmd.Cdh()
+eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh changes to the displayed directory')
+vim.cmd.cd(cwd)
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
     'directory - opens its parent')
