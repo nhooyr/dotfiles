@@ -5,6 +5,8 @@
 - Always write `regression test` in full when referring to a test.
 - Unless I explicitly ask you to commit, provide a Fish script that stages one group at a time and opens
   `git commit` with a suggested short title and body, so I can review and edit each message.
+- Print each commit-script step heading in bold, such as `Step 2/2: 02-fish-prompt-aliases.patch`,
+  and reset formatting immediately afterward.
 - Choose title prefixes using `nvim/lua/gitcommit.lua`: a single file's path, otherwise the deepest shared
   directory, otherwise the longest path chunk shared by at least two files (including extensions).
   Break length ties by the number of files sharing the chunk, then first occurrence. Use rename/copy
