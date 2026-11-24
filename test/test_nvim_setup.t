@@ -121,6 +121,36 @@ sub missing_nvim_fails_ci {
     like( $result->{stderr}, qr/nvim/, 'the missing dependency is identified' );
 }
 
+sub ci_installs_neovim_before_plugin_setup {
+    my ($self) = @_;
+    my $runner = "$self->{temporary}/runner";
+    my $bundle = "$self->{temporary}/bundle";
+    make_path( $runner, "$bundle/nvim-linux-x86_64/bin" );
+    rename "$self->{bin}/nvim", "$bundle/nvim-linux-x86_64/bin/nvim" or die $!;
+    run_command( [ 'tar', '-czf', "$runner/download.tar.gz", '-C', $bundle, 'nvim-linux-x86_64' ],
+        { check => 1 } );
+    write_file( "$self->{bin}/sudo", "#!/bin/sh\nexit 0\n" );
+    write_file( "$self->{bin}/curl", '#!' . perl_executable() . "\n" . <<'PERL' );
+use File::Copy qw(copy);
+die "unexpected download arguments\n" unless @ARGV == 5
+    && $ARGV[0] eq '--fail' && $ARGV[1] eq '--location' && $ARGV[2] eq '--output'
+    && $ARGV[4] eq 'https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz';
+copy "$ENV{RUNNER_TEMP}/download.tar.gz", $ARGV[3] or die $!;
+PERL
+    chmod 0755, "$self->{bin}/sudo", "$self->{bin}/curl";
+    $self->{env}{GITHUB_ACTIONS}   = 1;
+    $self->{env}{RUNNER_TEMP}      = $runner;
+    $self->{env}{TEST_PLUGIN_FAIL} = 1;
+    my $result = run_command( ["$self->{temporary}/source tree/ci/test.sh"], { env => $self->{env} } );
+    is( $result->{returncode}, 7,                 'CI reaches Neovim and preserves plugin setup failures' );
+    is( $result->{stderr},     "plugin failed\n", 'the provisioned Neovim ran' );
+    is_deeply(
+        calls($self),
+        [ [ 'nvim', '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', './nvim/lua/plugins.lua' ] ],
+        'CI installs Neovim before plugin setup'
+    );
+}
+
 sub native_lua_errors_fail_installation {
     my ($self) = @_;
     die 'Neovim is required' unless $nvim;
@@ -164,6 +194,7 @@ run_cases(
         plugin_failure_stops_before_app_installation => \&plugin_failure_stops_before_app_installation,
         app_failure_is_returned                      => \&app_failure_is_returned,
         missing_nvim_fails_ci                        => \&missing_nvim_fails_ci,
+        ci_installs_neovim_before_plugin_setup       => \&ci_installs_neovim_before_plugin_setup,
         native_lua_errors_fail_installation          => \&native_lua_errors_fail_installation,
         package_file_sets_its_own_lock_path          => \&package_file_sets_its_own_lock_path,
     },

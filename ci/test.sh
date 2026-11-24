@@ -4,9 +4,14 @@ cd -- "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
 	sudo add-apt-repository --yes ppa:fish-shell/release-4
-	sudo apt-get install --yes fish cargo zsh fd-find
+	sudo apt-get install --yes fish cargo zsh fd-find ripgrep
 	sudo install "$(command -v fdfind)" /usr/local/bin/fd
 	sudo install "$(command -v ls)" /usr/local/bin/gls
+	# packlockfile and the native directory browser require Neovim 0.13.
+	curl --fail --location --output "$RUNNER_TEMP/nvim.tar.gz" \
+		https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz
+	tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
+	PATH="$RUNNER_TEMP/nvim-linux-x86_64/bin:$PATH"
 fi
 
 nvim --headless -u NONE -n -i NONE -l ./nvim/lua/plugins.lua
