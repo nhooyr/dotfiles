@@ -1152,6 +1152,31 @@ eq(#calls, 6, 'each search launches one fd process without a separate filter')
 LUA
 }
 
+sub find_files_config_reload {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+local calls = {}
+vim.system = function(_, _, callback)
+    local call = { callback = callback }
+    calls[#calls + 1] = call
+    return { kill = function(_, signal) call.signal = signal end }
+end
+require('find').run('first')
+vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+require('find').run('second')
+calls[2].callback({ code = 0, stdout = 'second.lua\n', stderr = '' })
+calls[1].callback({ code = 0, stdout = 'first.lua\n', stderr = '' })
+local done = false
+vim.schedule(function() done = true end)
+assert(vim.wait(1000, function() return done end), 'both search callbacks finish')
+eq({ calls[1].signal, vim.fn.getqflist({ title = 0 }).title,
+    vim.fn.fnamemodify(vim.fn.bufname(vim.fn.getqflist()[1].bufnr), ':t') },
+    { 15, 'Find second', 'second.lua' },
+    'a search after config reload cancels and supersedes the earlier search')
+LUA
+}
+
 sub rendezvous_routes {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1382,6 +1407,7 @@ run_cases(
         find_files_quickfix                     => \&find_files_quickfix,
         markdown_checkbox_abbreviation          => \&markdown_checkbox_abbreviation,
         find_files_async_results                => \&find_files_async_results,
+        find_files_config_reload                => \&find_files_config_reload,
         rendezvous_routes                       => \&rendezvous_routes,
         clipboard_mappings                      => \&clipboard_mappings,
         copilot_word_mapping                    => \&copilot_word_mapping,

@@ -1,11 +1,11 @@
-local pending
-local generation = 0
+local state = package.loaded['find.state'] or { generation = 0 }
+package.loaded['find.state'] = state
 
 local function run(pattern, mode)
 	local cwd = vim.fn.getcwd()
-	if pending then pending:kill(15) end
-	generation = generation + 1
-	local current = generation
+	if state.pending then state.pending:kill(15) end
+	state.generation = state.generation + 1
+	local current = state.generation
 	local args = { 'fd', '--hidden', '--follow', '--no-require-git', '--exclude', '.git',
 		'--type', 'file', '--type', 'directory', '--color', 'never' }
 	if mode then args[#args + 1] = '-' .. mode end
@@ -15,9 +15,9 @@ local function run(pattern, mode)
 		if mode == 'g' and pattern:sub(1, 1) ~= '/' then query = '**/' .. pattern end
 	end
 	vim.list_extend(args, { '--', query })
-	pending = vim.system(args, { cwd = cwd }, vim.schedule_wrap(function(result)
-		if current ~= generation then return end
-		pending = nil
+	state.pending = vim.system(args, { cwd = cwd }, vim.schedule_wrap(function(result)
+		if current ~= state.generation then return end
+		state.pending = nil
 		if result.code ~= 0 then
 			vim.notify(vim.trim(result.stderr), vim.log.levels.ERROR)
 			return
