@@ -1,6 +1,5 @@
 # dotfiles [![ci](https://github.com/nhooyr/dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/nhooyr/dotfiles/actions/workflows/ci.yml)
 
-![Screenshot 0](./docs/screenshot-0.png)
 ![Screenshot 1](./docs/screenshot-1.png)
 ![Screenshot 2](./docs/screenshot-2.png)
 ![Screenshot 3](./docs/screenshot-3.png)
@@ -13,3 +12,4 @@
 ![Screenshot 10](./docs/screenshot-10.png)
 ![Screenshot 11](./docs/screenshot-11.png)
 ![Screenshot 12](./docs/screenshot-12.png)
+![Screenshot 13](./docs/screenshot-13.png)
