@@ -53,4 +53,15 @@ local function prefill_title()
 	vim.snippet.expand(prefix:gsub('[\\$}]', '\\%0') .. ': ${1:desc}')
 end
 
-return { prefill_title = prefill_title }
+local function setup()
+	vim.bo.expandtab = false
+	vim.bo.tabstop = 4
+	vim.bo.shiftwidth = 0
+	vim.bo.textwidth = 80
+	vim.keymap.set('n', ']c', '/^diff --<CR>', { buffer = true })
+	vim.keymap.set('n', '[c', '?^diff --<CR>', { buffer = true })
+	require('gitstatus').setup_diff()
+	prefill_title()
+end
+
+return { setup = setup, prefill_title = prefill_title }

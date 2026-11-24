@@ -16,6 +16,7 @@ endif
 let s:vcs_statusline = "%{get(b:,'vcs_prompt','')} "
 let &statusline = substitute(&statusline, '%=', '%=' . s:vcs_statusline, '')
 set textwidth=110
+let g:gitcommit_summary_length = 80
 set foldmethod=indent
 set foldlevel=999
 set foldlevelstart=999
@@ -263,8 +264,15 @@ highlight QuickFixLine ctermfg=0 ctermbg=3
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 silent doautocmd <nomodeline> User AqsnowGitStatusStop
-lua for _, name in ipairs({'dirali', 'gitcommit', 'gitstatus', 'grep', 'qf', 'rendezvous', 'snips', 'vidir'}) do package.loaded[name] = nil end
-lua require('grep').update()
+for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
+	let s:module = substitute(strpart(s:lua_file, strlen(s:config_dir) + 5)[:-5], '/', '.', 'g')
+	call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module)
+	if s:module =~# '\.init$'
+		call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
+	endif
+endfor
+let &grepprg = shellescape(fnamemodify(s:config_dir, ':h') . '/bin/vgrep')
+set grepformat=%f:%l:%c:%m
 inoremap <M-j> <Cmd>lua require('snips').expand_or_jump()<CR>
 snoremap <M-j> <Cmd>lua require('snips').jump(1)<CR>
 inoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
@@ -276,6 +284,11 @@ function s:is_config_file(path) abort
 			\ || (stridx(path, s:config_dir . '/lua/') == 0 && fnamemodify(path, ':e') ==# 'lua')
 endfunction
 
+function s:queue_config_reload() abort
+	autocmd! aqsnow SafeState
+	autocmd aqsnow SafeState * ++once execute 'source' fnameescape($MYVIMRC)
+endfunction
+
 " For BufReadPost's restore_cursor.
 filetype on
 augroup aqsnow
@@ -283,8 +296,6 @@ augroup aqsnow
 	autocmd ModeChanged,RecordingEnter * call <SID>set_mode_highlight(v:true)
 	autocmd RecordingEnter * redraw!
 	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
-	autocmd DirChanged * lua require('grep').update()
-	autocmd CmdlineEnter : lua require('grep').update()
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
 			\ require('snips').expand() end
@@ -292,27 +303,20 @@ augroup aqsnow
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
 	autocmd BufWritePre,FileWritePre * if expand('<afile>') !~# '://' | call mkdir(expand('<afile>:p:h'), 'p') | endif
-	autocmd filetype gitcommit setlocal noet ts=4 sw=0 tw=80
-	autocmd filetype gitcommit let g:gitcommit_summary_length = &textwidth
-	autocmd filetype gitcommit lua require('gitcommit').prefill_title()
+	autocmd filetype gitcommit lua require('gitcommit').setup()
 	autocmd filetype html,jsonc,css setlocal et ts=2 sw=0
 	autocmd filetype markdown setlocal et ts=3 sw=0
-	autocmd filetype fish setlocal et ts=4 sw=0
+	autocmd filetype fish setlocal et ts=4 sw=0 formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
 	autocmd BufRead,BufNewFile *.json setlocal filetype=json5
 	autocmd BufReadPost * call <SID>restore_cursor()
 	autocmd BufEnter,WinEnter * if &autochdir && exists('b:vidir_dir') | call nvim_set_current_dir(b:vidir_dir) | endif
-	autocmd filetype fish setlocal formatprg=fish_indent
 	autocmd filetype sh let &l:formatprg='shfmt -s'
-	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | execute 'autocmd aqsnow SafeState * ++once execute "source" fnameescape($MYVIMRC)' | endif
-	autocmd filetype gitcommit nnoremap <buffer> ]c /^diff --<CR>
-	autocmd filetype gitcommit nnoremap <buffer> [c ?^diff --<CR>
-	autocmd filetype gitcommit,diff nnoremap <buffer> ]h /^@@<CR>
-	autocmd filetype gitcommit,diff nnoremap <buffer> [h ?^@@<CR>
+	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | call <SID>queue_config_reload() | endif
+	autocmd filetype diff lua require('gitstatus').setup_diff()
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 	autocmd filetype netrw if exists('b:netrw_curdir') && b:netrw_curdir =~# '^/' | nnoremap <buffer> <nowait> - <Cmd>call <SID>edit_parent()<CR> | endif
-	autocmd VimEnter * lua require('gitstatus').start()
 	autocmd BufEnter,BufFilePost,DirChanged * lua require('gitstatus').refresh()
 	autocmd FocusGained * lua require('gitstatus').focus()
 	autocmd BufWritePost,FileWritePost * lua require('gitstatus').written(tonumber(vim.fn.expand('<abuf>')))
@@ -321,6 +325,8 @@ augroup aqsnow
 augroup END
 if v:vim_did_enter
 	lua require('gitstatus').start()
+else
+	autocmd aqsnow VimEnter * ++once lua require('gitstatus').start()
 endif
 
 function s:restore_cursor() abort

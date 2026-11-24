@@ -27,13 +27,6 @@ local function find_root(directory, done)
 	end))
 end
 
-local function worktree(directory, done)
-	find_root(directory, function(root)
-		local metadata = root and vim.fs.joinpath(root, '.git')
-		done(root ~= nil and directory ~= metadata and not vim.startswith(directory, metadata .. '/'))
-	end)
-end
-
 local function plain(text)
 	return (text:gsub('\27%[[0-?]*[ -/]*[@-~]', ''):gsub('\27[()][A-Za-z0-9]', ''):gsub('[\r\n]+$', ''))
 end
@@ -183,4 +176,9 @@ local function stop()
 	end
 end
 
-return { start = start, refresh = refresh, focus = focus, written = written, stop = stop, worktree = worktree }
+local function setup_diff()
+	vim.keymap.set('n', ']h', '/^@@<CR>', { buffer = true })
+	vim.keymap.set('n', '[h', '?^@@<CR>', { buffer = true })
+end
+
+return { start = start, refresh = refresh, focus = focus, written = written, stop = stop, setup_diff = setup_diff }
