@@ -28,7 +28,7 @@ function fzf_path_widget --argument-names widget
     end
     set -l global_dir "$nhooyr"
     set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
-    while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else; or string match -qr '^[[:alnum:]_]+=' -- "$tokens[1]"
+    while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else '--'; or string match -qr '^[[:alnum:]_]+=' -- "$tokens[1]"
         set -e tokens[1]
     end
     set -l type -fd

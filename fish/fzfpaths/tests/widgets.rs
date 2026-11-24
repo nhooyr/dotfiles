@@ -349,3 +349,17 @@ __fzf_parse_commandline
         b".\0--file=missing\0\0"
     );
 }
+
+#[test]
+fn command_position_ignores_only_leading_decorators() {
+    for commandline in ["command -- ", "exec -- ", "not command -- "] {
+        assert_eq!(run(commandline, "./script"), ("./script ".into(), true));
+    }
+    for commandline in ["git ls -- ", "command -- git ls -- "] {
+        assert_eq!(run(commandline, "./script"), ("./script ".into(), false));
+    }
+    assert_eq!(
+        run("command -- nvim ", "README.md"),
+        ("-- README.md ".into(), false)
+    );
+}
