@@ -159,6 +159,16 @@ sub editor_failure_keeps_script_without_command {
     like( $result->{stderr}, qr/editor failed; script kept at/, 'the retained script is identified' );
 }
 
+sub editor_without_options {
+    my ($self) = @_;
+    $self->{env}{EDITOR} = shell_quote("$self->{root}/editor bin/editor");
+    my $result = invoke($self);
+    is( $result->{returncode}, 0, $result->{stderr} );
+    my ($path) = shellwords( $result->{stdout} );
+    is_deeply( decode_json( read_file( $self->{env}{TEST_EDITOR_LOG} ) ),
+        [$path], 'an editor path containing spaces is executed directly without options' );
+}
+
 sub usage_and_missing_editor {
     my ($self) = @_;
     my $result = invoke( $self, '--help' );
@@ -186,6 +196,7 @@ run_cases(
         recursion_keeps_children_before_parents     => \&recursion_keeps_children_before_parents,
         editor_changes_wait_for_manual_execution    => \&editor_changes_wait_for_manual_execution,
         editor_failure_keeps_script_without_command => \&editor_failure_keeps_script_without_command,
+        editor_without_options                      => \&editor_without_options,
         usage_and_missing_editor                    => \&usage_and_missing_editor,
     },
     \&setup

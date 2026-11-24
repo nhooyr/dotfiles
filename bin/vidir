@@ -14,16 +14,21 @@ my ( $recursive, $help );
 Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case bundling require_order));
 GetOptions( 'r|recursive' => \$recursive, 'h|help' => \$help ) or exit 2;
 if ($help) {
-    print "usage: $name [-r] [DIR]\n\n",
-      "Edit a shell script of mv commands for DIR (default: the current directory).\n",
-      "The script includes hidden entries and uses relative filenames.\n\n",
-      "  -r, --recursive  Include descendants before their parent directories.\n",
-      "                   Directory symlinks are listed without following them.\n",
-      "  -h, --help       Show this help.\n\n",
-      "Move commands start commented out. Edit and uncomment the commands you want.\n",
-      "Open the script in \$EDITOR and wait. On successful editor exit, print its\n",
-      "quoted executable path. The script is kept for you to run, edit, or reuse;\n",
-      "no file operations run automatically. Exit the editor with an error to cancel.\n";
+    print <<"HELP";
+usage: $name [-r] [DIR]
+
+Edit a shell script of mv commands for DIR (default: the current directory).
+The script includes hidden entries and uses relative filenames.
+
+  -r, --recursive  Include descendants before their parent directories.
+                   Directory symlinks are listed without following them.
+  -h, --help       Show this help.
+
+Move commands start commented out. Edit and uncomment the commands you want.
+Open the script in \$EDITOR and wait. On successful editor exit, print its
+quoted executable path. The script is kept for you to run, edit, or reuse;
+no file operations run automatically. Exit the editor with an error to cancel.
+HELP
     exit 0;
 }
 die "usage: $name [-r] [DIR]\n" if @ARGV > 1;
@@ -58,21 +63,20 @@ sub directory_quote {
     return '"' . $label . $suffix . '"';
 }
 
-sub entries {
-    my ( $path, $prefix ) = @_;
+sub collect_paths {
+    my ( $path, $prefix, $paths ) = @_;
     opendir my $handle, $path or die "$name: $path: $!\n";
     my @names = sort grep { $_ ne '.' && $_ ne '..' } readdir $handle;
     closedir $handle or die "$name: $path: $!\n";
-    my @paths;
     for my $entry (@names) {
         my $relative = $prefix . $entry;
-        push @paths, entries( "$path/$entry", "$relative/" ) if $recursive && !-l "$path/$entry" && -d _;
-        push @paths, $relative;
+        collect_paths( "$path/$entry", "$relative/", $paths ) if $recursive && !-l "$path/$entry" && -d _;
+        push @$paths, $relative;
     }
-    return @paths;
 }
 
-my @paths     = entries( $directory, '' );
+my @paths;
+collect_paths( $directory, '', \@paths );
 my $prefix    = $directory eq '/' ? 'root' : basename($directory);
 my $temporary = tmpdir() . '/vidir';
 make_path( $temporary, { mode => 0700 } );
@@ -83,7 +87,7 @@ for my $path (@paths) {
     print {$file} "# mv -v -- $quoted $quoted\n";
 }
 close $file or die "$name: $script: $!\n";
-my $status = system { $editor[0] } @editor, $script;
+my $status = system @editor, $script;
 die "$name: could not run editor: $!\n" if $status == -1;
 if ($status) {
     warn "$name: editor failed; script kept at $script\n";
