@@ -49,7 +49,7 @@ local function complete(findstart, base)
 	for trigger, body in pairs(vim.tbl_extend('force', snippets.global, snippets[vim.bo.filetype] or {})) do
 		if trigger:sub(1, #base) == base then
 			local info = ' ' .. body:gsub('\n', '\n ')
-			matches[#matches + 1] = { word = trigger, menu = '[snips.lua]', info = info, user_data = 'snip', dup = 1 }
+			matches[#matches + 1] = { word = trigger, menu = '[snippets.lua]', info = info, user_data = 'snip', dup = 1 }
 		end
 	end
 	table.sort(matches, function(a, b) return a.word < b.word end)
@@ -57,9 +57,9 @@ local function complete(findstart, base)
 end
 
 vim.api.nvim_create_autocmd('CompleteDone', {
-	group = vim.api.nvim_create_augroup('aqsnow.snips', { clear = true }),
+	group = vim.api.nvim_create_augroup('aqsnow.snippets', { clear = true }),
 	callback = function()
-		if vim.v.completed_item.user_data == 'snip' then require('snips').expand() end
+		if vim.v.completed_item.user_data == 'snip' then require('snippets').expand() end
 	end,
 })
 

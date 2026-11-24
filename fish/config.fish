@@ -48,7 +48,7 @@ end
 abbrali e nvim
 abbrali ec v '"$dotfiles/fish/config.fish"'
 abbrali ev v '"$dotfiles/nvim/init.vim"'
-abbrali et v '"$dotfiles/nvim/lua/snips.lua"'
+abbrali et v '"$dotfiles/nvim/lua/snippets.lua"'
 abbrali cdd cdc '"$dotfiles"'
 abbr -a --command sudo vi nvim
 abbr -a --command sudo vim nvim

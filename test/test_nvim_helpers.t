@@ -100,8 +100,8 @@ end
 assert(remote, 'netrw keeps the scp handler for sshv')
 assert(package.loaded.rendezvous == nil, 'rendezvous stays unloaded at startup')
 assert(package.loaded.vidir == nil, 'vidir stays unloaded at startup')
-assert(package.loaded.snips == nil, 'snippets stay unloaded until completion or expansion')
-assert(package.loaded.fileline == nil, 'file locations stay unloaded for ordinary files')
+assert(package.loaded.snippets == nil, 'snippets stay unloaded until completion or expansion')
+assert(package.loaded.filelinecol == nil, 'file locations stay unloaded for ordinary files')
 assert(package.loaded.grep == nil, 'startup does not load a grep module')
 local grepprg = vim.fn.shellescape(vim.env.TEST_DOTFILES .. '/bin/vgrep')
 eq(vim.o.grepprg, grepprg, 'grep uses the fixed vgrep wrapper')
@@ -206,7 +206,7 @@ local expected = {
     'compiler|8| module',
 }
 vim.fn.setqflist({}, ' ', { items = items })
-local format = require('qf').fmt
+local format = require('quickfix').fmt
 eq(format({ quickfix = 1, id = 0, start_idx = 1, end_idx = #items }), expected,
     'quickfix abbreviates absolute paths while preserving help, modules, ranges, and types')
 eq(vim.api.nvim_buf_get_name(vim.fn.getqflist()[1].bufnr), project .. '/code.lua',
@@ -230,7 +230,7 @@ local title = ":'" .. project .. "/bin/vgrep' -P 'me' " .. home .. '/notes ' .. 
 local expected = ":'$TEST_PROJECT/bin/vgrep' -P 'me' ~/notes " .. outside
 vim.fn.setqflist({}, ' ', { title = title, items = { { filename = outside, lnum = 1, text = 'match' } } })
 vim.cmd.copen()
-eq(require('qf').title(), ' ' .. expected, 'quoted paths and unquoted paths use the longest directory alias')
+eq(require('quickfix').title(), ' ' .. expected, 'quoted paths and unquoted paths use the longest directory alias')
 local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).str
 assert(display:find(expected, 1, true), 'the quickfix statusline displays the shortened title: ' .. display)
 eq(vim.w.quickfix_title, title, 'formatting preserves the window title')
@@ -242,7 +242,7 @@ display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).st
 assert(display:find(expected, 1, true), 'location-list statuslines abbreviate paths too: ' .. display)
 eq(vim.fn.getloclist(0, { title = 0 }).title, title, 'formatting preserves the underlying location-list title')
 vim.w.quickfix_title = nil
-eq(require('qf').title(), '', 'a missing title remains empty')
+eq(require('quickfix').title(), '', 'a missing title remains empty')
 LUA
 }
 
@@ -282,7 +282,7 @@ sub coalesced_config_reload {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
 local sources = vim.g.test_config_sources
-for _, file in ipairs({ 'snips.lua', 'gitcommit.lua' }) do
+for _, file in ipairs({ 'snippets.lua', 'gitcommit.lua' }) do
     vim.cmd('doautocmd <nomodeline> BufWritePost '
         .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/lua/' .. file))
 end
@@ -762,17 +762,17 @@ LUA
 sub snippet_completion_reload {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
-assert(package.loaded.snips == nil, 'snippets begin unloaded')
+assert(package.loaded.snippets == nil, 'snippets begin unloaded')
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { '' })
 feed('itod<C-n><C-n><C-y><Esc>')
 eq(vim.api.nvim_get_current_line(), 'TODO: desc', 'accepting snippet completion expands it')
 vim.snippet.stop()
 feed('<Esc>')
-local count = #vim.api.nvim_get_autocmds({ group = 'aqsnow.snips', event = 'CompleteDone' })
+local count = #vim.api.nvim_get_autocmds({ group = 'aqsnow.snippets', event = 'CompleteDone' })
 eq(count, 1, 'completion has one snippet handler')
 vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
-assert(package.loaded.snips == nil, 'reload leaves snippets lazy')
-local helper = require('snips')
+assert(package.loaded.snippets == nil, 'reload leaves snippets lazy')
+local helper = require('snippets')
 local expansions, expand = 0, helper.expand
 helper.expand = function()
     expansions = expansions + 1
@@ -783,7 +783,7 @@ vim.api.nvim_win_set_cursor(0, { 1, 0 })
 feed('itod<C-n><C-n><C-y><Esc>')
 eq(vim.api.nvim_get_current_line(), 'TODO: desc', 'completion still expands after reload')
 eq(expansions, 1, 'completion uses the current module exactly once')
-eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow.snips', event = 'CompleteDone' }), count,
+eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow.snippets', event = 'CompleteDone' }), count,
     'reload does not duplicate snippet completion handlers')
 LUA
 }

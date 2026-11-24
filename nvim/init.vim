@@ -134,7 +134,7 @@ nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| silent update \
 nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
 command Cdh execute 'cd' fnameescape(expand(&filetype ==# 'dirvish' ? '%:p' : '%:p:h'))
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
-nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snips.lua<CR>
+nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snippets.lua<CR>
 " Local directories use Dirvish.
 " Keep these settings for netrw's remote browsing (e.g. scp:// via sshv).
 let g:netrw_banner = 0
@@ -222,7 +222,7 @@ nnoremap <Leader>d <Cmd>execute '.,.+'.(v:count1-1).'t.'<CR>
 
 set completeopt=menuone,noselect,popup
 set complete+=U,kspell,i,d,f,o
-set complete^=Fv:lua.require'snips'.complete
+set complete^=Fv:lua.require'snippets'.complete
 set pumheight=8
 
 inoremap <C-n> <Cmd>set spell<CR><C-n>
@@ -278,7 +278,7 @@ nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'cope
 nnoremap <Leader>l <Cmd>execute getloclist(0, {'winid': 0}).winid ? 'lclose' : 'lopen'<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
 nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
-let &quickfixtextfunc = "v:lua.require'qf'.fmt"
+let &quickfixtextfunc = "v:lua.require'quickfix'.fmt"
 highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=3
 
@@ -292,10 +292,10 @@ for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
 endfor
 let &grepprg = shellescape(fnamemodify(s:config_dir, ':h') . '/bin/vgrep')
 set grepformat=%f:%l:%c:%m
-inoremap <M-j> <Cmd>lua require('snips').expand_or_jump()<CR>
-snoremap <M-j> <Cmd>lua require('snips').jump(1)<CR>
-inoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
-snoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
+inoremap <M-j> <Cmd>lua require('snippets').expand_or_jump()<CR>
+snoremap <M-j> <Cmd>lua require('snippets').jump(1)<CR>
+inoremap <M-k> <Cmd>lua require('snippets').jump(-1)<CR>
+snoremap <M-k> <Cmd>lua require('snippets').jump(-1)<CR>
 
 function s:is_config_file(path) abort
 	let path = resolve(a:path)
@@ -315,7 +315,7 @@ augroup aqsnow
 	autocmd ModeChanged,RecordingEnter * call <SID>set_mode_highlight(v:true)
 	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
 	autocmd QuickFixCmdPost grep ++nested copen
-	autocmd FileType qf let &l:statusline = "%t%{v:lua.require'qf'.title()} %=%-15(%l,%c%V%) %P"
+	autocmd FileType qf let &l:statusline = "%t%{v:lua.require'quickfix'.title()} %=%-15(%l,%c%V%) %P"
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
@@ -327,7 +327,7 @@ augroup aqsnow
 	autocmd filetype fish setlocal et ts=4 sw=0 formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd FileType help setlocal concealcursor=nc
-	autocmd BufNewFile *:[0-9]* nested lua require('fileline').open()
+	autocmd BufNewFile *:[0-9]* nested lua require('filelinecol').open()
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
 	autocmd BufRead,BufNewFile *.json setlocal filetype=json5
 	autocmd BufReadPost * call <SID>restore_cursor()

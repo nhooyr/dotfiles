@@ -245,7 +245,7 @@ sub shared_directory {
 sub deepest_shared_directory {
     my ($self) = @_;
     seed($self);
-    put( $self, $_, "new\n" ) for qw(nvim/lua/foo.lua nvim/lua/snips/bar.lua);
+    put( $self, $_, "new\n" ) for qw(nvim/lua/foo.lua nvim/lua/snippets/bar.lua);
     git( $self, 'add', 'nvim' );
     prefixed( edit( $self, 'commit' ), 'nvim/lua' );
 }
