@@ -62,7 +62,7 @@ sub quote {
     return "'$value'";
 }
 
-sub directory_quote {
+sub path_quote {
     my ($path) = @_;
     my ( $label, $prefix ) = ( '', '' );
     for my $variable ( split /:/, $ENV{AQSNOW_DIRALIS} // '' ) {
@@ -155,7 +155,7 @@ my $prefix    = $directory eq '/' ? 'root' : basename($directory);
 my $temporary = tmpdir() . '/vidir';
 make_path( $temporary, { mode => 0700 } );
 my ( $file, $script ) = tempfile( "$prefix.XXXXXX", SUFFIX => '.sh', DIR => $temporary, UNLINK => 0 );
-print {$file} "#!/bin/sh\nset -eu\ncd -- ", directory_quote($directory), "\n";
+print {$file} "#!/bin/sh\nset -eu\ncd -- ", path_quote($directory), "\n";
 write_paths( $directory, '', $file );
 if ( defined $ignore_pid ) {
     close $ignore_input                      or die "$name: close git input: $!\n";
@@ -172,4 +172,4 @@ if ($status) {
     exit( ( $status & 127 ) ? 128 + ( $status & 127 ) : $status >> 8 );
 }
 chmod 0700, $script or die "$name: $script: $!\n";
-print quote($script), "\n";
+print path_quote( abs_path($script) ), "\n";

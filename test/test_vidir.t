@@ -63,16 +63,28 @@ sub invoke {
 }
 
 sub script_path {
-    my ( $self, $result ) = @_;
+    my ( $self, $result, $options ) = @_;
+    $options //= ['--test-option'];
     is( $result->{returncode}, 0, $result->{stderr} );
-    my @command = shellwords( $result->{stdout} );
+    my $expanded = run_command(
+        [ 'sh', '-c', q{printf '%s\0' } . $result->{stdout} ],
+        { cwd => $self->{root}, env => $self->{env}, check => 1 }
+    );
+    my @command = split /\0/, $expanded->{stdout};
     is( scalar @command, 1, 'prints one shell-quoted executable path' );
     ok( -x $command[0], 'the generated script is executable' );
-    is( dirname( $command[0] ), "$self->{env}{TMPDIR}/vidir", 'scripts use the vidir temporary directory' );
-    is_deeply(
-        decode_json( read_file( $self->{env}{TEST_EDITOR_LOG} ) ),
-        [ '--test-option', $command[0] ],
-        'the editor receives its configured arguments and script path'
+    is(
+        absolute_path( dirname( $command[0] ) ),
+        absolute_path("$self->{env}{TMPDIR}/vidir"),
+        'scripts use the vidir temporary directory'
+    );
+    my @arguments = @{ decode_json( read_file( $self->{env}{TEST_EDITOR_LOG} ) ) };
+    my $path      = pop @arguments;
+    is_deeply( \@arguments, $options, 'the editor receives its configured arguments' );
+    is(
+        absolute_path($path),
+        absolute_path( $command[0] ),
+        'the printed command resolves to the edited script'
     );
     return $command[0];
 }
@@ -131,6 +143,36 @@ sub quotes_ascii_directory_aliases {
     my $path  = script_path( $self, invoke( $self, $directory ) );
     my @lines = split /\n/, read_file($path);
     is( $lines[2], 'cd -- ~', 'HOME retains its unquoted tilde expansion' );
+}
+
+sub printed_script_uses_directory_aliases {
+    my ($self) = @_;
+    my $physical = "$self->{root}/physical temp";
+    make_path("$physical/vidir");
+    symlink 'physical temp', "$self->{root}/temp link" or die $!;
+    $self->{env}{TMPDIR}       = "$self->{root}/temp link";
+    $self->{env}{TEST_SCRIPTS} = "$self->{env}{TMPDIR}/vidir";
+    $self->{directory}         = "$self->{root}/" . q{project's "$(touch injected)" `printf danger` [x]};
+    make_path( $self->{directory} );
+
+    for my $case (
+        [ 'HOME:TMPDIR',              qr/\A"\$TMPDIR\/vidir\// ],
+        [ 'HOME:TMPDIR:TEST_SCRIPTS', qr/\A"\$TEST_SCRIPTS\// ],
+        [ 'HOME',                     qr/\A~\// ],
+        [ '',                         qr/\A'\// ],
+      )
+    {
+        $self->{env}{AQSNOW_DIRALIS} = $case->[0];
+        my $result = invoke($self);
+        like( $result->{stdout}, $case->[1],
+            'the printed script uses the longest available directory alias' );
+        my $path = script_path( $self, $result );
+        my $run =
+          run_command( [ 'sh', '-c', $result->{stdout} ], { cwd => $self->{root}, env => $self->{env} } );
+        is( $run->{returncode}, 0, 'the printed command runs from another directory' );
+        ok( -f $path,                     'executing the printed command retains the script' );
+        ok( !-e "$self->{root}/injected", 'metacharacters in the basename stay literal' );
+    }
 }
 
 sub listed_paths {
@@ -436,11 +478,7 @@ sub editor_failure_keeps_script_without_command {
 sub editor_without_options {
     my ($self) = @_;
     $self->{env}{EDITOR} = shell_quote("$self->{root}/editor bin/editor");
-    my $result = invoke($self);
-    is( $result->{returncode}, 0, $result->{stderr} );
-    my ($path) = shellwords( $result->{stdout} );
-    is_deeply( decode_json( read_file( $self->{env}{TEST_EDITOR_LOG} ) ),
-        [$path], 'an editor path containing spaces is executed directly without options' );
+    script_path( $self, invoke($self), [] );
 }
 
 sub usage_and_missing_editor {
@@ -470,6 +508,7 @@ run_cases(
     {
         lists_immediate_entries_and_quotes_names    => \&lists_immediate_entries_and_quotes_names,
         quotes_ascii_directory_aliases              => \&quotes_ascii_directory_aliases,
+        printed_script_uses_directory_aliases       => \&printed_script_uses_directory_aliases,
         recursion_keeps_parents_before_children     => \&recursion_keeps_parents_before_children,
         editor_changes_wait_for_manual_execution    => \&editor_changes_wait_for_manual_execution,
         editor_failure_keeps_script_without_command => \&editor_failure_keeps_script_without_command,
