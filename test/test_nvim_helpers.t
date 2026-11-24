@@ -151,6 +151,42 @@ check(vim.api.nvim_eval_statusline('%f', {}).str, 'special buffers retain the na
 LUA
 }
 
+sub quickfix_directory_aliases {
+    my ($self) = @_;
+    $self->{env}{HOME} = absolute_path( $self->{env}{HOME} );
+    make_path("$self->{env}{HOME}/project");
+    $self->{env}{TEST_PROJECT}   = absolute_path("$self->{env}{HOME}/project");
+    $self->{env}{AQSNOW_DIRALIS} = 'HOME:TEST_PROJECT';
+    run_script( $self, <<'LUA' );
+local home, project = vim.env.HOME, vim.env.TEST_PROJECT
+local outside = vim.fn.resolve(vim.env.TEST_ORIGINAL)
+vim.cmd.cd(project)
+local items = {
+    { filename = 'code.lua', lnum = 2, end_lnum = 4, type = 'E', nr = 7, text = '  first\n  line' },
+    { filename = home .. '/notes.txt', lnum = 5, text = 'home' },
+    { filename = outside, lnum = 6, text = 'outside' },
+    { filename = project .. '/help.txt', lnum = 7, type = '\1', text = 'help' },
+    { filename = project .. '/code.lua', lnum = 8, module = 'compiler', text = 'module' },
+}
+local expected = {
+    '$TEST_PROJECT/code.lua|2-4 error   7| first line',
+    '~/notes.txt|5| home',
+    outside .. '|6| outside',
+    'help.txt|7| help',
+    'compiler|8| module',
+}
+vim.fn.setqflist({}, ' ', { items = items })
+local format = require('qf').fmt
+eq(format({ quickfix = 1, id = 0, start_idx = 1, end_idx = #items }), expected,
+    'quickfix abbreviates absolute paths while preserving help, modules, ranges, and types')
+eq(vim.api.nvim_buf_get_name(vim.fn.getqflist()[1].bufnr), project .. '/code.lua',
+    'display aliases do not change the file opened by quickfix')
+vim.fn.setloclist(0, {}, ' ', { items = items })
+eq(format({ quickfix = 0, winid = vim.api.nvim_get_current_win(), id = 0, start_idx = 1, end_idx = #items }),
+    expected, 'location lists use the same directory aliases')
+LUA
+}
+
 sub file_locations {
     my ($self)  = @_;
     my $file    = "$self->{temporary}/file name.fish";
@@ -1230,6 +1266,7 @@ run_cases(
     {
         startup_and_config_paths                => \&startup_and_config_paths,
         filename_display                        => \&filename_display,
+        quickfix_directory_aliases              => \&quickfix_directory_aliases,
         file_locations                          => \&file_locations,
         coalesced_config_reload                 => \&coalesced_config_reload,
         nested_module_reload                    => \&nested_module_reload,

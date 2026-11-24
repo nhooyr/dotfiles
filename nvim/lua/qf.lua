@@ -19,9 +19,9 @@ local function fmt(info)
 			local cache = help and help_names or names
 			local name = item.module ~= '' and item.module or cache[item.bufnr]
 			if not name then
-				name = item.bufnr == 0 and '' or fn.bufname(item.bufnr)
+				name = item.bufnr == 0 and '' or vim.api.nvim_buf_get_name(item.bufnr)
 				if help then name = fn.fnamemodify(name, ':t')
-				elseif name:sub(1, 1) == '/' then name = fn.fnamemodify(name, ':.') end
+				elseif name:sub(1, 1) == '/' then name = require('dirali').shorten(name) end
 				cache[item.bufnr] = name
 			end
 			local position = range(item.lnum, item.end_lnum)
