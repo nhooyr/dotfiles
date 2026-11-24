@@ -295,7 +295,7 @@ fg+:black:regular:strip,bg+:yellow,hl+:black:regular:underline:strip"
 set -gx FZF_CTRL_R_OPTS '--with-nth 3.. --bind "alt-t:change-with-nth(2..|1,3..|3..),ctrl-x:trigger(shift-delete)"'
 for mode in default insert
     bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
-    bind -M "$mode" alt-o fzf-recent-widget
+    bind -M "$mode" alt-o 'fzf_accept_and_run fzf-recent-widget'
     bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
     bind -M "$mode" alt-v 'fzf_accept_and_run fzf-path-widget'
     bind -M "$mode" alt-c 'fzf_accept_and_run fzf-cd-widget'
