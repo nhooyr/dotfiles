@@ -1,6 +1,11 @@
 - Do not prefix Git branch names with `codex/` unless I explicitly request it.
 - Never automatically create a PR. You can create the branch and even the commits but never even push without
   my explicit approval.
+- Group related changes and their regression tests into separate logical commits.
+- Unless I explicitly ask you to commit, provide a Fish script that stages one group at a time and opens
+  `git commit` with a suggested short title and body, so I can review and edit each message.
+- Validate the commit sequence in a temporary checkout first. Preserve the worktree and unrelated changes,
+  and stop the script on failure.
 - Use `$(...)` instead of `(...)` for Fish command substitutions.
 - Quote scalar variable expansions in shell code wherever possible.
 - Prefer single quotes. Use double quotes only when variable expansion or escaping requires them.
