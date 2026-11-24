@@ -11,7 +11,7 @@ my $helpers = join "\n", map {
     my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
     die "Missing Fish function $_\n" unless defined $function;
     $function;
-} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested realpathc __grep_smart_case grep reload);
+} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested realpathc __grep_smart_case grep reload f);
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 $helpers .= read_file("$root/fish/functions/sshv.fish");
 my $cd = read_file("$root/fish/cd.fish");
@@ -157,6 +157,26 @@ FISH
         'ordinary launches and native options reach Neovim unchanged'
     );
     is( $result->{stdout}, "23\n23\n23\n23\n", 'native exit statuses are preserved' );
+}
+
+sub find_names_include_directories_and_ignored_paths {
+    my ($self) = @_;
+    plan skip_all => 'fd is needed to test filename search' unless which('fd');
+    make_path("$self->{root}/match-dir");
+    write_file( "$self->{root}/.gitignore",    "*match*\n" );
+    write_file( "$self->{root}/match-file",    'contents' );
+    write_file( "$self->{root}/.match-hidden", 'contents' );
+    write_file( "$self->{root}/Match-upper",   'contents' );
+    my $result = fish( $self, <<'FISH' );
+f '*match*' | sort
+printf 'uppercase:\n'
+f '*Match*'
+FISH
+    is(
+        $result->{stdout},
+        ".match-hidden\nMatch-upper\nmatch-dir/\nmatch-file\nuppercase:\nMatch-upper\n",
+        'fd finds files, directories, hidden and ignored entries with glob smart case'
+    );
 }
 
 sub rendezvous_routes_both_file_pickers {
@@ -443,6 +463,8 @@ FISH
 
 run_cases(
     {
+        find_names_include_directories_and_ignored_paths =>
+          \&find_names_include_directories_and_ignored_paths,
         rendezvous_routes_both_file_pickers               => \&rendezvous_routes_both_file_pickers,
         sshv_preserves_remote_paths                       => \&sshv_preserves_remote_paths,
         sshv_stops_on_ssh_failure                         => \&sshv_stops_on_ssh_failure,

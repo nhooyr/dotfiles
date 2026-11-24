@@ -135,7 +135,7 @@ alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git
     --colors=match:bg:yellow \
 "
 function f
-    find . -iname "*$argv*" | grepf "$argv"
+    fd --hidden --no-ignore --glob -- "$argv"
 end
 alias bigdirs='du -hd 1 | sort -hr | head -n 16'
 abbr -a --set-cursor f "f '%'"
