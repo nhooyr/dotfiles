@@ -33,7 +33,7 @@ local function plain(text)
 end
 
 local function same_file(a, b)
-	return a and a.ino == b.ino and a.size == b.size
+	return a and b and a.dev == b.dev and a.ino == b.ino and a.size == b.size
 		and a.mtime.sec == b.mtime.sec and a.mtime.nsec == b.mtime.nsec
 end
 
@@ -81,22 +81,44 @@ local function update(root, cached)
 		return
 	end
 	if queued_timer then vim.fn.timer_stop(queued_timer) queued_timer = nil end
+	local directory = uv.fs_realpath(root)
+	local identity = directory and uv.fs_stat(vim.fs.joinpath(directory, '.git'))
+	if not identity then return end
 	state.started = now
 	local request = { cached = cached }
 	cached.pending = nil
 	job = request
-	local ok, process = pcall(vim.system, {
-		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
-	}, { text = true, detach = true, cwd = root, env = { TERM = 'dumb', GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
+	local function finish()
 		if job ~= request then return end
 		job = nil
+		refresh()
+	end
+	local ok, process = pcall(vim.system, {
+		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
+	}, { text = true, detach = true, cwd = directory, env = { GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
+		if job ~= request then return end
 		if request.obsolete then
 			cached.pending = true
 		elseif result.code == 0 and result.stdout and result.stdout ~= '' then
 			local text = plain(result.stdout)
-			if text ~= '' then cached.prompt, cached.live = text, true end
+			if text ~= '' then
+				cached.prompt, cached.live = text, true
+				if same_file(identity, uv.fs_stat(vim.fs.joinpath(directory, '.git'))) then
+					local saved, writer = pcall(vim.system, {
+						'fish', '--no-config', '-c',
+						'source "$argv[1]"; and aqsnow_vcs_prompt_cache "$argv[2]" "$argv[3]"',
+						vim.env.dotfiles .. '/fish/functions/aqsnow_vcs_prompt_cache.fish',
+						directory, result.stdout:gsub('[\r\n]+$', ''),
+					}, { detach = true }, vim.schedule_wrap(finish))
+					if saved then
+						request.process = writer
+						refresh()
+						return
+					end
+				end
+			end
 		end
-		refresh()
+		finish()
 	end))
 	if ok then request.process = process else job = nil end
 end

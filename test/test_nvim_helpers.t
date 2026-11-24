@@ -537,6 +537,7 @@ sub gitstatus_event_queue {
         make_path("$directory/.git");
         write_file( "$directory/file.txt", "content\n" );
     }
+    write_file( "$repo/.fish_git_prompt", 'old cached prompt' );
     make_path("$repo-other/nested");
     write_file( "$repo-other/nested/file.txt", "content\n" );
     $self->{env}{TEST_STATUS_REPO}  = $repo;
@@ -554,8 +555,14 @@ vim.fn.timer_start = function(delay, callback, options)
     return serial
 end
 vim.fn.timer_stop = function(id) timers[id] = nil end
-vim.system = function(_, options, callback)
-    calls[#calls + 1] = { time = now, cwd = options.cwd, done = callback }
+local system = vim.system
+vim.system = function(command, options, callback)
+    if command[4]:find('aqsnow_vcs_prompt_cache', 1, true) then
+        local process = system(command, options)
+        callback(process:wait())
+        return process
+    end
+    calls[#calls + 1] = { time = now, cwd = options.cwd, env = options.env, done = callback }
     return { is_closing = function() return true end }
 end
 local function wait_for(check, message)
@@ -567,11 +574,15 @@ end
 local function event(name)
     vim.api.nvim_exec_autocmds(name, { group = 'aqsnow.gitstatus' })
 end
-local function finish(index)
-    calls[index].done({ code = 0, stdout = ' (result-' .. index .. ')' })
+local function finish(index, result)
+    calls[index].done(result or { code = 0, stdout = ' (result-' .. index .. ')' })
     local done = false
-    vim.schedule(function() done = true end)
+    vim.schedule(function() vim.schedule(function() done = true end) end)
     wait_for(function() return done end, 'process completion is handled')
+end
+local function disk_prompt(directory)
+    local path = directory .. '/.fish_git_prompt'
+    return vim.fn.filereadable(path) == 1 and table.concat(vim.fn.readfile(path, 'b'), '\n') or nil
 end
 local function advance(time)
     now = time
@@ -587,7 +598,11 @@ helper.setup()
 wait_for(function() return #calls == 1 end, 'startup refreshes once')
 eq(vim.fn.resolve(calls[1].cwd), vim.fn.resolve(vim.env.TEST_STATUS_REPO),
     'status is computed in the current repository')
-finish(1)
+eq(calls[1].env.TERM, nil, 'status inherits terminal capabilities for Fish colors')
+local colored = '\27[32m (main)\27[0m'
+finish(1, { code = 0, stdout = colored .. '\n' })
+eq(disk_prompt(vim.env.TEST_STATUS_REPO), colored, 'live status preserves colors without a trailing newline')
+local cache_inode = vim.uv.fs_stat(vim.env.TEST_STATUS_REPO .. '/.fish_git_prompt').ino
 eq(timer_count(), 0, 'completion alone does not queue another refresh')
 
 now = 100
@@ -599,7 +614,9 @@ advance(1999)
 eq(#calls, 1, 'the queued refresh waits for the full interval')
 advance(2000)
 wait_for(function() return #calls == 2 end, 'one trailing refresh handles the burst')
-finish(2)
+finish(2, { code = 0, stdout = colored })
+eq(vim.uv.fs_stat(vim.env.TEST_STATUS_REPO .. '/.fish_git_prompt').ino, cache_inode,
+    'unchanged status does not replace the cache file')
 eq(timer_count(), 0, 'the burst leaves no recurring timer')
 advance(9000)
 eq(#calls, 2, 'an idle editor does not refresh')
@@ -613,7 +630,9 @@ advance(12000)
 eq(#calls, 3, 'an in-flight request is never duplicated')
 finish(3)
 wait_for(function() return #calls == 4 end, 'a dirty in-flight request gets one follow-up')
-finish(4)
+eq(disk_prompt(vim.env.TEST_STATUS_REPO), colored, 'an obsolete result leaves the cache intact')
+finish(4, { code = 1, stdout = 'failure output' })
+eq(disk_prompt(vim.env.TEST_STATUS_REPO), colored, 'failed status leaves the cache intact')
 eq(timer_count(), 0, 'the follow-up becomes idle after completion')
 
 now = 12100
@@ -624,17 +643,25 @@ advance(14000)
 wait_for(function() return #calls == 5 end, 'the queued refresh updates the new repository')
 eq(vim.fn.resolve(calls[5].cwd), vim.fn.resolve(vim.env.TEST_STATUS_OTHER),
     'the queued refresh follows the current repository')
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_REPO .. '/file.txt'))
 finish(5)
+eq(disk_prompt(vim.env.TEST_STATUS_OTHER), ' (result-5)',
+    'a result is written to its original repository after switching buffers')
+eq(disk_prompt(vim.env.TEST_STATUS_REPO), colored, 'another repository is not overwritten')
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_OTHER .. '/nested/file.txt'))
 
 now = 14100
 vim.fn.mkdir(vim.env.TEST_STATUS_OTHER .. '/nested/.git')
+vim.fn.writefile({ 'previous nested status' }, vim.env.TEST_STATUS_OTHER .. '/nested/.fish_git_prompt', 'b')
 event('ShellCmdPost')
 wait_for(function() return timer_count() == 1 end, 'repository changes queue a refresh')
 advance(16000)
 wait_for(function() return #calls == 6 end, 'a shell command discovers a newly created repository')
 eq(vim.fn.resolve(calls[6].cwd), vim.fn.resolve(vim.env.TEST_STATUS_OTHER .. '/nested'),
     'repository lookup does not reuse the old parent root')
-finish(6)
+finish(6, { code = 0, stdout = '' })
+eq(disk_prompt(vim.env.TEST_STATUS_OTHER .. '/nested'), 'previous nested status',
+    'empty status leaves the cache intact')
 
 now = 16100
 vim.api.nvim_exec_autocmds('CmdlineLeave', { group = 'aqsnow.gitstatus', pattern = ':' })
@@ -648,6 +675,12 @@ eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow.gitstatus', event = 'SafeState' 
     'stopping clears deferred command refreshes')
 advance(20000)
 eq(#calls, 6, 'a stopped instance cannot refresh later')
+helper.setup()
+wait_for(function() return #calls == 7 end, 'restarting can request fresh status')
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+finish(7)
+eq(disk_prompt(vim.env.TEST_STATUS_OTHER .. '/nested'), 'previous nested status',
+    'a stopped request leaves the cache intact')
 for index = 2, #calls do
     assert(calls[index].time - calls[index - 1].time >= 2000, 'refresh starts stay two seconds apart')
 end

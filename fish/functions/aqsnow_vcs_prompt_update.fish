@@ -1,3 +1,5 @@
+source "$(status dirname)/aqsnow_vcs_prompt_cache.fish"
+
 set -g __aqsnow_vcs_directory ''
 set -g __aqsnow_vcs_dirty 1
 if set -q __aqsnow_vcs_generation
@@ -130,26 +132,7 @@ function aqsnow_vcs_prompt_done --on-signal USR1
         set -g __aqsnow_vcs_dirty 1
         set -e __aqsnow_vcs_checked_generation
     else if test "$code" = 0; and test -n "$value"
-        if test -n "$__aqsnow_vcs_request_root"; and test -w "$__aqsnow_vcs_request_root"
-            set -l cache "$__aqsnow_vcs_request_root/.fish_git_prompt"
-            begin
-                set -l saved
-                if test -r "$cache"
-                    set saved "$(string collect < "$cache")"
-                end
-                if test "$saved" != "$value"
-                    # Keep the temporary file covered by the same Git ignore pattern.
-                    set -l temporary "$(command mktemp -d "$__aqsnow_vcs_request_root/.fish-prompt-XXXXXX")"
-                    if test -n "$temporary"
-                        if printf '%s' "$value" >"$temporary/.fish_git_prompt"
-                            command mv -f -- "$temporary/.fish_git_prompt" "$cache"
-                        end
-                        command rm -f -- "$temporary/.fish_git_prompt"
-                        command rmdir -- "$temporary"
-                    end
-                end
-            end 2>/dev/null
-        end
+        aqsnow_vcs_prompt_cache "$__aqsnow_vcs_request_root" "$value" 2>/dev/null
         if test "$__aqsnow_vcs_request_root" = "$__aqsnow_vcs_root"; and test "$__aqsnow_vcs_request_directory" = "$PWD"
             aqsnow_vcs_prompt_display "$value"
         end
