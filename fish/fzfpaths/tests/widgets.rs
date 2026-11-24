@@ -333,7 +333,7 @@ test -d "$paths[-1]"; or exit 1
 }
 
 #[test]
-fn completion_preserves_quoted_arguments() {
+fn completion_preserves_quoted_arguments_and_caller_variables() {
     let script = r#"
 function commandline
     switch "$argv[1]"
@@ -368,7 +368,9 @@ function fzf
 end
 set -g COLUMNS 80
 set -g FZF_DEFAULT_OPTS
+set -g list sentinel
 fzf_complete
+test "$list" = sentinel; or exit 1
 printf '%s' "$inserted"
 "#;
     for argument in [
