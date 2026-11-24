@@ -107,6 +107,27 @@ FISH
     is( $result->{stderr}, "ssh: Connection refused\n", 'the SSH diagnostic is preserved' );
 }
 
+sub sshv_stops_on_missing_paths {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+function ssh
+    command sh -c "$argv[3]"
+end
+function nvim
+    printf 'editor opened\n'
+end
+sshv server 'missing path'
+printf '%s\n' "$status"
+FISH
+    like( $result->{stdout}, qr/\A[1-9][0-9]*\n\z/,
+        'a missing remote path fails without opening the editor' );
+    like(
+        $result->{stderr},
+        qr/missing path.*No such file|No such file.*missing path/,
+        'the remote filesystem error is preserved'
+    );
+}
+
 sub nvim_preserves_native_command_line_options {
     my ($self) = @_;
     $self->{env}{TEST_NVIM_WRAPPER} = "$root/fish/functions/nvim.fish";
@@ -373,6 +394,7 @@ run_cases(
     {
         sshv_preserves_remote_paths                       => \&sshv_preserves_remote_paths,
         sshv_stops_on_ssh_failure                         => \&sshv_stops_on_ssh_failure,
+        sshv_stops_on_missing_paths                       => \&sshv_stops_on_missing_paths,
         nvim_preserves_native_command_line_options        => \&nvim_preserves_native_command_line_options,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
