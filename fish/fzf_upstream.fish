@@ -80,12 +80,10 @@ function fzf-history-widget -d "Show command history"
     set -l -- total_lines (count $command_line)
     set -l -- fzf_query (string escape -- $command_line[$current_line])
     # Pass the current colors to the preview's fish_indent builtin.
-    set -l -- color_init
-    for name in $(set --names | string match -- 'fish_color_*')
-        set -a -- color_init $(string join ' ' -- set -g -- "$name" $(string escape -n -- $$name))
-    end
-    set -- color_init $(string join '; ' -- $color_init)
-    set -l -- fzf_shell $(string join ' ' -- $(string escape -n -- $(status fish-path) -C "$color_init" -c))
+    set -l -- color_init "$(for name in $(set --names | string match -- 'fish_color_*')
+        string join ' ' -- set -g -- "$name" $(string escape -- $$name)
+    end)"
+    set -l -- fzf_shell $(string join ' ' -- $(string escape -- $(status fish-path) -C "$color_init" -c))
 
     set -lx -- FZF_DEFAULT_COMMAND "builtin history -z --show-time=(set_color $fish_color_comment 2>/dev/null; or set_color normal)\"%F %a %T%t%s%t\"(set_color normal)"
 
