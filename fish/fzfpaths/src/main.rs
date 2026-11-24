@@ -530,6 +530,24 @@ fn add_excludes(root: &Path, path: &Path, ignores: &mut LocalIgnores) {
     }
 }
 
+fn config_home() -> Option<PathBuf> {
+    env::var_os("XDG_CONFIG_HOME")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+}
+
+fn global_ignores(root: &Path) -> io::Result<Gitignore> {
+    let mut builder = GitignoreBuilder::new(root);
+    if let Some(path) = config_home().map(|config| config.join("fzfpaths/ignore"))
+        && path.try_exists()?
+        && let Some(error) = builder.add(path)
+    {
+        return Err(io::Error::other(error));
+    }
+    builder.build().map_err(io::Error::other)
+}
+
 fn working_directory() -> io::Result<PathBuf> {
     let cwd = env::current_dir()?;
     if let Some(pwd) = env::var_os("PWD").map(PathBuf::from)
@@ -840,10 +858,7 @@ impl Scanner {
             matchers: Vec::new(),
             case_insensitive,
         };
-        let default = env::var_os("XDG_CONFIG_HOME")
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from)
-            .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+        let default = config_home()
             .map(|config| config.join("git/ignore"))
             .unwrap_or_default();
         let mut args = ["config", "--null", "--path", "--default"]
@@ -939,6 +954,19 @@ impl Scanner {
             style.binary_executable = !has_shebang(&path).unwrap_or(false);
         }
         self.emit_path(path, local, style)
+    }
+
+    fn global_candidate(&self, path: PathBuf, ignores: &Gitignore) -> io::Result<()> {
+        let Some(info) = FileInfo::new(&path) else {
+            return Ok(());
+        };
+        if ignores
+            .matched_path_or_any_parents(&path, info.followed().is_dir())
+            .is_ignore()
+        {
+            return Ok(());
+        }
+        self.candidate(path, false, Some(info))
     }
 
     fn walk(&self, path: PathBuf) -> io::Result<()> {
@@ -1059,17 +1087,19 @@ impl Scanner {
             return Ok(());
         }
         let global_dir = normalize(&self.cwd.join(global_dir));
-        let repos: Vec<_> = fs::read_dir(global_dir)?
+        let ignores = global_ignores(&global_dir)?;
+        let repos: Vec<_> = fs::read_dir(&global_dir)?
             .flatten()
             .filter(|entry| !entry.file_name().as_bytes().starts_with(b"."))
             .map(|entry| entry.path())
             .filter(|repo| repo.join(".git").exists())
+            .filter(|repo| !ignores.matched_path_or_any_parents(repo, true).is_ignore())
             .collect();
         let workers = parallelism().min(repos.len());
         parallel(repos, workers, |repo| {
             self.check_cancelled()?;
             if !self.files_only {
-                self.candidate(repo.clone(), false, None)?;
+                self.global_candidate(repo.clone(), &ignores)?;
             }
             let mut parents = HashSet::new();
             // --recurse-submodules cannot be combined with --others.
@@ -1105,7 +1135,7 @@ impl Scanner {
                     };
                     let file = Path::new(OsStr::from_bytes(path));
                     if !regular_file {
-                        self.candidate(repo.join(file), false, None)?;
+                        self.global_candidate(repo.join(file), &ignores)?;
                     }
                     if !self.files_only {
                         for parent in file
@@ -1116,7 +1146,7 @@ impl Scanner {
                             if !parents.insert(parent.to_path_buf()) {
                                 break;
                             }
-                            self.candidate(repo.join(parent), false, None)?;
+                            self.global_candidate(repo.join(parent), &ignores)?;
                         }
                     }
                 }

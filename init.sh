@@ -22,6 +22,8 @@ chmod 700 ~/.ssh
 chmod 600 ./ssh/config
 
 ./fish/fzfpaths/install.sh
+dotln ./fish/fzfpaths_ignore ~/.config/fzfpaths/ignore
+
 ./nvim/app/install.sh --set-defaults
 ./codex/install.sh
 ./vscode/theme/install.sh

@@ -773,6 +773,169 @@ fn global_untracked_paths_respect_git_ignores_and_file_types() {
 }
 
 #[test]
+fn global_ignore_hides_subtrees_without_filtering_local_paths() {
+    let fixture = Fixture::new();
+    let config = fixture.root.join("config");
+    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::write(
+        config.join("fzfpaths/ignore"),
+        "/project/src/\n/project/android/\n/project/ios/\n",
+    )
+    .unwrap();
+    for directory in ["src", "android", "ios"] {
+        write(&fixture.repo, &format!("{directory}/tracked/child"));
+    }
+    fixture.git(&["add", "--", "src", "android", "ios"]);
+    for directory in ["src", "android", "ios"] {
+        write(&fixture.repo, &format!("{directory}/untracked/child"));
+    }
+
+    let other = fixture.global_dir.join("other");
+    checked(Command::new("git").args(["init", "-q"]).arg(&other));
+    write(&other, "src/visible");
+
+    for kind in ["-f", "-d", "-fd"] {
+        for aliases in [vec![], vec![("$project", fixture.repo.as_path())]] {
+            let prefix = if aliases.is_empty() {
+                fixture.repo.clone()
+            } else {
+                PathBuf::from("$project")
+            };
+            let paths = fixture.run(
+                fixture
+                    .command(&fixture.repo, &fixture.global_dir, kind, &aliases)
+                    .env("XDG_CONFIG_HOME", &config),
+            );
+            for directory in ["src", "android", "ios"] {
+                assert!(
+                    !paths
+                        .iter()
+                        .any(|path| Path::new(path).starts_with(prefix.join(directory))),
+                    "{kind}: global {directory} was shown"
+                );
+                assert_eq!(
+                    paths.contains(&directory.into()),
+                    kind != "-f",
+                    "{kind}: local {directory}"
+                );
+                for name in ["tracked", "untracked"] {
+                    let file = format!("{directory}/{name}/child");
+                    assert_eq!(
+                        paths.contains(&file.into()),
+                        kind != "-d",
+                        "{kind}: local {directory}/{name}/child"
+                    );
+                }
+            }
+            assert_eq!(
+                paths.contains(&prefix.join("tracked").into_os_string()),
+                kind != "-d"
+            );
+            assert_eq!(
+                paths.contains(&prefix.join("nested").into_os_string()),
+                kind != "-f"
+            );
+            let other_path = if kind == "-d" { "src" } else { "src/visible" };
+            assert!(paths.contains(&other.join(other_path).into_os_string()));
+        }
+    }
+}
+
+#[test]
+fn global_ignore_supports_file_globs_and_negations() {
+    let fixture = Fixture::new();
+    let config = fixture.root.join("config");
+    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::write(
+        config.join("fzfpaths/ignore"),
+        "# Keep one matching file.\n*.tmp\n!/project/keep.tmp\n/project/nested/*\n!/project/nested/child\n",
+    )
+    .unwrap();
+    for name in ["tracked.tmp", "keep.tmp"] {
+        write(&fixture.repo, name);
+    }
+    fixture.git(&["add", "--", "tracked.tmp", "keep.tmp"]);
+    for name in ["untracked.tmp", "nested/hidden"] {
+        write(&fixture.repo, name);
+    }
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.local, &fixture.global_dir, "-f", &[])
+            .env("XDG_CONFIG_HOME", &config),
+    );
+    for name in ["tracked.tmp", "untracked.tmp", "nested/hidden"] {
+        assert!(!paths.contains(&fixture.repo.join(name).into_os_string()));
+    }
+    for name in ["keep.tmp", "nested/child"] {
+        assert!(paths.contains(&fixture.repo.join(name).into_os_string()));
+    }
+}
+
+#[test]
+fn global_ignore_uses_home_default_and_xdg_override() {
+    let fixture = Fixture::new();
+    let home = fixture.root.join("home");
+    let config = fixture.root.join("config");
+    for (directory, pattern) in [
+        (home.join(".config/fzfpaths"), "/project/tracked\n"),
+        (config.join("fzfpaths"), "/project/untracked\n"),
+    ] {
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("ignore"), pattern).unwrap();
+    }
+    for xdg in [None, Some(OsStr::new("")), Some(config.as_os_str())] {
+        let mut command = fixture.command(&fixture.local, &fixture.global_dir, "-f", &[]);
+        command.env("HOME", &home).env_remove("XDG_CONFIG_HOME");
+        if let Some(xdg) = xdg {
+            command.env("XDG_CONFIG_HOME", xdg);
+        }
+        let paths = fixture.run(&mut command);
+        let overridden = xdg.is_some_and(|value| !value.is_empty());
+        assert_eq!(
+            paths.contains(&fixture.repo.join("tracked").into_os_string()),
+            overridden
+        );
+        assert_eq!(
+            paths.contains(&fixture.repo.join("untracked").into_os_string()),
+            !overridden
+        );
+    }
+}
+
+#[test]
+fn ignored_global_repository_is_not_scanned_or_filtered_from_cdpath() {
+    let fixture = Fixture::new();
+    let config = fixture.root.join("config");
+    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::write(config.join("fzfpaths/ignore"), "/project/\n").unwrap();
+    let output = checked(
+        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+            .arg("")
+            .arg(&fixture.global_dir)
+            .arg("-fd")
+            .env("XDG_CONFIG_HOME", &config)
+            .env("PATH", fixture.root.join("no-commands")),
+    );
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
+
+    let paths = fixture.run(
+        fixture
+            .command_with_cdpath(
+                &[],
+                &fixture.local,
+                &fixture.global_dir,
+                Some(fixture.global_dir.as_os_str()),
+                "-d",
+                &[],
+            )
+            .env("XDG_CONFIG_HOME", &config),
+    );
+    assert!(paths.contains(&"$CDPATH/project".into()));
+    assert!(!paths.contains(&fixture.repo.clone().into_os_string()));
+}
+
+#[test]
 fn global_untracked_paths_use_directory_aliases() {
     let fixture = Fixture::new();
     let paths = fixture.run(&mut fixture.command(
