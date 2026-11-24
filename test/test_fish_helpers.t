@@ -13,6 +13,9 @@ my $helpers = join "\n", map {
     $function;
 } qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous realpathc __grep_smart_case grep);
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
+my $cd = read_file("$root/fish/cd.fish");
+my ($mcd) = $cd =~ /^(function mcd\b.*?^end\n)/msg;
+$helpers .= $mcd;
 
 sub setup {
     my ($self) = @_;
@@ -144,8 +147,42 @@ FISH
     }
 }
 
+sub mcd_rejects_multiple_arguments_before_creating_anything {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+mcd -m 700 newdir 2>/dev/null
+printf '%s\n' "$status"
+mcd first second 2>/dev/null
+printf '%s\n' "$status"
+mcd 2>/dev/null
+printf '%s\n' "$status"
+printf '%s\n' "$PWD"
+FISH
+    is( $result->{stdout}, "1\n1\n1\n$self->{root}\n",
+        'invalid argument counts fail without changing directory' );
+    ok( !-e "$self->{root}/-m 700 newdir" && !-e "$self->{root}/first second",
+        'invalid arguments create no directories' );
+}
+
+sub mcd_enters_one_literal_directory {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+mcd '-project name'; or exit 1
+printf '%s\n' "$PWD"
+FISH
+    is(
+        $result->{stdout},
+        "$self->{root}/-project name\n",
+        'a single leading-dash path with spaces is created and entered'
+    );
+    ok( -d "$self->{root}/-project name", 'the intended directory exists' );
+}
+
 run_cases(
     {
+        mcd_rejects_multiple_arguments_before_creating_anything =>
+          \&mcd_rejects_multiple_arguments_before_creating_anything,
+        mcd_enters_one_literal_directory                    => \&mcd_enters_one_literal_directory,
         aliases_added_after_initialization_are_exported => \&aliases_added_after_initialization_are_exported,
         realpath_failure_does_not_clear_the_clipboard   => \&realpath_failure_does_not_clear_the_clipboard,
         realpath_success_preserves_spaces_and_leading_dashes =>
