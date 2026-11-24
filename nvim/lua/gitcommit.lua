@@ -32,8 +32,8 @@ local function prefill_title()
 	end
 	if prefix == '.' then return end
 
-	vim.api.nvim_buf_set_lines(0, 0, 1, false, { prefix .. ':' })
-	vim.api.nvim_win_set_cursor(0, { 1, #prefix })
+	vim.api.nvim_win_set_cursor(0, { 1, 0 })
+	vim.snippet.expand(prefix:gsub('[\\$}]', '\\%0') .. ': ${1:desc}')
 end
 
 return { prefill_title = prefill_title }
