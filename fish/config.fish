@@ -306,6 +306,9 @@ function aqsnow_fzf_diralis_add
         set -gx AQSNOW_DIRALIS ''
     end
     for name in $argv
+        if not set -qx "$name"
+            set -gx "$name" "$$name"
+        end
         contains -- "$name" $aqsnow_fzf_diralis; and continue
         set -ga aqsnow_fzf_diralis "$name"
         if test -n "$AQSNOW_DIRALIS"
@@ -318,14 +321,8 @@ function aqsnow_fzf_diralis_add
 end
 aqsnow_fzf_diralis_add HOME nhooyr dotfiles notes noise
 
-# Initialize the directory aliases and handoff path inherited by child processes.
+# Initialize the handoff path inherited by child processes.
 function aqsnow_init_rendezvous --on-event fish_preexec
-    for name in $aqsnow_fzf_diralis
-        test "$name" = HOME; and continue
-        if not set -qx "$name"; and set -q "$name"
-            set -gx "$name" "$$name"
-        end
-    end
     set -q __aqsnow_rendezvous_dir; and return
     set -e AQSNOW_FISH_RENDEZVOUS
     set -l rendezvous_dir "$(mktemp -d)"; or return

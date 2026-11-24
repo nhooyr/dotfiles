@@ -169,9 +169,9 @@ set -l original "$__aqsnow_rendezvous_dir"
 set -g project "$TEST_ROOT"
 aqsnow_fzf_diralis_add project; or exit 2
 aqsnow_fzf_diralis_add project; or exit 3
+fish --no-config -c 'printf "%s\n%s\n" "$AQSNOW_DIRALIS" "$project"'
 aqsnow_init_rendezvous; or exit 4
 test "$original" = "$__aqsnow_rendezvous_dir"; or exit 5
-fish --no-config -c 'printf "%s\n%s\n" "$AQSNOW_DIRALIS" "$project"'
 FISH
     is(
         $result->{stdout},
@@ -346,31 +346,29 @@ set -eg aqsnow_fzf_diralis
 aqsnow_fzf_diralis_add HOME
 aqsnow_fzf_diralis_add aqsnow_test_late aqsnow_test_late
 printf '%s\n' "$AQSNOW_DIRALIS"
-not set -q aqsnow_test_late
+set -qx aqsnow_test_late; or exit 1
+test -z "$aqsnow_test_late"
 FISH
-    is( $result->{stdout}, "HOME:aqsnow_test_late\n", 'registration immediately exports unique names' );
+    is( $result->{stdout},     "HOME:aqsnow_test_late\n", 'registration immediately exports unique names' );
+    is( $result->{returncode}, 0, 'unset aliases are marked exported before their values are assigned' );
 }
 
-sub alias_values_defined_later_are_exported {
+sub alias_values_defined_later_keep_the_export_attribute {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
 set -eg aqsnow_fzf_diralis
 aqsnow_fzf_diralis_add HOME
-aqsnow_init_rendezvous
 aqsnow_fzf_diralis_add aqsnow_test_late
-aqsnow_init_rendezvous
 set -g aqsnow_test_late /first
-aqsnow_init_rendezvous
 sh -c 'printf "%s\n" "$aqsnow_test_late"'
 set -g aqsnow_test_late /second
-aqsnow_init_rendezvous
 sh -c 'printf "%s\n" "$aqsnow_test_late"'
 set -gu aqsnow_test_late /third
-aqsnow_init_rendezvous
+aqsnow_fzf_diralis_add aqsnow_test_late
 sh -c 'printf "%s\n" "$aqsnow_test_late"'
 FISH
     is( $result->{stdout}, "/first\n/second\n/third\n",
-        'late values, changed values, and unexported values reach children' );
+        'later assignments retain export and re-registration exports explicitly unexported values' );
 }
 
 sub alias_registration_appends_only_new_names {
@@ -413,11 +411,13 @@ end
 function value_changed --on-variable aqsnow_test_exported
     set -g changes "$(math "$changes + 1")"
 end
+aqsnow_fzf_diralis_add HOME aqsnow_test_exported
+aqsnow_fzf_diralis_add aqsnow_test_exported
 aqsnow_init_rendezvous
 aqsnow_init_rendezvous
 printf '%s\n' "$changes"
 FISH
-    is( $result->{stdout}, "0\n", 'initialization does not rewrite exported names or values' );
+    is( $result->{stdout}, "0\n", 'registration and initialization do not rewrite exported names or values' );
 }
 
 run_cases(
@@ -428,8 +428,9 @@ run_cases(
         nvim_preserves_native_command_line_options        => \&nvim_preserves_native_command_line_options,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
-        alias_registration_appends_only_new_names       => \&alias_registration_appends_only_new_names,
-        alias_values_defined_later_are_exported         => \&alias_values_defined_later_are_exported,
+        alias_registration_appends_only_new_names            => \&alias_registration_appends_only_new_names,
+        alias_values_defined_later_keep_the_export_attribute =>
+          \&alias_values_defined_later_keep_the_export_attribute,
         initialized_alias_exports_are_not_rewritten     => \&initialized_alias_exports_are_not_rewritten,
         cdf_completes_files_while_retaining_cd_wrapping => \&cdf_completes_files_while_retaining_cd_wrapping,
         mcd_rejects_multiple_arguments_before_creating_anything =>
