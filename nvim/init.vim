@@ -212,7 +212,7 @@ nnoremap <M-y><M-y> m`^"+y$``
 xnoremap <M-y> "+y
 nnoremap <M-c> "+c
 nnoremap <M-c><M-c> m`^"+y$``"_cc
-xnoremap <M-c><M-c> "+c
+xnoremap <M-c> "+c
 nnoremap <M-d> "+d
 nnoremap <M-d><M-d> m`^"+y$``"_dd
 xnoremap <M-d> "+d
