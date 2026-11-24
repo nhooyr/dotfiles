@@ -582,6 +582,15 @@ assert(call('nvim_win_get_position', vertical)[2] > call('nvim_win_get_position'
 eq(#call('nvim_tabpage_list_wins', 0), 3, 'each split adds exactly one window')
 open()
 eq(call('nvim_buf_get_name', 0), '', 'bare nvim opens an unnamed buffer without waiting for stdin')
+for _, option in ipairs({ '-o', '-O' }) do
+    call('nvim_set_current_buf', terminal)
+    local windows = #call('nvim_tabpage_list_wins', 0)
+    open(option)
+    eq(#call('nvim_tabpage_list_wins', 0), windows + 1, option .. ' opens one new window')
+    eq({ call('nvim_buf_get_name', 0), eval('&buftype') }, { '', '' },
+        option .. ' without filenames opens an empty editing buffer')
+    eq(eval('jobwait([' .. job .. '], 0)'), { -1 }, option .. ' keeps the original terminal alive')
+end
 pcall(call, 'nvim_command', 'qa!')
 server:wait(1000)
 local command, nvim_cmd = nil, vim.api.nvim_cmd

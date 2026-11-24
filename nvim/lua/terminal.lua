@@ -10,7 +10,7 @@ local function open(request)
 	end
 	if action ~= 'edit' then vim.cmd[action]() end
 	if #files == 0 then
-		if action == 'edit' then vim.cmd.enew() end
+		vim.cmd.enew()
 	else
 		-- :arglocal parses its own filename list.
 		vim.api.nvim_cmd({ cmd = 'arglocal', args = vim.tbl_map(vim.fn.fnameescape, files),
