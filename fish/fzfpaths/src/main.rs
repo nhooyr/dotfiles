@@ -32,7 +32,9 @@ pool of workers. Local paths have no guaranteed traversal order. Within each
 repository, global paths follow Git's order, with parent directories added as
 needed; different repositories may interleave. Tracked paths (including
 submodules) are followed by untracked paths that are not ignored by Git.
-fzf may reorder sorted matches.
+Untracked files inside submodules are omitted from global scans to avoid extra
+Git processes. Search from inside the submodule to include them in the local
+scan. fzf may reorder sorted matches.
 
 With --cdpath, directory modes (-d and -fd) list directories up to two levels
 below each colon-separated root, such as $CDPATH/junegunn/fzf. Missing roots
