@@ -46,12 +46,17 @@ execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
 vim.api.nvim_create_autocmd('VimEnter', { callback = function()
     vim.defer_fn(function()
+        if vim.env.TEST_REPLACEMENT then
+            vim.api.nvim_feedkeys(vim.env.TEST_REPLACEMENT, 'xt', false)
+        end
         local snapshot = {
             lines = vim.api.nvim_buf_get_lines(0, 0, -1, false),
             original = vim.fn.readfile(vim.api.nvim_buf_get_name(0)),
             cursor = vim.api.nvim_win_get_cursor(0),
             mode = vim.fn.mode(),
             commit_module_loaded = package.loaded.gitcommit ~= nil,
+            snippet_active = vim.snippet.active(),
+            selection = vim.fn.getregion(vim.fn.getpos('v'), vim.fn.getpos('.'), { type = 'v' }),
         }
         vim.fn.writefile({ vim.json.encode(snapshot) }, vim.env.TEST_SNAPSHOT)
         vim.cmd.cquit()
@@ -98,11 +103,12 @@ sub edit {
 
 sub prefixed {
     my ( $snapshot, $path ) = @_;
-    my $title = "$path:";
-    is( $snapshot->{lines}[0], $title, 'title uses the staged path or shared directory' );
-    is_deeply( $snapshot->{cursor}, [ 1, length($title) - 1 ], 'cursor rests on the colon' );
-    is( $snapshot->{mode},        'n', 'editor stays in Normal mode' );
-    is( $snapshot->{original}[0], '',  'Git supplied a blank title' );
+    my $title = "$path: desc";
+    is( $snapshot->{lines}[0], $title, 'title uses the expected prefix' );
+    is( $snapshot->{mode},     's',    'description is in Select mode' );
+    ok( $snapshot->{snippet_active}, 'native snippet is active' );
+    is_deeply( $snapshot->{selection}, ['desc'], 'only the description is selected' );
+    is( $snapshot->{original}[0], '', 'Git supplied a blank title' );
     is_deeply(
         [ @{ $snapshot->{lines} }[ 1 .. $#{ $snapshot->{lines} } ] ],
         [ @{ $snapshot->{original} }[ 1 .. $#{ $snapshot->{original} } ] ],
@@ -115,6 +121,7 @@ sub unchanged {
     my $original = @{ $snapshot->{original} } ? $snapshot->{original} : [''];
     is_deeply( $snapshot->{lines}, $original, 'message is unchanged' );
     is( $snapshot->{mode}, 'n', 'editor stays in Normal mode' );
+    ok( !$snapshot->{snippet_active}, 'no snippet is active' );
 }
 
 sub one_staged_file {
@@ -191,7 +198,7 @@ vim.system, vim.uv.spawn = unexpected, unexpected
 vim.fn.system, vim.fn.systemlist, vim.fn.jobstart = unexpected, unexpected, unexpected
 os.execute, io.popen = unexpected, unexpected
 require('gitcommit').prefill_title()
-assert(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == 'one.txt:', 'Missing buffer-derived title')
+assert(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == 'one.txt: desc', 'Missing buffer-derived title')
 vim.cmd.quit({ bang = true })
 LUA
     my $result = run_command(
@@ -243,12 +250,29 @@ sub deepest_shared_directory {
     prefixed( edit( $self, 'commit' ), 'nvim/lua' );
 }
 
+sub shared_word {
+    my ($self) = @_;
+    seed($self);
+    put( $self, $_, "new\n" ) for qw(nvim/lua/gitcommit.lua test/test_nvim_commit.t);
+    git( $self, 'add', '.' );
+    prefixed( edit( $self, 'commit' ), 'nvim' );
+}
+
+sub most_common_word {
+    my ($self) = @_;
+    seed($self);
+    put( $self, $_, "new\n" )
+      for qw(alpha/repeat-repeat-repeat.lua beta/cache_writer.lua gamma/cache_reader.lua);
+    git( $self, 'add', '.' );
+    prefixed( edit( $self, 'commit' ), 'cache' );
+}
+
 sub directory_component_boundaries {
     my ($self) = @_;
     seed($self);
     put( $self, $_, "new\n" ) for qw(nvim/one.lua nvim-other/two.lua);
     git( $self, 'add', '.' );
-    unchanged( edit( $self, 'commit' ) );
+    prefixed( edit( $self, 'commit' ), 'nvim' );
     git( $self, 'reset', '--hard', 'HEAD' );
     put( $self, $_, "new\n" ) for qw(plugins/nvim/one.lua plugins/nvim-other/two.lua);
     git( $self, 'add', '.' );
@@ -334,6 +358,27 @@ sub path_spelling {
     prefixed( edit( $self, 'commit' ), 'with space/name.txt' );
 }
 
+sub description_replacement {
+    my ($self) = @_;
+    seed($self);
+    my $path = 'literal$prefix}.txt';
+    put( $self, $path, "new\n" );
+    git( $self, 'add', '--', $path );
+    prefixed( edit( $self, 'commit' ), $path );
+    local $self->{env}{TEST_REPLACEMENT} = 'Describe this change';
+    my $snapshot = edit( $self, 'commit' );
+    is(
+        $snapshot->{lines}[0],
+        "$path: Describe this change",
+        'typing replaces desc and preserves the literal prefix'
+    );
+    is_deeply(
+        [ @{ $snapshot->{lines} }[ 1 .. $#{ $snapshot->{lines} } ] ],
+        [ @{ $snapshot->{original} }[ 1 .. $#{ $snapshot->{original} } ] ],
+        'typing leaves the message body untouched'
+    );
+}
+
 sub linked_worktree {
     my ($self) = @_;
     seed($self);
@@ -364,6 +409,8 @@ run_cases(
         multiple_or_no_files           => \&multiple_or_no_files,
         shared_directory               => \&shared_directory,
         deepest_shared_directory       => \&deepest_shared_directory,
+        shared_word                    => \&shared_word,
+        most_common_word               => \&most_common_word,
         directory_component_boundaries => \&directory_component_boundaries,
         file_replaced_by_directory     => \&file_replaced_by_directory,
         partial_commit                 => \&partial_commit,
@@ -372,6 +419,7 @@ run_cases(
         existing_titles                => \&existing_titles,
         rename_and_delete              => \&rename_and_delete,
         path_spelling                  => \&path_spelling,
+        description_replacement        => \&description_replacement,
         linked_worktree                => \&linked_worktree,
         tag_message                    => \&tag_message,
     },

@@ -30,7 +30,24 @@ local function prefill_title()
 			prefix = vim.fs.dirname(prefix)
 		end
 	end
-	if prefix == '.' then return end
+	if prefix == '.' then
+		local counts, words = {}, {}
+		for _, file in ipairs(files) do
+			local seen = {}
+			for word in vim.fn.fnamemodify(file, ':r'):gmatch('%w+') do
+				if not seen[word] then
+					if not counts[word] then words[#words + 1] = word end
+					counts[word] = (counts[word] or 0) + 1
+					seen[word] = true
+				end
+			end
+		end
+		local most = 1
+		for _, word in ipairs(words) do
+			if counts[word] > most then prefix, most = word, counts[word] end
+		end
+		if prefix == '.' then return end
+	end
 
 	vim.api.nvim_win_set_cursor(0, { 1, 0 })
 	vim.snippet.expand(prefix:gsub('[\\$}]', '\\%0') .. ': ${1:desc}')
