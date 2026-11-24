@@ -26,6 +26,7 @@ abbrali ga git add -A
 abbrali gap git add -p
 abbrali gai git add -i
 abbrali gp git push
+abbrali gps git push
 abbrali gpf git push --force-with-lease
 abbrali gcm git commit
 abbr -a gacm 'ga; and gcm'
