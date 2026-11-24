@@ -339,14 +339,14 @@ augroup aqsnow
 	autocmd filetype diff lua require('diff').setup()
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
+lua require('shdo').setup()
+" Load netrw before overriding its Explore commands.
+packadd netrw
+lua require('ls').setup()
 if v:vim_did_enter
 	lua require('gitstatus').setup()
-	lua require('shdo').setup()
-	lua require('ls').setup()
 else
 	autocmd aqsnow VimEnter * ++once lua require('gitstatus').setup()
-	autocmd aqsnow VimEnter * ++once lua require('shdo').setup()
-	autocmd aqsnow VimEnter * ++once lua require('ls').setup()
 endif
 
 function s:restore_cursor() abort

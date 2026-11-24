@@ -55,7 +55,7 @@ VIM
 }
 
 sub run_script {
-    my ( $self, $body, $arguments ) = @_;
+    my ( $self, $body, $arguments, $commands ) = @_;
     write_file( $self->{env}{TEST_SCRIPT}, <<'LUA' . $body );
 local function eq(actual, expected, message)
     assert(vim.deep_equal(actual, expected), message .. '\nexpected: '
@@ -68,7 +68,8 @@ LUA
     my $result = run_command(
         [
             $nvim, '--headless', '-n', '-i', 'NONE', '-u', "$self->{temporary}/init.vim",
-            '--',  @{ $arguments // [ $self->{env}{TEST_ORIGINAL} ] }
+            @{ $commands // [] },
+            '--', @{ $arguments // [ $self->{env}{TEST_ORIGINAL} ] }
         ],
         { env => $self->{env}, cwd => $self->{temporary}, timeout => 15 }
     );
@@ -321,9 +322,9 @@ LUA
 sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
-    make_path("$copy/nvim/lua/nested", "$copy/nvim/doc");
+    make_path( "$copy/nvim/lua/nested", "$copy/nvim/doc" );
     copy_preserve( "$root/nvim/doc/ls.txt", "$copy/nvim/doc/ls.txt" );
-    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim nvim-pack-lock.json);
+    copy_preserve( "$root/nvim/$_",         "$copy/nvim/$_" ) for qw(init.vim nvim-pack-lock.json);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
         copy_preserve( $source, "$copy/nvim/lua/" . basename($source) );
     }
@@ -745,6 +746,29 @@ vim.api.nvim_set_current_buf(vim.b.shdo_listing)
 eq(vim.bo.filetype, 'directory', 'leaving the script returns to Dirvish')
 eq(vim.fn.getcwd(), cwd, 'the directory window retains the original working directory')
 LUA
+}
+
+sub directory_commands_during_startup {
+    my ($self) = @_;
+    my $directory = "$self->{temporary}/startup directory";
+    make_path($directory);
+    write_file( "$directory/entry", 'content' );
+    $self->{env}{TEST_STARTUP_DIRECTORY} = $directory;
+    for my $command (qw(Vidir Ls Explore)) {
+        $self->{env}{TEST_STARTUP_COMMAND} = $command;
+        run_script( $self, <<'LUA', ["$directory/entry"], ["+$command"] );
+local directory = vim.fn.resolve(vim.env.TEST_STARTUP_DIRECTORY)
+if vim.env.TEST_STARTUP_COMMAND == 'Vidir' then
+    eq(vim.bo.filetype, 'sh', '+Vidir generates its script before VimEnter')
+    eq(vim.b.shdo_directory, directory, 'the startup script uses the file parent')
+    assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false), 'mv -v -- entry entry'),
+        'the startup script includes the directory entry')
+else
+    eq(vim.bo.filetype, 'directory', 'startup commands open the local directory viewer')
+    eq(vim.b.directory.path, directory, 'startup commands use the file parent')
+end
+LUA
+    }
 }
 
 sub vidir_quotes_shell_directory {
@@ -1551,6 +1575,7 @@ run_cases(
         terminal_shortcut_enters_terminal_mode  => \&terminal_shortcut_enters_terminal_mode,
         terminal_editor_handoff                 => \&terminal_editor_handoff,
         vidir_buffer_directory                  => \&vidir_buffer_directory,
+        directory_commands_during_startup       => \&directory_commands_during_startup,
         vidir_directory_arguments               => \&vidir_directory_arguments,
         vidir_quotes_shell_directory            => \&vidir_quotes_shell_directory,
         vidir_refresh_after_success             => \&vidir_refresh_after_success,
