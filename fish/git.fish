@@ -95,7 +95,7 @@ function gbp
             break
         end
     end
-    git fetch --prune
+    git fetch --prune --all
     and git branch -vv |
         awk '$3 ~ /^\[.*:$/ && $4 == "gone]" {printf "%s%c", $1, 0}' |
         xargs -0 -r git branch "$delete_flag" --
