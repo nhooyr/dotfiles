@@ -582,6 +582,18 @@ eq(title({ 'copied: old/location.lua -> other/new.lua' }),
 LUA
 }
 
+sub reverse_visual_selection {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+eq(vim.fn.maparg('<Leader>v', 'n'), '<Cmd>e $MYVIMRC<CR>', 'the normal mapping still opens the config')
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'first', 'second', 'third', 'last' })
+vim.api.nvim_win_set_cursor(0, { 2, 0 })
+feed('Vj<Leader>v')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { 'first', 'third', 'second', 'last' },
+    'the visual mapping reverses only the selected lines')
+LUA
+}
+
 sub diff_original_preserves_unsaved_changes {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1716,6 +1728,7 @@ run_cases(
         nested_module_reload                    => \&nested_module_reload,
         first_commit_summary_width              => \&first_commit_summary_width,
         commit_title_prefix                     => \&commit_title_prefix,
+        reverse_visual_selection                => \&reverse_visual_selection,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         diff_original_missing_file              => \&diff_original_missing_file,
         diff_strip_mappings                     => \&diff_strip_mappings,
