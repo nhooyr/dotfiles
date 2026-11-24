@@ -197,6 +197,25 @@ eq(vim.fn.synIDattr(vim.fn.synID(1, 81, 1), 'name'), 'gitcommitOverflow',
 LUA
 }
 
+sub diff_original_preserves_unsaved_changes {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'unsaved edit' })
+local original = vim.api.nvim_get_current_buf()
+vim.cmd.DiffOrig()
+eq(vim.fn.readfile(vim.env.TEST_ORIGINAL), { 'original' }, 'comparing does not write the original file')
+eq(vim.api.nvim_get_current_buf(), original, 'comparison returns to the original buffer')
+assert(vim.bo.modified, 'the original edit remains unsaved')
+local contents = {}
+for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    assert(vim.wo[win].diff, 'both comparison windows use diff mode')
+    contents[#contents + 1] = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), 0, -1, false)
+end
+table.sort(contents, function(a, b) return a[1] < b[1] end)
+eq(contents, { { 'original' }, { 'unsaved edit' } }, 'comparison shows disk contents beside unsaved edits')
+LUA
+}
+
 sub netrw_navigation {
     my ($self) = @_;
     my $directory = "$self->{temporary}/parent dir/child";
@@ -533,18 +552,19 @@ LUA
 
 run_cases(
     {
-        startup_and_config_paths   => \&startup_and_config_paths,
-        file_locations             => \&file_locations,
-        coalesced_config_reload    => \&coalesced_config_reload,
-        nested_module_reload       => \&nested_module_reload,
-        first_commit_summary_width => \&first_commit_summary_width,
-        netrw_navigation           => \&netrw_navigation,
-        snippet_completion_reload  => \&snippet_completion_reload,
-        gitstatus_lifecycle        => \&gitstatus_lifecycle,
-        gitstatus_event_queue      => \&gitstatus_event_queue,
-        ripgrep_quickfix           => \&ripgrep_quickfix,
-        rendezvous_routes          => \&rendezvous_routes,
-        rendezvous_error_order     => \&rendezvous_error_order,
+        startup_and_config_paths                => \&startup_and_config_paths,
+        file_locations                          => \&file_locations,
+        coalesced_config_reload                 => \&coalesced_config_reload,
+        nested_module_reload                    => \&nested_module_reload,
+        first_commit_summary_width              => \&first_commit_summary_width,
+        diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
+        netrw_navigation                        => \&netrw_navigation,
+        snippet_completion_reload               => \&snippet_completion_reload,
+        gitstatus_lifecycle                     => \&gitstatus_lifecycle,
+        gitstatus_event_queue                   => \&gitstatus_event_queue,
+        ripgrep_quickfix                        => \&ripgrep_quickfix,
+        rendezvous_routes                       => \&rendezvous_routes,
+        rendezvous_error_order                  => \&rendezvous_error_order,
     },
     \&setup
 );

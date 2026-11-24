@@ -235,8 +235,8 @@ let g:copilot_filetypes = {
 command -bar -bang -nargs=0 Mkdirp write<bang> ++p
 nnoremap <Leader>m <Cmd>Mkdirp<CR>
 
-command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_ |
-			   \ diffthis | wincmd p | diffthis
+command DiffOrig noautocmd vert new | set buftype=nofile | read ++edit # | 0d_ |
+			   \ diffthis | noautocmd wincmd p | diffthis
 
 nnoremap <Leader>w <Cmd>%s/\s\+$//<CR>
 nnoremap <Leader>- <Cmd>%s/^\s*[+-]//<CR>
