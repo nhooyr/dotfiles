@@ -8,8 +8,6 @@
 	<false/>
 	<key>autoExpandSnippetTriggerPlaySound</key>
 	<false/>
-	<key>fastAppend</key>
-	<true/>
 	<key>fastAppendBackToClipboard</key>
 	<true/>
 	<key>hotkey</key>
