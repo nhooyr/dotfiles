@@ -726,6 +726,48 @@ FISH
     ok( !-e "$self->{root}/rendezvous/vcs-alive", 'Fish exit cleans supervisor liveness' );
 }
 
+sub cancellation_immediately_stops_worker_group {
+    my ($self) = @_;
+    $self->{env}{TEST_PERL} = perl_executable();
+    write_file( "$self->{root}/child.pl", <<'PERL' );
+use Time::HiRes qw(sleep);
+$SIG{TERM} = sub {};
+open my $ready, '>', "$ENV{TEST_ROOT}/ready" or die $!;
+close $ready;
+my $counter = 0;
+while (1) {
+    open my $heartbeat, '>', "$ENV{TEST_ROOT}/heartbeat" or die $!;
+    print {$heartbeat} ++$counter;
+    close $heartbeat;
+    sleep 0.025;
+}
+PERL
+    fake_dotfiles( $self, <<'FISH' );
+function aqsnow_vcs_prompt
+    command "$TEST_PERL" "$TEST_ROOT/child.pl"
+end
+FISH
+    my $result = shell( $self, "aqsnow_vcs_prompt_update\n" . wait_for_marker('heartbeat') . <<'FISH' );
+set -l worker "$__aqsnow_vcs_process"
+aqsnow_vcs_prompt_cancel
+command "$TEST_PERL" -MTime::HiRes=time,sleep -e '
+    my $deadline = time + 1;
+    while (kill 0, $ARGV[0]) {
+        exit 1 if time >= $deadline;
+        sleep 0.01;
+    }
+' "$worker"; or exit
+set -q __aqsnow_vcs_pending; and exit 2
+test -e "$__aqsnow_rendezvous_dir/vcs-alive"; and exit 3
+exit 0
+FISH
+    is( output($result), '', 'cancellation stops the worker before its two-second ownership poll' );
+    my $heartbeat = read_file("$self->{root}/heartbeat");
+    select undef, undef, undef, 0.15;
+    is( read_file("$self->{root}/heartbeat"), $heartbeat,
+        'cancellation stops TERM-ignoring descendants too' );
+}
+
 sub real_git_refresh {
     my ($self) = @_;
     my $result = shell( $self, <<'FISH' );
@@ -867,6 +909,7 @@ run_cases(
         unchanged_cache_is_not_rewritten              => \&unchanged_cache_is_not_rewritten,
         staging_file_uses_cache_ignore_pattern        => \&staging_file_uses_cache_ignore_pattern,
         real_async_refresh                            => \&real_async_refresh,
+        cancellation_immediately_stops_worker_group   => \&cancellation_immediately_stops_worker_group,
         real_git_refresh                              => \&real_git_refresh,
         unwritable_cache_keeps_display                => \&unwritable_cache_keeps_display,
     },

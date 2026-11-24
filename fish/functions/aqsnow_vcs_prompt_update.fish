@@ -101,6 +101,9 @@ end
 
 function aqsnow_vcs_prompt_cancel
     aqsnow_vcs_prompt_cleanup
+    if set -q __aqsnow_vcs_process
+        command kill -TERM "$__aqsnow_vcs_process" 2>/dev/null
+    end
     if set -q __aqsnow_vcs_file
         command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
     end
