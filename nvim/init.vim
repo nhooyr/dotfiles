@@ -218,12 +218,11 @@ nnoremap <Leader>p "+p
 nnoremap <Leader>P "+P
 inoremap <M-p> <C-o>"+P
 nnoremap Y "+y
-nnoremap <expr> YY 'm`^"+y'.min([v:count1, line('$') - line('.') + 1]).'$``'
+nnoremap YY m`^"+y$``
 xnoremap Y "+y
 xnoremap C "+c
 nnoremap D "+d
-nnoremap <expr> DD 'm`^"+y'.min([v:count1, line('$') - line('.') + 1]).'$``"_'.
-			\ min([v:count1, line('$') - line('.') + 1]).'dd'
+nnoremap DD m`^"+y$``"_dd
 xnoremap D "+d
 nnoremap <Leader>d <Cmd>execute '.,.+'.(v:count1-1).'t.'<CR>
 
