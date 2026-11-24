@@ -2803,6 +2803,59 @@ fn input_paths_preserve_order_and_share_executable_rules() {
 }
 
 #[test]
+fn input_paths_normalize_parents_before_classification_and_deduplication() {
+    let fixture = Fixture::new();
+    fs::write(fixture.repo.join("binary"), b"\x7fELF").unwrap();
+    make_executable(fixture.repo.join("binary"));
+    let paths = from_input(
+        &mut fixture.command_with_flags(
+            &["--read0", "--keep-dot"],
+            &fixture.local,
+            Path::new(""),
+            "-f",
+            &[("$project", &fixture.repo)],
+        ),
+        &[
+            Path::new("../global_dir/project/tracked"),
+            &fixture.repo.join("tracked"),
+            Path::new("dir/../file"),
+            &fixture.local.join("file"),
+            Path::new("../global_dir/project/binary"),
+            &fixture.repo.join("binary"),
+        ],
+    );
+    assert_eq!(
+        paths,
+        ["$project/tracked", "file", "$project/binary"].map(OsString::from)
+    );
+}
+
+#[test]
+fn input_parent_normalization_preserves_the_symlink_filename() {
+    let fixture = Fixture::new();
+    let outside = fixture.root.join("outside");
+    fs::create_dir_all(outside.join("child")).unwrap();
+    write(&outside, "file");
+    symlink("file", outside.join("file-link")).unwrap();
+    symlink("../outside/child", fixture.local.join("link")).unwrap();
+    let paths = from_input(
+        &mut fixture.command_with_flags(
+            &["--read0"],
+            &fixture.local,
+            Path::new(""),
+            "-f",
+            &[("$outside", &outside)],
+        ),
+        &[
+            Path::new("link/../file-link"),
+            Path::new("../outside/file-link"),
+            &outside.join("file-link"),
+        ],
+    );
+    assert_eq!(paths, [OsString::from("$outside/file-link")]);
+}
+
+#[test]
 fn directory_aliases_match_logical_and_physical_input_paths() {
     let fixture = Fixture::new();
     let directory = fixture.root.join("external");

@@ -908,6 +908,12 @@ impl Scanner {
             return Ok(());
         }
         let absolute = self.cwd.join(OsStr::from_bytes(bytes));
+        let absolute = if let (Some(parent), Some(name)) = (absolute.parent(), absolute.file_name())
+        {
+            normalize(parent).join(name)
+        } else {
+            absolute
+        };
         let Some(info) = FileInfo::new(&absolute) else {
             return Ok(());
         };
