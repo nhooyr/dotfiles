@@ -196,6 +196,40 @@ eq(vim.fn.synIDattr(vim.fn.synID(1, 81, 1), 'name'), 'gitcommitOverflow',
 LUA
 }
 
+sub commit_title_prefix {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.cmd.enew()
+vim.api.nvim_buf_set_name(0, 'COMMIT_EDITMSG')
+local helper = require('gitcommit')
+local expansion
+vim.snippet.expand = function(text) expansion = text end
+local function title(entries)
+    local lines = { '', '# Changes to be committed:' }
+    for _, entry in ipairs(entries) do lines[#lines + 1] = '#\t' .. entry end
+    lines[#lines + 1] = '#'
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+    expansion = nil
+    helper.prefill_title()
+    return expansion
+end
+eq(title({ 'modified: src/nvim/bufwrite.c', 'modified: test/functional/ex_cmds/cd_spec.lua' }),
+    'src/nvim/bufwrite.c: ${1:desc}', 'unrelated files use the first path')
+eq(title({ 'modified: test/functional/ex_cmds/cd_spec.lua', 'modified: src/nvim/bufwrite.c' }),
+    'test/functional/ex_cmds/cd_spec.lua: ${1:desc}', 'fallback respects file order')
+eq(title({ 'modified: nvim/init.vim' }),
+    'nvim/init.vim: ${1:desc}', 'one file uses its full path')
+eq(title({ 'modified: nvim/lua/one.lua', 'modified: nvim/lua/two.lua' }),
+    'nvim/lua: ${1:desc}', 'a common directory takes priority')
+eq(title({ 'modified: autoload/copilot.vim', 'modified: test/copilot_partial_accept.lua' }),
+    'copilot: ${1:desc}', 'shared path words still take priority over the first file')
+eq(title({ 'renamed: old/location.lua -> nvim/lua/new.lua', 'modified: nvim/lua/other.lua' }),
+    'nvim/lua: ${1:desc}', 'renames use the destination directory')
+eq(title({ 'copied: old/location.lua -> other/new.lua' }),
+    'other/new.lua: ${1:desc}', 'copies use the destination path')
+LUA
+}
+
 sub diff_original_preserves_unsaved_changes {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -790,6 +824,7 @@ run_cases(
         coalesced_config_reload                 => \&coalesced_config_reload,
         nested_module_reload                    => \&nested_module_reload,
         first_commit_summary_width              => \&first_commit_summary_width,
+        commit_title_prefix                     => \&commit_title_prefix,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         directory_navigation                    => \&directory_navigation,
         vidir_buffer_directory                  => \&vidir_buffer_directory,

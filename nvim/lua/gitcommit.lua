@@ -46,7 +46,7 @@ local function prefill_title()
 		for _, word in ipairs(words) do
 			if counts[word] > most then prefix, most = word, counts[word] end
 		end
-		if prefix == '.' then return end
+		if prefix == '.' then prefix = files[1] end
 	end
 
 	vim.api.nvim_win_set_cursor(0, { 1, 0 })
