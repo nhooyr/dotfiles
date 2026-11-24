@@ -130,6 +130,7 @@ cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
 cnoremap <M-p> <C-r>+
 cnoremap <M-f> \V
+cnoremap <M-e> \v
 nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| silent update \| endif
 				\ \| execute 'source' fnameescape($MYVIMRC) \| echo 'source' $MYVIMRC<CR>
 nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
