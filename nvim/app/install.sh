@@ -121,7 +121,8 @@ apply_defaults() {
 		.js .mjs .cjs .jsx .ts .tsx .vue .svelte \
 		.json .jsonc .jsonl .yaml .yml .toml \
 		.svg .css .scss .sass .less .xml .sql \
-		.sh .bash .zsh .fish .lua .vim .conf .cfg .ini
+		.sh .bash .zsh .fish .lua .vim .conf .cfg .ini \
+		.patch
 	# Match macOS's preferred types; duti's extension lookup uses a different base type.
 	types=$(run osascript -l JavaScript -e '
 ObjC.import("CoreServices");
