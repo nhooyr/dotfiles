@@ -514,7 +514,8 @@ LUA
 sub directory_navigation {
     my ($self) = @_;
     my $directory = "$self->{temporary}/parent dir/child";
-    make_path($directory);
+    make_path("$directory/z-folder");
+    write_file( "$directory/a-file.txt", "content\n" );
     write_file( "$directory/file.txt", "content\n" );
     $self->{env}{TEST_NAV_DIRECTORY} = $directory;
     run_script( $self, <<'LUA' );
@@ -529,6 +530,7 @@ feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(directory),
     'normal - opens the file parent with spaces')
 eq(vim.bo.filetype, 'dirvish', 'local folders use Dirvish')
+assert(vim.endswith(vim.fn.getline(1), '/z-folder/'), 'Dirvish lists folders before files')
 eq(vim.fn.getcwd(), cwd, 'browsing a directory preserves the selected working directory')
 vim.cmd.Cdh()
 eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh changes to the displayed directory')

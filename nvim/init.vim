@@ -140,6 +140,7 @@ nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snippets.lua<CR>
 " Keep these settings for netrw's remote browsing (e.g. scp:// via sshv).
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
+let g:dirvish_mode = ':sort ,^.*[\/],'
 nmap - <Plug>(dirvish_up)
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
