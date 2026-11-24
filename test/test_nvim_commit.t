@@ -251,6 +251,24 @@ sub deepest_shared_directory {
     prefixed( edit( $self, 'commit' ), 'nvim/lua' );
 }
 
+sub mostly_shared_directory {
+    my ($self) = @_;
+    seed($self);
+    put( $self, 'README.md',              "new\n" );
+    put( $self, "docs/screenshot-$_.png", "new\n" ) for 1 .. 14;
+    git( $self, 'add', '.' );
+    prefixed( edit( $self, 'commit' ), 'docs' );
+}
+
+sub directory_without_majority {
+    my ($self) = @_;
+    seed($self);
+    put( $self, $_, "new\n" )
+      for qw(alpha/screenshot-1.png alpha/screenshot-2.png beta/screenshot-3.png beta/screenshot-4.png);
+    git( $self, 'add', '.' );
+    prefixed( edit( $self, 'commit' ), 'screenshot' );
+}
+
 sub shared_word {
     my ($self) = @_;
     seed($self);
@@ -410,6 +428,8 @@ run_cases(
         multiple_or_no_files           => \&multiple_or_no_files,
         shared_directory               => \&shared_directory,
         deepest_shared_directory       => \&deepest_shared_directory,
+        mostly_shared_directory        => \&mostly_shared_directory,
+        directory_without_majority     => \&directory_without_majority,
         shared_word                    => \&shared_word,
         most_common_word               => \&most_common_word,
         directory_component_boundaries => \&directory_component_boundaries,

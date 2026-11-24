@@ -43,6 +43,20 @@ function prefill_title()
 		end
 	end
 	if prefix == '.' then
+		-- An outlying file should not hide the directory containing most changes.
+		local counts = {}
+		for _, file in ipairs(files) do
+			local directory = vim.fs.dirname(file)
+			while directory ~= '.' do
+				counts[directory] = (counts[directory] or 0) + 1
+				if counts[directory] > #files / 2 and (prefix == '.' or #directory > #prefix) then
+					prefix = directory
+				end
+				directory = vim.fs.dirname(directory)
+			end
+		end
+	end
+	if prefix == '.' then
 		local counts, words = {}, {}
 		for _, file in ipairs(files) do
 			local seen = {}
