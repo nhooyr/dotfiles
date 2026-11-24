@@ -1,6 +1,42 @@
 local api = vim.api
 local dirali = require('dirali')
 local M = {}
+local open_selection, preview
+
+function M.setup()
+	for name, split in pairs({ Ls = 'edit', Explore = 'edit', Sexplore = 'split', Vexplore = 'vsplit' }) do
+		api.nvim_create_user_command(name, function(options)
+			local path = options.args ~= '' and dirali.expand(options.args) or M.current_directory()
+			if vim.fn.isdirectory(path) == 0 then path = vim.fs.dirname(path) end
+			M.open(path, split, options.smods)
+		end, { nargs = '?', complete = 'dir', bar = true })
+	end
+end
+
+local function bindings()
+	local function map(mode, key, action) vim.keymap.set(mode, key, action, { buffer = true, silent = true }) end
+	map('n', 'R', M.reload)
+	map('n', 'gh', M.toggle_hidden)
+	map('n', 't', M.expand_directory)
+	map('n', '-', function() M.parent(vim.v.count1) end)
+	for _, key in ipairs({ '<CR>', 'i' }) do map('n', key, function() open_selection('edit') end) end
+	map('n', 'o', function() open_selection('split') end)
+	map('n', 'a', function() open_selection('vsplit') end)
+	map('n', 'p', preview)
+	map('n', '!', '<Cmd>%Shdo<CR>')
+	map('x', '!', ':Shdo<CR>')
+	map('n', '<Leader>!', '!')
+	map('x', '<Leader>!', '!')
+	for key, command in pairs({ ['<CR>'] = 'edit', I = 'edit', O = 'split', A = 'vsplit' }) do
+		map('x', key, function() open_selection(command, true) end)
+	end
+	map('n', 'q', function()
+		local previous = vim.b.directory.previous
+		if vim.fn.tabpagenr('$') == 1 and vim.fn.winnr('$') == 1 then vim.cmd.quit()
+		elseif previous > 0 and previous ~= api.nvim_get_current_buf() and api.nvim_buf_is_valid(previous) then api.nvim_set_current_buf(previous)
+		else vim.cmd.close() end
+	end)
+end
 
 local function label(path)
 	local name = path:match('([^/]+/?)$')
@@ -110,7 +146,7 @@ function M.current_directory()
 	return name ~= '' and vim.bo.buftype == '' and vim.fs.dirname(name) or vim.fn.getcwd()
 end
 
-local function open_selection(command, visual)
+open_selection = function(command, visual)
 	local window = api.nvim_get_current_win()
 	local paths = visual and M.selected(math.min(vim.fn.line('v'), vim.fn.line('.')), math.max(vim.fn.line('v'), vim.fn.line('.'))) or M.selected()
 	if visual then api.nvim_feedkeys(api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false) end
@@ -120,7 +156,7 @@ local function open_selection(command, visual)
 	end
 end
 
-local function preview()
+preview = function()
 	local path, window = M.selected()[1], api.nvim_get_current_win()
 	if not path then return end
 	local windows = api.nvim_tabpage_list_wins(0)
@@ -145,28 +181,7 @@ local function initialize(path)
 		vim.cmd([[syntax match DirectoryPathTail =[^/]\+/$=]])
 		vim.cmd([[highlight default link DirectoryPathTail Directory]])
 	end
-	local function map(mode, key, action) vim.keymap.set(mode, key, action, { buffer = true, silent = true }) end
-	map('n', 'R', M.reload)
-	map('n', 'gh', M.toggle_hidden)
-	map('n', 't', M.expand_directory)
-	map('n', '-', function() M.parent(vim.v.count1) end)
-	for _, key in ipairs({ '<CR>', 'i' }) do map('n', key, function() open_selection('edit') end) end
-	map('n', 'o', function() open_selection('split') end)
-	map('n', 'a', function() open_selection('vsplit') end)
-	map('n', 'p', preview)
-	map('n', '!', '<Cmd>%Shdo<CR>')
-	map('x', '!', ':Shdo<CR>')
-	map('n', '<Leader>!', '!')
-	map('x', '<Leader>!', '!')
-	for key, command in pairs({ ['<CR>'] = 'edit', I = 'edit', O = 'split', A = 'vsplit' }) do
-		map('x', key, function() open_selection(command, true) end)
-	end
-	map('n', 'q', function()
-		local previous = vim.b.directory.previous
-		if vim.fn.tabpagenr('$') == 1 and vim.fn.winnr('$') == 1 then vim.cmd.quit()
-		elseif previous > 0 and previous ~= api.nvim_get_current_buf() and api.nvim_buf_is_valid(previous) then api.nvim_set_current_buf(previous)
-		else vim.cmd.close() end
-	end)
+	bindings()
 	if fresh then render() else window_options(true) end
 end
 
@@ -214,16 +229,6 @@ function M.configure()
 		for _, window in ipairs(api.nvim_tabpage_list_wins(0)) do api.nvim_win_call(window, enter) end
 	end })
 	if entered then vim.cmd('silent! autocmd! FileExplorer'); enter() end
-end
-
-function M.setup()
-	for name, split in pairs({ Ls = 'edit', Explore = 'edit', Sexplore = 'split', Vexplore = 'vsplit' }) do
-		api.nvim_create_user_command(name, function(options)
-			local path = options.args ~= '' and dirali.expand(options.args) or M.current_directory()
-			if vim.fn.isdirectory(path) == 0 then path = vim.fs.dirname(path) end
-			M.open(path, split, options.smods)
-		end, { nargs = '?', complete = 'dir', bar = true })
-	end
 end
 
 return M

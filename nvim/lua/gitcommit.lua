@@ -1,4 +1,17 @@
-local function prefill_title()
+local M = {}
+
+function M.setup()
+	vim.keymap.set('n', ']c', '/^diff --<CR>', { buffer = true })
+	vim.keymap.set('n', '[c', '?^diff --<CR>', { buffer = true })
+	vim.bo.expandtab = false
+	vim.bo.tabstop = 4
+	vim.bo.shiftwidth = 0
+	vim.bo.textwidth = 80
+	require('diff').setup()
+	M.prefill_title()
+end
+
+function M.prefill_title()
 	if vim.fs.basename(vim.api.nvim_buf_get_name(0)) ~= 'COMMIT_EDITMSG' then return end
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 	if lines[1] ~= '' then return end
@@ -64,15 +77,4 @@ local function prefill_title()
 	vim.snippet.expand(prefix:gsub('[\\$}]', '\\%0') .. ': ${1:desc}')
 end
 
-local function setup()
-	vim.bo.expandtab = false
-	vim.bo.tabstop = 4
-	vim.bo.shiftwidth = 0
-	vim.bo.textwidth = 80
-	vim.keymap.set('n', ']c', '/^diff --<CR>', { buffer = true })
-	vim.keymap.set('n', '[c', '?^diff --<CR>', { buffer = true })
-	require('diff').setup()
-	prefill_title()
-end
-
-return { setup = setup, prefill_title = prefill_title }
+return M
