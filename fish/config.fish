@@ -57,7 +57,7 @@ abbrali pbp pbpaste
 abbrali pbn 'pbp | pbc'
 abbrali pwdc 'pwd | hpath | pbc'
 abbrali realpc realpathc
-function realpathc --argument-names path --description "Print and copy an absolute pathname"
+function realpathc --argument-names path --description 'Print and copy an absolute pathname'
     realpath "$path" | hpath | pbc
 end
 fish_hybrid_key_bindings
@@ -394,7 +394,7 @@ function watchbell --argument-names pattern
 end
 
 function biglines --argument-names file \
-    --description "Print lines in a file with their lengths, sorted by length"
+    --description 'Print lines in a file with their lengths, sorted by length'
     awk '{ print length, $0 }' "$file" | sort -rn | sed -E "s/^[0-9]+/$(set_color magenta)&$(set_color reset)/" | less
 end
 

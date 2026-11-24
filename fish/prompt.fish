@@ -4,7 +4,7 @@ function fish_prompt
     aqsnow_vcs_prompt_update
     set -l normal "$(set_color --reset)"
     set -l cwd_color "$(set_color $fish_color_cwd)"
-    set -l prompt_status ""
+    set -l prompt_status ''
     set -l suffix_color "$(set_color --bold)"
 
     set -l suffix '$'
@@ -33,7 +33,7 @@ function prompt_hostname
     if set -q SSH_TTY
         printf '%s' "$hostname"
     else
-        string replace -r -- "\..*" "" "$hostname"
+        string replace -r -- '\..*' '' "$hostname"
     end
 end
 function fish_right_prompt
@@ -47,13 +47,13 @@ function fish_title
         set ssh "[$(prompt_hostname | string sub -l 10)] "
     end
     if set -q argv[1]
-        printf "%s%s %s" "$ssh" "$(string sub -l 20 -- "$argv[1]")" "$(prompt_pwd)"
+        printf '%s%s %s' "$ssh" "$(string sub -l 20 -- "$argv[1]")" "$(prompt_pwd)"
     else
         set -l command "$(status current-command | string sub -l 20) "
-        if test "$command" = "fish "
+        if test "$command" = 'fish '
             set command
         end
-        printf "%s%s%s" "$ssh" "$command" "$(prompt_pwd)"
+        printf '%s%s%s' "$ssh" "$command" "$(prompt_pwd)"
     end
 end
 function fish_mode_prompt

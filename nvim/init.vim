@@ -31,8 +31,8 @@ nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
 nnoremap <C-k> <C-w>k
 nnoremap <C-l> <C-w>l
-nnoremap <C-e> <Cmd>execute 'normal!' (v:count1 * 2)."\<C-e>"<CR>
-nnoremap <C-y> <Cmd>execute 'normal!' (v:count1 * 2)."\<C-y>"<CR>
+nnoremap <C-e> <Cmd>execute 'normal!' (v:count1 * 2).'<C-e>'<CR>
+nnoremap <C-y> <Cmd>execute 'normal!' (v:count1 * 2).'<C-y>'<CR>
 
 set backup
 set backupdir-=.
@@ -161,11 +161,11 @@ inoremap <C-s> <Esc>:xit<CR>
 let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
 function s:quit_and_run() abort
 	if mode() ==# 'i'
-		execute "normal! i" . copilot#Accept('')
+		execute 'normal! i' . copilot#Accept('')
 	endif
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
-		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != "")
+		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != '')
 			call writefile(['exec'], $AQSNOW_FISH_RENDEZVOUS)
 		endif
 	endif
@@ -234,14 +234,14 @@ set pumheight=8
 
 inoremap <C-n> <Cmd>set spell<CR><C-n>
 inoremap <C-p> <Cmd>set spell<CR><C-p>
-inoremap <expr> <C-Space> pumvisible() ? "\<C-n>" :
+inoremap <expr> <C-Space> pumvisible() ? '<C-n>' :
 	   \ strpart(getline('.'), 0, col('.') - 1) =~# '\f*/\f*$'
-	   \ ? "\<C-x>\<C-f>" : "\<Cmd>set spell\<CR>\<C-n>"
+	   \ ? '<C-x><C-f>' : '<Cmd>set spell<CR><C-n>'
 if !exists('g:loaded_copilot')
-	inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
+	inoremap <expr> <Tab> pumvisible() ? '<C-n>' : '<Tab>'
 endif
-inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
-inoremap <expr> <C-e> pumvisible() ? "\<C-e>" : "\<C-o>$"
+inoremap <expr> <S-Tab> pumvisible() ? '<C-p>' : '<S-Tab>'
+inoremap <expr> <C-e> pumvisible() ? '<C-e>' : '<C-o>$'
 highlight PmenuMatch cterm=underline
 highlight PmenuSel ctermfg=3 ctermbg=0 cterm=none
 highlight PmenuMatchSel cterm=none
@@ -411,7 +411,7 @@ function s:restore_cursor() abort
 		return
 	endif
 	if line("'\"") > 0
-		if line("'\"") <= line("$")
+		if line("'\"") <= line('$')
 			normal! g`"
 		else
 			keepjumps normal! G

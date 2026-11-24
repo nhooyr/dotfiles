@@ -17,7 +17,7 @@ sub parse_date {
     die $error if $@;
 
     if ( defined $sign ) {
-        $timestamp -= ( $sign eq "+" ? 1 : -1 ) * ( $zone_hour * 3600 + $zone_minute * 60 );
+        $timestamp -= ( $sign eq '+' ? 1 : -1 ) * ( $zone_hour * 3600 + $zone_minute * 60 );
     }
     return $timestamp;
 }

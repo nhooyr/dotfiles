@@ -50,7 +50,7 @@ if ! tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXXXX" 2>&1)"; then
 	printf '%s: %s\n' "${0##*/}" "$tmpdir" | hpath >&2
 	exit 1
 fi
-cleanup_error=""
+cleanup_error=''
 trap '
     if ! cleanup_error="$(rm -rf "$tmpdir" 2>&1)"; then
         printf "%s: %s\n" "${0##*/}" "$cleanup_error" | hpath >&2
@@ -91,7 +91,7 @@ make_card() {
 	} >"$tmpdir/card.vcf"
 }
 
-photo_dimensions=""
+photo_dimensions=''
 # Preserve the original card and photo whenever they already fit.
 if ! encode "$input" "$tmpdir/qr.png"; then
 	: >"$tmpdir/before.vcf"

@@ -1,20 +1,20 @@
 local snippets = {
 	global = {
-		fx = "Fiat Lux$0",
-		chat = "chat: ${1:Improvements}$0",
-		todo = "TODO: ${1:desc}$0",
+		fx = 'Fiat Lux$0',
+		chat = 'chat: ${1:Improvements}$0',
+		todo = 'TODO: ${1:desc}$0',
 
-		Imp = "Improve$0",
-		imp = "improve$0",
-		Imps = "Improvements$0",
-		imps = "improvements$0",
-		Garg = "Gargantuan$0",
-		garg = "gargantuan$0",
+		Imp = 'Improve$0',
+		imp = 'improve$0',
+		Imps = 'Improvements$0',
+		imps = 'improvements$0',
+		Garg = 'Gargantuan$0',
+		garg = 'gargantuan$0',
 
-		play = "hello world: ${1:One} ${2:Two} ${3:Three} $1$0",
+		play = 'hello world: ${1:One} ${2:Two} ${3:Three} $1$0',
 	},
 	go = {
-		ife = "if err != nil {\n\t${1:return err}\n}\n$0",
+		ife = 'if err != nil {\n\t${1:return err}\n}\n$0',
 	},
 }
 
