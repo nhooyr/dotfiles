@@ -265,6 +265,7 @@ command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
 nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
 nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
+nnoremap <Leader>l <Cmd>execute getloclist(0, {'winid': 0}).winid ? 'lclose' : 'lopen'<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
 nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
 let &quickfixtextfunc = "v:lua.require'qf'.fmt"
