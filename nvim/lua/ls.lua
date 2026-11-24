@@ -1,24 +1,24 @@
 local api = vim.api
 local dirali = require('dirali')
-local M = {}
+local open, current_directory, reload, toggle_hidden, expand_directory, parent
 local open_selection, preview
 
-function M.setup()
+local function setup()
 	for name, split in pairs({ Ls = 'edit', Explore = 'edit', Sexplore = 'split', Vexplore = 'vsplit' }) do
 		api.nvim_create_user_command(name, function(options)
-			local path = options.args ~= '' and dirali.expand(options.args) or M.current_directory()
+			local path = options.args ~= '' and dirali.expand(options.args) or current_directory()
 			if vim.fn.isdirectory(path) == 0 then path = vim.fs.dirname(path) end
-			M.open(path, split, options.smods)
+			open(path, split, options.smods)
 		end, { nargs = '?', complete = 'dir', bar = true })
 	end
 end
 
 local function bindings()
 	local function map(mode, key, action) vim.keymap.set(mode, key, action, { buffer = true, silent = true }) end
-	map('n', 'R', M.reload)
-	map('n', 'gh', M.toggle_hidden)
-	map('n', 't', M.expand_directory)
-	map('n', '-', function() M.parent(vim.v.count1) end)
+	map('n', 'R', reload)
+	map('n', 'gh', toggle_hidden)
+	map('n', 't', expand_directory)
+	map('n', '-', function() parent(vim.v.count1) end)
 	for _, key in ipairs({ '<CR>', 'i' }) do map('n', key, function() open_selection('edit') end) end
 	map('n', 'o', function() open_selection('split') end)
 	map('n', 'a', function() open_selection('vsplit') end)
@@ -88,7 +88,7 @@ local function window_options(enter)
 	end
 end
 
-function M.selected(first, last)
+local function selected(first, last)
 	first = first or vim.fn.line('.')
 	last = last or first
 	local paths = {}
@@ -112,25 +112,25 @@ local function render()
 	display(vim.tbl_map(label, entries(state.path, state.hidden)))
 end
 
-function M.reload()
+function reload()
 	vim.b.directory = vim.tbl_extend('force', vim.b.directory, { hidden = false })
 	render()
 end
 
-function M.toggle_hidden()
+function toggle_hidden()
 	local state = vim.b.directory
-	if state.hidden then M.reload(); return end
+	if state.hidden then reload(); return end
 	state.hidden = true
 	vim.b.directory = state
 	display(vim.tbl_filter(function(path) return not path:match('/%.[^/]+/?$') end,
 		api.nvim_buf_get_lines(0, 0, -1, false)))
 end
 
-function M.expand_directory()
-	local path = M.selected()[1]
+function expand_directory()
+	local path = selected()[1]
 	if not path or vim.fn.isdirectory(path) == 0 then return end
 	local listed = {}
-	for _, file in ipairs(M.selected(1, vim.fn.line('$'))) do listed[file] = true end
+	for _, file in ipairs(selected(1, vim.fn.line('$'))) do listed[file] = true end
 	local lines = {}
 	for _, file in ipairs(entries(path, vim.b.directory.hidden)) do
 		if not listed[file] then lines[#lines + 1] = label(file) end
@@ -139,7 +139,7 @@ function M.expand_directory()
 	vim.bo.modified = false
 end
 
-function M.current_directory()
+function current_directory()
 	if vim.b.directory then return vim.b.directory.path end
 	local name = api.nvim_buf_get_name(0)
 	if name ~= '' and vim.fn.isdirectory(name) == 1 then return name end
@@ -148,23 +148,23 @@ end
 
 open_selection = function(command, visual)
 	local window = api.nvim_get_current_win()
-	local paths = visual and M.selected(math.min(vim.fn.line('v'), vim.fn.line('.')), math.max(vim.fn.line('v'), vim.fn.line('.'))) or M.selected()
+	local paths = visual and selected(math.min(vim.fn.line('v'), vim.fn.line('.')), math.max(vim.fn.line('v'), vim.fn.line('.'))) or selected()
 	if visual then api.nvim_feedkeys(api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false) end
 	for _, path in ipairs(paths) do
-		M.open(path, command)
+		open(path, command)
 		if command ~= 'edit' then api.nvim_set_current_win(window) end
 	end
 end
 
 preview = function()
-	local path, window = M.selected()[1], api.nvim_get_current_win()
+	local path, window = selected()[1], api.nvim_get_current_win()
 	if not path then return end
 	local windows = api.nvim_tabpage_list_wins(0)
 	if #windows > 1 then
 		api.nvim_set_current_win(windows[1] == window and windows[2] or windows[1])
-		M.open(path)
+		open(path)
 	else
-		M.open(path, 'split')
+		open(path, 'split')
 	end
 	api.nvim_set_current_win(window)
 end
@@ -185,8 +185,8 @@ local function initialize(path)
 	if fresh then render() else window_options(true) end
 end
 
-function M.open(path, command, modifiers)
-	path = dirali.expand(path and path ~= '' and path or M.current_directory())
+function open(path, command, modifiers)
+	path = dirali.expand(path and path ~= '' and path or current_directory())
 	local directory = vim.fn.isdirectory(path) == 1 and vim.uv.fs_realpath(path)
 	local options = vim.w.directory_options
 	if directory then path = directory == '/' and directory or directory .. '/' end
@@ -203,14 +203,14 @@ function M.open(path, command, modifiers)
 	end
 end
 
-function M.parent(count)
+function parent(count)
 	local path = api.nvim_buf_get_name(0)
 	if path == '' or vim.bo.buftype ~= '' and not vim.b.directory then path = vim.fn.getcwd() .. '/' end
 	for _ = 1, count or 1 do path = path == '/' and '/' or vim.fs.dirname(path:gsub('/$', '')) or '/' end
-	M.open(path)
+	open(path)
 end
 
-function M.configure()
+local function configure()
 	vim.g.loaded_nvim_dir_plugin = true
 	local group = api.nvim_create_augroup('aqsnow.directory', { clear = true })
 	local entered = vim.v.vim_did_enter == 1
@@ -231,4 +231,14 @@ function M.configure()
 	if entered then vim.cmd('silent! autocmd! FileExplorer'); enter() end
 end
 
-return M
+return {
+	setup = setup,
+	configure = configure,
+	open = open,
+	parent = parent,
+	selected = selected,
+	reload = reload,
+	toggle_hidden = toggle_hidden,
+	expand_directory = expand_directory,
+	current_directory = current_directory,
+}

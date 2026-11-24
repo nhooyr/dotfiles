@@ -1,16 +1,16 @@
-local M = {}
+local generate, run
 
-function M.setup()
-	vim.api.nvim_create_user_command('Shdo', M.generate,
+local function setup()
+	vim.api.nvim_create_user_command('Shdo', generate,
 		{ nargs = '*', range = true, bang = true, complete = 'file' })
 end
 
 local function bindings()
-	vim.keymap.set({ 'n', 'i' }, '<M-CR>', M.run, { buffer = true })
-	vim.keymap.set('n', '<Leader>1', M.run, { buffer = true })
+	vim.keymap.set({ 'n', 'i' }, '<M-CR>', run, { buffer = true })
+	vim.keymap.set('n', '<Leader>1', run, { buffer = true })
 end
 
-function M.run()
+function run()
 	local listing = vim.b.shdo_listing
 	vim.cmd.stopinsert()
 	vim.cmd.write()
@@ -21,7 +21,7 @@ function M.run()
 	end
 end
 
-function M.generate(options)
+function generate(options)
 	local helper = require('dirali')
 	local paths, seen = {}, {}
 	for _, value in ipairs(options.bang and vim.fn.argv() or vim.fn.getline(options.line1, options.line2)) do
@@ -70,4 +70,4 @@ function M.generate(options)
 	vim.cmd('silent write')
 end
 
-return M
+return { setup = setup, generate = generate, run = run }
