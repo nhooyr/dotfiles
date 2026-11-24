@@ -1,4 +1,14 @@
 function git
+    if test "$(count $argv)" -eq 2
+        and test "$argv[1]" = rebase
+        and contains -- "$argv[2]" -i --interactive
+        for base in origin/main origin/master
+            if command git show-ref --verify --quiet "refs/remotes/$base"
+                set -a argv "$base"
+                break
+            end
+        end
+    end
     command git $argv
     set -l code $status
     # Ignore SIGPIPE. See intro commit.
