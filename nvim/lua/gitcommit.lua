@@ -34,17 +34,28 @@ local function prefill_title()
 		local counts, words = {}, {}
 		for _, file in ipairs(files) do
 			local seen = {}
-			for word in file:gmatch('%w+') do
-				if not seen[word] then
-					if not counts[word] then words[#words + 1] = word end
-					counts[word] = (counts[word] or 0) + 1
-					seen[word] = true
+			local function add(word)
+				if seen[word] then return end
+				if not counts[word] then words[#words + 1] = word end
+				counts[word] = (counts[word] or 0) + 1
+				seen[word] = true
+			end
+			for component in file:gmatch('[^/]+') do
+				add(component)
+				-- Keep punctuation inside shared chunks, such as foo-bar in foo-bar.test.js.
+				for first in component:gmatch('()%w+') do
+					local tail = component:sub(first)
+					for last in tail:gmatch('%w+()') do
+						add(tail:sub(1, last - 1))
+					end
 				end
 			end
 		end
-		local most = 1
 		for _, word in ipairs(words) do
-			if counts[word] > most then prefix, most = word, counts[word] end
+			if counts[word] > 1 and (prefix == '.' or #word > #prefix
+				or (#word == #prefix and counts[word] > counts[prefix])) then
+				prefix = word
+			end
 		end
 		if prefix == '.' then prefix = files[1] end
 	end

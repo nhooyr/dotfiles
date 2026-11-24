@@ -257,6 +257,23 @@ eq(title({ 'modified: autoload/copilot.vim', 'modified: test/copilot_partial_acc
     'copilot: ${1:desc}', 'shared path words still take priority over the first file')
 eq(title({ 'modified: index.html', 'modified: more/links.html' }),
     'html: ${1:desc}', 'file extensions count as shared path words')
+eq(title({ 'modified: a/foo-bar.js', 'modified: b/foo-bar.test.js' }),
+    'foo-bar: ${1:desc}', 'shared chunks retain their internal separators')
+eq(title({ 'modified: a/foo_bar-one.lua', 'modified: b/foo_bar-two.lua' }),
+    'foo_bar: ${1:desc}', 'splitting narrows only as far as the shared chunk')
+eq(title({ 'modified: a/init.vim', 'modified: b/init.vim' }),
+    'init.vim: ${1:desc}', 'whole shared path components take priority over their words')
+eq(title({ 'modified: a/component.js', 'modified: b/component.test.js', 'modified: c/other.js' }),
+    'component: ${1:desc}', 'longer shared chunks take priority over more frequent short words')
+eq(title({ 'modified: a/alpha-beta.js', 'modified: b/alpha-beta.lua' }),
+    'alpha-beta: ${1:desc}', 'compound words stay intact across different extensions')
+eq(title({ 'modified: a/.config', 'modified: b/.config' }),
+    '.config: ${1:desc}', 'whole components retain leading punctuation')
+eq(title({ 'modified: a/alpha-bravo.js', 'modified: b/alpha.lua', 'modified: c/bravo.txt',
+    'modified: d/bravo.css' }),
+    'bravo: ${1:desc}', 'equally long chunks prefer more matching files')
+eq(title({ 'modified: a/alpha-bravo.js', 'modified: b/alpha.lua', 'modified: c/bravo.txt' }),
+    'alpha: ${1:desc}', 'equal length and frequency preserve the first occurrence')
 eq(title({ 'renamed: old/location.lua -> nvim/lua/new.lua', 'modified: nvim/lua/other.lua' }),
     'nvim/lua: ${1:desc}', 'renames use the destination directory')
 eq(title({ 'copied: old/location.lua -> other/new.lua' }),
