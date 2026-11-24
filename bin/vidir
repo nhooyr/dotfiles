@@ -42,8 +42,18 @@ my @editor = shellwords( $ENV{EDITOR} // '' );
 die "$name: EDITOR is not set\n" unless @editor;
 my $directory = abs_path( $ARGV[0] // '.' );
 die "$name: not a directory: " . ( $ARGV[0] // '.' ) . "\n" unless defined($directory) && -d $directory;
-my $git_check  = 'git -C ' . quote($directory) . ' rev-parse --is-inside-work-tree 2>/dev/null';
-my $use_ignore = !$no_ignore && `$git_check` eq "true\n";
+my @git_local_env;
+if ( !$no_ignore && grep { /^GIT_/ } keys %ENV ) {
+    @git_local_env = split /\n/, `git rev-parse --local-env-vars`;
+    die "$name: cannot determine Git environment variables\n" if $?;
+}
+my $use_ignore;
+{
+    local @ENV{@git_local_env};
+    delete @ENV{@git_local_env};
+    my $git_check = 'git -C ' . quote($directory) . ' rev-parse --is-inside-work-tree 2>/dev/null';
+    $use_ignore = !$no_ignore && `$git_check` eq "true\n";
+}
 
 sub quote {
     my ($value) = @_;
@@ -76,6 +86,8 @@ my ( $ignore_input, $ignore_output, $ignore_pid );
 sub ignored_paths {
     return () unless @_;
     if ( !defined $ignore_pid ) {
+        local @ENV{@git_local_env};
+        delete @ENV{@git_local_env};
         local $ENV{GIT_FLUSH} = 1;
         my @command =
           ( 'git', '-C', $directory, 'check-ignore', qw(--no-index --stdin -z --verbose --non-matching) );
