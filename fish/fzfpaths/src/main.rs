@@ -74,7 +74,8 @@ Options:
                     With --color, basenames and markers use LS_COLORS.
                     The Fish widgets remove the final marker.
   --keep-dot        Also offer ./ paths for local scripts with a shebang.
-  --read0           Read NUL-separated filenames from stdin instead of scanning.
+  --read0           Read NUL-separated absolute filenames instead of scanning.
+                    Relative filenames are rejected.
                     Keep input order, skipping missing files and directories.
                     Files under the working directory use local path rules;
                     other files use absolute paths or directory aliases.
@@ -878,7 +879,13 @@ impl Scanner {
         if bytes.is_empty() {
             return Ok(());
         }
-        let absolute = self.cwd.join(OsStr::from_bytes(bytes));
+        let absolute = PathBuf::from(OsStr::from_bytes(bytes));
+        if !absolute.is_absolute() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("--read0 requires absolute paths: {}", absolute.display()),
+            ));
+        }
         let absolute = if let (Some(parent), Some(name)) = (absolute.parent(), absolute.file_name())
         {
             normalize(parent).join(name)

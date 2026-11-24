@@ -2723,7 +2723,34 @@ fn input_paths_preserve_order_and_share_executable_rules() {
 }
 
 #[test]
-fn input_paths_normalize_parents_before_classification_and_deduplication() {
+fn input_paths_reject_relative_filenames() {
+    let fixture = Fixture::new();
+    for path in ["file", "./file", "../global_dir/project/tracked"] {
+        let mut child = fixture
+            .command_with_flags(&["--read0"], &fixture.local, Path::new(""), "-f", &[])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(format!("{path}\0").as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert!(output.stdout.is_empty());
+        assert_eq!(
+            output.stderr,
+            format!("fzfpaths: --read0 requires absolute paths: {path}\n").as_bytes()
+        );
+    }
+}
+
+#[test]
+fn input_absolute_paths_normalize_parents_before_classification_and_deduplication() {
     let fixture = Fixture::new();
     fs::write(fixture.repo.join("binary"), b"\x7fELF").unwrap();
     make_executable(fixture.repo.join("binary"));
@@ -2736,11 +2763,11 @@ fn input_paths_normalize_parents_before_classification_and_deduplication() {
             &[("$project", &fixture.repo)],
         ),
         &[
-            Path::new("../global_dir/project/tracked"),
+            &fixture.local.join("../global_dir/project/tracked"),
             &fixture.repo.join("tracked"),
-            Path::new("dir/../file"),
+            &fixture.local.join("dir/../file"),
             &fixture.local.join("file"),
-            Path::new("../global_dir/project/binary"),
+            &fixture.local.join("../global_dir/project/binary"),
             &fixture.repo.join("binary"),
         ],
     );
@@ -2767,8 +2794,8 @@ fn input_parent_normalization_preserves_the_symlink_filename() {
             &[("$outside", &outside)],
         ),
         &[
-            Path::new("link/../file-link"),
-            Path::new("../outside/file-link"),
+            &fixture.local.join("link/../file-link"),
+            &fixture.local.join("../outside/file-link"),
             &outside.join("file-link"),
         ],
     );
@@ -2964,7 +2991,8 @@ fn help_uses_invoked_basename() {
         assert!(help.contains("Generate path candidates"));
         assert!(help.contains(".gitignore"));
         assert!(help.contains("Options:"));
-        assert!(help.contains("NUL-separated"));
+        assert!(help.contains("NUL-separated absolute filenames"));
+        assert!(help.contains("Relative filenames are rejected."));
         assert!(help.contains("Examples (Fish):"));
         assert!(help.contains("GLOBAL_DIR"));
         assert!(help.contains("Each --dirali"));
