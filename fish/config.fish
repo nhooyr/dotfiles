@@ -52,7 +52,10 @@ abbr -a --position anywhere '$pbp' '"$(pbpaste)"'
 abbrali pbp pbpaste
 abbrali pbn 'pbp | pbc'
 abbrali pwdc 'pwd | hpath | pbc'
+abbrali rpc realpathc
+abbrali rpc. realpathc .
 abbrali realpc realpathc
+abbrali realpc. realpathc .
 function realpathc --argument-names path --description 'Print and copy an absolute pathname'
     realpath -- "$path" | hpath | pbc
 end
