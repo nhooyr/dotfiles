@@ -1,9 +1,19 @@
-function fair --description 'fair [n] [--date1 ISO_DATE --date2 ISO_DATE]'
+function fair --description 'fair [n] [--date1 ISO_DATE --date2 ISO_DATE] | fair --sort'
+    set -l arguments $argv
+    argparse --max-args 1 --exclusive sort,date1 --exclusive sort,date2 sort date1= date2= -- $argv; or return
+    if set -q _flag_sort
+        if set -q argv[1]
+            printf '%s: --sort does not accept a count\n' "$(status function)" >&2
+            return 2
+        end
+        cd -- "$fair_repo"; or return
+        perl "$dotfiles/fish/fair_sort.pl"
+        return "$status"
+    end
     if test "$(path resolve -- "$PWD")" != "$(path resolve -- "$fair_repo")"
-        cdc "$fair_repo" fair $argv
+        cdc "$fair_repo" fair $arguments
         return
     end
-    argparse --max-args 1 date1= date2= -- $argv; or return
     set -l n "$argv[1]"
     test -n "$n"; or set n 1
     if not string match -qr '^[0-9]{1,4}$' -- "$n"; or test "$n" -lt 1

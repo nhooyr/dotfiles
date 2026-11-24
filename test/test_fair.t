@@ -78,11 +78,16 @@ function git
     command git $argv
 end
 function cdc
+    set -l previous_dir "$PWD"
     cd -- "$argv[1]"; or return
     $argv[2..-1]
+    set -l code "$status"
+    cd -- "$previous_dir"; or return
+    return "$code"
 end
 set -g fair_repo "$TEST_FAIR_REPO"
 set -g dotfiles "$TEST_DOTFILES"
+set -l starting_dir "$PWD"
 fair $argv; or exit
 '
         )
@@ -347,6 +352,126 @@ sub test_without_dates_keeps_default_and_explicit_counts {
     }
 }
 
+sub test_sort_rejects_count_and_date_flags {
+    my ($self) = @_;
+    for my $args (
+        [ '--sort',  '2' ],
+        [ '2',       '--sort' ],
+        [ '--sort',  '--date1',    '2024-01-01' ],
+        [ '--date1', '2024-01-01', '--date2', '2024-01-02', '--sort' ],
+      )
+    {
+        my $result = fair( $self, $args, undef, '' );
+        isnt( $result->{returncode}, 0, 'sort rejects count and date arguments' );
+        is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
+            $self->{initial}, 'invalid sort leaves HEAD unchanged' );
+    }
+}
+
+sub test_sort_stays_in_repository {
+    my ($self) = @_;
+    assert_success( $self,
+        fair( $self, ['--sort'], $self->{root}, 'test "$PWD" -ef "$TEST_FAIR_REPO"; or exit 91' ) );
+    assert_success( $self,
+        fair( $self, ['1'], $self->{root}, 'test "$PWD" -ef "$starting_dir"; or exit 92' ) );
+}
+
+sub commit_at {
+    my ( $self, $timestamp, $message, @args ) = @_;
+    local $self->{env}{GIT_COMMITTER_DATE} = '@' . ( $timestamp + 60 ) . ' +0000';
+    git( $self,
+        [ 'commit', '--quiet', '--allow-empty', '--date', "\@$timestamp +0000", '-m', $message, @args ],
+        undef );
+}
+
+sub all_commit_metadata {
+    my ($self) = @_;
+    return [
+        map {
+            my @fields = split /\0/,
+              git( $self, [ 'show', '-s', '--format=%B%x00%at%x00%ct', $_ ], undef )->{stdout};
+            [ $fields[0], 0 + $fields[1], 0 + $fields[2] ]
+        } split /\n/,
+        git( $self, [ 'rev-list', '--reverse', 'HEAD' ], undef )->{stdout}
+    ];
+}
+
+sub test_sort_orders_entire_branch {
+    my ($self) = @_;
+    my $start = iso_epoch('2024-01-01T00:00:00Z');
+    commit_at( $self, $start + 4 * 86400, 'count: 40', '--amend' );
+    write_file( "$self->{repo}/late.txt", "late patch\n" );
+    git( $self, [ 'add', 'late.txt' ], undef );
+    commit_at( $self, $start + 3 * 86400, "Late patch\n\nKeep this message body." );
+    commit_at( $self, $start,             'count: 41' );
+    write_file( "$self->{repo}/early.txt", "early patch\n" );
+    git( $self, [ 'add', 'early.txt' ], undef );
+    commit_at( $self, $start + 86400,     'Early patch' );
+    commit_at( $self, $start + 2 * 86400, 'count: 99' );
+    commit_at( $self, $start + 2 * 86400, 'count: 43' );
+    my $before   = all_commit_metadata($self);
+    my $expected = [ map { [ $before->[$_][0], $before->[$_][1], $before->[$_][1] ] } ( 2, 3, 4, 5, 1, 0 ) ];
+    my $tree     = trim( git( $self, [ 'rev-parse', 'HEAD^{tree}' ], undef )->{stdout} );
+    my $started  = time;
+    assert_success( $self, fair( $self, ['--sort'], $self->{root}, '' ) );
+    my $sorted = all_commit_metadata($self);
+    my $marker = pop @$sorted;
+    is_deeply( $sorted, $expected, 'every commit is sorted stably with messages and author dates preserved' );
+    is( $marker->[0], "count: 99\n", 'sort appends the highest existing counter' );
+    cmp_ok( $marker->[1], '>=', $started, 'counter author date is current' );
+    is( $marker->[2], $marker->[1], 'counter author and committer dates match' );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD^{tree}' ], undef )->{stdout} ),
+        $tree, 'independent patches preserve the final tree' );
+    my $head = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
+    assert_success( $self, fair( $self, ['--sort'], undef, '' ) );
+    isnt( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
+        $head, 'sorting an ordered branch still appends a new commit' );
+    my $again = all_commit_metadata($self);
+    is( pop(@$again)->[0], "count: 99\n", 'the new marker keeps the current maximum counter' );
+    is_deeply( $again, [ @$expected, $marker ], 'the ordered commits are otherwise unchanged' );
+    assert_success( $self, fair( $self, [], undef, '' ) );
+    is( trim( git( $self, [ 'show', '-s', '--format=%s' ], undef )->{stdout} ),
+        'count: 100', 'ordinary fair continues from the maximum counter' );
+}
+
+sub test_sort_initializes_counter_and_preserves_index {
+    my ($self) = @_;
+    my $future = time + 3600;
+    commit_at( $self, $future, 'count: 999 extra', '--amend' );
+    my $before = all_commit_metadata($self);
+    my $tree   = trim( git( $self, [ 'rev-parse', 'HEAD^{tree}' ], undef )->{stdout} );
+    write_file( "$self->{repo}/pending.txt", "keep staged\n" );
+    git( $self, [ 'add', 'pending.txt' ], undef );
+    my $index = trim( git( $self, ['write-tree'], undef )->{stdout} );
+    assert_success( $self, fair( $self, ['--sort'], undef, '' ) );
+    my $after  = all_commit_metadata($self);
+    my $marker = pop @$after;
+    is_deeply( $after, $before, 'an already ordered branch keeps existing commits' );
+    is( $marker->[0], "count: 0\n", 'only exact counter subjects contribute to the maximum' );
+    cmp_ok( $marker->[1], '>=', $future, 'counter date does not precede a future-dated commit' );
+    is( $marker->[2], $marker->[1], 'counter dates stay aligned' );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD^{tree}' ], undef )->{stdout} ),
+        $tree, 'counter commit is empty' );
+    is( trim( git( $self, ['write-tree'], undef )->{stdout} ), $index, 'staged changes remain in the index' );
+}
+
+sub test_sort_rejects_merge_history {
+    my ($self) = @_;
+    my $start = iso_epoch('2024-01-01T00:00:00Z');
+    commit_at( $self, $start + 3 * 86400, 'count: 40', '--amend' );
+    git( $self, [ 'branch', 'side' ], undef );
+    commit_at( $self, $start, 'Main commit' );
+    git( $self, [ 'checkout', '--quiet', 'side' ], undef );
+    commit_at( $self, $start + 86400, 'Side commit' );
+    git( $self, [ 'checkout', '--quiet', 'main' ], undef );
+    git( $self, [ 'merge', '--quiet', '--no-ff', 'side', '-m', 'Merge side' ], undef );
+    my $head   = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
+    my $result = fair( $self, ['--sort'], undef, '' );
+    isnt( $result->{returncode}, 0, 'sort rejects out-of-order merge history' );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
+        $head, 'merge rejection leaves HEAD unchanged' );
+}
+
 sub generate {
     my ( $self, $start, $end, $count, $seed, $tz ) = @_;
     my ($env);
@@ -529,6 +654,12 @@ run_cases(
           \&test_dated_commits_restore_inherited_dates_for_next_call,
         "test_without_dates_keeps_default_and_explicit_counts" =>
           \&test_without_dates_keeps_default_and_explicit_counts,
+        'test_sort_rejects_count_and_date_flags'            => \&test_sort_rejects_count_and_date_flags,
+        'test_sort_stays_in_repository'                     => \&test_sort_stays_in_repository,
+        'test_sort_orders_entire_branch'                    => \&test_sort_orders_entire_branch,
+        'test_sort_initializes_counter_and_preserves_index' =>
+          \&test_sort_initializes_counter_and_preserves_index,
+        'test_sort_rejects_merge_history'                   => \&test_sort_rejects_merge_history,
         "test_busy_days_and_two_week_gaps"                  => \&test_busy_days_and_two_week_gaps,
         "test_schedule_changes_with_random_seed"            => \&test_schedule_changes_with_random_seed,
         "test_dense_range_uses_every_available_second"      => \&test_dense_range_uses_every_available_second,
