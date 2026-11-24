@@ -1,4 +1,7 @@
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
+if !filereadable(s:config_dir . '/doc/tags')
+	execute 'helptags' fnameescape(s:config_dir . '/doc')
+endif
 execute 'luafile' fnameescape(s:config_dir . '/lua/plugins.lua')
 
 set number
@@ -136,12 +139,11 @@ nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
 command Cdh execute 'cd' fnameescape(isdirectory(expand('%')) ? expand('%') : expand('%:h'))
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
 nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snippets.lua<CR>
-" Local directories use Dirvish.
+" Local directories use our directory viewer.
 " Keep these settings for netrw's remote browsing (e.g. scp:// via sshv).
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
-let g:dirvish_mode = ':sort ,^.*[\/],'
-nmap - <Plug>(dirvish_up)
+nnoremap - <Cmd>lua require('ls').parent(vim.v.count1)<CR>
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
@@ -292,6 +294,7 @@ for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
 		call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
 	endif
 endfor
+lua require('ls').configure()
 let &grepprg = shellescape(fnamemodify(s:config_dir, ':h') . '/bin/vgrep')
 set grepformat=%f:%l:%c:%m
 inoremap <M-j> <Cmd>lua require('snippets').expand_or_jump()<CR>
@@ -329,8 +332,6 @@ augroup aqsnow
 	autocmd filetype fish setlocal et ts=4 sw=0 formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd FileType help setlocal concealcursor=nc
-	autocmd FileType dirvish nnoremap <silent><buffer> gr <Cmd>Dirvish<CR>
-	autocmd FileType dirvish nnoremap <silent><buffer> gh <Cmd>silent keeppatterns g@\v/\.[^\/]+/?$@d _<Bar>setlocal conceallevel=3<CR>
 	autocmd BufNewFile *:[0-9]* nested lua require('filelinecol').open()
 	autocmd BufNewFile * if expand('<abuf>') == bufnr() && &buftype == '' | setlocal modified | endif
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
@@ -344,9 +345,11 @@ augroup END
 if v:vim_did_enter
 	lua require('gitstatus').setup()
 	lua require('shdo').setup()
+	lua require('ls').setup()
 else
 	autocmd aqsnow VimEnter * ++once lua require('gitstatus').setup()
 	autocmd aqsnow VimEnter * ++once lua require('shdo').setup()
+	autocmd aqsnow VimEnter * ++once lua require('ls').setup()
 endif
 
 function s:restore_cursor() abort

@@ -1,0 +1,43 @@
+*ls.txt*  Local directory viewer and shell command lists
+
+DIRECTORY VIEWER                                                     *:Ls*
+
+:Ls [path]
+    Open a directory, or the parent of a file. With no path, use the current
+    buffer's directory. :Explore does the same; :Sexplore and :Vexplore open
+    a horizontal or vertical split. Browsing does not change the working
+    directory.
+
+    Parent paths are concealed normally. Reveal them to see directory
+    aliases. Filesystem operations expand aliases without evaluating code.
+
+    <CR>, i     Open the current entry.
+    o, a        Open in a horizontal or vertical split.
+    p           Preview the current entry.
+    -           Open the parent directory; accepts a count.
+    R           Reload the full listing.
+    gh          Hide dotfiles; use again to reload the full listing.
+    t           Expand one directory level inline, without duplicate entries.
+    !           Generate |:Shdo| for the whole listing or visual selection.
+    <Leader>!   Use Vim's normal |filter| operator.
+    q           Quit the final window, or return to the previous buffer.
+
+SHELL COMMAND LISTS                                     *Shdo* *:Shdo*
+
+:[range]Shdo[!] [command]
+    Generate a POSIX sh script from paths in the selected lines. ! uses the
+    argument list. Each {} in command is replaced by a safely quoted path;
+    without {}, the path is appended. The default command is mv -v -- {} {}.
+
+    Paths from one directory use relative filenames. Mixed-directory paths
+    use full paths with directory aliases where available. Scripts start with
+    #!/bin/sh, set -eu, and cd -- to their directory. Paths are quoted only
+    when needed, keeping directory aliases expandable.
+
+    Example: select paths and enter :Shdo mv -- {} {}.bak
+
+    <Leader>1 and <M-CR> save and execute the script. Alt-Enter also works in
+    Insert mode. On success, return to the refreshed listing. On failure,
+    keep the script open for correction.
+
+vim:tw=78:ts=8:ft=help:norl:

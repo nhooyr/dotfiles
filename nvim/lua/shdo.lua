@@ -1,44 +1,67 @@
 local function run()
-	local directory, listing = vim.b.shdo_directory, vim.b.shdo_listing
+	local listing = vim.b.shdo_listing
 	vim.cmd.stopinsert()
 	vim.cmd.write()
-	vim.cmd('!cd -- ' .. vim.fn.shellescape(directory, true) .. ' && sh '
-		.. vim.fn.shellescape(vim.api.nvim_buf_get_name(0), true))
-	if vim.v.shell_error == 0 then vim.api.nvim_set_current_buf(listing) end
-end
-
-local function setup_script()
-	local script, split = vim.api.nvim_get_current_buf(), vim.api.nvim_get_current_win()
-	local window = vim.fn.win_getid(vim.fn.winnr('#'))
-	local listing, directory = vim.api.nvim_win_get_buf(window), vim.fn.getcwd()
-	vim.bo.bufhidden = 'hide'
-	vim.api.nvim_win_close(split, false)
-	vim.api.nvim_set_current_win(window)
-	vim.api.nvim_set_current_buf(script)
-	vim.bo.bufhidden = 'wipe'
-	vim.b.shdo_directory, vim.b.shdo_listing = directory, listing
-	vim.api.nvim_buf_set_lines(0, 0, 0, false, { 'set -eu' })
-	vim.keymap.set({ 'n', 'i' }, '<M-CR>', run, { buffer = true })
-	vim.keymap.set('n', 'Z!', run, { buffer = true })
+	vim.cmd('!sh ' .. vim.fn.shellescape(vim.api.nvim_buf_get_name(0), true))
+	if vim.v.shell_error == 0 and vim.api.nvim_buf_is_valid(listing) then
+		vim.api.nvim_set_current_buf(listing)
+		if vim.bo.filetype == 'directory' then require('ls').reload() end
+	end
 end
 
 local function generate(options)
-	local paths = options.bang and vim.fn.argv() or vim.fn.getline(options.line1, options.line2)
-	local shell = vim.o.shell
+	local helper = require('dirali')
+	local paths, seen = {}, {}
+	for _, value in ipairs(options.bang and vim.fn.argv() or vim.fn.getline(options.line1, options.line2)) do
+		if value ~= '' then
+			local path = helper.expand(value)
+			path = path == '/' and path or path:gsub('/+$', '')
+			if not seen[path] then
+				if not vim.uv.fs_lstat(path) then error('Shdo: invalid path: ' .. value) end
+				paths[#paths + 1], seen[path] = path, true
+			end
+		end
+	end
+	if #paths == 0 then error('Shdo: no paths selected') end
+	table.sort(paths)
+	local directory = vim.fs.dirname(paths[1])
+	local relative = true
+	for _, path in ipairs(paths) do
+		if vim.fs.dirname(path) ~= directory then relative = false; break end
+	end
+	if not relative then directory = vim.fn.getcwd() end
+	local command = options.args ~= '' and options.args or 'mv -v -- {} {}'
+	if not command:find('{}', 1, true) then command = command .. ' {}' end
+	local lines, shell = { '#!/bin/sh', 'set -eu' }, vim.o.shell
 	vim.o.shell = 'sh'
-	local ok, err = pcall(vim.fn['dirvish#shdo'], paths, options.args)
+	local ok, err = pcall(function()
+		lines[#lines + 1] = 'cd -- ' .. helper.shellescape(directory)
+		for _, path in ipairs(paths) do
+			local quoted = helper.shellescape(relative and vim.fs.basename(path) or path)
+			lines[#lines + 1] = command:gsub('{}', function() return quoted end)
+		end
+	end)
 	vim.o.shell = shell
 	if not ok then error(err) end
+
+	local listing = vim.api.nvim_get_current_buf()
+	local script = vim.api.nvim_create_buf(true, false)
+	vim.api.nvim_buf_set_name(script, vim.fn.tempname() .. '.sh')
+	vim.api.nvim_buf_set_lines(script, 0, -1, false, lines)
+	vim.bo[script].undofile = false
+	vim.bo[script].swapfile = false
+	vim.bo[script].bufhidden = 'wipe'
+	vim.api.nvim_set_current_buf(script)
+	vim.b.shdo_directory, vim.b.shdo_listing = directory, listing
+	vim.bo.filetype = 'sh'
+	vim.keymap.set({ 'n', 'i' }, '<M-CR>', run, { buffer = true })
+	vim.keymap.set('n', '<Leader>1', run, { buffer = true })
+	vim.cmd('silent write')
 end
 
 local function setup()
 	vim.api.nvim_create_user_command('Shdo', generate,
 		{ nargs = '*', range = true, bang = true, complete = 'file' })
-	vim.api.nvim_create_autocmd('User', {
-		group = vim.api.nvim_create_augroup('aqsnow.shdo', { clear = true }),
-		pattern = 'DirvishShdo',
-		callback = setup_script,
-	})
 end
 
-return { setup = setup, run = run }
+return { setup = setup, generate = generate, run = run }

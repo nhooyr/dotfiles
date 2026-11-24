@@ -5,14 +5,12 @@ use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
 
-my $root    = absolute_path("$FindBin::Bin/..");
-my $nvim    = which('nvim');
-my $dirvish = ( $ENV{XDG_DATA_HOME} || "$ENV{HOME}/.local/share" ) . '/nvim/site/pack/core/opt/vim-dirvish';
+my $root = absolute_path("$FindBin::Bin/..");
+my $nvim = which('nvim');
 
 sub setup {
     my ($self) = @_;
     plan skip_all => 'Neovim is needed to test the editor helpers' unless $nvim;
-    die "Dirvish is not installed: $dirvish\n" unless -d $dirvish;
     $self->{temporary} = tempdir( 'nvim-helpers-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $tmp = $self->{temporary};
     make_path("$tmp/home");
@@ -29,7 +27,6 @@ sub setup {
         AQSNOW_FISH_RENDEZVOUS => "$tmp/request",
         dotfiles               => $root,
         TEST_DOTFILES          => $root,
-        TEST_DIRVISH           => $dirvish,
         TEST_ORIGINAL          => "$tmp/original.txt",
         TEST_SCRIPT            => "$tmp/case.lua",
     };
@@ -39,11 +36,9 @@ let g:test_config_sources = get(g:, 'test_config_sources', 0) + 1
 execute 'set runtimepath^=' . fnameescape($TEST_DOTFILES . '/nvim')
 lua << EOF
 vim.pack.add = function(specs, options)
-    vim.g.test_plugin_specs = specs
-    vim.g.test_plugin_options = options
-    if not vim.tbl_contains(vim.opt.runtimepath:get(), vim.env.TEST_DIRVISH) then
-        vim.opt.runtimepath:prepend(vim.env.TEST_DIRVISH)
-    end
+    vim.g.test_plugin_specs = vim.list_extend(vim.g.test_plugin_specs or {}, specs)
+    _G.test_plugin_options = _G.test_plugin_options or {}
+    table.insert(_G.test_plugin_options, options)
 end
 EOF
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
@@ -86,12 +81,11 @@ sub startup_and_config_paths {
 eq(vim.g.aqsnow_orig_file, vim.fn.resolve(vim.env.TEST_ORIGINAL), 'startup records the original file')
 eq(vim.g.test_plugin_specs, {
     { src = 'https://github.com/nhooyr/copilot.vim.git', version = 'fix-partial-accept-preview' },
-    'https://github.com/justinmk/vim-dirvish.git',
-}, 'native packages preserve the patched Copilot fork and include Dirvish')
-eq(vim.g.test_plugin_options, { confirm = false }, 'package setup installs without an interactive prompt')
+}, 'only the patched Copilot fork is managed externally')
+eq(_G.test_plugin_options[1], { confirm = false }, 'package setup installs without an interactive prompt')
 eq(vim.o.packlockfile, vim.env.TEST_DOTFILES .. '/nvim/nvim-pack-lock.json', 'package revisions use the tracked lockfile')
-eq(vim.g.loaded_dirvish, 1, 'Dirvish loads during startup')
-eq(vim.g.loaded_nvim_dir_plugin, 0, 'Dirvish disables the native directory browser')
+eq(vim.fn.exists(':Ls'), 2, 'the local viewer command is available')
+eq(vim.g.loaded_nvim_dir_plugin, true, 'the local viewer disables the native directory browser')
 assert(not vim.o.autochdir, 'directories change only when explicitly requested')
 local remote = false
 for _, event in ipairs(vim.api.nvim_get_autocmds({ group = 'Network', event = 'BufReadCmd' })) do
@@ -270,7 +264,7 @@ vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL .. ':1:1'))
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)), vim.fn.resolve(vim.env.TEST_ORIGINAL),
     'file locations still open their existing target')
 assert(not vim.bo.modified, 'a file-location placeholder does not dirty its target')
-vim.cmd('Dirvish ' .. vim.fn.fnameescape(vim.fs.dirname(file)))
+vim.cmd('Ls ' .. vim.fn.fnameescape(vim.fs.dirname(file)))
 assert(not vim.bo.modified, 'a directory buffer stays unmodified')
 LUA
 }
@@ -327,7 +321,8 @@ LUA
 sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
-    make_path("$copy/nvim/lua/nested");
+    make_path("$copy/nvim/lua/nested", "$copy/nvim/doc");
+    copy_preserve( "$root/nvim/doc/ls.txt", "$copy/nvim/doc/ls.txt" );
     copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim nvim-pack-lock.json);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
         copy_preserve( $source, "$copy/nvim/lua/" . basename($source) );
@@ -516,7 +511,7 @@ sub directory_navigation {
     my $directory = "$self->{temporary}/parent dir/child";
     make_path("$directory/z-folder");
     write_file( "$directory/a-file.txt", "content\n" );
-    write_file( "$directory/file.txt", "content\n" );
+    write_file( "$directory/file.txt",   "content\n" );
     $self->{env}{TEST_NAV_DIRECTORY} = $directory;
     run_script( $self, <<'LUA' );
 local directory = vim.env.TEST_NAV_DIRECTORY
@@ -529,8 +524,8 @@ vim.cmd.cd(cwd)
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(directory),
     'normal - opens the file parent with spaces')
-eq(vim.bo.filetype, 'dirvish', 'local folders use Dirvish')
-assert(vim.endswith(vim.fn.getline(1), '/z-folder/'), 'Dirvish lists folders before files')
+eq(vim.bo.filetype, 'directory', 'local folders use Dirvish')
+assert(vim.endswith(vim.fn.getline(1), '/z-folder/'), 'Ls lists folders before files')
 eq(vim.fn.getcwd(), cwd, 'browsing a directory preserves the selected working directory')
 vim.cmd.Cdh()
 eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh changes to the displayed directory')
@@ -538,7 +533,7 @@ vim.cmd.cd(cwd)
 vim.bo.filetype = 'directory'
 vim.cmd.Cdh()
 eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh does not depend on the directory viewer')
-vim.bo.filetype = 'dirvish'
+vim.bo.filetype = 'directory'
 vim.cmd.cd(cwd)
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
@@ -546,7 +541,7 @@ eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(
 vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
 feed('2-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
-    'Dirvish parent navigation supports counts')
+    'Ls parent navigation supports counts')
 vim.cmd('edit /')
 feed('-')
 eq(vim.api.nvim_buf_get_name(0), '/', 'parent navigation stays at the filesystem root')
@@ -559,15 +554,32 @@ eq(#vim.api.nvim_tabpage_list_wins(0), 1, 'netrw q closes the current window')
 LUA
 }
 
+sub directory_quit_last_window {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local original = vim.api.nvim_get_current_buf()
+local directory = vim.fn.getcwd()
+vim.cmd.split()
+vim.cmd('Ls ' .. vim.fn.fnameescape(directory))
+feed('q')
+eq(#vim.api.nvim_list_wins(), 2, 'q preserves other windows')
+eq(vim.api.nvim_get_current_buf(), original, 'q returns to the previous file with multiple windows')
+vim.cmd.only()
+vim.cmd('Ls ' .. vim.fn.fnameescape(directory))
+feed('q')
+error('q must quit when Ls occupies the final window')
+LUA
+}
+
 sub directory_filter_bindings {
     my ($self) = @_;
     my $directory = "$self->{temporary}/listing";
     make_path("$directory/.hidden-dir");
     write_file( "$directory/.hidden-file", "hidden\n" );
-    write_file( "$directory/visible.txt", "visible\n" );
+    write_file( "$directory/visible.txt",  "visible\n" );
     $self->{env}{TEST_LISTING} = $directory;
     run_script( $self, <<'LUA' );
-vim.cmd('Dirvish ' .. vim.fn.fnameescape(vim.env.TEST_LISTING))
+vim.cmd('Ls ' .. vim.fn.fnameescape(vim.env.TEST_LISTING))
 local original = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 eq(#original, 3, 'dotfiles are visible by default')
 vim.fn.setreg('/', 'preserved search')
@@ -578,11 +590,95 @@ eq(#filtered, 1, 'gh hides dotfiles and dot-directories')
 assert(vim.endswith(filtered[1], '/visible.txt'), 'gh keeps ordinary files')
 eq(vim.fn.getreg('/'), 'preserved search', 'gh preserves the search pattern')
 eq(vim.fn.getreg('"'), 'preserved register', 'gh preserves the unnamed register')
-eq(vim.wo.conceallevel, 3, 'gh conceals the path prefix')
+eq(vim.wo.conceallevel, 2, 'gh conceals the path prefix')
+feed('gh')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), original, 'a second gh restores the complete listing')
+feed('gh')
 feed('R')
 eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), original, 'native R restores the complete listing')
-feed('ghgr')
-eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), original, 'gr also restores the complete listing')
+
+local child = vim.fn.jobstart({ vim.v.progpath, '--headless', '--embed', '-u', 'NONE', '-n', '-i', 'NONE' }, { rpc = true })
+local function request(method, ...) return vim.fn.rpcrequest(child, method, ...) end
+local ok, err = pcall(function()
+    request('nvim_command', 'set runtimepath^=' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim'))
+    request('nvim_exec_lua', 'require("ls").configure(); require("ls").setup()', {})
+    request('nvim_command', 'Ls ' .. vim.fn.fnameescape(vim.env.TEST_LISTING))
+    request('nvim_command', 'let g:changed = 0')
+    request('nvim_command', 'autocmd TextChanged <buffer> let g:changed = 1')
+    request('nvim_input', 'gh')
+    assert(vim.wait(1000, function()
+        return request('nvim_eval', 'g:changed && line("$") == 1 && &conceallevel > 0') == 1
+    end), 'gh keeps paths concealed after the native TextChanged handler runs')
+    request('nvim_input', 'gh')
+    assert(vim.wait(1000, function()
+        return request('nvim_eval', 'line("$") == 3 && &conceallevel == 2') == 1
+    end), 'a second gh reloads the listing after real keyboard input')
+end)
+pcall(request, 'nvim_command', 'qa!')
+vim.fn.jobwait({ child }, 1000)
+assert(ok, err)
+LUA
+}
+
+sub explore_commands {
+    my ($self) = @_;
+    my $directory = "$self->{temporary}/explore's | # % [x] \\name";
+    make_path($directory);
+    write_file( "$directory/file.txt", "content\n" );
+    $self->{env}{TEST_EXPLORE_DIRECTORY} = $directory;
+    run_script( $self, <<'LUA' );
+local directory = vim.fn.resolve(vim.env.TEST_EXPLORE_DIRECTORY)
+local function check(expected)
+    eq(vim.bo.filetype, 'directory', 'Explore opens Dirvish')
+    eq(vim.api.nvim_buf_get_name(0):gsub('/+$', ''), expected, 'Explore chooses the correct directory')
+end
+local escaped = vim.fn.fnameescape(directory)
+local cwd = vim.fn.getcwd()
+vim.cmd('Explore ' .. escaped)
+check(directory)
+vim.cmd.Explore()
+check(directory)
+vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
+vim.cmd.Explore()
+check(directory)
+vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/unwritten.txt'))
+vim.cmd.Explore()
+check(directory)
+eq(vim.fn.filereadable(directory .. '/unwritten.txt'), 0, 'browsing does not save an unwritten file')
+vim.cmd.enew({ bang = true })
+vim.cmd.Explore()
+check(vim.fn.resolve(cwd))
+
+local function split(command, layout, coordinate, after)
+    local previous = vim.api.nvim_get_current_win()
+    vim.cmd(command .. ' ' .. escaped)
+    check(directory)
+    eq(#vim.api.nvim_tabpage_list_wins(0), 2, 'split Explore creates one window')
+    eq(vim.fn.winlayout()[1], layout, 'split Explore uses the requested orientation')
+    local old = vim.fn.win_screenpos(vim.fn.win_id2win(previous))[coordinate]
+    local new = vim.fn.win_screenpos(0)[coordinate]
+    assert(after and new > old or not after and new < old, 'split Explore honors its placement')
+    vim.cmd.close()
+end
+split('Sexplore', 'col', 1, true)
+split('Vexplore', 'row', 2, true)
+split('aboveleft Sexplore', 'col', 1, false)
+split('aboveleft Vexplore', 'row', 2, false)
+vim.o.splitbelow = false
+split('Sexplore', 'col', 1, false)
+vim.o.splitright = false
+split('Vexplore', 'row', 2, false)
+eq(vim.fn.getcwd(), cwd, 'Explore preserves the working directory')
+
+vim.api.nvim_create_user_command('Explore', function() error('old command') end, {})
+vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+vim.cmd('Explore ' .. escaped)
+check(directory)
+local remote = false
+for _, event in ipairs(vim.api.nvim_get_autocmds({ group = 'Network', event = 'BufReadCmd' })) do
+    remote = remote or event.pattern == 'scp://*'
+end
+assert(remote, 'Explore overrides preserve netrw SCP support')
 LUA
 }
 
@@ -599,7 +695,7 @@ sub vidir_directory_arguments {
 local root = vim.fn.resolve(vim.env.TEST_VIDIR_ROOT)
 local function target(command, expected)
     vim.cmd(command)
-    local directory = vim.bo.filetype == 'dirvish' and vim.api.nvim_buf_get_name(0) or vim.b.shdo_directory
+    local directory = vim.bo.filetype == 'directory' and vim.api.nvim_buf_get_name(0) or vim.b.shdo_directory
     eq(vim.fs.normalize(directory), expected, 'Vidir selects the requested directory')
     if vim.bo.filetype == 'sh' then vim.cmd('buffer! ' .. vim.b.shdo_listing) end
 end
@@ -640,13 +736,13 @@ eq(vim.fn.filereadable(path), 1, 'Shdo creates its temporary file immediately')
 eq(vim.b.shdo_directory, directory, 'the script remembers its target directory')
 eq(vim.fn.getcwd(), cwd, 'opening the script preserves the selected working directory')
 eq(vim.fn.haslocaldir(), 0, 'Shdo does not leave a window-local directory')
-eq(vim.api.nvim_buf_get_lines(buffer, 0, 1, false), { 'set -eu' },
-    'scripts stop on errors without needing a shebang')
+eq(vim.api.nvim_buf_get_lines(buffer, 0, 2, false), { '#!/bin/sh', 'set -eu' },
+    'scripts use POSIX sh and stop on errors')
 assert(not vim.bo.undofile, 'temporary scripts do not create persistent undo files')
 vim.cmd.write()
 eq(vim.fn.filereadable(directory .. '/entry'), 1, 'writing only saves the script')
 vim.api.nvim_set_current_buf(vim.b.shdo_listing)
-eq(vim.bo.filetype, 'dirvish', 'leaving the script returns to Dirvish')
+eq(vim.bo.filetype, 'directory', 'leaving the script returns to Dirvish')
 eq(vim.fn.getcwd(), cwd, 'the directory window retains the original working directory')
 LUA
 }
@@ -673,7 +769,7 @@ MOCK
 vim.cmd('Vidir ' .. vim.fn.fnameescape(vim.env.TEST_VIDIR_DIRECTORY))
 require('shdo').run()
 eq(vim.v.shell_error, 0, 'generated commands execute successfully')
-eq(vim.bo.filetype, 'dirvish', 'successful execution returns to the listing')
+eq(vim.bo.filetype, 'directory', 'successful execution returns to the listing')
 LUA
     my @calls = map { decode_json($_) } split /\n/, read_file( $self->{env}{TEST_MOVE_LOG} );
     is_deeply(
@@ -715,7 +811,7 @@ vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
 local buffer = vim.api.nvim_get_current_buf()
 local commands = vim.api.nvim_buf_get_lines(buffer, 0, -1, false)
 for i, command in ipairs(commands) do
-    if command:find("'original'", 1, true) then commands[i] = "mv -v -- 'original' 'renamed'" end
+    if command == 'mv -v -- original original' then commands[i] = 'mv -v -- original renamed' end
 end
 vim.api.nvim_buf_set_lines(buffer, 0, -1, false, commands)
 vim.fn.setreg('a', 'named sentinel')
@@ -726,7 +822,7 @@ feed('<M-CR>')
 eq(vim.v.shell_error, 0, 'Alt-Enter runs the saved commands')
 eq(vim.fn.filereadable(directory .. '/renamed'), 1, 'the rename ran')
 eq(vim.fn.filereadable(directory .. '/original'), 0, 'the old filename is gone')
-eq(vim.bo.filetype, 'dirvish', 'successful execution returns to the listing')
+eq(vim.bo.filetype, 'directory', 'successful execution returns to the listing')
 assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false), directory .. '/renamed'),
     'successful execution refreshes the directory listing')
 vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
@@ -756,7 +852,7 @@ local other_window, other_buffer = vim.api.nvim_get_current_win(), vim.api.nvim_
 local cwd, shell = vim.fn.getcwd(), vim.o.shell
 vim.cmd.vsplit()
 local window = vim.api.nvim_get_current_win()
-vim.cmd('Dirvish ' .. vim.fn.fnameescape(directory))
+vim.cmd('Ls ' .. vim.fn.fnameescape(directory))
 local listing = vim.api.nvim_get_current_buf()
 vim.o.shell = 'fish'
 vim.cmd('%Shdo cp -- {} {}.copy')
@@ -767,7 +863,7 @@ eq(vim.api.nvim_win_get_buf(other_window), other_buffer, 'other windows keep the
 eq(vim.fn.getcwd(), cwd, 'Shdo does not change the selected working directory')
 eq(vim.fn.haslocaldir(), 0, 'Shdo does not leave a local working directory')
 eq(vim.b.shdo_directory, directory, 'generic Shdo records the command directory')
-eq(vim.api.nvim_buf_get_lines(0, 0, 1, false), { 'set -eu' }, 'generic Shdo receives the safety header')
+eq(vim.api.nvim_buf_get_lines(0, 0, 2, false), { '#!/bin/sh', 'set -eu' }, 'generic Shdo receives the safety header')
 assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false),
     [[cp -- 'back\slash $cash' 'back\slash $cash'.copy]]),
     'commands use POSIX shell quoting: ' .. vim.inspect(vim.api.nvim_buf_get_lines(0, 0, -1, false)))
@@ -776,9 +872,9 @@ eq(vim.v.shell_error, 0, 'Alt-Enter from Insert mode executes generic Shdo')
 eq(vim.fn.filereadable(directory .. [[/back\slash $cash.copy]]), 1, 'the generated command uses the intended filename')
 eq(vim.api.nvim_get_current_buf(), listing, 'success returns to the original listing')
 vim.cmd('%Shdo true')
-feed('Z!')
-eq(vim.v.shell_error, 0, 'Z! runs through the same shell helper')
-eq(vim.api.nvim_get_current_buf(), listing, 'Z! returns to the listing')
+feed('<Leader>1')
+eq(vim.v.shell_error, 0, 'Leader-1 runs through the same shell helper')
+eq(vim.api.nvim_get_current_buf(), listing, 'Leader-1 returns to the listing')
 eq(vim.o.shell, 'fish', 'execution leaves the configured shell unchanged')
 vim.o.shell = shell
 LUA
@@ -799,12 +895,12 @@ vim.system = function(_, options, callback)
     return { is_closing = function() return true end }
 end
 vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_DIRECTORY))
-eq(vim.bo.filetype, 'dirvish', 'fixture opens Dirvish')
+eq(vim.bo.filetype, 'directory', 'fixture opens Dirvish')
 assert(vim.bo.buftype ~= '', 'directory browser is a special buffer')
 require('gitstatus').setup()
 assert(vim.wait(1000, function() return vim.b.vcs_prompt == ' (directory-main)' end, 1),
-    'Dirvish receives its repository status')
-eq(#calls, 1, 'Dirvish requests status once')
+    'Ls receives its repository status')
+eq(#calls, 1, 'Ls requests status once')
 eq(vim.fn.resolve(calls[1]), vim.fn.resolve(vim.env.TEST_STATUS_DIRECTORY),
     'status runs in the directory being browsed')
 LUA
@@ -1181,7 +1277,7 @@ end
 eq(search('^empty$'), { 'empty' }, 'regexes match directory names without display suffixes')
 eq(search('empty'), { 'empty' }, 'empty directories are searchable')
 vim.cmd.cfirst()
-eq(vim.bo.filetype, 'dirvish', 'quickfix opens Dirvish')
+eq(vim.bo.filetype, 'directory', 'quickfix opens Dirvish')
 LUA
 }
 
@@ -1450,6 +1546,8 @@ run_cases(
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         directory_navigation                    => \&directory_navigation,
         directory_filter_bindings               => \&directory_filter_bindings,
+        directory_quit_last_window              => \&directory_quit_last_window,
+        explore_commands                        => \&explore_commands,
         terminal_shortcut_enters_terminal_mode  => \&terminal_shortcut_enters_terminal_mode,
         terminal_editor_handoff                 => \&terminal_editor_handoff,
         vidir_buffer_directory                  => \&vidir_buffer_directory,

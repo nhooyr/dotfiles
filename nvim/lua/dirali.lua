@@ -33,6 +33,18 @@ local function shorten(path)
 	return result
 end
 
+local function expand(path)
+	local result, longest = path, -1
+	for _, alias in ipairs(aliases) do
+		local prefix = alias.label .. '/'
+		if #alias.label > longest and (path == alias.label or path:sub(1, #prefix) == prefix) then
+			result = alias.directory .. path:sub(#alias.label + 1)
+			longest = #alias.label
+		end
+	end
+	return result:sub(1, 1) == '/' and result or vim.fn.getcwd() .. '/' .. result
+end
+
 local function filename()
 	if vim.bo.filetype == 'netrw' and vim.b.netrw_curdir then
 		return vim.fn.strtrans(shorten(vim.b.netrw_curdir))
@@ -46,4 +58,20 @@ local function filename()
 	return vim.fn.strtrans(shortened)
 end
 
-return { shorten = shorten, filename = filename }
+local function quote(path)
+	return path:match('^[%w_./-]+$') and path or vim.fn.shellescape(path)
+end
+
+local function shellescape(path)
+	local shortened = shorten(path)
+	if shortened == path then return quote(path) end
+	local name, suffix = shortened:match('^%$([%w_]+)(.*)$')
+	if name then
+		if path:match('^[%w_./-]+$') then return shortened end
+		return '"$' .. name .. vim.fn.escape(suffix, [[\"$`]]) .. '"'
+	end
+	if shortened == '~' then return '~' end
+	return '~/' .. quote(shortened:sub(3))
+end
+
+return { shorten = shorten, expand = expand, filename = filename, aliases = aliases, shellescape = shellescape }

@@ -139,10 +139,10 @@ sub package_file_sets_its_own_lock_path {
     my $check = <<'LUA';
 lua vim.pack.add = function(specs, opts)
     assert(vim.o.packlockfile == vim.env.TEST_DIRECTORY .. '/nvim-pack-lock.json')
+    assert(opts.confirm == false)
+    assert(#specs == 1)
     assert(specs[1].src == 'https://github.com/nhooyr/copilot.vim.git')
     assert(specs[1].version == 'fix-partial-accept-preview')
-    assert(specs[2] == 'https://github.com/justinmk/vim-dirvish.git')
-    assert(opts.confirm == false)
 end
 LUA
     my $result = run_command(

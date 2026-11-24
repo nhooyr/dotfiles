@@ -12,8 +12,9 @@ local function open(path)
 		vim.notify('Not a directory: ' .. path, vim.log.levels.ERROR)
 		return
 	end
-	vim.cmd('Dirvish ' .. vim.fn.fnameescape(directory))
-	vim.cmd('%Shdo mv -v -- {} {}')
+	require('ls').open(directory)
+	if vim.fn.getline(1) == '' then return end
+	vim.cmd('%Shdo')
 end
 
 return { open = open }

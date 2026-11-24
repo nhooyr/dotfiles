@@ -4,10 +4,6 @@
       "rev": "f986bdeb569a1ddcecaa7d91fdc64cb7a890ba73",
       "src": "https://github.com/nhooyr/copilot.vim.git",
       "version": "'fix-partial-accept-preview'"
-    },
-    "vim-dirvish": {
-      "rev": "4cbf39ce024c57f700c4d5502cc172ea91d69360",
-      "src": "https://github.com/justinmk/vim-dirvish.git"
     }
   }
 }
