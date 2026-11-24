@@ -1,7 +1,4 @@
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
-if !filereadable(s:config_dir . '/doc/tags')
-	execute 'helptags' fnameescape(s:config_dir . '/doc')
-endif
 execute 'luafile' fnameescape(s:config_dir . '/lua/plugins.lua')
 
 set number

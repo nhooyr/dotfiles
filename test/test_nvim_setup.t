@@ -13,10 +13,12 @@ sub setup {
     $self->{temporary} = tempdir( 'nvim-setup-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $directory = absolute_path( $self->{temporary} ) . '/source tree/nvim';
     my $bin       = "$self->{temporary}/bin";
-    make_path( "$directory/app", "$directory/lua", "$self->{temporary}/source tree/ci", $bin );
+    make_path( "$directory/app", "$directory/lua", "$directory/doc", "$self->{temporary}/source tree/ci",
+        $bin );
     copy_preserve( "$root/nvim/install.sh",      "$directory/install.sh" );
     copy_preserve( "$root/nvim/lua/plugins.lua", "$directory/lua/plugins.lua" );
     copy_preserve( "$root/ci/test.sh",           "$self->{temporary}/source tree/ci/test.sh" );
+    write_file( "$directory/doc/local.txt", "*local-help* Local help\n" );
     $self->{directory} = $directory;
     $self->{bin}       = $bin;
     $self->{env}       = {
@@ -73,14 +75,14 @@ sub installs_plugins_and_app_quietly {
     is( $result->{returncode}, 0, 'installation succeeds' );
     is(
         $result->{stdout},
-        "dotfiles: nvim: install.sh: Installed plugins.\napp installed\n",
+        "dotfiles: nvim: install.sh: Installed plugins and help tags.\napp installed\n",
         'plugin progress is hidden while concise statuses remain'
     );
     is( $result->{stderr}, '', 'successful installation has no errors' );
     is_deeply(
         calls($self),
         [
-            [ 'nvim', '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', './lua/plugins.lua' ],
+            [ 'nvim', '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', '-' ],
             [ 'app',  $self->{directory}, '--set-defaults' ],
         ],
         'the installer handles plugins and app defaults from its own directory'
@@ -158,6 +160,28 @@ LUA
     is( $result->{returncode}, 0, "the package file is independent of caller cwd: $result->{stderr}" );
 }
 
+sub regenerates_help_tags_during_installation {
+    my ($self) = @_;
+    die 'Neovim is required' unless $nvim;
+    unlink "$self->{bin}/nvim" or die $!;
+    symlink $nvim, "$self->{bin}/nvim" or die $!;
+    write_file( "$self->{directory}/lua/plugins.lua", "-- No plugins needed for this test.\n" );
+    my $result = run_install($self);
+    is( $result->{returncode}, 0, $result->{stderr} );
+    like( read_file("$self->{directory}/doc/tags"), qr/^local-help\t/m, 'installation generates help tags' );
+    write_file( "$self->{directory}/doc/local.txt", "*updated-help* Updated help\n" );
+    $result = run_install($self);
+    is( $result->{returncode}, 0, $result->{stderr} );
+    my $tags = read_file("$self->{directory}/doc/tags");
+    like( $tags, qr/^updated-help\t/m, 'reinstalling refreshes existing tags' );
+    unlike( $tags, qr/^local-help\t/m, 'obsolete tags are removed' );
+    remove_tree("$self->{directory}/doc");
+    $result = run_install($self);
+    isnt( $result->{returncode}, 0, 'help tag errors fail installation' );
+    like( $result->{stderr}, qr/E150/, 'help tag diagnostics remain visible' );
+    is( scalar @{ calls($self) }, 2, 'help tag errors stop before app installation' );
+}
+
 run_cases(
     {
         installs_plugins_and_app_quietly             => \&installs_plugins_and_app_quietly,
@@ -166,6 +190,7 @@ run_cases(
         missing_nvim_fails_ci                        => \&missing_nvim_fails_ci,
         native_lua_errors_fail_installation          => \&native_lua_errors_fail_installation,
         package_file_sets_its_own_lock_path          => \&package_file_sets_its_own_lock_path,
+        regenerates_help_tags_during_installation    => \&regenerates_help_tags_during_installation,
     },
     \&setup
 );
