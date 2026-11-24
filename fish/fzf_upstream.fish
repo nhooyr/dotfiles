@@ -124,7 +124,11 @@ function fzf-history-widget -d "Show command history"
         else
             set -l a (math $current_line - 1)
             set -l b (math $current_line + 1)
-            commandline -- $command_line[1..$a] $result
+            if test "$a" -eq 0
+                commandline -- $result
+            else
+                commandline -- $command_line[1..$a] $result
+            end
             commandline -a -- '' $command_line[$b..-1]
         end
     end

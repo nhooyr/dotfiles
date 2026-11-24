@@ -430,3 +430,40 @@ fn option_values_skip_the_separator_only_for_nvim() {
         );
     }
 }
+
+#[test]
+fn history_selection_preserves_other_lines() {
+    let script = r#"
+set -g fish_history __fzf_history_line_test
+set -g fish_private_mode 1
+function commandline
+    switch "$argv[1]"
+        case -L
+            printf '%s\n' "$test_line"
+        case -f
+        case --
+            set -g test_buffer "$(string join \n -- $argv[2..])"
+        case -a
+            set -g test_buffer "$test_buffer$(string join \n -- $argv[3..])"
+        case '*'
+            printf '%s\n' "$test_buffer"
+    end
+end
+function fzf
+    cat >/dev/null
+    printf 'selected\0'
+end
+for line in 1 2 3
+    set -g test_line "$line"
+    set -g test_buffer 'before
+middle
+after'
+    fzf-history-widget
+    printf '%s\0' "$test_buffer"
+end
+"#;
+    assert_eq!(
+        path_case(script, ""),
+        b"selected\nmiddle\nafter\0before\nselected\nafter\0before\nmiddle\nselected\0"
+    );
+}
