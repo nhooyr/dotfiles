@@ -806,13 +806,49 @@ FISH
         $expected, 'prompt and title share longest directory aliases and home fallback' );
 }
 
+sub resolved_directory_aliases_in_prompt_and_title {
+    my ($self) = @_;
+    make_path("$self->{root}/physical/child");
+    symlink 'physical', "$self->{root}/logical" or die $!;
+    $self->{env}{TMPDIR} = "$self->{root}/logical/";
+    my $body = <<'FISH';
+set -p fish_function_path "$TEST_DOTFILES/fish/functions"
+function set_color
+end
+function fish_is_root_user
+    return 1
+end
+function prompt_login
+    printf login
+end
+function aqsnow_vcs_prompt_update
+end
+source "$TEST_DOTFILES/fish/prompt.fish"
+set -g aqsnow_fzf_diralis TMPDIR
+set -g __aqsnow_vcs_prompt ''
+for directory in "$TMPDIR/child" "$(path resolve -- "$TMPDIR")/child"
+    cd -- "$directory"; or exit
+    fish_prompt
+    printf '\n'
+    fish_title editor
+    printf '\n'
+end
+FISH
+    is(
+        output( shell( $self, $body ) ),
+        "login \$TMPDIR/child\n[\$] \neditor \$TMPDIR/child\n" x 2,
+        'logical and resolved directories use the same alias in prompts and titles'
+    );
+}
+
 run_cases(
     {
-        directory_aliases_in_prompt_and_title                    => \&directory_aliases_in_prompt_and_title,
-        cached_first_render                                      => \&cached_first_render,
-        head_identity_without_cache                              => \&head_identity_without_cache,
-        subdirectories_and_metadata                              => \&subdirectories_and_metadata,
-        linked_worktrees                                         => \&linked_worktrees,
+        resolved_directory_aliases_in_prompt_and_title => \&resolved_directory_aliases_in_prompt_and_title,
+        directory_aliases_in_prompt_and_title          => \&directory_aliases_in_prompt_and_title,
+        cached_first_render                            => \&cached_first_render,
+        head_identity_without_cache                    => \&head_identity_without_cache,
+        subdirectories_and_metadata                    => \&subdirectories_and_metadata,
+        linked_worktrees                               => \&linked_worktrees,
         symlink_into_a_subdirectory_uses_the_physical_repository =>
           \&symlink_into_a_subdirectory_uses_the_physical_repository,
         directory_switch_while_pending                => \&directory_switch_while_pending,

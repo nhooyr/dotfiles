@@ -541,8 +541,33 @@ FISH
     is( $result->{stdout}, "0\n", 'registration and initialization do not rewrite exported names or values' );
 }
 
+sub alias_reregistration_refreshes_resolved_paths {
+    my ($self) = @_;
+    make_path( "$self->{root}/first", "$self->{root}/second" );
+    symlink 'first', "$self->{root}/logical" or die $!;
+    my $result = fish( $self, <<'FISH' );
+source "$(path dirname -- "$TEST_CD")/functions/aqsnow_fzf_path_alias.fish"
+set -g aqsnow_fzf_diralis
+set -g project "$TEST_ROOT/logical"
+aqsnow_fzf_diralis_add project
+aqsnow_fzf_path_alias "$TEST_ROOT/first/file"
+command rm -- "$project"
+command ln -s second "$project"
+aqsnow_fzf_diralis_add project
+aqsnow_fzf_path_alias "$TEST_ROOT/second/file"
+set -g project "$TEST_ROOT/first"
+aqsnow_fzf_path_alias "$TEST_ROOT/first/file"
+FISH
+    is(
+        $result->{stdout},
+        "\$project/file\0" x 3,
+        're-registration and changed values refresh resolved aliases'
+    );
+}
+
 run_cases(
     {
+        alias_reregistration_refreshes_resolved_paths   => \&alias_reregistration_refreshes_resolved_paths,
         fd_defaults_respect_ignores_and_follow_symlinks => \&fd_defaults_respect_ignores_and_follow_symlinks,
         find_names_respect_ignores                      => \&find_names_respect_ignores,
         rendezvous_routes_both_file_pickers             => \&rendezvous_routes_both_file_pickers,

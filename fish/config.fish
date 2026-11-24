@@ -303,6 +303,7 @@ function aqsnow_fzf_diralis_add
         set -gx AQSNOW_DIRALIS ''
     end
     for name in $argv
+        set -e "__aqsnow_fzf_dirali_$name"
         if not set -qx "$name"
             set -gx "$name" "$$name"
         end
