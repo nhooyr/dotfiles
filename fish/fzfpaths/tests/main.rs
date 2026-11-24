@@ -2728,6 +2728,29 @@ fn escaped_gitignore_patterns_are_respected() {
 }
 
 #[test]
+fn local_file_variants_preserve_order_and_markers() {
+    let fixture = Fixture::new();
+    let mut command = fixture.command_with_flags(
+        &["--read0", "--keep-dot", "--classify"],
+        &fixture.local,
+        Path::new(""),
+        "-fd",
+        &[],
+    );
+    let paths = from_input(
+        &mut command,
+        &[
+            &fixture.local.join("file"),
+            &fixture.local.join("executable"),
+        ],
+    );
+    assert_eq!(
+        paths,
+        ["file\u{1f}", "executable*", "./executable*"].map(OsString::from)
+    );
+}
+
+#[test]
 fn input_paths_preserve_order_and_share_executable_rules() {
     let fixture = Fixture::new();
     let script = fixture.local.join("executable");

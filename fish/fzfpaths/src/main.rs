@@ -792,15 +792,15 @@ impl Picker {
             path.drain(..2);
         }
         if local {
-            self.emit(path.clone(), true, &style)?;
             if self.keep_dot
                 && style.executable
                 && !path.starts_with(b"/")
                 && !path.starts_with(b"./")
             {
-                self.emit([b"./", path.as_slice()].concat(), true, &style)?;
+                self.emit(path.clone(), true, &style)?;
+                path.splice(..0, b"./".iter().copied());
             }
-            return Ok(());
+            return self.emit(path, true, &style);
         }
         if let Some((env, dir)) = self.env_dirs.iter().find(|(_, dir)| {
             path.starts_with(dir) && (path.len() == dir.len() || path.get(dir.len()) == Some(&b'/'))
