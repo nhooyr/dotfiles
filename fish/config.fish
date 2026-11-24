@@ -157,7 +157,7 @@ function grep --wraps 'grep --color -nI'
     if type -q ggrep
         ggrep --color -nI $ignore_case $argv
     else
-        command grep --color -nI -SE $ignore_case $argv
+        command grep --color -nI -S $ignore_case $argv
     end
 end
 function gg --wraps 'git grep -IE --recurse-submodules'

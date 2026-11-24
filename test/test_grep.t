@@ -374,6 +374,45 @@ case.txt:error
     );
 }
 
+sub test_macos_fallback_preserves_regex_modes {
+    my ($self) = @_;
+    plan skip_all => 'The fallback uses macOS grep' unless $^O eq 'darwin';
+    write_file( "$self->{directory}/patterns", "a+\naa\n" );
+    make_path("$self->{directory}/tree/original");
+    write_file( "$self->{directory}/tree/original/input", "a+\naa\n" );
+    symlink 'original', "$self->{directory}/tree/link" or die $!;
+    my $script = $HELPERS . <<'FISH';
+function type
+    test "$argv" = '-q ggrep'; and return 1
+    builtin type $argv
+end
+grep --color=never $argv
+FISH
+    for my $case (
+        [ [],     "1:a+\n" ],
+        [ ['-E'], "1:a+\n2:aa\n" ],
+        [ ['-F'], "1:a+\n" ],
+        [ ['-R'], "tree/link/input:1:a+\ntree/original/input:1:a+\n" ],
+        [
+            ['-ER'],
+            "tree/link/input:1:a+\ntree/link/input:2:aa\ntree/original/input:1:a+\ntree/original/input:2:aa\n"
+        ],
+        [ ['-FR'], "tree/link/input:1:a+\ntree/original/input:1:a+\n" ],
+      )
+    {
+        my ( $flags, $expected ) = @$case;
+        my $path   = @$flags && $flags->[0] =~ /R/ ? 'tree' : 'patterns';
+        my $result = run_command(
+            [ $FISH, '--no-config', '-c', $script, '--', @$flags, 'a+', $path ],
+            { cwd => $self->{directory}, env => $self->{env}, timeout => 10 }
+        );
+        is( $result->{returncode}, 0,  $result->{stderr} );
+        is( $result->{stderr},     '', 'the native fallback has no diagnostics' );
+        is( join( '', map { "$_\n" } sort split /\n/, $result->{stdout} ),
+            $expected, 'the fallback preserves regex modes and recursive symlink following' );
+    }
+}
+
 sub test_native_grep_backends_preserve_complex_calls_and_errors {
     my ($self) = @_;
     my ( $actual, $args, $backend, $backends, $cases, $expected, $input, $path, $result );
@@ -516,7 +555,8 @@ run_cases(
         "test_simple_searches_use_smart_case"                   => \&test_simple_searches_use_smart_case,
         "test_pattern_files_do_not_enable_implicit_ignore_case" =>
           \&test_pattern_files_do_not_enable_implicit_ignore_case,
-        "test_git_grep_uses_the_pattern_case" => \&test_git_grep_uses_the_pattern_case,
+        "test_git_grep_uses_the_pattern_case"       => \&test_git_grep_uses_the_pattern_case,
+        "test_macos_fallback_preserves_regex_modes" => \&test_macos_fallback_preserves_regex_modes,
         "test_native_grep_backends_preserve_complex_calls_and_errors" =>
           \&test_native_grep_backends_preserve_complex_calls_and_errors,
         "test_recursive_smart_case_with_native_grep_backends" =>
