@@ -325,7 +325,7 @@ augroup aqsnow
 	autocmd FileType qf let &l:statusline = "%{v:lua.require'quickfix'.title()} %=%{get(b:,'vcs_prompt','')} %{% &ruler ? &rulerformat : '' %}"
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
-	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent update | endif
+	autocmd User AqsnowAutosave nested if &modified && !&readonly && filereadable(expand('%:p')) | silent update | endif
 	autocmd BufWritePre,FileWritePre * if expand('<afile>') !~# '://' | call mkdir(expand('<afile>:p:h'), 'p') | endif
 	autocmd filetype gitcommit lua require('gitcommit').setup()
 	autocmd filetype html,json,jsonc,json5,css setlocal et ts=2

@@ -358,6 +358,21 @@ assert(not vim.bo.modified, 'a directory buffer stays unmodified')
 LUA
 }
 
+sub readonly_autosave {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.bo.readonly = true
+vim.api.nvim_set_current_line('changed')
+vim.api.nvim_exec_autocmds('User', { group = 'aqsnow', pattern = 'AqsnowAutosave' })
+eq(vim.fn.readfile(vim.env.TEST_ORIGINAL), { 'original' }, 'autosave does not write readonly buffers')
+assert(vim.bo.modified, 'readonly edits remain modified for an explicit save')
+vim.bo.readonly = false
+vim.api.nvim_exec_autocmds('User', { group = 'aqsnow', pattern = 'AqsnowAutosave' })
+eq(vim.fn.readfile(vim.env.TEST_ORIGINAL), { 'changed' }, 'writable buffers still autosave')
+assert(not vim.bo.modified, 'successful autosave clears the modified flag')
+LUA
+}
+
 sub file_locations {
     my ($self)  = @_;
     my $file    = "$self->{temporary}/file name.fish";
@@ -1713,6 +1728,7 @@ run_cases(
         quickfix_title_directory_aliases        => \&quickfix_title_directory_aliases,
         quickfix_search_directory               => \&quickfix_search_directory,
         new_files_are_modified                  => \&new_files_are_modified,
+        readonly_autosave                       => \&readonly_autosave,
         file_locations                          => \&file_locations,
         coalesced_config_reload                 => \&coalesced_config_reload,
         config_reload_preserves_options         => \&config_reload_preserves_options,
