@@ -114,7 +114,7 @@ sub lists_immediate_entries_and_quotes_names {
     }
     is_deeply(
         \@operands,
-        [ 'link', 'nested', '.hidden', 'broken', q{literal ' $HOME;[x]}, 'original' ],
+        [ 'link', 'nested/', '.hidden', 'broken', q{literal ' $HOME;[x]}, 'original' ],
         'includes hidden files, special names, directories, and broken links without recursing'
     );
     ok( -f "$self->{directory}/original", 'generation performs no file operations' );
@@ -180,20 +180,41 @@ sub listed_paths {
     return [ map { ( shellwords($_) )[3] } grep { s/^# (?=mv )// } split /\n/, read_file($path) ];
 }
 
+sub directory_markers_keep_move_commands_usable {
+    my ($self) = @_;
+    make_path("$self->{directory}/directory space");
+    my $path   = script_path( $self, invoke($self) );
+    my $script = read_file($path);
+    like(
+        $script,
+        qr/^# mv -v -- 'directory space\/' 'directory space\/'$/m,
+        'directory markers stay inside shell quotes'
+    );
+    like( $script, qr/^# mv -v -- link link$/m, 'directory symlinks keep their link identity' );
+    $script =~ s{^# mv -v -- 'directory space/' 'directory space/'$}
+        {mv -v -- 'directory space/' 'renamed directory/'}m;
+    write_file( $path, $script );
+    my $result = run_command( [$path], { cwd => $self->{root}, env => $self->{env} } );
+    is( $result->{returncode}, 0, $result->{stderr} );
+    ok( -d "$self->{directory}/renamed directory", 'the marked directory can be renamed' );
+    ok( !-e "$self->{directory}/directory space",  'the original directory moved' );
+    ok( -l "$self->{directory}/link",              'the symlink remains a symlink' );
+}
+
 sub ordering_matches_ls {
     my ($self) = @_;
     make_path( "$self->{directory}/dir10", "$self->{directory}/dir2" );
     write_file( "$self->{directory}/file10", 'ten' );
     write_file( "$self->{directory}/file2",  'two' );
     my $script = script_path( $self, invoke($self) );
-    my $ls = run_command( [ 'gls', '-1Av', '--group-directories-first', '--zero', '--', $self->{directory} ],
+    my $ls = run_command( [ 'gls', '-1Avp', '--group-directories-first', '--zero', '--', $self->{directory} ],
         { env => { %{ $self->{env} }, LC_COLLATE => 'C' }, check => 1 } );
     my @expected = split /\0/, $ls->{stdout};
     is_deeply( listed_paths($script), \@expected, 'ordering matches the configured GNU ls exactly' );
     my @paths = @{ listed_paths($script) };
     is_deeply(
         [ @paths[ 0 .. 3 ] ],
-        [ 'dir2', 'dir10', 'link', 'nested' ],
+        [ 'dir2/', 'dir10/', 'link', 'nested/' ],
         'directories and directory links sort numerically first'
     );
     my %position;
@@ -348,12 +369,12 @@ sub recursion_keeps_parents_before_children {
     @position{@paths} = 0 .. $#paths;
     ok( exists $position{'nested/deep/leaf'}, 'recursive mode includes deeply nested files' );
     cmp_ok(
-        $position{'nested/deep'},
+        $position{'nested/deep/'},
         '<',
         $position{'nested/deep/leaf'},
         'parent directories precede their children'
     );
-    cmp_ok( $position{'nested'}, '<', $position{'nested/deep'}, 'parents precede nested directories' );
+    cmp_ok( $position{'nested/'}, '<', $position{'nested/deep/'}, 'parents precede nested directories' );
     ok( exists $position{'link'},   'directory symlinks are included' );
     ok( !grep( m{^link/}, @paths ), 'directory symlinks are not followed' );
     my $long_option = script_path( $self, invoke( $self, '--recursive', $self->{directory} ) );
@@ -441,6 +462,7 @@ run_cases(
         empty_alias_does_not_change_script_directory => \&empty_alias_does_not_change_script_directory,
         usage_and_missing_editor                     => \&usage_and_missing_editor,
         ordering_matches_ls                          => \&ordering_matches_ls,
+        directory_markers_keep_move_commands_usable  => \&directory_markers_keep_move_commands_usable,
         git_ignore_and_override                      => \&git_ignore_and_override,
         persistent_ignore_batches_preserve_rules     => \&persistent_ignore_batches_preserve_rules,
         invalid_ignore_replies_stop_before_editor    => \&invalid_ignore_replies_stop_before_editor,

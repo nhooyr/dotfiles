@@ -22,7 +22,8 @@ usage: $name [-r] [--no-ignore] [DIR]
 
 Edit a shell script of mv commands for DIR (default: the current directory).
 The script includes hidden entries and uses relative filenames.
-Entries use GNU ls ordering: directories first, then version-number order.
+Entries follow GNU ls ordering: directories first, with ascending version numbers.
+Real directories have a trailing /; directory symlinks are left unchanged.
 Inside a Git worktree, ignore Git-ignored entries and .git.
 
   -r, --recursive  Include descendants after their parent directories.
@@ -132,10 +133,11 @@ sub write_paths {
     for my $entry (@names) {
         my $full = "$parent$entry";
         next if $ignored{$full};
-        my $relative = $prefix . $entry;
-        my $quoted   = quote($relative);
+        my $relative     = $prefix . $entry;
+        my $is_directory = !-l $full && -d _;
+        my $quoted       = quote( $relative . ( $is_directory ? '/' : '' ) );
         print {$file} "# mv -v -- $quoted $quoted\n";
-        write_paths( $full, "$relative/", $file ) if $recursive && !-l $full && -d _;
+        write_paths( $full, "$relative/", $file ) if $recursive && $is_directory;
     }
 }
 
