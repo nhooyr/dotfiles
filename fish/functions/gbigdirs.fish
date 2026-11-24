@@ -1,11 +1,7 @@
 function gbigdirs --description 'Show the largest directories using Git-tracked files'
     git rev-parse --show-toplevel >/dev/null; or return
     git ls-files --recurse-submodules --deduplicate -z |
-        while read -zl file
-            if test -f "$file"; or test -L "$file"
-                printf './%s\0' "$file"
-            end
-        end |
+        perl -0ne 'print "./$_" if -f $_ || -l $_' |
         gdu -B1 --files0-from=- |
         awk -F '\t' '
             {
