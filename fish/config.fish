@@ -313,7 +313,7 @@ function aqsnow_fzf_diralis_add
     end
     return 0
 end
-aqsnow_fzf_diralis_add HOME nhooyr dotfiles notes noise
+aqsnow_fzf_diralis_add HOME TMPDIR nhooyr dotfiles notes noise
 
 # Initialize the handoff path inherited by child processes.
 function aqsnow_init_rendezvous --on-event fish_preexec

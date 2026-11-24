@@ -447,6 +447,19 @@ FISH
     like( $result->{stdout}, qr/--wraps[= ]'?cd'?/,  'cdf still inherits the cd completions' );
 }
 
+sub configured_temp_directory_is_aliased {
+    my ($self) = @_;
+    $self->{env}{TEST_DOTFILES} = $root;
+    my ($registration) = $config =~ /^(aqsnow_fzf_diralis_add .+)$/m;
+    my $result = fish( $self, $registration . "\n" . <<'FISH' );
+source "$TEST_DOTFILES/fish/functions/fzf_accept_and_run.fish"
+fish --no-config -c 'contains -- TMPDIR $(string split : -- "$AQSNOW_DIRALIS"); or exit 1'; or exit
+aqsnow_fzf_path_alias "$TMPDIR/example"
+FISH
+    is( $result->{returncode}, 0, 'the configured temporary-directory alias reaches child processes' );
+    is( $result->{stdout}, "\$TMPDIR/example\0", 'temporary paths use the automatically registered alias' );
+}
+
 sub alias_registration_updates_the_exported_name_list {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -538,6 +551,7 @@ run_cases(
         sshv_expands_only_remote_home_prefixes          => \&sshv_expands_only_remote_home_prefixes,
         sshv_stops_on_missing_paths                     => \&sshv_stops_on_missing_paths,
         nvim_preserves_native_command_line_options      => \&nvim_preserves_native_command_line_options,
+        configured_temp_directory_is_aliased            => \&configured_temp_directory_is_aliased,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
         alias_registration_appends_only_new_names            => \&alias_registration_appends_only_new_names,
