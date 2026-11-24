@@ -1,7 +1,7 @@
 source "$(status dirname)/../github.fish"; or return
 
 function gho --description 'Open the GitHub page for a repository or path'
-    set -l usage 'Usage: gho [PATH | OWNER/REPO | GITHUB_URL]
+    set -l usage 'Usage: gho [--copy] [PATH | OWNER/REPO | GITHUB_URL]
 
 Print the GitHub URL and open it in the default browser.
 Build URLs from local information; never check or fetch the remote.
@@ -12,6 +12,7 @@ Build URLs from local information; never check or fetch the remote.
   gho OWNER/REPO                   Open the repository homepage.
   gho GITHUB_URL                   Open any GitHub page, preserving query/fragment.
   gho SSH_REPOSITORY_URL           Open the corresponding GitHub homepage.
+  gho --copy [TARGET]              Print and copy the URL without opening it.
   gho -h, --help                   Show this help.
 
 Local paths use the configured upstream branch, otherwise the local branch.
@@ -137,21 +138,23 @@ function __gho_url --argument-names target
     printf '%s/%s/%s\n' "$url" "$kind" $(string escape --style=url -- "$web_path")
 end
 
-function __gho --argument-names target
-    if test "$(count $argv)" -eq 1; and contains -- "$target" -h --help
+function __gho
+    argparse --name "$0" --max-args 1 h/help copy -- $argv; or return
+    if set -q _flag_help
         printf '%s\n' "$usage"
         return 0
-    end
-    if test "$(count $argv)" -gt 1
-        printf 'Usage: %s [PATH | OWNER/REPO | GITHUB_URL]\n' "$0" >&2
-        return 1
     end
     if string match -qr '[[:cntrl:]]' -- "$GH_HOST"
         printf '%s: invalid GitHub hostname\n' "$0" >&2
         return 1
     end
-    set -q argv[1]; or set target "$PWD"
+    set -l target "$PWD"
+    set -q argv[1]; and set target "$argv[1]"
     set -l url "$(__gho_url "$target")"; or return
-    printf '%s\n' "$url"
-    open "$url"
+    if set -q _flag_copy
+        printf '%s\n' "$url" | pbc
+    else
+        printf '%s\n' "$url"
+        open "$url"
+    end
 end

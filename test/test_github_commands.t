@@ -131,6 +131,10 @@ kind=${0##*/}
 printf \'%s\\0\' "$kind" "$#" "$@" >> "$TEST_CALL_LOG"
 case "$kind" in
     open|editor) exit 0 ;;
+    pbc)
+        tee "$TEST_CALL_LOG.copy"
+        exit "${TEST_COPY_STATUS:-0}" ;;
+
     dispatch) exit "${TEST_DISPATCH_STATUS:-0}" ;;
     git)
         skip=
@@ -155,7 +159,7 @@ exec "$TEST_PERL" "${0%/*}/mock.pl" "$kind" "$@"
 ';
     $program = read_file( join_path( $FindBin::Bin, "mock.pl" ) );
     write_file( join_path( $self->{bin}, "mock.pl" ), $program );
-    for $name ( @{ [ "git", "gh", "open", "editor", "dispatch" ] } ) {
+    for $name ( @{ [ "git", "gh", "open", "editor", "dispatch", "pbc" ] } ) {
         $target = join_path( $self->{bin}, $name );
         write_file( $target, $wrapper );
         chmod( 493, $target );
@@ -954,6 +958,33 @@ sub test_direct_url_preserves_query_and_fragment {
     assert_success( $self, $result );
     ( is_deeply( calls( $self, "open" )->[0]->{"args"}, [$value] ) or die "assertion failed\n" );
     ( is_deeply( network_calls($self),                  [] )       or die "assertion failed\n" );
+}
+
+sub test_gho_copy_prints_and_copies_without_opening {
+    my ($self) = @_;
+    for my $case (
+        [ ['--copy'], $self->{url} ],
+        [ [ '--copy', 'file.txt' ],                   "$self->{url}/blob/main/file.txt" ],
+        [ [ '--copy', 'another-owner/another-repo' ], 'https://github.com/another-owner/another-repo' ],
+        [ [ "$self->{url}/issues/42?plain=1#comment", '--copy' ], "$self->{url}/issues/42?plain=1#comment" ],
+      )
+    {
+        my ( $args, $expected ) = @$case;
+        my $result = run_fish( $self, 'gho', $args, $self->{checkout} );
+        assert_success( $self, $result );
+        is( $result->{stdout},                 "$expected\n", 'the copied URL is still printed' );
+        is( read_file("$self->{log}.copy"),    "$expected\n", 'the clipboard gets the same URL' );
+        is( scalar @{ calls( $self, 'pbc' ) }, 1,             'the URL is copied once' );
+        is_deeply( calls( $self, 'open' ), [], 'copy-only mode does not open a browser' );
+    }
+}
+
+sub test_gho_copy_preserves_clipboard_failure {
+    my ($self) = @_;
+    $self->{env}{TEST_COPY_STATUS} = 19;
+    my $result = run_fish( $self, 'gho', [ '--copy', $self->{url} ] );
+    is( $result->{returncode}, 19, 'clipboard failure is returned to the caller' );
+    is_deeply( calls( $self, 'open' ), [], 'clipboard failure does not open the browser' );
 }
 
 sub test_gho_opens_unknown_remote_pages_directly {
@@ -3863,8 +3894,11 @@ run_cases(
           \&test_ghe_adds_configured_host_to_checkout_without_remotes,
         "test_ghe_distinguishes_repositories_on_different_hosts" =>
           \&test_ghe_distinguishes_repositories_on_different_hosts,
-        "test_ghe_api_routes_use_configured_host"      => \&test_ghe_api_routes_use_configured_host,
-        "test_direct_url_preserves_query_and_fragment" => \&test_direct_url_preserves_query_and_fragment,
+        "test_ghe_api_routes_use_configured_host"         => \&test_ghe_api_routes_use_configured_host,
+        "test_direct_url_preserves_query_and_fragment"    => \&test_direct_url_preserves_query_and_fragment,
+        "test_gho_copy_prints_and_copies_without_opening" =>
+          \&test_gho_copy_prints_and_copies_without_opening,
+        "test_gho_copy_preserves_clipboard_failure"    => \&test_gho_copy_preserves_clipboard_failure,
         "test_gho_opens_unknown_remote_pages_directly" => \&test_gho_opens_unknown_remote_pages_directly,
         "test_rejects_traversal_without_side_effects"  => \&test_rejects_traversal_without_side_effects,
         "test_rejects_controls_in_configured_host_without_side_effects" =>
