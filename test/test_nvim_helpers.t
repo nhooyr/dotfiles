@@ -793,6 +793,36 @@ eq(vim.fn.resolve(calls[1]), vim.fn.resolve(vim.env.TEST_STATUS_DIRECTORY),
 LUA
 }
 
+sub gitstatus_remote_buffers {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+local stat = vim.uv.fs_stat
+for _, kind in ipairs({ 'file', 'netrw', 'directory' }) do
+    package.loaded.gitstatus, package.loaded['gitstatus.state'] = nil, nil
+    vim.cmd.enew()
+    vim.api.nvim_buf_set_name(0, kind == 'netrw' and vim.env.TEST_ORIGINAL .. '.netrw'
+        or 'scp://example.test//remote/' .. kind)
+    if kind == 'netrw' then
+        vim.bo.filetype = 'netrw'
+        vim.b.netrw_curdir = 'scp://example.test//another/directory/'
+    elseif kind == 'directory' then
+        vim.b.nvim_dir = true
+    end
+    local probes = 0
+    vim.uv.fs_stat = function(...)
+        probes = probes + 1
+        return stat(...)
+    end
+    require('gitstatus').setup()
+    vim.uv.fs_stat = stat
+    eq(probes, 0, kind .. ' remote buffers never inspect the local filesystem for Git status')
+    eq(vim.b.vcs_prompt, '', kind .. ' remote buffers do not show a local branch')
+    vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+end
+LUA
+}
+
 sub recording_mode_color {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1671,6 +1701,7 @@ run_cases(
         terminal_shortcut_enters_terminal_mode  => \&terminal_shortcut_enters_terminal_mode,
         terminal_editor_handoff                 => \&terminal_editor_handoff,
         gitstatus_native_directory              => \&gitstatus_native_directory,
+        gitstatus_remote_buffers                => \&gitstatus_remote_buffers,
         recording_mode_color                    => \&recording_mode_color,
         snippet_navigation_mappings             => \&snippet_navigation_mappings,
         snippet_completion_reload               => \&snippet_completion_reload,

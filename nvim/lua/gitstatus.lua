@@ -10,8 +10,11 @@ local refresh
 local function current_directory(buf)
 	buf = buf or vim.api.nvim_get_current_buf()
 	if vim.bo[buf].buftype == 'quickfix' then return require('quickfix').directory(buf) end
-	if vim.bo[buf].filetype == 'netrw' then return vim.b[buf].netrw_curdir end
+	local netrw = vim.bo[buf].filetype == 'netrw'
 	local name = vim.api.nvim_buf_get_name(buf)
+	if netrw then name = vim.b[buf].netrw_curdir end
+	if not name or name:match('^%a[%w+.-]*://') then return nil end
+	if netrw then return name end
 	if vim.b[buf].nvim_dir then return vim.fs.normalize(name) end
 	if vim.bo[buf].buftype ~= '' then return nil end
 	return name == '' and vim.fn.getcwd() or vim.fs.dirname(name)
