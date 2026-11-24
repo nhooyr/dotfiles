@@ -176,9 +176,4 @@ local function stop()
 	end
 end
 
-local function setup_diff()
-	vim.keymap.set('n', ']h', '/^@@<CR>', { buffer = true })
-	vim.keymap.set('n', '[h', '?^@@<CR>', { buffer = true })
-end
-
-return { start = start, refresh = refresh, focus = focus, written = written, stop = stop, setup_diff = setup_diff }
+return { start = start, refresh = refresh, focus = focus, written = written, stop = stop }

@@ -13,7 +13,7 @@ if [ "${GITHUB_ACTIONS-}" ]; then
 fi
 
 find . -type f -name '*.fish' -exec fish_indent -w {} +
-git ls-files --cached --others --exclude-standard -z -- '*.pl' '*.pm' '*.t' bin/vgrep |
+git ls-files --cached --others --exclude-standard -z -- '*.pl' '*.pm' '*.t' |
 	xargs -0 -n1 sh -c 'test ! -f "$1" || perltidy -npro -l=110 -conv -b -bext=/ "./$1"' sh
 cargo fmt --quiet --manifest-path fish/fzfpaths/Cargo.toml
 shfmt -s -w .

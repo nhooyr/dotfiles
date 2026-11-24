@@ -314,7 +314,7 @@ augroup aqsnow
 	autocmd BufEnter,WinEnter * if &autochdir && exists('b:vidir_dir') | call nvim_set_current_dir(b:vidir_dir) | endif
 	autocmd filetype sh let &l:formatprg='shfmt -s'
 	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | call <SID>queue_config_reload() | endif
-	autocmd filetype diff lua require('gitstatus').setup_diff()
+	autocmd filetype diff lua require('diff').setup()
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 	autocmd filetype netrw if exists('b:netrw_curdir') && b:netrw_curdir =~# '^/' | nnoremap <buffer> <nowait> - <Cmd>call <SID>edit_parent()<CR> | endif
 	autocmd BufEnter,BufFilePost,DirChanged * lua require('gitstatus').refresh()

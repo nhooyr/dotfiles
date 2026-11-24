@@ -60,7 +60,7 @@ local function setup()
 	vim.bo.textwidth = 80
 	vim.keymap.set('n', ']c', '/^diff --<CR>', { buffer = true })
 	vim.keymap.set('n', '[c', '?^diff --<CR>', { buffer = true })
-	require('gitstatus').setup_diff()
+	require('diff').setup()
 	prefill_title()
 end
 
