@@ -462,9 +462,11 @@ LUA
 sub diff_original_preserves_unsaved_changes {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
+assert(package.loaded.diff == nil, 'diff stays unloaded before DiffOrig')
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'unsaved edit' })
 local original = vim.api.nvim_get_current_buf()
 vim.cmd.DiffOrig()
+assert(package.loaded.diff ~= nil, 'DiffOrig loads its Lua helper on demand')
 eq(vim.fn.readfile(vim.env.TEST_ORIGINAL), { 'original' }, 'comparing does not write the original file')
 eq(vim.api.nvim_get_current_buf(), original, 'comparison returns to the original buffer')
 assert(vim.bo.modified, 'the original edit remains unsaved')
@@ -475,6 +477,41 @@ for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
 end
 table.sort(contents, function(a, b) return a[1] < b[1] end)
 eq(contents, { { 'original' }, { 'unsaved edit' } }, 'comparison shows disk contents beside unsaved edits')
+LUA
+}
+
+sub diff_original_missing_file {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local original = vim.api.nvim_get_current_buf()
+vim.fn.delete(vim.env.TEST_ORIGINAL)
+local ok, err = pcall(vim.cmd.DiffOrig)
+assert(not ok and err:find('E484', 1, true), 'DiffOrig reports an unreadable original file')
+eq(vim.api.nvim_buf_get_lines(original, 0, -1, false), { 'original' }, 'the original buffer remains intact')
+eq(vim.fn.filereadable(vim.env.TEST_ORIGINAL), 0, 'the missing file is not recreated')
+LUA
+}
+
+sub diff_strip_mappings {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+assert(package.loaded.diff == nil, 'diff stays unloaded before stripping markers')
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { ' +one', '\t-two', ' three', '+four' })
+feed('<Leader>-')
+assert(package.loaded.diff ~= nil, 'the normal mapping loads the diff helper')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { 'one', 'two', ' three', 'four' },
+    'the normal mapping strips markers throughout the buffer')
+package.loaded.diff = nil
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { '+one', ' -two', '+three' })
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+feed('Vj<Leader>-')
+assert(package.loaded.diff ~= nil, 'the visual mapping loads the diff helper')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { 'one', 'two', '+three' },
+    'the visual mapping only strips markers on selected lines')
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'unchanged' })
+local ok, err = pcall(require('diff').strip)
+assert(not ok and err:find('E486', 1, true), 'missing markers keep the normal no-match error')
+eq(vim.api.nvim_get_current_line(), 'unchanged', 'a failed substitution leaves the text intact')
 LUA
 }
 
@@ -1313,6 +1350,8 @@ run_cases(
         first_commit_summary_width              => \&first_commit_summary_width,
         commit_title_prefix                     => \&commit_title_prefix,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
+        diff_original_missing_file             => \&diff_original_missing_file,
+        diff_strip_mappings                    => \&diff_strip_mappings,
         directory_navigation                    => \&directory_navigation,
         directory_quit_last_window              => \&directory_quit_last_window,
         native_directory_startup                => \&native_directory_startup,

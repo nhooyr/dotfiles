@@ -253,12 +253,11 @@ let g:copilot_filetypes = {
 command -bar -bang -nargs=0 Mkdirp write<bang> ++p
 nnoremap <Leader>m <Cmd>Mkdirp<CR>
 
-command DiffOrig noautocmd vert new | set buftype=nofile | read ++edit # | 0d_ |
-			   \ diffthis | noautocmd wincmd p | diffthis
+command DiffOrig lua require('diff').orig()
 
 nnoremap <Leader>w <Cmd>%s/\s\+$//<CR>
-nnoremap <Leader>- <Cmd>%s/^\s*[+-]//<CR>
-xnoremap <Leader>- :s/^\s*[+-]//<CR>
+nnoremap <Leader>- <Cmd>lua require('diff').strip()<CR>
+xnoremap <Leader>- :<C-u>lua require('diff').strip("'<,'>")<CR>
 nnoremap <M-w> /^\s\+
 nnoremap <M-n> <Cmd>execute v:count1.'next'<CR>
 nnoremap <M-p> <Cmd>execute v:count1.'prev'<CR>
