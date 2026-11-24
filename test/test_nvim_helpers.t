@@ -256,29 +256,38 @@ sub quickfix_search_directory {
     $self->{env}{AQSNOW_DIRALIS} = 'HOME:TEST_SEARCH';
     run_script( $self, <<'LUA' );
 local directory, other = vim.env.TEST_SEARCH, vim.env.TEST_OTHER
+local helper = require('quickfix')
 local function check(expected, title)
     vim.cmd.copen()
     eq(vim.fn.getqflist({ context = 0 }).context, { cwd = directory }, 'the search records its original directory')
     eq(vim.fn.getqflist({ title = 0 }).title, title, 'display formatting preserves the search title')
-    eq(require('quickfix').title(), expected, 'the title shows the aliased search directory')
+    eq(helper.title(), expected, 'the title shows only the search command')
+    eq(helper.directory(), '($TEST_SEARCH) ', 'the directory field shows the aliased search directory')
     vim.cmd.lcd(other)
-    eq(require('quickfix').title(), expected, 'changing cwd preserves the original search directory')
-    local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).str
-    assert(display:find(expected, 1, true), 'the quickfix window displays the original search directory')
+    eq(helper.directory(), '($TEST_SEARCH) ', 'changing cwd preserves the original search directory')
+    local function columns(width)
+        local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = width }).str
+        return assert(display:find(expected, 1, true)), assert(display:find('($TEST_SEARCH)', 1, true))
+    end
+    local title80, directory80 = columns(80)
+    local title120, directory120 = columns(120)
+    eq(title120, title80, 'the command title stays left-aligned')
+    eq(directory120 - directory80, 40, 'the search directory stays right-aligned')
 end
 vim.cmd.cd(directory)
 vim.cmd('silent grep needle .')
-check(' [$TEST_SEARCH] :grep needle .', ':vgrep needle .')
+check(' :grep needle .', ':vgrep needle .')
 vim.cmd.cclose()
 vim.cmd.cd(directory)
 local id = vim.fn.getqflist({ id = 0 }).id
 vim.cmd('Find match')
 assert(vim.wait(3000, function() return vim.fn.getqflist({ id = 0 }).id ~= id end), 'Find finishes')
-check(' [$TEST_SEARCH] :Find match', 'Find match')
+check(' :Find match', 'Find match')
 vim.cmd.cclose()
 vim.fn.setloclist(0, {}, ' ', { title = 'Other list', items = { { filename = directory .. '/match.txt', lnum = 1 } } })
 vim.cmd.lopen()
 eq(require('quickfix').title(), ' Other list', 'unrelated location lists do not inherit quickfix search context')
+eq(helper.directory(), '', 'unrelated location lists have no search directory')
 LUA
 }
 
