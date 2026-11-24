@@ -171,12 +171,15 @@ sub ignore_files_outside_git_do_not_filter {
     ok( grep( $_ eq 'original', @$paths ), 'ignore rules apply only inside Git repositories' );
 }
 
-sub excludes_its_own_script {
+sub includes_its_own_script {
     my ($self) = @_;
     $self->{env}{TMPDIR} = $self->{directory};
     my $script   = script_path( $self, invoke( $self, '-r' ) );
     my $relative = 'vidir/' . basename($script);
-    ok( !grep( $_ eq $relative, @{ listed_paths($script) } ), 'streaming does not include its own output' );
+    ok(
+        grep( $_ eq $relative, @{ listed_paths($script) } ),
+        'streaming includes its own output as a commented command'
+    );
 }
 
 sub scan_errors_stop_before_editor {
@@ -291,7 +294,7 @@ run_cases(
         ordering_matches_ls                         => \&ordering_matches_ls,
         git_ignore_and_override                     => \&git_ignore_and_override,
         ignore_files_outside_git_do_not_filter      => \&ignore_files_outside_git_do_not_filter,
-        excludes_its_own_script                     => \&excludes_its_own_script,
+        includes_its_own_script                     => \&includes_its_own_script,
         scan_errors_stop_before_editor              => \&scan_errors_stop_before_editor,
     },
     \&setup

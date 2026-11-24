@@ -90,7 +90,7 @@ sub ignored_paths {
 }
 
 sub write_paths {
-    my ( $path, $prefix, $file, $script ) = @_;
+    my ( $path, $prefix, $file ) = @_;
     local $ENV{LC_COLLATE} = 'C';
     open my $listing, '-|', 'gls', '-1Av', '--group-directories-first', '--zero', '--', $path
       or die "$name: gls: $!\n";
@@ -101,15 +101,15 @@ sub write_paths {
     }
     close $listing or die "$name: cannot list $path\n";
     my $parent = $path eq '/' ? '/' : "$path/";
-    @names = grep { "$parent$_" ne $script && ( !$use_ignore || $_ ne '.git' ) } @names;
+    @names = grep { $_ ne '.git' } @names if $use_ignore;
     my %ignored = $use_ignore ? ignored_paths( map { "$parent$_" } @names ) : ();
     for my $entry (@names) {
         my $full = "$parent$entry";
         next if $ignored{$full};
         my $relative = $prefix . $entry;
-        my $quoted = quote($relative);
+        my $quoted   = quote($relative);
         print {$file} "# mv -v -- $quoted $quoted\n";
-        write_paths( $full, "$relative/", $file, $script ) if $recursive && !-l $full && -d _;
+        write_paths( $full, "$relative/", $file ) if $recursive && !-l $full && -d _;
     }
 }
 
@@ -118,7 +118,7 @@ my $temporary = tmpdir() . '/vidir';
 make_path( $temporary, { mode => 0700 } );
 my ( $file, $script ) = tempfile( "$prefix.XXXXXX", SUFFIX => '.sh', DIR => $temporary, UNLINK => 0 );
 print {$file} "#!/bin/sh\nset -eu\ncd -- ", directory_quote($directory), "\n";
-write_paths( $directory, '', $file, abs_path($script) );
+write_paths( $directory, '', $file );
 close $file or die "$name: $script: $!\n";
 my $status = system @editor, $script;
 die "$name: could not run editor: $!\n" if $status == -1;
