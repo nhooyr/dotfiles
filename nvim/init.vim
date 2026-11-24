@@ -329,6 +329,8 @@ augroup aqsnow
 	autocmd filetype fish setlocal et ts=4 sw=0 formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd FileType help setlocal concealcursor=nc
+	autocmd FileType dirvish nnoremap <silent><buffer> gr <Cmd>Dirvish<CR>
+	autocmd FileType dirvish nnoremap <silent><buffer> gh <Cmd>silent keeppatterns g@\v/\.[^\/]+/?$@d _<Bar>setlocal conceallevel=3<CR>
 	autocmd BufNewFile *:[0-9]* nested lua require('filelinecol').open()
 	autocmd BufNewFile * if expand('<abuf>') == bufnr() && &buftype == '' | setlocal modified | endif
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig

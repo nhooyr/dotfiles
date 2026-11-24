@@ -559,6 +559,33 @@ eq(#vim.api.nvim_tabpage_list_wins(0), 1, 'netrw q closes the current window')
 LUA
 }
 
+sub directory_filter_bindings {
+    my ($self) = @_;
+    my $directory = "$self->{temporary}/listing";
+    make_path("$directory/.hidden-dir");
+    write_file( "$directory/.hidden-file", "hidden\n" );
+    write_file( "$directory/visible.txt", "visible\n" );
+    $self->{env}{TEST_LISTING} = $directory;
+    run_script( $self, <<'LUA' );
+vim.cmd('Dirvish ' .. vim.fn.fnameescape(vim.env.TEST_LISTING))
+local original = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+eq(#original, 3, 'dotfiles are visible by default')
+vim.fn.setreg('/', 'preserved search')
+vim.fn.setreg('"', 'preserved register')
+feed('gh')
+local filtered = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+eq(#filtered, 1, 'gh hides dotfiles and dot-directories')
+assert(vim.endswith(filtered[1], '/visible.txt'), 'gh keeps ordinary files')
+eq(vim.fn.getreg('/'), 'preserved search', 'gh preserves the search pattern')
+eq(vim.fn.getreg('"'), 'preserved register', 'gh preserves the unnamed register')
+eq(vim.wo.conceallevel, 3, 'gh conceals the path prefix')
+feed('R')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), original, 'native R restores the complete listing')
+feed('ghgr')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), original, 'gr also restores the complete listing')
+LUA
+}
+
 sub vidir_directory_arguments {
     my ($self) = @_;
     my $root = "$self->{temporary}/project";
@@ -1422,6 +1449,7 @@ run_cases(
         commit_title_prefix                     => \&commit_title_prefix,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         directory_navigation                    => \&directory_navigation,
+        directory_filter_bindings               => \&directory_filter_bindings,
         terminal_shortcut_enters_terminal_mode  => \&terminal_shortcut_enters_terminal_mode,
         terminal_editor_handoff                 => \&terminal_editor_handoff,
         vidir_buffer_directory                  => \&vidir_buffer_directory,
