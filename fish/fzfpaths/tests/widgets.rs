@@ -159,6 +159,18 @@ end
     output.stdout
 }
 
+#[test]
+fn parser_stops_if_no_directory_is_accessible() {
+    let script = r#"
+function path
+    test "$argv[1]" = is; and return 1
+    builtin path $argv
+end
+__fzf_parse_commandline
+"#;
+    assert_eq!(path_case(script, "missing"), b".\0missing\0\0");
+    assert_eq!(path_case(script, "/missing"), b"/\0missing\0\0");
+}
 
 #[test]
 fn directory_names_are_not_parsed_as_scanner_options() {

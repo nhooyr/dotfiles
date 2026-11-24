@@ -63,7 +63,9 @@ function __fzf_parse_commandline -d 'Return the directory, query and option pref
         # Keep link/.. intact while finding the longest existing directory.
         set -- dir "$fzf_query"
         while not path is -d -- "$dir"
-            set -- dir $(path dirname -Z -- "$dir" | string split0)
+            set -l parent $(path dirname -Z -- "$dir" | string split0)
+            test "$parent" = "$dir"; and break
+            set -- dir "$parent"
         end
 
         if test "$dir" != .; or string match -qr -- '^\\.(/|$)' "$fzf_query"
