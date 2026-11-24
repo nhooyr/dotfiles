@@ -10,7 +10,12 @@ for name in names:gmatch('[^:]+') do
 	local directory = vim.env[name]
 	if directory and directory ~= '' and vim.fn.isdirectory(directory) == 1 then
 		directory = vim.fs.normalize(vim.fn.fnamemodify(directory, ':p'), { expand_env = false })
-		aliases[#aliases + 1] = { directory = directory, label = name == 'HOME' and '~' or '$' .. name }
+		local label = name == 'HOME' and '~' or '$' .. name
+		aliases[#aliases + 1] = { directory = directory, label = label }
+		local resolved = vim.fn.resolve(directory)
+		if resolved ~= directory then
+			aliases[#aliases + 1] = { directory = resolved, label = label }
+		end
 	end
 end
 

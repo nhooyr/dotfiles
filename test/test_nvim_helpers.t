@@ -179,6 +179,26 @@ check(vim.api.nvim_eval_statusline('%f', {}).str, 'special buffers retain the na
 LUA
 }
 
+sub directory_alias_symlinks {
+    my ($self) = @_;
+    make_path("$self->{temporary}/physical");
+    symlink 'physical', "$self->{temporary}/logical" or die $!;
+    $self->{env}{TMPDIR}         = "$self->{temporary}/logical/";
+    $self->{env}{AQSNOW_DIRALIS} = 'HOME:TMPDIR';
+    run_script( $self, <<'LUA' );
+local helper, original = require('dirali'), vim.env.TMPDIR
+local logical = original:sub(1, -2)
+local physical = vim.fn.resolve(logical)
+eq(helper.shorten(logical .. '/file'), '$TMPDIR/file', 'logical alias paths still shorten')
+vim.cmd.edit(logical .. '/file')
+eq(vim.api.nvim_buf_get_name(0), physical .. '/file', 'Neovim resolves the symlinked parent directory')
+eq(helper.filename(), '$TMPDIR/file', 'resolved buffer paths use the same alias')
+vim.cmd.cd(logical)
+eq(helper.shorten(vim.fn.getcwd()), '$TMPDIR', 'resolved cwd uses the alias without a trailing slash')
+eq(vim.env.TMPDIR, original, 'registering physical aliases preserves the environment')
+LUA
+}
+
 sub quickfix_relative_paths {
     my ($self) = @_;
     $self->{env}{HOME} = absolute_path( $self->{env}{HOME} );
@@ -1522,6 +1542,7 @@ run_cases(
     {
         startup_and_config_paths                => \&startup_and_config_paths,
         filename_display                        => \&filename_display,
+        directory_alias_symlinks                => \&directory_alias_symlinks,
         quickfix_relative_paths                 => \&quickfix_relative_paths,
         quickfix_title_directory_aliases        => \&quickfix_title_directory_aliases,
         quickfix_search_directory               => \&quickfix_search_directory,
