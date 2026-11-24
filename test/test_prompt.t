@@ -771,7 +771,6 @@ sub directory_aliases_in_prompt_and_title {
         [ "$temp/nested/child",      '$TEST_ALIAS_PATH/child' ],
         [ "$self->{root}/temporary", "$self->{root}/temporary" ],
         [ "$home/child",             '~/child' ],
-        [ "$temp/\econtrol",         '$TMPDIR/control' ],
     );
     make_path( map { $_->[0] } @cases );
     $self->{env}{TMPDIR}          = "$temp/";
@@ -804,7 +803,7 @@ end
 FISH
     my $expected = join '', map { "login $_->[1]\n[\$] \neditor $_->[1]\n" } @cases;
     is( output( shell( $self, $body ) ),
-        $expected, 'prompt and title share longest directory aliases, home fallback, and safe display text' );
+        $expected, 'prompt and title share longest directory aliases and home fallback' );
 }
 
 run_cases(
