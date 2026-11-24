@@ -120,7 +120,7 @@ function ls
 end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
-abbr -a fd fd -HLE .git
+alias fd='fd --hidden --follow --exclude .git --no-require-git'
 abbr -a bfs bfs -L -exclude -name .git
 set -gx BAT_PAGER 'N=0 pager'
 abbrali rgf rg -F
@@ -135,7 +135,7 @@ alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git
     --colors=match:bg:yellow \
 "
 function f
-    fd --hidden --no-ignore --glob -- "$argv"
+    fd --no-ignore --glob -- "$argv"
 end
 alias bigdirs='du -hd 1 | sort -hr | head -n 16'
 abbr -a --set-cursor f "f '*%*'"

@@ -12,6 +12,9 @@ my $helpers = join "\n", map {
     die "Missing Fish function $_\n" unless defined $function;
     $function;
 } qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested realpathc __grep_smart_case grep reload f);
+my ($fd_alias) = $config =~ /^(alias fd=.+)$/m;
+die 'Missing fd alias' unless defined $fd_alias;
+$helpers .= "$fd_alias\n";
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 $helpers .= read_file("$root/fish/functions/sshv.fish");
 my $cd = read_file("$root/fish/cd.fish");
@@ -157,6 +160,32 @@ FISH
         'ordinary launches and native options reach Neovim unchanged'
     );
     is( $result->{stdout}, "23\n23\n23\n23\n", 'native exit statuses are preserved' );
+}
+
+sub fd_defaults_respect_ignores_and_follow_symlinks {
+    my ($self) = @_;
+    plan skip_all => 'fd is needed to test filename search' unless which('fd');
+    make_path( "$self->{root}/ignored", "$self->{root}/target" );
+    write_file( "$self->{root}/.gitignore",    "ignored/\n" );
+    write_file( "$self->{root}/.hidden",       'contents' );
+    write_file( "$self->{root}/ignored/found", 'contents' );
+    write_file( "$self->{root}/target/found",  'contents' );
+    symlink 'target', "$self->{root}/link" or die $!;
+    my $result = fish( $self, q{fd --type file -- '^[.]|found' | sort} );
+    is(
+        $result->{stdout},
+        ".gitignore\n.hidden\nlink/found\ntarget/found\n",
+        'fd includes hidden paths, follows links, and respects ignores outside Git'
+    );
+
+    make_path("$self->{root}/.git");
+    write_file( "$self->{root}/.git/found", 'contents' );
+    $result = fish( $self, q{f '*found*' | sort} );
+    is(
+        $result->{stdout},
+        "ignored/found\nlink/found\ntarget/found\n",
+        'f inherits fd defaults while including ignored paths and excluding .git'
+    );
 }
 
 sub find_names_include_directories_and_ignored_paths {
@@ -465,6 +494,7 @@ FISH
 
 run_cases(
     {
+        fd_defaults_respect_ignores_and_follow_symlinks  => \&fd_defaults_respect_ignores_and_follow_symlinks,
         find_names_include_directories_and_ignored_paths =>
           \&find_names_include_directories_and_ignored_paths,
         rendezvous_routes_both_file_pickers               => \&rendezvous_routes_both_file_pickers,
