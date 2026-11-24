@@ -5,6 +5,19 @@ local function range(first, last)
 	return last > 0 and last ~= first and first .. '-' .. last or tostring(first)
 end
 
+local function directory(buf)
+	buf = buf or vim.api.nvim_get_current_buf()
+	local list = fn.getqflist({ context = 0, qfbufnr = 0 })
+	if list.qfbufnr ~= buf then
+		local win = fn.bufwinid(buf)
+		if win == -1 then return nil end
+		list = fn.getloclist(win, { context = 0 })
+	end
+	if type(list.context) == 'table' and type(list.context.cwd) == 'string' then
+		return list.context.cwd
+	end
+end
+
 local function title()
 	local text = vim.w.quickfix_title
 	if not text then return '' end
@@ -13,16 +26,8 @@ local function title()
 	text = text:gsub([[(['"])(.-)%1]], function(quote, path)
 		return quote .. shorten(path) .. quote
 	end)
-	return ' ' .. text:gsub([[/[^%s'"]+]], shorten)
-end
-
-local function label()
-	local list = fn.getwininfo(fn.win_getid())[1].loclist == 1
-		and fn.getloclist(0, { context = 0 }) or fn.getqflist({ context = 0 })
-	if type(list.context) == 'table' and type(list.context.cwd) == 'string' then
-		return '[' .. require('dirali').shorten(list.context.cwd) .. ']'
-	end
-	return vim.api.nvim_eval_statusline('%t', {}).str
+	local cwd = directory()
+	return (cwd and shorten(cwd) .. ' && ' or '') .. text:gsub([[/[^%s'"]+]], shorten)
 end
 
 local function fmt(info)
@@ -58,4 +63,4 @@ local function fmt(info)
 	return lines
 end
 
-return { fmt = fmt, title = title, label = label }
+return { fmt = fmt, title = title, directory = directory }

@@ -9,6 +9,7 @@ local refresh
 
 local function current_directory(buf)
 	buf = buf or vim.api.nvim_get_current_buf()
+	if vim.bo[buf].buftype == 'quickfix' then return require('quickfix').directory(buf) end
 	if vim.bo[buf].filetype == 'netrw' then return vim.b[buf].netrw_curdir end
 	local name = vim.api.nvim_buf_get_name(buf)
 	if vim.b[buf].nvim_dir then return vim.fs.normalize(name) end
@@ -155,7 +156,8 @@ refresh = function()
 end
 
 local function enqueue(directory, changed)
-	if not active or not directory then return end
+	if not active then return end
+	if not directory then refresh() return end
 	pending[directory] = true
 	local cached = prompts[directories[directory]]
 	if cached then cached.pending = true end
@@ -194,6 +196,7 @@ local function setup()
 	vim.api.nvim_create_autocmd({ 'BufEnter', 'BufFilePost', 'DirChanged' }, { group = group, callback = refresh })
 	vim.api.nvim_create_autocmd({
 		'BufReadPost', 'FileReadPost', 'FocusGained', 'FocusLost', 'WinEnter', 'WinLeave', 'BufWinEnter', 'BufWinLeave',
+		'QuickFixCmdPost',
 	}, {
 		group = group,
 		callback = trigger,

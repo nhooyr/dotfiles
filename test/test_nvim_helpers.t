@@ -228,7 +228,7 @@ local title = ":'" .. project .. "/bin/vgrep' -P 'me' " .. home .. '/notes ' .. 
 local expected = ":'$TEST_PROJECT/bin/vgrep' -P 'me' ~/notes " .. outside
 vim.fn.setqflist({}, ' ', { title = title, items = { { filename = outside, lnum = 1, text = 'match' } } })
 vim.cmd.copen()
-eq(require('quickfix').title(), ' ' .. expected, 'quoted paths and unquoted paths use the longest directory alias')
+eq(require('quickfix').title(), expected, 'quoted paths and unquoted paths use the longest directory alias')
 local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).str
 assert(display:find(expected, 1, true), 'the quickfix statusline displays the shortened title: ' .. display)
 eq(vim.w.quickfix_title, title, 'formatting preserves the window title')
@@ -240,7 +240,7 @@ display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).st
 assert(display:find(expected, 1, true), 'location-list statuslines abbreviate paths too: ' .. display)
 eq(vim.fn.getloclist(0, { title = 0 }).title, title, 'formatting preserves the underlying location-list title')
 vim.w.quickfix_title = ':vgrep needle'
-eq(require('quickfix').title(), ' :grep needle', 'the title names the editor command instead of its wrapper')
+eq(require('quickfix').title(), ':grep needle', 'the title names the editor command instead of its wrapper')
 eq(vim.w.quickfix_title, ':vgrep needle', 'display formatting preserves the underlying title')
 vim.w.quickfix_title = nil
 eq(require('quickfix').title(), '', 'a missing title remains empty')
@@ -263,32 +263,49 @@ local function check(expected, title)
     vim.cmd.copen()
     eq(vim.fn.getqflist({ context = 0 }).context, { cwd = directory }, 'the search records its original directory')
     eq(vim.fn.getqflist({ title = 0 }).title, title, 'display formatting preserves the search title')
-    eq(helper.title(), expected, 'the title shows only the search command')
-    eq(helper.label(), '[$TEST_SEARCH]', 'the label shows the aliased search directory')
+    local left = '$TEST_SEARCH && ' .. expected
+    eq(helper.title(), left, 'the title prefixes the command with its aliased search directory')
+    eq(helper.directory(), directory, 'Git status uses the original unexpanded search directory')
     vim.cmd.lcd(other)
-    eq(helper.label(), '[$TEST_SEARCH]', 'changing cwd preserves the original search directory')
+    eq(helper.directory(), directory, 'changing cwd preserves the original search directory')
+    vim.b.vcs_prompt = ' (main *)'
     for _, width in ipairs({ 80, 120 }) do
         local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = width }).str
-        local label = '[$TEST_SEARCH]'
-        eq(display:sub(1, #label + #expected), label .. expected, 'the search label and command stay left-aligned')
-        local _, last = assert(display:find('$TEST_SEARCH', 1, true))
-        assert(not display:find('$TEST_SEARCH', last + 1, true), 'the search directory appears only once')
+        local ruler = ('%-14s All'):format('1,1')
+        local right = ' (main *) ' .. ruler
+        eq(display, left .. (' '):rep(width - #left - #right) .. right,
+            'the directory and command stay left while Git status aligns right before the position')
+        local normal = vim.api.nvim_eval_statusline(vim.go.statusline, { maxwidth = width }).str
+        eq(display:sub(-#ruler), normal:sub(-#ruler), 'normal and quickfix rulers align identically')
     end
 end
 vim.cmd.cd(directory)
 vim.cmd('silent grep needle .')
-check(' :grep needle .', ':vgrep needle .')
+check(':grep needle .', ':vgrep needle .')
 vim.cmd.cclose()
 vim.cmd.cd(directory)
 local id = vim.fn.getqflist({ id = 0 }).id
 vim.cmd('Find match')
 assert(vim.wait(3000, function() return vim.fn.getqflist({ id = 0 }).id ~= id end), 'Find finishes')
-check(' :Find match', 'Find match')
+check(':Find match', 'Find match')
 vim.cmd.cclose()
 vim.fn.setloclist(0, {}, ' ', { title = 'Other list', items = { { filename = directory .. '/match.txt', lnum = 1 } } })
 vim.cmd.lopen()
-eq(require('quickfix').title(), ' Other list', 'unrelated location lists do not inherit quickfix search context')
-eq(helper.label(), vim.api.nvim_eval_statusline('%t', {}).str, 'unrelated location lists keep their native label')
+eq(helper.title(), 'Other list', 'unrelated location lists do not inherit quickfix search context')
+eq(helper.directory(), nil, 'unrelated location lists have no search directory or generic label')
+local position = ('%-14s All'):format('1,1')
+eq(vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 80 }).str,
+    'Other list' .. (' '):rep(80 - #'Other list' - #position) .. position,
+    'unrelated location lists show only their title and position')
+local ruler, rulerformat = vim.go.ruler, vim.go.rulerformat
+vim.go.rulerformat = 'row=%l col=%c'
+position = 'row=1 col=1'
+eq(vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 80 }).str,
+    'Other list' .. (' '):rep(80 - #'Other list' - #position) .. position, 'quickfix honors a custom rulerformat')
+vim.go.ruler = false
+eq(vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 80 }).str,
+    'Other list' .. (' '):rep(80 - #'Other list'), 'noruler hides the quickfix ruler')
+vim.go.ruler, vim.go.rulerformat = ruler, rulerformat
 LUA
 }
 
@@ -803,6 +820,74 @@ vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim
 assert(package.loaded['gitstatus.state'] == state, 'config reload preserves cached Git status')
 eq(timers(), {}, 'config reload does not introduce a polling timer')
 eq(handlers(), registered, 'config reload leaves one set of handlers')
+LUA
+}
+
+sub gitstatus_quickfix_context {
+    my ($self) = @_;
+    for my $name (qw(first second)) {
+        my $directory = "$self->{temporary}/$name";
+        make_path("$directory/.git");
+        write_file( "$directory/file", 'contents' );
+        $self->{env}{ 'TEST_' . uc($name) } = $directory;
+    }
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+package.loaded.gitstatus, package.loaded['gitstatus.state'] = nil, nil
+local calls, now, hrtime = {}, 0, vim.uv.hrtime
+vim.uv.hrtime = function() return hrtime() + now * 1000000 end
+vim.system = function(command, options, callback)
+    local output = ''
+    if not command[4]:find('aqsnow_vcs_prompt_cache', 1, true) then
+        calls[#calls + 1] = options.cwd
+        output = ' (' .. vim.fn.fnamemodify(options.cwd, ':t') .. ')'
+    end
+    vim.schedule(function() callback({ code = 0, stdout = output }) end)
+    return { is_closing = function() return true end }
+end
+require('gitstatus').setup()
+local first, second = vim.fn.resolve(vim.env.TEST_FIRST), vim.fn.resolve(vim.env.TEST_SECOND)
+local function wait_for(prompt)
+    assert(vim.wait(1000, function() return vim.b.vcs_prompt == prompt end),
+        'Git status follows the list context: ' .. vim.inspect({ expected = prompt, actual = vim.b.vcs_prompt }))
+    vim.wait(20, function() return false end, 1)
+end
+local function list(directory)
+    return { title = 'Find file', context = { cwd = directory },
+        items = { { filename = directory .. '/file', lnum = 1 } } }
+end
+vim.cmd.cd(second)
+local owner = vim.api.nvim_get_current_win()
+vim.fn.setqflist({}, ' ', list(first))
+vim.cmd.copen()
+local quickfix, window = vim.api.nvim_get_current_buf(), vim.api.nvim_get_current_win()
+wait_for(' (first)')
+eq(calls[#calls], first, 'status uses the search directory instead of the current cwd')
+now = 3000
+vim.fn.setqflist({}, ' ', list(second))
+wait_for(' (second)')
+eq({ vim.api.nvim_get_current_buf(), vim.api.nvim_get_current_win() }, { quickfix, window },
+    'replacing the list updates Git status without changing its buffer or window')
+now = 6000
+vim.cmd.colder()
+wait_for(' (first)')
+now = 9000
+vim.api.nvim_set_current_win(owner)
+vim.fn.setloclist(0, {}, ' ', list(second))
+vim.cmd.lopen()
+wait_for(' (second)')
+local location = vim.api.nvim_get_current_buf()
+eq(require('quickfix').directory(quickfix), first, 'noncurrent quickfix buffers keep their own context')
+eq(require('quickfix').directory(location), second, 'location lists use their own context')
+now = 12000
+vim.api.nvim_exec_autocmds('BufReadPost', { buffer = quickfix })
+wait_for(' (second)')
+local count = #calls
+for _ = 1, 5 do vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 80 }) end
+eq(#calls, count, 'rendering the statusline starts no Git processes')
+vim.fn.setloclist(0, {}, ' ', { title = 'Other list', items = list(second).items })
+wait_for('')
+eq(require('quickfix').title(), 'Other list', 'unrelated lists have no directory prefix or Git status')
 LUA
 }
 
@@ -1460,6 +1545,7 @@ run_cases(
         snippet_completion_reload               => \&snippet_completion_reload,
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,
         gitstatus_event_queue                   => \&gitstatus_event_queue,
+        gitstatus_quickfix_context              => \&gitstatus_quickfix_context,
         gitstatus_ignores_editor_repository     => \&gitstatus_ignores_editor_repository,
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         find_files_quickfix                     => \&find_files_quickfix,
