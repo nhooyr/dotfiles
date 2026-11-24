@@ -212,13 +212,13 @@ nnoremap D "+d
 nnoremap DD "+dd
 xnoremap D "+d
 nnoremap <M-y> "+y
-nnoremap <M-y><M-y> m`^"+y$``
+nnoremap <M-y><M-y> "+yy
 xnoremap <M-y> "+y
 nnoremap <M-c> "+c
-nnoremap <M-c><M-c> m`^"+y$``"_cc
+nnoremap <M-c><M-c> "+cc
 xnoremap <M-c> "+c
 nnoremap <M-d> "+d
-nnoremap <M-d><M-d> m`^"+y$``"_dd
+nnoremap <M-d><M-d> "+dd
 xnoremap <M-d> "+d
 nnoremap <Leader>d <Cmd>execute '.,.+'.(v:count1-1).'t.'<CR>
 
