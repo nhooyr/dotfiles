@@ -222,6 +222,8 @@ if !exists('g:loaded_copilot')
 endif
 inoremap <expr> <S-Tab> pumvisible() ? '<C-p>' : '<S-Tab>'
 inoremap <expr> <C-e> pumvisible() ? '<C-e>' : '<C-o>$'
+inoremap <silent><expr> <M-f> exists('*copilot#AcceptWord')
+		\ ? copilot#AcceptWord("\<C-]>\<Esc>f") : "\<C-]>\<Esc>f"
 highlight PmenuMatch cterm=underline
 highlight PmenuSel ctermfg=3 ctermbg=0 cterm=none
 highlight PmenuMatchSel cterm=none

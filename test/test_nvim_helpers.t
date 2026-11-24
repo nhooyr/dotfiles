@@ -665,6 +665,50 @@ eq(vim.fn.readfile(request), { '<M-v>' }, 'Insert mode routes the picker request
 LUA
 }
 
+sub copilot_word_mapping {
+    my ($self) = @_;
+    make_path("$self->{temporary}/autoload");
+    my $autoload = "$self->{temporary}/autoload/copilot.vim";
+    write_file( $autoload, <<'VIM' );
+function! copilot#AcceptWord(fallback) abort
+    let g:test_copilot_calls = get(g:, 'test_copilot_calls', 0) + 1
+    let g:test_copilot_fallback = a:fallback
+    return get(g:, 'test_copilot_word', '') ==# '' ? a:fallback : g:test_copilot_word
+endfunction
+VIM
+    $self->{env}{TEST_COPILOT_AUTOLOAD} = $autoload;
+    run_script( $self, <<'LUA' );
+local mapping = vim.fn.maparg('<M-f>', 'i', false, true)
+assert(mapping.rhs, 'Alt-f has an insert-mode mapping')
+local function attempt(keys)
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'abc x tail' })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    feed(keys)
+    return { vim.api.nvim_get_current_line(), vim.api.nvim_win_get_cursor(0), vim.fn.mode(1) }
+end
+vim.cmd('iunmap <M-f>')
+local native = attempt('iQ<M-f>x')
+vim.fn.mapset('i', false, mapping)
+eq(vim.fn.exists('*copilot#AcceptWord'), 0, 'the test begins without Copilot')
+eq(attempt('iQ<M-f>x'), native, 'without Copilot, Alt-f retains its native behavior')
+
+vim.cmd('iabbrev Q ZOO')
+vim.cmd('iunmap <M-f>')
+local abbreviated = attempt('iQ<M-f>x')
+vim.fn.mapset('i', false, mapping)
+eq(abbreviated[1], 'ZOOabc x tail', 'native Alt-f expands insert abbreviations')
+eq(attempt('iQ<M-f>x'), abbreviated, 'without Copilot, Alt-f preserves abbreviation expansion')
+
+vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_COPILOT_AUTOLOAD))
+eq(attempt('iQ<M-f>x'), abbreviated, 'without a suggestion, Alt-f retains its native behavior')
+eq(vim.g.test_copilot_fallback, vim.api.nvim_replace_termcodes('<C-]><Esc>f', true, false, true),
+    'Copilot receives the native fallback')
+vim.g.test_copilot_word = 'accepted'
+eq(attempt('i<M-f><Esc>')[1], 'acceptedabc x tail', 'Alt-f inserts the word returned by Copilot')
+eq(vim.g.test_copilot_calls, 2, 'each mapped keypress calls AcceptWord once')
+LUA
+}
+
 sub rendezvous_error_order {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -708,6 +752,7 @@ run_cases(
         gitstatus_event_queue                   => \&gitstatus_event_queue,
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         rendezvous_routes                       => \&rendezvous_routes,
+        copilot_word_mapping                    => \&copilot_word_mapping,
         rendezvous_error_order                  => \&rendezvous_error_order,
     },
     \&setup
