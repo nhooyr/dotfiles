@@ -5,6 +5,16 @@ local function range(first, last)
 	return last > 0 and last ~= first and first .. '-' .. last or tostring(first)
 end
 
+local function title()
+	local text = vim.w.quickfix_title
+	if not text then return '' end
+	local shorten = require('dirali').shorten
+	text = text:gsub([[(['"])(.-)%1]], function(quote, path)
+		return quote .. shorten(path) .. quote
+	end)
+	return ' ' .. text:gsub([[/[^%s'"]+]], shorten)
+end
+
 local function fmt(info)
 	local request = { id = info.id, items = 0 }
 	local items = (info.quickfix == 1 and fn.getqflist(request)
@@ -38,4 +48,4 @@ local function fmt(info)
 	return lines
 end
 
-return { fmt = fmt }
+return { fmt = fmt, title = title }

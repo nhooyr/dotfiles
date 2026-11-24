@@ -187,6 +187,35 @@ eq(format({ quickfix = 0, winid = vim.api.nvim_get_current_win(), id = 0, start_
 LUA
 }
 
+sub quickfix_title_directory_aliases {
+    my ($self) = @_;
+    $self->{env}{HOME} = absolute_path( $self->{env}{HOME} );
+    make_path("$self->{env}{HOME}/project space");
+    $self->{env}{TEST_PROJECT}   = absolute_path("$self->{env}{HOME}/project space");
+    $self->{env}{AQSNOW_DIRALIS} = 'HOME:TEST_PROJECT';
+    run_script( $self, <<'LUA' );
+local home, project = vim.env.HOME, vim.env.TEST_PROJECT
+local outside = vim.fn.resolve(vim.env.TEST_ORIGINAL)
+local title = ":'" .. project .. "/bin/vgrep' -P 'me' " .. home .. '/notes ' .. outside
+local expected = ":'$TEST_PROJECT/bin/vgrep' -P 'me' ~/notes " .. outside
+vim.fn.setqflist({}, ' ', { title = title, items = { { filename = outside, lnum = 1, text = 'match' } } })
+vim.cmd.copen()
+eq(require('qf').title(), ' ' .. expected, 'quoted paths and unquoted paths use the longest directory alias')
+local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).str
+assert(display:find(expected, 1, true), 'the quickfix statusline displays the shortened title: ' .. display)
+eq(vim.w.quickfix_title, title, 'formatting preserves the window title')
+eq(vim.fn.getqflist({ title = 0 }).title, title, 'formatting preserves the underlying quickfix title')
+vim.cmd.cclose()
+vim.fn.setloclist(0, {}, ' ', { title = title, items = { { filename = outside, lnum = 1, text = 'match' } } })
+vim.cmd.lopen()
+display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).str
+assert(display:find(expected, 1, true), 'location-list statuslines abbreviate paths too: ' .. display)
+eq(vim.fn.getloclist(0, { title = 0 }).title, title, 'formatting preserves the underlying location-list title')
+vim.w.quickfix_title = nil
+eq(require('qf').title(), '', 'a missing title remains empty')
+LUA
+}
+
 sub file_locations {
     my ($self)  = @_;
     my $file    = "$self->{temporary}/file name.fish";
@@ -1267,6 +1296,7 @@ run_cases(
         startup_and_config_paths                => \&startup_and_config_paths,
         filename_display                        => \&filename_display,
         quickfix_directory_aliases              => \&quickfix_directory_aliases,
+        quickfix_title_directory_aliases        => \&quickfix_title_directory_aliases,
         file_locations                          => \&file_locations,
         coalesced_config_reload                 => \&coalesced_config_reload,
         nested_module_reload                    => \&nested_module_reload,
