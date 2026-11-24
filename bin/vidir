@@ -22,7 +22,7 @@ The script includes hidden entries and uses relative filenames.
 Entries use GNU ls ordering: directories first, then version-number order.
 Inside a Git worktree, ignore Git-ignored entries and .git.
 
-  -r, --recursive  Include descendants before their parent directories.
+  -r, --recursive  Include descendants after their parent directories.
                    Directory symlinks are listed without following them.
   --no-ignore      Include Git-ignored entries and .git.
   -h, --help       Show this help.
@@ -107,9 +107,9 @@ sub write_paths {
         my $full = "$parent$entry";
         next if $ignored{$full};
         my $relative = $prefix . $entry;
-        write_paths( $full, "$relative/", $file, $script ) if $recursive && !-l $full && -d _;
         my $quoted = quote($relative);
         print {$file} "# mv -v -- $quoted $quoted\n";
+        write_paths( $full, "$relative/", $file, $script ) if $recursive && !-l $full && -d _;
     }
 }
 

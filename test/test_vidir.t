@@ -198,7 +198,7 @@ sub scan_errors_stop_before_editor {
     }
 }
 
-sub recursion_keeps_children_before_parents {
+sub recursion_keeps_parents_before_children {
     my ($self) = @_;
     my $path = script_path( $self, invoke( $self, '-r' ) );
     my @paths;
@@ -210,12 +210,12 @@ sub recursion_keeps_children_before_parents {
     @position{@paths} = 0 .. $#paths;
     ok( exists $position{'nested/deep/leaf'}, 'recursive mode includes deeply nested files' );
     cmp_ok(
-        $position{'nested/deep/leaf'},
-        '<',
         $position{'nested/deep'},
-        'children precede their parent directory'
+        '<',
+        $position{'nested/deep/leaf'},
+        'parent directories precede their children'
     );
-    cmp_ok( $position{'nested/deep'}, '<', $position{'nested'}, 'nested directories precede their parent' );
+    cmp_ok( $position{'nested'}, '<', $position{'nested/deep'}, 'parents precede nested directories' );
     ok( exists $position{'link'},   'directory symlinks are included' );
     ok( !grep( m{^link/}, @paths ), 'directory symlinks are not followed' );
     my $long_option = script_path( $self, invoke( $self, '--recursive', $self->{directory} ) );
@@ -283,7 +283,7 @@ sub usage_and_missing_editor {
 run_cases(
     {
         lists_immediate_entries_and_quotes_names    => \&lists_immediate_entries_and_quotes_names,
-        recursion_keeps_children_before_parents     => \&recursion_keeps_children_before_parents,
+        recursion_keeps_parents_before_children     => \&recursion_keeps_parents_before_children,
         editor_changes_wait_for_manual_execution    => \&editor_changes_wait_for_manual_execution,
         editor_failure_keeps_script_without_command => \&editor_failure_keeps_script_without_command,
         editor_without_options                      => \&editor_without_options,
