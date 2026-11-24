@@ -570,9 +570,9 @@ sub vidir_directory_arguments {
 local root = vim.fn.resolve(vim.env.TEST_VIDIR_ROOT)
 local function target(command, expected)
     vim.cmd(command)
-    local directory = vim.bo.filetype == 'dirvish' and vim.api.nvim_buf_get_name(0) or vim.fn.getcwd()
+    local directory = vim.bo.filetype == 'dirvish' and vim.api.nvim_buf_get_name(0) or vim.b.shdo_directory
     eq(vim.fs.normalize(directory), expected, 'Vidir selects the requested directory')
-    if vim.bo.filetype == 'sh' then vim.cmd('close!') end
+    if vim.bo.filetype == 'sh' then vim.cmd('buffer! ' .. vim.b.shdo_listing) end
 end
 vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/file.txt'))
 target('Vidir', root)
@@ -606,17 +606,18 @@ local cwd = vim.fn.getcwd()
 vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
 local buffer, path = vim.api.nvim_get_current_buf(), vim.api.nvim_buf_get_name(0)
 eq(vim.bo.filetype, 'sh', 'Shdo opens a shell script')
-eq(#vim.api.nvim_tabpage_list_wins(0), 2, 'Shdo opens the script in a split')
+eq(#vim.api.nvim_tabpage_list_wins(0), 1, 'Shdo replaces the listing in the same window')
 eq(vim.fn.filereadable(path), 1, 'Shdo creates its temporary file immediately')
-eq(vim.fn.getcwd(), directory, 'the script window uses the target directory')
-eq(vim.fn.haslocaldir(), 1, 'Shdo gives the script a window-local directory')
-eq(vim.api.nvim_buf_get_lines(buffer, 0, 2, false), { '#!/bin/sh', 'set -eu' },
-    'scripts use sh and stop on errors')
+eq(vim.b.shdo_directory, directory, 'the script remembers its target directory')
+eq(vim.fn.getcwd(), cwd, 'opening the script preserves the selected working directory')
+eq(vim.fn.haslocaldir(), 0, 'Shdo does not leave a window-local directory')
+eq(vim.api.nvim_buf_get_lines(buffer, 0, 1, false), { 'set -eu' },
+    'scripts stop on errors without needing a shebang')
 assert(not vim.bo.undofile, 'temporary scripts do not create persistent undo files')
 vim.cmd.write()
 eq(vim.fn.filereadable(directory .. '/entry'), 1, 'writing only saves the script')
-vim.cmd.close()
-eq(vim.bo.filetype, 'dirvish', 'closing the script returns to Dirvish')
+vim.api.nvim_set_current_buf(vim.b.shdo_listing)
+eq(vim.bo.filetype, 'dirvish', 'leaving the script returns to Dirvish')
 eq(vim.fn.getcwd(), cwd, 'the directory window retains the original working directory')
 LUA
 }
@@ -641,7 +642,7 @@ MOCK
     $self->{env}{TEST_MOVE_LOG}        = "$self->{temporary}/moves";
     run_script( $self, <<'LUA' );
 vim.cmd('Vidir ' .. vim.fn.fnameescape(vim.env.TEST_VIDIR_DIRECTORY))
-require('vidir').run()
+require('shdo').run()
 eq(vim.v.shell_error, 0, 'generated commands execute successfully')
 eq(vim.bo.filetype, 'dirvish', 'successful execution returns to the listing')
 LUA
@@ -696,12 +697,12 @@ feed('<M-CR>')
 eq(vim.v.shell_error, 0, 'Alt-Enter runs the saved commands')
 eq(vim.fn.filereadable(directory .. '/renamed'), 1, 'the rename ran')
 eq(vim.fn.filereadable(directory .. '/original'), 0, 'the old filename is gone')
-eq(vim.bo.filetype, 'dirvish', 'successful execution closes the script')
+eq(vim.bo.filetype, 'dirvish', 'successful execution returns to the listing')
 assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false), directory .. '/renamed'),
     'successful execution refreshes the directory listing')
 vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
 local failed_buffer = vim.api.nvim_get_current_buf()
-local failing = { '#!/bin/sh', 'set -eu', 'false', "touch should-not-exist" }
+local failing = { 'set -eu', 'false', 'touch should-not-exist' }
 vim.api.nvim_buf_set_lines(failed_buffer, 0, -1, false, failing)
 feed('<M-CR>')
 assert(vim.v.shell_error ~= 0, 'the failed command reports an error')
@@ -710,6 +711,47 @@ eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), failing, 'failure preserves comm
 eq(vim.fn.filereadable(directory .. '/should-not-exist'), 0, 'commands after the failure do not run')
 eq(vim.fn.getreg('a'), 'named sentinel', 'named registers are preserved')
 eq(vim.fn.getreg('"'), 'unnamed sentinel', 'the unnamed register is preserved')
+LUA
+}
+
+sub shdo_preserves_windows_and_shell {
+    my ($self) = @_;
+    plan skip_all => 'fish is needed to test shell restoration' unless which('fish');
+    my $directory = "$self->{temporary}/script directory";
+    make_path($directory);
+    write_file( "$directory/" . q{back\slash $cash}, 'content' );
+    $self->{env}{TEST_SHDO_DIRECTORY} = $directory;
+    run_script( $self, <<'LUA' );
+local directory = vim.fn.resolve(vim.env.TEST_SHDO_DIRECTORY)
+local other_window, other_buffer = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+local cwd, shell = vim.fn.getcwd(), vim.o.shell
+vim.cmd.vsplit()
+local window = vim.api.nvim_get_current_win()
+vim.cmd('Dirvish ' .. vim.fn.fnameescape(directory))
+local listing = vim.api.nvim_get_current_buf()
+vim.o.shell = 'fish'
+vim.cmd('%Shdo cp -- {} {}.copy')
+eq(vim.o.shell, 'fish', 'Shdo restores the configured shell after generating commands')
+eq(vim.api.nvim_get_current_win(), window, 'Shdo keeps the originating window')
+eq(#vim.api.nvim_tabpage_list_wins(0), 2, 'Shdo does not leave an additional split')
+eq(vim.api.nvim_win_get_buf(other_window), other_buffer, 'other windows keep their buffers')
+eq(vim.fn.getcwd(), cwd, 'Shdo does not change the selected working directory')
+eq(vim.fn.haslocaldir(), 0, 'Shdo does not leave a local working directory')
+eq(vim.b.shdo_directory, directory, 'generic Shdo records the command directory')
+eq(vim.api.nvim_buf_get_lines(0, 0, 1, false), { 'set -eu' }, 'generic Shdo receives the safety header')
+assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false),
+    [[cp -- 'back\slash $cash' 'back\slash $cash'.copy]]),
+    'commands use POSIX shell quoting: ' .. vim.inspect(vim.api.nvim_buf_get_lines(0, 0, -1, false)))
+feed('i<M-CR>')
+eq(vim.v.shell_error, 0, 'Alt-Enter from Insert mode executes generic Shdo')
+eq(vim.fn.filereadable(directory .. [[/back\slash $cash.copy]]), 1, 'the generated command uses the intended filename')
+eq(vim.api.nvim_get_current_buf(), listing, 'success returns to the original listing')
+vim.cmd('%Shdo true')
+feed('Z!')
+eq(vim.v.shell_error, 0, 'Z! runs through the same shell helper')
+eq(vim.api.nvim_get_current_buf(), listing, 'Z! returns to the listing')
+eq(vim.o.shell, 'fish', 'execution leaves the configured shell unchanged')
+vim.o.shell = shell
 LUA
 }
 
@@ -1384,6 +1426,7 @@ run_cases(
         vidir_directory_arguments               => \&vidir_directory_arguments,
         vidir_quotes_shell_directory            => \&vidir_quotes_shell_directory,
         vidir_refresh_after_success             => \&vidir_refresh_after_success,
+        shdo_preserves_windows_and_shell        => \&shdo_preserves_windows_and_shell,
         gitstatus_dirvish_directory             => \&gitstatus_dirvish_directory,
         recording_mode_color                    => \&recording_mode_color,
         snippet_completion_reload               => \&snippet_completion_reload,

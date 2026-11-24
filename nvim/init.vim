@@ -339,8 +339,10 @@ augroup aqsnow
 augroup END
 if v:vim_did_enter
 	lua require('gitstatus').setup()
+	lua require('shdo').setup()
 else
 	autocmd aqsnow VimEnter * ++once lua require('gitstatus').setup()
+	autocmd aqsnow VimEnter * ++once lua require('shdo').setup()
 endif
 
 function s:restore_cursor() abort
