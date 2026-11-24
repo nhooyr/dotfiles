@@ -142,7 +142,6 @@ nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| silent update \
 nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
 command Cdh execute 'cd' fnameescape(isdirectory(expand('%')) ? expand('%') : expand('%:h'))
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
-xnoremap <Leader>v :Reverse<CR>
 nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snippets.lua<CR>
 " Local directories use Neovim's native browser.
 " Keep these settings for netrw's remote browsing (e.g. scp:// via sshv).
@@ -273,7 +272,8 @@ nnoremap <M-p> <Cmd>execute v:count1.'prev'<CR>
 nnoremap Z zz
 
 nnoremap <Leader>e <Cmd>terminal<CR><Cmd>startinsert<CR>
-command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
+command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1 | nohlsearch
+xnoremap <M-v> :Reverse<CR>
 
 nnoremap <M-g> :silent grep ''<Left>
 nnoremap <Leader>g :silent grep ''<Left>
