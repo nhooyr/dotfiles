@@ -2,8 +2,9 @@ use std::env;
 use std::fs;
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
 const HARNESS: &str = r#"
@@ -133,16 +134,58 @@ function commandline
     end
 end
 "#;
-    let output = Command::new("fish")
+    let mut child = Command::new("fish")
         .args(["--no-config", "-c", &format!("{setup}\n{script}")])
         .current_dir(&fixture.0)
         .env("WIDGET_SOURCE", widget)
         .env("TEST_TOKEN", token)
-        .output()
+        .env("FZFPATHS", env!("CARGO_BIN_EXE_fzfpaths"))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while child.try_wait().unwrap().is_none() {
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("path widget did not finish");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let output = child.wait_with_output().unwrap();
     assert!(output.status.success(), "{output:?}");
     assert!(output.stderr.is_empty(), "{output:?}");
     output.stdout
+}
+
+
+#[test]
+fn directory_names_are_not_parsed_as_scanner_options() {
+    let script = r#"
+mkdir -- --help --color
+printf text > --help/file
+printf text > --color/file
+function fzfpaths
+    command "$FZFPATHS" $argv
+end
+function fzf
+    while read --null --local path
+        set path "$(string replace -ra '\e\[[0-9;]*m' '' -- "$path")"
+        set path "$(string replace -r '.$' '' -- "$path")"
+        printf '%s\0' "$path"
+    end
+end
+for name in --help --color
+    set -g TEST_TOKEN "$name/fi"
+    fzf_path_widget fzf-file-widget
+    if test "$inserted" != "-- $name/file "
+        printf 'unexpected insertion: <%s>\n' "$inserted" >&2
+        exit 1
+    end
+end
+"#;
+    assert!(path_case(script, "").is_empty());
 }
 
 #[test]
@@ -187,3 +230,4 @@ test -d "$paths[-1]"; or exit 1
 "#;
     assert!(path_case(script, "").is_empty());
 }
+
