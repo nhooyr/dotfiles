@@ -54,11 +54,28 @@ fn from_input(command: &mut Command, paths: &[&Path]) -> Vec<OsString> {
         .collect()
 }
 
-fn mock_ls_files(path: &Path, script: &str) -> io::Result<()> {
-    // These fixtures mock slow repository scans, not configuration reads.
+fn mock_git(path: &Path, script: &str) -> io::Result<()> {
+    let local_env = String::from_utf8(
+        checked(Command::new("git").args(["rev-parse", "--local-env-vars"])).stdout,
+    )
+    .unwrap();
     fs::write(
         path,
         script.replacen(
+            "#!/bin/sh\n",
+            &format!(
+                "#!/bin/sh\nif [ \"$2\" = --local-env-vars ]; then printf '%s' '{local_env}'; exit 0; fi\n"
+            ),
+            1,
+        ),
+    )
+}
+
+fn mock_ls_files(path: &Path, script: &str) -> io::Result<()> {
+    // These fixtures mock slow repository scans, not configuration reads.
+    mock_git(
+        path,
+        &script.replacen(
             "#!/bin/sh\n",
             "#!/bin/sh\nif [ \"$3\" = config ]; then printf '\\0'; exit 0; fi\n",
             1,
@@ -311,7 +328,7 @@ fn unrelated_globals_stream_while_the_local_scan_is_blocked() {
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(&git, "#!/bin/sh\nif [ \"$3\" = config ]; then\n  while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\n  printf '\\0'\nelse\n  printf 'nested/child\\0nested/ignored\\0tracked\\0'\nfi\n").unwrap();
+    mock_git(&git, "#!/bin/sh\nif [ \"$3\" = config ]; then\n  while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\n  printf '\\0'\nelse\n  printf 'nested/child\\0nested/ignored\\0tracked\\0'\nfi\n").unwrap();
     make_executable(&git);
     let release = fixture.root.join("release");
     let path = env::join_paths(
@@ -2316,6 +2333,69 @@ fn local_ignore_sources_respect_core_ignorecase() {
     fs::write(config, text).unwrap();
     let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-f", &[]));
     assert!(!paths.contains(&"file.local".into()));
+}
+
+#[test]
+fn global_scans_ignore_foreign_git_directories_and_indexes() {
+    let fixture = Fixture::new();
+    let foreign = Fixture::new();
+    fs::write(fixture.repo.join(".gitignore"), "*.tmp\n").unwrap();
+    write(&fixture.repo, "tracked.tmp");
+    fixture.git(&["add", "--force", "tracked.tmp"]);
+    write(&foreign.repo, "foreign-only");
+    foreign.git(&["add", "foreign-only"]);
+    let expected: HashSet<_> = fixture.pick().into_iter().collect();
+    assert!(expected.contains(&fixture.repo.join("tracked.tmp").into_os_string()));
+    for variables in [
+        vec![("GIT_INDEX_FILE", foreign.repo.join(".git/index"))],
+        vec![("GIT_DIR", foreign.repo.join(".git"))],
+        vec![
+            ("GIT_DIR", foreign.repo.join(".git")),
+            ("GIT_WORK_TREE", foreign.repo.clone()),
+            ("GIT_INDEX_FILE", foreign.repo.join(".git/index")),
+        ],
+    ] {
+        let mut command = fixture.command(&fixture.local, &fixture.global_dir, "-fd", &[]);
+        command.envs(variables);
+        let actual: HashSet<_> = fixture.run(&mut command).into_iter().collect();
+        assert_eq!(actual, expected);
+    }
+}
+
+#[test]
+fn local_scans_use_their_own_git_config_and_keep_global_config() {
+    let fixture = Fixture::new();
+    let foreign = Fixture::new();
+    fixture.git(&["config", "core.ignorecase", "false"]);
+    foreign.git(&["config", "core.ignorecase", "true"]);
+    fs::write(fixture.repo.join(".gitignore"), "case.UPPER\n").unwrap();
+    fs::write(fixture.repo.join(".git/info/exclude"), "repo-secret\n").unwrap();
+    let ignore = fixture.root.join("global-ignore");
+    fs::write(&ignore, "global-secret\n").unwrap();
+    let config = fixture.root.join("gitconfig");
+    fixture.git(&[
+        "config",
+        "--file",
+        config.to_str().unwrap(),
+        "core.excludesFile",
+        ignore.to_str().unwrap(),
+    ]);
+    for name in ["case.upper", "repo-secret", "global-secret"] {
+        write(&fixture.repo, name);
+    }
+    for inherited in [false, true] {
+        let mut command = fixture.command(&fixture.repo, Path::new(""), "-f", &[]);
+        command.env("GIT_CONFIG_GLOBAL", &config);
+        if inherited {
+            command
+                .env("GIT_DIR", foreign.repo.join(".git"))
+                .env("GIT_WORK_TREE", &foreign.repo);
+        }
+        let paths = fixture.run(&mut command);
+        assert!(paths.contains(&"case.upper".into()));
+        assert!(!paths.contains(&"repo-secret".into()));
+        assert!(!paths.contains(&"global-secret".into()));
+    }
 }
 
 #[test]
