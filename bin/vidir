@@ -62,7 +62,7 @@ sub directory_quote {
     return quote($path) if $label eq '';
     my $suffix = substr( $path, length($prefix) );
     $suffix = "/$suffix" if $prefix eq '/' && length($suffix);
-    return $label . $suffix                                           if $path =~ m{\A[A-Za-z0-9_./-]+\z};
+    return $label . $suffix if $label eq '~' && $path =~ m{\A[A-Za-z0-9_./-]+\z};
     return $suffix eq '' ? '~' : '~/' . quote( substr( $suffix, 1 ) ) if $label eq '~';
     $suffix =~ s/([\\"\$`])/\\$1/g;
     return '"' . $label . $suffix . '"';

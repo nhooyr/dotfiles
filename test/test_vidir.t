@@ -112,6 +112,27 @@ sub lists_immediate_entries_and_quotes_names {
     ok( -f "$self->{directory}/original", 'an unchanged script leaves files intact' );
 }
 
+sub quotes_ascii_directory_aliases {
+    my ($self) = @_;
+    my $directory = "$self->{root}/scratch";
+    make_path("$directory/nested");
+    $self->{env}{TEST_PROJECT} = $directory;
+    for my $suffix ( '', '/nested' ) {
+        my $path  = script_path( $self, invoke( $self, "$directory$suffix" ) );
+        my @lines = split /\n/, read_file($path);
+        is(
+            $lines[2],
+            'cd -- "$TEST_PROJECT' . $suffix . '"',
+            'ASCII-only environment aliases and suffixes stay double-quoted'
+        );
+    }
+    $self->{env}{HOME}           = $directory;
+    $self->{env}{AQSNOW_DIRALIS} = 'HOME';
+    my $path  = script_path( $self, invoke( $self, $directory ) );
+    my @lines = split /\n/, read_file($path);
+    is( $lines[2], 'cd -- ~', 'HOME retains its unquoted tilde expansion' );
+}
+
 sub listed_paths {
     my ($path) = @_;
     return [ map { ( shellwords($_) )[3] } grep { s/^# (?=mv )// } split /\n/, read_file($path) ];
@@ -286,6 +307,7 @@ sub usage_and_missing_editor {
 run_cases(
     {
         lists_immediate_entries_and_quotes_names    => \&lists_immediate_entries_and_quotes_names,
+        quotes_ascii_directory_aliases              => \&quotes_ascii_directory_aliases,
         recursion_keeps_parents_before_children     => \&recursion_keeps_parents_before_children,
         editor_changes_wait_for_manual_execution    => \&editor_changes_wait_for_manual_execution,
         editor_failure_keeps_script_without_command => \&editor_failure_keeps_script_without_command,
