@@ -246,6 +246,35 @@ eq(require('quickfix').title(), '', 'a missing title remains empty')
 LUA
 }
 
+sub new_files_are_modified {
+    my ($self) = @_;
+    my $file = "$self->{temporary}/new parent/empty file.txt";
+    $self->{env}{TEST_NEW_FILE} = $file;
+    run_script( $self, <<'LUA', [$file] );
+local file = vim.env.TEST_NEW_FILE
+assert(vim.bo.modified, 'a new named file starts modified')
+assert(vim.api.nvim_eval_statusline('%m', {}).str ~= '', 'the new file has a modified indicator')
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowAutosave' })
+vim.api.nvim_exec_autocmds('FocusLost', {})
+eq(vim.fn.filereadable(file), 0, 'autosave does not create a new file')
+eq(vim.fn.isdirectory(vim.fs.dirname(file)), 0, 'autosave does not create its parent directory')
+assert(vim.bo.modified, 'the file stays modified until explicitly saved')
+vim.cmd.write()
+eq(vim.fn.filereadable(file), 1, 'the first write creates the empty file and its parents')
+assert(not vim.bo.modified, 'the first write clears the modified flag')
+vim.cmd.enew()
+assert(not vim.bo.modified, 'an unnamed buffer stays unmodified')
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
+assert(not vim.bo.modified, 'an existing file stays unmodified')
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL .. ':1:1'))
+eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)), vim.fn.resolve(vim.env.TEST_ORIGINAL),
+    'file locations still open their existing target')
+assert(not vim.bo.modified, 'a file-location placeholder does not dirty its target')
+vim.cmd('Dirvish ' .. vim.fn.fnameescape(vim.fs.dirname(file)))
+assert(not vim.bo.modified, 'a directory buffer stays unmodified')
+LUA
+}
+
 sub file_locations {
     my ($self)  = @_;
     my $file    = "$self->{temporary}/file name.fish";
@@ -1375,6 +1404,7 @@ run_cases(
         filename_display                        => \&filename_display,
         quickfix_directory_aliases              => \&quickfix_directory_aliases,
         quickfix_title_directory_aliases        => \&quickfix_title_directory_aliases,
+        new_files_are_modified                  => \&new_files_are_modified,
         file_locations                          => \&file_locations,
         coalesced_config_reload                 => \&coalesced_config_reload,
         nested_module_reload                    => \&nested_module_reload,

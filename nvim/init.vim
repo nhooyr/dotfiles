@@ -328,6 +328,7 @@ augroup aqsnow
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd FileType help setlocal concealcursor=nc
 	autocmd BufNewFile *:[0-9]* nested lua require('filelinecol').open()
+	autocmd BufNewFile * if expand('<abuf>') == bufnr() && &buftype == '' | setlocal modified | endif
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
 	autocmd BufRead,BufNewFile *.json setlocal filetype=json5
 	autocmd BufReadPost * call <SID>restore_cursor()
