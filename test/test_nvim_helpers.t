@@ -774,6 +774,66 @@ end
 LUA
 }
 
+sub snippet_navigation_mappings {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local captured
+_G.test_snippet_capture = function()
+    captured = { vim.api.nvim_get_current_line(), vim.api.nvim_win_get_cursor(0),
+        vim.fn.mode(1), vim.snippet.active() }
+end
+local function reset()
+    while vim.snippet.active() do vim.snippet.stop() end
+    feed('<Esc>')
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'abc def' })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+end
+local function capture(keys)
+    feed(keys .. '<Cmd>lua test_snippet_capture()<CR><Esc>')
+    return captured
+end
+local function snippet(keys)
+    reset()
+    vim.api.nvim_set_current_line('')
+    vim.snippet.expand('${1:one} ${2:two}$0')
+    return capture(keys)
+end
+
+-- Compare fallback against the native key, including insert abbreviations.
+vim.cmd('iabbrev Q ZOO')
+for _, case in ipairs({ { 'i', 'iQ<M-h>' }, { 's', 'vll<C-g><M-h>' } }) do
+    local mode, keys = unpack(case)
+    local mapping = vim.fn.maparg('<M-h>', mode, false, true)
+    vim.keymap.del(mode, '<M-h>')
+    reset()
+    local native = capture(keys)
+    vim.fn.mapset(mode, false, mapping)
+    reset()
+    eq(capture(keys), native, 'Alt-h preserves native behavior without a snippet in ' .. mode)
+end
+vim.cmd('iunabbrev Q')
+
+local first = snippet('')
+eq(snippet('<M-h>'), first, 'Alt-h does nothing at the first selected placeholder')
+eq(snippet('<Cmd>lua vim.snippet.jump(1)<CR><M-h>'), first,
+    'Alt-h goes back from the second selected placeholder')
+local back = snippet('<Cmd>lua vim.snippet.jump(1)<CR><Esc>`>a<M-h>')
+eq({ back[1], back[2], back[4] }, { first[1], first[2], first[4] },
+    'Alt-h goes back from Insert mode')
+eq(snippet('<Esc>`>a<M-h>'), snippet('<Esc>`>a'),
+    'Alt-h does nothing at the first placeholder in Insert mode')
+
+for _, keys in ipairs({ '<M-k>', '<Esc>`>a<M-k>' }) do
+    local stopped = snippet(keys)
+    eq(stopped[1], 'one two', 'Alt-k preserves the text')
+    eq(stopped[3], 'i', 'Alt-k leaves Insert mode active')
+    eq(stopped[4], false, 'Alt-k cancels the snippet')
+end
+reset()
+eq(capture('i<M-k>'), capture('i'), 'Alt-k does nothing without a snippet')
+LUA
+}
+
 sub snippet_completion_reload {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1577,6 +1637,7 @@ run_cases(
         terminal_editor_handoff                 => \&terminal_editor_handoff,
         gitstatus_native_directory              => \&gitstatus_native_directory,
         recording_mode_color                    => \&recording_mode_color,
+        snippet_navigation_mappings             => \&snippet_navigation_mappings,
         snippet_completion_reload               => \&snippet_completion_reload,
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,
         gitstatus_event_queue                   => \&gitstatus_event_queue,

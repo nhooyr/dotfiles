@@ -297,8 +297,12 @@ inoremap <M-j> <Cmd>lua require('snippets').expand()<CR>
 snoremap <M-j> <Esc>`>a<Cmd>lua require('snippets').expand()<CR>
 inoremap <M-l> <Cmd>lua require('snippets').expand_or_jump()<CR>
 snoremap <M-l> <Cmd>lua require('snippets').jump(1)<CR>
-inoremap <M-k> <Cmd>lua require('snippets').jump(-1)<CR>
-snoremap <M-k> <Cmd>lua require('snippets').jump(-1)<CR>
+inoremap <expr> <M-h> v:lua.vim.snippet.active()
+            \ ? "\<Cmd>lua vim.snippet.jump(-1)\<CR>" : "\<C-]>\<Esc>h"
+snoremap <expr> <M-h> v:lua.vim.snippet.active()
+            \ ? "\<Cmd>lua vim.snippet.jump(-1)\<CR>" : "\<Esc>h"
+inoremap <M-k> <Cmd>lua vim.snippet.stop()<CR>
+snoremap <M-k> <Cmd>lua vim.snippet.stop()<CR><Esc>i
 
 function s:is_config_file(path) abort
 	let path = resolve(a:path)
