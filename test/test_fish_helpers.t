@@ -120,6 +120,30 @@ FISH
     is( $result->{stdout}, "1:  needle\n", 'grepw matches indentation rather than a literal plus' );
 }
 
+sub rootimg_treats_a_leading_dash_as_a_filename {
+    my ($self) = @_;
+    for my $paths (
+        [ '-photo with spaces.png',               './-photo with spaces-root.png' ],
+        [ 'photo with spaces.png',                './photo with spaces-root.png' ],
+        [ "$self->{root}/-photo with spaces.png", "$self->{root}/-photo with spaces-root.png" ],
+      )
+    {
+        $self->{env}{TEST_IMAGE} = $paths->[0];
+        my $result = fish( $self, <<'FISH' );
+function magick
+    printf '%s\0' $argv > "$TEST_ROOT/magick-arguments"
+end
+rootimg "$TEST_IMAGE"
+FISH
+        is_deeply(
+            [ split /\0/, read_file("$self->{root}/magick-arguments") ],
+            [ '--', $paths->[0], '-resize', '50%', $paths->[1] ],
+            "ImageMagick receives $paths->[0] unchanged after the option separator"
+        );
+        is( $result->{stderr}, '', 'the image path produces no option diagnostics' );
+    }
+}
+
 run_cases(
     {
         aliases_added_after_initialization_are_exported => \&aliases_added_after_initialization_are_exported,
@@ -127,6 +151,7 @@ run_cases(
         realpath_success_preserves_spaces_and_leading_dashes =>
           \&realpath_success_preserves_spaces_and_leading_dashes,
         grepw_uses_an_extended_whitespace_quantifier => \&grepw_uses_an_extended_whitespace_quantifier,
+        rootimg_treats_a_leading_dash_as_a_filename  => \&rootimg_treats_a_leading_dash_as_a_filename,
     },
     \&setup
 );
