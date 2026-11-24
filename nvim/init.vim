@@ -314,7 +314,7 @@ augroup aqsnow
 	autocmd!
 	autocmd ModeChanged,RecordingEnter * call <SID>set_mode_highlight(v:true)
 	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
-	autocmd QuickFixCmdPost grep ++nested copen
+	autocmd QuickFixCmdPost grep ++nested call setqflist([], 'a', {'context': {'cwd': getcwd()}}) | copen
 	autocmd FileType qf let &l:statusline = "%t%{v:lua.require'quickfix'.title()} %=%-15(%l,%c%V%) %P"
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.

@@ -8,11 +8,19 @@ end
 local function title()
 	local text = vim.w.quickfix_title
 	if not text then return '' end
+	text = text:gsub('^:vgrep(%s)', ':grep%1')
 	local shorten = require('dirali').shorten
 	text = text:gsub([[(['"])(.-)%1]], function(quote, path)
 		return quote .. shorten(path) .. quote
 	end)
-	return ' ' .. text:gsub([[/[^%s'"]+]], shorten)
+	text = text:gsub([[/[^%s'"]+]], shorten)
+	local list = fn.getwininfo(fn.win_getid())[1].loclist == 1
+		and fn.getloclist(0, { context = 0 }) or fn.getqflist({ context = 0 })
+	if type(list.context) == 'table' and type(list.context.cwd) == 'string' then
+		text = text:gsub('^Find([gf]?%s)', ':Find%1')
+		text = '[' .. shorten(list.context.cwd) .. '] ' .. text
+	end
+	return ' ' .. text
 end
 
 local function fmt(info)

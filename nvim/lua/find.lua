@@ -27,7 +27,7 @@ local function run(pattern, mode)
 			items[#items + 1] = { filename = cwd .. '/' .. file:gsub('/$', ''), lnum = 1, col = 1 }
 		end
 		local title = 'Find' .. (mode and mode:lower() or '') .. ' ' .. pattern
-		vim.fn.setqflist({}, ' ', { title = title, items = items })
+		vim.fn.setqflist({}, ' ', { title = title, items = items, context = { cwd = cwd } })
 		vim.cmd.copen()
 		vim.cmd.lcd(vim.fn.fnameescape(cwd))
 	end))

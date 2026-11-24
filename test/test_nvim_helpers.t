@@ -237,8 +237,48 @@ vim.cmd.lopen()
 display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).str
 assert(display:find(expected, 1, true), 'location-list statuslines abbreviate paths too: ' .. display)
 eq(vim.fn.getloclist(0, { title = 0 }).title, title, 'formatting preserves the underlying location-list title')
+vim.w.quickfix_title = ':vgrep needle'
+eq(require('quickfix').title(), ' :grep needle', 'the title names the editor command instead of its wrapper')
+eq(vim.w.quickfix_title, ':vgrep needle', 'display formatting preserves the underlying title')
 vim.w.quickfix_title = nil
 eq(require('quickfix').title(), '', 'a missing title remains empty')
+LUA
+}
+
+sub quickfix_search_directory {
+    my ($self) = @_;
+    plan skip_all => 'ripgrep and fd are needed to test search titles' unless which('rg') && which('fd');
+    my $directory = "$self->{env}{HOME}/search";
+    make_path( $directory, "$self->{temporary}/other" );
+    write_file( "$directory/match.txt", "needle\n" );
+    $self->{env}{TEST_SEARCH} = absolute_path($directory);
+    $self->{env}{TEST_OTHER} = absolute_path("$self->{temporary}/other");
+    $self->{env}{AQSNOW_DIRALIS} = 'HOME:TEST_SEARCH';
+    run_script( $self, <<'LUA' );
+local directory, other = vim.env.TEST_SEARCH, vim.env.TEST_OTHER
+local function check(expected, title)
+    vim.cmd.copen()
+    eq(vim.fn.getqflist({ context = 0 }).context, { cwd = directory }, 'the search records its original directory')
+    eq(vim.fn.getqflist({ title = 0 }).title, title, 'display formatting preserves the search title')
+    eq(require('quickfix').title(), expected, 'the title shows the aliased search directory')
+    vim.cmd.lcd(other)
+    eq(require('quickfix').title(), expected, 'changing cwd preserves the original search directory')
+    local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 500 }).str
+    assert(display:find(expected, 1, true), 'the quickfix window displays the original search directory')
+end
+vim.cmd.cd(directory)
+vim.cmd('silent grep needle .')
+check(' [$TEST_SEARCH] :grep needle .', ':vgrep needle .')
+vim.cmd.cclose()
+vim.cmd.cd(directory)
+local id = vim.fn.getqflist({ id = 0 }).id
+vim.cmd('Find match')
+assert(vim.wait(3000, function() return vim.fn.getqflist({ id = 0 }).id ~= id end), 'Find finishes')
+check(' [$TEST_SEARCH] :Find match', 'Find match')
+vim.cmd.cclose()
+vim.fn.setloclist(0, {}, ' ', { title = 'Other list', items = { { filename = directory .. '/match.txt', lnum = 1 } } })
+vim.cmd.lopen()
+eq(require('quickfix').title(), ' Other list', 'unrelated location lists do not inherit quickfix search context')
 LUA
 }
 
@@ -1257,6 +1297,7 @@ run_cases(
         filename_display                        => \&filename_display,
         quickfix_relative_paths                 => \&quickfix_relative_paths,
         quickfix_title_directory_aliases        => \&quickfix_title_directory_aliases,
+        quickfix_search_directory               => \&quickfix_search_directory,
         new_files_are_modified                  => \&new_files_are_modified,
         file_locations                          => \&file_locations,
         coalesced_config_reload                 => \&coalesced_config_reload,
