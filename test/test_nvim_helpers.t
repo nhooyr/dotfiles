@@ -90,6 +90,10 @@ for _, mode in ipairs({ 'n', 'i' }) do
         'recent picker mapping routes to the lazy helper in ' .. mode)
 end
 eq(vim.fn.maparg('<M-r>', 'n'), 'cgn', 'Alt-r retains its existing mapping')
+eq(vim.fn.maparg('<M-f>', 'n'), ":silent grep '' .<Left><Left><Left>", 'Alt-f opens the grep prompt')
+assert(vim.fn.maparg('<M-f>', 'i'):find('copilot#AcceptWord', 1, true), 'Insert Alt-f still accepts Copilot words')
+eq(vim.fn.maparg([[\f]], 'n'), ':Find ', 'Leader-f opens the filename search prompt')
+eq(vim.fn.maparg([[\g]], 'n'), '', 'Leader-g no longer opens grep')
 local name = assert(vim.fn.maparg([[\s]], 'n'):match('<SNR>%d+_is_config_file'))
 local is_config = vim.fn[name]
 local config = vim.env.TEST_DOTFILES .. '/nvim'
@@ -871,6 +875,107 @@ eq({ items[1].lnum, items[1].col }, { 2, 8 }, 'uppercase search keeps the correc
 LUA
 }
 
+sub find_files_quickfix {
+    my ($self) = @_;
+    plan skip_all => 'ripgrep is needed to test filename search' unless which('rg');
+    my $directory = "$self->{temporary}/find-files";
+    make_path( map { "$directory/$_" } qw(nested src/deep ignored .git config) );
+    for my $name (
+        'top.lua',            '.hidden.lua',         'nested/child.lua', 'src/direct.lua',
+        'src/deep/child.lua', 'odd name|part.lua',   'ignored/no.lua',   '.git/no.lua',
+        'skip.lua',           'config/settings.txt', 'a+b.txt',          'aaab.txt',
+        'literal[1].txt',     'literal1.txt'
+      )
+    {
+        write_file( "$directory/$name", "contents\n" );
+    }
+    write_file( "$directory/.gitignore", "ignored/\n" );
+    write_file( "$directory/.ignore",    "skip.lua\n" );
+    $self->{env}{TEST_SEARCH} = $directory;
+    run_script( $self, <<'LUA' );
+local root = vim.fn.resolve(vim.env.TEST_SEARCH)
+vim.cmd.cd(root)
+local function search(pattern, command)
+    local id = vim.fn.getqflist({ id = 0 }).id
+    vim.cmd((command or 'Find') .. ' ' .. pattern)
+    assert(vim.wait(3000, function() return vim.fn.getqflist({ id = 0 }).id ~= id end), 'Find finishes')
+    eq(vim.bo.filetype, 'qf', 'Find opens quickfix')
+    eq(vim.fn.resolve(vim.fn.getcwd()), root, 'quickfix retains the search directory')
+    local paths = {}
+    for _, item in ipairs(vim.fn.getqflist()) do
+        eq({ item.lnum, item.col, item.valid }, { 1, 1, 1 }, 'each result opens at the first line')
+        paths[#paths + 1] = vim.api.nvim_buf_get_name(item.bufnr):sub(#root + 2)
+    end
+    table.sort(paths)
+    return paths
+end
+eq(search('*.lua'), { '.hidden.lua', 'nested/child.lua', 'odd name|part.lua',
+    'src/deep/child.lua', 'src/direct.lua', 'top.lua' }, 'basename globs preserve hidden and ignore rules')
+eq(search('src/**/*.lua'), { 'src/deep/child.lua', 'src/direct.lua' }, 'globstar matches zero or more directories')
+eq(search('config'), { 'config/settings.txt' }, 'bare words match anywhere in the path')
+eq(search('odd*'), { 'odd name|part.lua' }, 'spaces and pipes remain literal filenames')
+eq(search('odd name|part.lua'), { 'odd name|part.lua' }, 'literal spaces and bars remain command arguments')
+eq(search([[^a+b\.txt$]], 'Findr'), { 'a+b.txt' }, 'basic regex treats plus as literal')
+eq(search([[^a+b\.txt$]], 'Finde'), { 'aaab.txt' }, 'extended regex treats plus as a quantifier')
+eq(search('[1]', 'Findf'), { 'literal[1].txt' }, 'fixed strings keep regex and glob metacharacters literal')
+eq(search('src/direct.lua', 'Findf'), { 'src/direct.lua' }, 'fixed strings accept a literal existing path')
+eq(search('missing*'), {}, 'no matches clears the new quickfix list')
+vim.cmd.colder()
+eq(vim.fn.getqflist({ title = 0 }).title, 'Findf src/direct.lua', 'previous searches remain in quickfix history')
+local errors, id = {}, vim.fn.getqflist({ id = 0 }).id
+vim.notify = function(message) errors[#errors + 1] = message end
+vim.cmd('Findr [')
+assert(vim.wait(3000, function() return #errors > 0 end), 'invalid regex reports an error')
+eq(vim.fn.getqflist({ id = 0 }).id, id, 'invalid regex preserves the quickfix list')
+LUA
+}
+
+sub find_files_async_results {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+local calls, errors = {}, {}
+vim.system = function(command, options, callback)
+    local call = { command = command, options = options, callback = callback }
+    call.process = { kill = function(_, signal) call.signal = signal end }
+    calls[#calls + 1] = call
+    return call.process
+end
+vim.notify = function(message) errors[#errors + 1] = message end
+local find = require('find').run
+local cwd = vim.fn.getcwd()
+find('first')
+find('second')
+eq(calls[1].signal, 15, 'a newer Find cancels the old process')
+vim.cmd.cd('/')
+calls[2].callback({ code = 0, stdout = 'second.lua\n', stderr = '' })
+calls[1].callback({ code = 0, stdout = 'first.lua\n', stderr = '' })
+assert(vim.wait(3000, function() return vim.fn.getqflist({ title = 0 }).title == 'Find second' end))
+eq(#vim.fn.getqflist(), 1, 'stale search results do not replace the latest list')
+eq(vim.api.nvim_buf_get_name(vim.fn.getqflist()[1].bufnr), cwd .. '/second.lua', 'results use the search cwd')
+local id = vim.fn.getqflist({ id = 0 }).id
+assert(not pcall(find, '['), 'invalid globs are rejected before starting a process')
+eq(#calls, 2, 'invalid globs start no process')
+find('failed')
+calls[3].callback({ code = 2, stdout = '', stderr = 'scan failed\n' })
+assert(vim.wait(3000, function() return #errors > 0 end))
+eq(errors, { 'scan failed' }, 'scan failures are reported')
+eq(vim.fn.getqflist({ id = 0 }).id, id, 'failed scans preserve the previous list')
+find('needle', 'G')
+calls[4].callback({ code = 0, stdout = 'needle.txt\n', stderr = '' })
+assert(vim.wait(3000, function() return #calls == 5 end), 'regex filtering starts after file enumeration')
+eq(calls[5].command, { 'grep', '-G', '-a', '--color=never', '--', 'needle' }, 'Findr uses basic regex filtering')
+eq(calls[5].options.stdin, 'needle.txt\n', 'grep filters the enumerated paths')
+find('newer')
+eq(calls[5].signal, 15, 'a new search cancels the active regex filter')
+calls[6].callback({ code = 0, stdout = 'newer.txt\n', stderr = '' })
+calls[5].callback({ code = 0, stdout = 'needle.txt\n', stderr = '' })
+assert(vim.wait(3000, function() return vim.fn.getqflist({ title = 0 }).title == 'Find newer' end))
+eq(vim.fn.fnamemodify(vim.fn.bufname(vim.fn.getqflist()[1].bufnr), ':t'), 'newer.txt',
+    'stale second-stage regex results do not replace a newer search')
+LUA
+}
+
 sub rendezvous_routes {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1092,6 +1197,8 @@ run_cases(
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,
         gitstatus_event_queue                   => \&gitstatus_event_queue,
         ripgrep_quickfix                        => \&ripgrep_quickfix,
+        find_files_quickfix                     => \&find_files_quickfix,
+        find_files_async_results                => \&find_files_async_results,
         rendezvous_routes                       => \&rendezvous_routes,
         clipboard_mappings                      => \&clipboard_mappings,
         copilot_word_mapping                    => \&copilot_word_mapping,
