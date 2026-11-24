@@ -34,7 +34,7 @@ local function prefill_title()
 		local counts, words = {}, {}
 		for _, file in ipairs(files) do
 			local seen = {}
-			for word in vim.fn.fnamemodify(file, ':r'):gmatch('%w+') do
+			for word in file:gmatch('%w+') do
 				if not seen[word] then
 					if not counts[word] then words[#words + 1] = word end
 					counts[word] = (counts[word] or 0) + 1
