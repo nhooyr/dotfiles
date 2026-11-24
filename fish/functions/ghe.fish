@@ -1491,6 +1491,13 @@ function __ghe_switch --argument-names remote destination full_ref ref revision 
 end
 
 function __ghe_checkout --argument-names remote destination tail line column end_line end_column
+    # Commit editors can export an absolute index belonging to another checkout.
+    if set -qx GIT_INDEX_FILE
+        set -fx GIT_INDEX_FILE "$destination/.git/index"
+        if test -e "$destination/.git"
+            set GIT_INDEX_FILE "$(command env -u GIT_INDEX_FILE git -C "$destination" rev-parse --path-format=absolute --git-path index)"; or return
+        end
+    end
     if string match -qri '^(?:blob|tree|blame|commits?|raw|edit)/.+/\.git(?:/|$)' -- "$tail"
         printf '%s: URL paths cannot address Git metadata\n' "$0" >&2
         return 1

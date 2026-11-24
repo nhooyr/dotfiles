@@ -53,7 +53,7 @@ function __gho_url --argument-names target
                 set relative "$(path basename -- "$base")/$relative"
                 set base "$(path dirname -- "$base")"
             end
-            set tracked $(git -C "$base" --literal-pathspecs ls-files -z -- "$relative" 2>/dev/null | string split0)
+            set tracked $(command env -u GIT_INDEX_FILE git -C "$base" --literal-pathspecs ls-files -z -- "$relative" 2>/dev/null | string split0)
         end
         if test "$(count $tracked)" -eq 1; and test "$tracked[1]" = "$relative"
             set parent "$base"
@@ -103,7 +103,7 @@ function __gho_url --argument-names target
         end
         set repo_path "$repo_path$name"
         # Preserve the index's spelling on filesystems that normalize Unicode.
-        set -l indexed $(git -C "$dir" --literal-pathspecs ls-files -z --full-name -- "$name" | string split0)
+        set -l indexed $(command env -u GIT_INDEX_FILE git -C "$dir" --literal-pathspecs ls-files -z --full-name -- "$name" | string split0)
         if test "$(count $indexed)" -eq 1
             set repo_path "$indexed[1]"
         end
