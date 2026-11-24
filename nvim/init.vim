@@ -158,31 +158,12 @@ inoremap <M-s> <Esc>:write<CR>
 nnoremap <C-s> <Cmd>xit<CR>
 inoremap <C-s> <Esc>:xit<CR>
 
-let s:orig_file = get(s:, 'orig_file', resolve(expand('%:p')))
-function s:quit_and_run() abort
-	if mode() ==# 'i'
-		execute 'normal! i' . copilot#Accept('')
-	endif
-	wall
-	if !empty($AQSNOW_FISH_RENDEZVOUS)
-		if resolve(expand('%:p')) ==# s:orig_file && (line('$') > 1 || getline(1) != '')
-			call writefile(['exec'], $AQSNOW_FISH_RENDEZVOUS)
-		endif
-	endif
-	qall
-endfunction
-nnoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
-inoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
-snoremap <M-CR> <Esc><Cmd>call <SID>quit_and_run()<CR>
-function s:fzf_path_widget() abort
-	wall
-	if !empty($AQSNOW_FISH_RENDEZVOUS)
-		call writefile(['<M-v>'], $AQSNOW_FISH_RENDEZVOUS)
-	endif
-	qall
-endfunction
-nnoremap <M-v> <Cmd>call <SID>fzf_path_widget()<CR>
-inoremap <M-v> <Esc>:call <SID>fzf_path_widget()<CR>
+let g:aqsnow_orig_file = get(g:, 'aqsnow_orig_file', resolve(expand('%:p')))
+nnoremap <M-CR> <Cmd>lua require('rendezvous').quit_and_run()<CR>
+inoremap <M-CR> <Cmd>lua require('rendezvous').quit_and_run()<CR>
+snoremap <M-CR> <Esc><Cmd>lua require('rendezvous').quit_and_run()<CR>
+nnoremap <M-v> <Cmd>lua require('rendezvous').fzf_path_widget()<CR>
+inoremap <M-v> <Esc><Cmd>lua require('rendezvous').fzf_path_widget()<CR>
 
 inoremap <C-a> <C-o>^
 inoremap <C-d> <Del>
@@ -269,74 +250,9 @@ nnoremap <M-n> <Cmd>execute v:count1.'next'<CR>
 nnoremap <M-p> <Cmd>execute v:count1.'prev'<CR>
 nnoremap Z zz
 
-function s:vidir_mcr() abort
-	execute 'write !cd -- ' . shellescape(b:vidir_dir, 1) . ' && sh'
-	if v:shell_error == 0
-		setlocal nomodified
-	endif
-endfunction
-
-function s:vidir() abort
-	let directory = getcwd()
-	for buffer in getbufinfo()
-		if get(buffer.variables, 'vidir_dir', '') ==# directory
-			execute 'buffer' buffer.bufnr
-			return
-		endif
-	endfor
-	enew
-	let b:vidir_dir = directory
-	call nvim_buf_set_name(0, 'vidir://' . luaeval("require('dirali').shorten(_A)", directory))
-	call setline(1, ['#!/bin/sh', 'set -eu'])
-	silent $read !LC_COLLATE=C gls -1A -v --group-directories-first -r
-	autocmd BufWriteCmd <buffer> call <SID>vidir_mcr()
-	nnoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
-	inoremap <buffer> <M-CR> <Cmd>call <SID>vidir_mcr()<CR>
-	" Quote for the sh command list, regardless of the interactive shell.
-	let shell = &shell
-	try
-		set shell=sh
-		if line('$') > 2
-			silent 3,$s/.*/\='mv -v -- ' . shellescape(submatch(0)) . ' ' . shellescape(submatch(0))/
-		endif
-	finally
-		let &shell = shell
-	endtry
-	setlocal nomodified buftype=acwrite filetype=sh
-endfunction
-command Vidir call s:vidir()
+command Vidir lua require('vidir').open()
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
-let s:vgrep = shellescape(fnamemodify(resolve(expand('<sfile>:p')), ':h:h') . '/bin/vgrep')
-let s:grep_repositories = get(s:, 'grep_repositories', {})
-let s:grep_pending = {}
-let s:grep_generation = get(s:, 'grep_generation', 0) + 1
-function s:cache_grep_repository(generation, directory, in_git) abort
-	if a:generation != s:grep_generation
-		return
-	endif
-	let s:grep_repositories[a:directory] = a:in_git
-	call remove(s:grep_pending, a:directory)
-endfunction
-function s:update_grepprg() abort
-	let directory = getcwd()
-	if !has_key(s:grep_repositories, directory) && !has_key(s:grep_pending, directory)
-		let s:grep_pending[directory] = 1
-		" Defer until sourcing finishes so the current gitstatus module handles it.
-		call luaeval("vim.schedule(function() require('gitstatus').worktree(_A.directory, function(in_git) vim.fn[_A.callback](_A.generation, _A.directory, in_git) end) end)",
-				\ {'directory': directory, 'generation': s:grep_generation, 'callback': expand('<SID>') . 'cache_grep_repository'})
-	endif
-	" Apply a ready result on entry, never from an asynchronous search callback:
-	" changing grepformat during :grep could misparse the command already running.
-	if get(s:grep_repositories, directory, v:false)
-		let &grepprg = s:vgrep . ' --git'
-		set grepformat=%f:%l:%c:%m
-	else
-		let &grepprg = s:vgrep
-		set grepformat=%f:%l:%m
-	endif
-endfunction
-call s:update_grepprg()
 nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
 nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
@@ -347,19 +263,17 @@ highlight QuickFixLine ctermfg=0 ctermbg=3
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 silent doautocmd <nomodeline> User AqsnowGitStatusStop
-lua for _, name in ipairs({'dirali', 'gitcommit', 'gitstatus', 'qf', 'snips'}) do package.loaded[name] = nil end
+lua for _, name in ipairs({'dirali', 'gitcommit', 'gitstatus', 'grep', 'qf', 'rendezvous', 'snips', 'vidir'}) do package.loaded[name] = nil end
+lua require('grep').update()
 inoremap <M-j> <Cmd>lua require('snips').expand_or_jump()<CR>
 snoremap <M-j> <Cmd>lua require('snips').jump(1)<CR>
 inoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
 snoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
 
 function s:is_config_file(path) abort
-	return index([resolve($MYVIMRC),
-				\ s:config_dir . '/lua/snips.lua',
-				\ s:config_dir . '/lua/qf.lua',
-				\ s:config_dir . '/lua/dirali.lua',
-				\ s:config_dir . '/lua/gitcommit.lua',
-				\ s:config_dir . '/lua/gitstatus.lua'], resolve(a:path)) >= 0
+	let path = resolve(a:path)
+	return path ==# resolve($MYVIMRC)
+			\ || (stridx(path, s:config_dir . '/lua/') == 0 && fnamemodify(path, ':e') ==# 'lua')
 endfunction
 
 " For BufReadPost's restore_cursor.
@@ -369,8 +283,8 @@ augroup aqsnow
 	autocmd ModeChanged,RecordingEnter * call <SID>set_mode_highlight(v:true)
 	autocmd RecordingEnter * redraw!
 	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
-	autocmd DirChanged * call <SID>update_grepprg()
-	autocmd CmdlineEnter : call <SID>update_grepprg()
+	autocmd DirChanged * lua require('grep').update()
+	autocmd CmdlineEnter : lua require('grep').update()
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
 			\ require('snips').expand() end
