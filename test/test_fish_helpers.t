@@ -11,10 +11,12 @@ my $helpers = join "\n", map {
     my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
     die "Missing Fish function $_\n" unless defined $function;
     $function;
-} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested realpathc __grep_smart_case grep reload f);
-my ($fd_alias) = $config =~ /^(alias fd=.+)$/m;
-die 'Missing fd alias' unless defined $fd_alias;
-$helpers .= "$fd_alias\n";
+} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested realpathc __grep_smart_case grep reload);
+for my $name (qw(fd f)) {
+    my ($alias) = $config =~ /^(alias \Q$name\E=.+)$/m;
+    die "Missing $name alias" unless defined $alias;
+    $helpers .= "$alias\n";
+}
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 $helpers .= read_file("$root/fish/functions/sshv.fish");
 my $cd = read_file("$root/fish/cd.fish");

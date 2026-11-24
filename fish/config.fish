@@ -134,9 +134,7 @@ alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git
     --colors=match:fg:black \
     --colors=match:bg:yellow \
 "
-function f
-    fd --glob -- "$argv"
-end
+alias f='fd --glob'
 alias bigdirs='du -hd 1 | sort -hr | head -n 16'
 abbr -a --set-cursor f "f '*%*'"
 set -gx GREP_COLORS 'mt=30;43:fn=36:ln=35:bn=35:se=00'
