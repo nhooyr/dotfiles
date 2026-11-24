@@ -292,3 +292,29 @@ printf '%s' "$inserted"
         assert_eq!(path_case(script, argument), b"feature ", "{argument:?}");
     }
 }
+
+#[test]
+fn history_widget_exports_its_session_only_within_the_widget() {
+    let script = r#"
+set -gx XDG_DATA_HOME "$PWD/data"
+function commandline
+    test "$argv[1]" = -L; and printf 1
+end
+function fzf
+    cat >/dev/null
+    command sh -c 'printf "%s" "${fish_history-unset}"' > history-session
+    return 1
+end
+set -g --unexport fish_history "$TEST_TOKEN"
+fzf-history-widget
+cat history-session
+set -q --export fish_history
+printf ':%s' "$status"
+"#;
+    for session in ["custom_session", ""] {
+        assert_eq!(
+            path_case(script, session),
+            format!("{session}:1").as_bytes()
+        );
+    }
+}
