@@ -58,7 +58,7 @@ abbrali pbn 'pbp | pbc'
 abbrali pwdc 'pwd | hpath | pbc'
 abbrali realpc realpathc
 function realpathc --argument-names path --description 'Print and copy an absolute pathname'
-    realpath "$path" | hpath | pbc
+    realpath -- "$path" | hpath | pbc
 end
 fish_hybrid_key_bindings
 set -g fish_color_error red --underline

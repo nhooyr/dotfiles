@@ -71,9 +71,44 @@ FISH
     is( $result->{stderr}, '', 'alias initialization has no diagnostics' );
 }
 
+sub realpath_failure_does_not_clear_the_clipboard {
+    my ($self) = @_;
+    write_file( "$self->{root}/clipboard", 'keep' );
+    my $result = fish( $self, <<'FISH' );
+function hpath
+    command "$TEST_HPATH"
+end
+function pbc
+    command "$TEST_PBC"
+end
+realpathc "$TEST_ROOT/missing-parent/file" 2>/dev/null
+FISH
+    is( $result->{stdout},                    '',     'failed resolution produces no output' );
+    is( read_file("$self->{root}/clipboard"), 'keep', 'pbc preserves the clipboard after failed resolution' );
+}
+
+sub realpath_success_preserves_spaces_and_leading_dashes {
+    my ($self) = @_;
+    write_file( "$self->{root}/-file with spaces", 'contents' );
+    my $result = fish( $self, <<'FISH' );
+function hpath
+    command "$TEST_HPATH"
+end
+function pbc
+    tee "$TEST_ROOT/clipboard"
+end
+realpathc '-file with spaces'
+FISH
+    is( $result->{stdout}, "$self->{root}/-file with spaces\n",  'resolved path is still printed' );
+    is( read_file("$self->{root}/clipboard"), $result->{stdout}, 'the same complete path is copied' );
+}
+
 run_cases(
     {
         aliases_added_after_initialization_are_exported => \&aliases_added_after_initialization_are_exported,
+        realpath_failure_does_not_clear_the_clipboard   => \&realpath_failure_does_not_clear_the_clipboard,
+        realpath_success_preserves_spaces_and_leading_dashes =>
+          \&realpath_success_preserves_spaces_and_leading_dashes,
     },
     \&setup
 );

@@ -5,4 +5,7 @@ set -eu
 if [ -n "${PBC_SKIP-}" ]; then
 	exec cat
 fi
-zsh -o pipefail -c 'tee /dev/fd/3 | perl -pe "chomp if eof" | pbcopy' 3>&1
+zsh -o pipefail -c '
+    IFS= read -r -k 1 -u 0 first || exit 0
+    { printf "%s" "$first"; cat; } | tee /dev/fd/3 | perl -pe "chomp if eof" | pbcopy
+' 3>&1
