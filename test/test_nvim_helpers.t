@@ -875,6 +875,26 @@ eq({ items[1].lnum, items[1].col }, { 2, 8 }, 'uppercase search keeps the correc
 LUA
 }
 
+sub markdown_checkbox_abbreviation {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.cmd.enew()
+vim.bo.filetype = 'markdown'
+vim.schedule(function()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(' <Esc>', true, false, true), 't', false)
+end)
+vim.api.nvim_feedkeys('i[]', 'xt!', false)
+eq(vim.api.nvim_get_current_line(), '- [ ] ', 'Markdown expands an empty bracket pair to a checkbox')
+vim.cmd.enew({ bang = true })
+vim.bo.filetype = 'text'
+vim.schedule(function()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(' <Esc>', true, false, true), 't', false)
+end)
+vim.api.nvim_feedkeys('i[]', 'xt!', false)
+eq(vim.api.nvim_get_current_line(), '[] ', 'other filetypes keep literal brackets')
+LUA
+}
+
 sub find_files_quickfix {
     my ($self) = @_;
     plan skip_all => 'ripgrep is needed to test filename search' unless which('rg');
@@ -1198,6 +1218,7 @@ run_cases(
         gitstatus_event_queue                   => \&gitstatus_event_queue,
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         find_files_quickfix                     => \&find_files_quickfix,
+        markdown_checkbox_abbreviation          => \&markdown_checkbox_abbreviation,
         find_files_async_results                => \&find_files_async_results,
         rendezvous_routes                       => \&rendezvous_routes,
         clipboard_mappings                      => \&clipboard_mappings,
