@@ -35,6 +35,22 @@ sub preserves_timestamp_options {
     my $result = touch( $self, '-amr', $reference, 'nested/output' );
     is( $result->{returncode},                     0,         $result->{stderr} );
     is( ( stat "$self->{root}/nested/output" )[9], 946684800, 'reference options reach native touch' );
+    make_path("$self->{root}/reference-dir");
+    utime 946684800, 946684800, "$self->{root}/reference-dir" or die $!;
+    $result = touch( $self, '-amr', 'reference-dir/', '--', 'other/output', 'other/directory/' );
+    is( $result->{returncode},                    0,         $result->{stderr} );
+    is( ( stat "$self->{root}/other/output" )[9], 946684800, 'trailing-slash option values are preserved' );
+    ok( -d "$self->{root}/other/directory", 'directory operands are created but excluded from native touch' );
+}
+
+sub no_operands_preserve_native_errors {
+    my ($self) = @_;
+    for my $option ( [], ['-c'] ) {
+        my $native  = run_command( [ 'touch', @$option ], { cwd => $self->{root} } );
+        my $wrapped = touch( $self, @$option );
+        is( $wrapped->{returncode}, $native->{returncode}, 'missing operands retain the native exit status' );
+        is( $wrapped->{stderr},     $native->{stderr},     'missing operands retain the native error' );
+    }
 }
 
 sub creates_trailing_slash_directories {
@@ -79,6 +95,7 @@ run_cases(
         creates_each_parent                => \&creates_each_parent,
         creates_trailing_slash_directories => \&creates_trailing_slash_directories,
         preserves_timestamp_options        => \&preserves_timestamp_options,
+        no_operands_preserve_native_errors => \&no_operands_preserve_native_errors,
         no_create_stays_no_create          => \&no_create_stays_no_create,
         stops_after_parent_failure         => \&stops_after_parent_failure,
         reference_is_not_an_output         => \&reference_is_not_an_output,
