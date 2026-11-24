@@ -128,6 +128,30 @@ FISH
     );
 }
 
+sub clears_repository_environment_for_worker {
+    my ($self) = @_;
+    $self->{env}{GIT_DIR}           = "$self->{root}/foreign.git";
+    $self->{env}{GIT_WORK_TREE}     = "$self->{root}/foreign";
+    $self->{env}{GIT_INDEX_FILE}    = "$self->{root}/foreign.index";
+    $self->{env}{GIT_COMMON_DIR}    = "$self->{root}/foreign-common.git";
+    $self->{env}{GIT_CONFIG_GLOBAL} = '/dev/null';
+    write_file( $self->{prompt}, <<'FISH' );
+function aqsnow_vcs_prompt
+    set -l exported $(command env | string replace -r '=.*' '')
+    for name in $(command git rev-parse --local-env-vars)
+        contains -- "$name" $exported; and return 17
+    end
+    test "$GIT_CONFIG_GLOBAL" = /dev/null; or return 18
+    test "$GIT_OPTIONAL_LOCKS" = 0; or return 19
+    printf ' (clean environment)'
+end
+FISH
+    my $job = start_helper($self);
+    is( finished_status( $self, $job, 1.5 ), '0', 'worker removes only repository-local Git variables' );
+    is( read_file( $self->{result} ), ' (clean environment)', 'the prompt sees the sanitized environment' );
+    is( $self->{env}{GIT_INDEX_FILE}, "$self->{root}/foreign.index", 'caller environment remains unchanged' );
+}
+
 sub failed_worker_notifies_with_failure_status {
     my ($self) = @_;
     write_file( $self->{prompt}, <<'FISH' );
@@ -327,6 +351,7 @@ FISH
 run_cases(
     {
         immediate_completion_and_optional_locks         => \&immediate_completion_and_optional_locks,
+        clears_repository_environment_for_worker        => \&clears_repository_environment_for_worker,
         failed_worker_notifies_with_failure_status      => \&failed_worker_notifies_with_failure_status,
         failed_exec_notifies_with_failure_status        => \&failed_exec_notifies_with_failure_status,
         ownership_loss_kills_stubborn_descendants       => \&ownership_loss_kills_stubborn_descendants,

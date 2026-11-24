@@ -93,7 +93,9 @@ local function update(root, cached)
 		refresh()
 	end
 	local ok, process = pcall(vim.system, {
-		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
+		'fish', '--no-config', '-c',
+		'for name in $(command git rev-parse --local-env-vars); set -eg "$name"; end; '
+			.. 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
 	}, { text = true, detach = true, cwd = directory, env = { GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
 		if job ~= request then return end
 		if request.obsolete then

@@ -806,6 +806,61 @@ eq(handlers(), registered, 'config reload leaves one set of handlers')
 LUA
 }
 
+sub gitstatus_ignores_editor_repository {
+    my ($self) = @_;
+    $self->{env}{GIT_CONFIG_GLOBAL}   = '/dev/null';
+    $self->{env}{GIT_CONFIG_NOSYSTEM} = 1;
+    $self->{env}{GIT_AUTHOR_NAME}     = $self->{env}{GIT_COMMITTER_NAME}  = 'Fixture';
+    $self->{env}{GIT_AUTHOR_EMAIL}    = $self->{env}{GIT_COMMITTER_EMAIL} = 'fixture@example.invalid';
+    for my $name (qw(foreign main)) {
+        my $repo = "$self->{temporary}/$name";
+        make_path($repo);
+        run_command( [ 'git', '-C', $repo, 'init', '-q', '--initial-branch', $name ],
+            { env => $self->{env}, check => 1 } );
+        write_file( "$repo/file",              $name );
+        write_file( "$repo/.git/info/exclude", ".fish_git_prompt\n" );
+        run_command( [ 'git', '-C', $repo, 'add', 'file' ], { env => $self->{env}, check => 1 } );
+        run_command( [ 'git', '-C', $repo, 'commit', '-qm', 'initial' ],
+            { env => $self->{env}, check => 1 } );
+        $self->{env}{ 'TEST_' . uc($name) } = $repo;
+    }
+    $self->{env}{TEST_CURRENT} = "$self->{temporary}/current";
+    run_command(
+        [
+            'git', '-C', $self->{env}{TEST_MAIN},
+            'worktree', 'add', '-q', '-b', 'current', $self->{env}{TEST_CURRENT}
+        ],
+        { env => $self->{env}, check => 1 }
+    );
+    write_file( "$self->{env}{TEST_CURRENT}/file", 'modified' );
+    run_script( $self, <<'LUA' );
+local foreign, current = vim.env.TEST_FOREIGN, vim.env.TEST_CURRENT
+local cache = current .. '/.fish_git_prompt'
+for _, mode in ipairs({ 'relative index', 'absolute index', 'foreign repository' }) do
+    vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+    package.loaded.gitstatus, package.loaded['gitstatus.state'] = nil, nil
+    vim.fn.delete(cache)
+    local index = mode == 'relative index' and '.git/index' or foreign .. '/.git/index'
+    local routed = mode == 'foreign repository'
+    vim.env.GIT_INDEX_FILE = index
+    vim.env.GIT_DIR = routed and foreign .. '/.git' or nil
+    vim.env.GIT_WORK_TREE = routed and foreign or nil
+    vim.env.GIT_COMMON_DIR = routed and foreign .. '/.git' or nil
+    vim.cmd.edit(current .. '/file')
+    require('gitstatus').setup()
+    assert(vim.wait(3000, function() return vim.fn.filereadable(cache) == 1 end), 'status cache is written')
+    eq(vim.b.vcs_prompt, ' (current *)', mode .. ': status describes the dirty worktree')
+    local saved = table.concat(vim.fn.readfile(cache), '\n'):gsub('\27%[[0-?]*[ -/]*[@-~]', '')
+    eq(saved, ' (current *)', mode .. ': cache contains the worktree status')
+    eq(vim.env.GIT_INDEX_FILE, index, 'the editor keeps its original index')
+    eq(vim.env.GIT_DIR, routed and foreign .. '/.git' or nil, 'the editor keeps its original Git directory')
+    eq(vim.env.GIT_WORK_TREE, routed and foreign or nil, 'the editor keeps its original worktree')
+    eq(vim.env.GIT_COMMON_DIR, routed and foreign .. '/.git' or nil, 'the editor keeps its common Git directory')
+    eq(vim.env.GIT_CONFIG_GLOBAL, '/dev/null', 'global Git configuration remains available')
+end
+LUA
+}
+
 sub gitstatus_event_queue {
     my ($self) = @_;
     my $repo = "$self->{temporary}/status repo";
@@ -1405,6 +1460,7 @@ run_cases(
         snippet_completion_reload               => \&snippet_completion_reload,
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,
         gitstatus_event_queue                   => \&gitstatus_event_queue,
+        gitstatus_ignores_editor_repository     => \&gitstatus_ignores_editor_repository,
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         find_files_quickfix                     => \&find_files_quickfix,
         markdown_checkbox_abbreviation          => \&markdown_checkbox_abbreviation,
