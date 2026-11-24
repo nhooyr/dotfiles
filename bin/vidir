@@ -163,6 +163,4 @@ if ($status) {
     exit( ( $status & 127 ) ? 128 + ( $status & 127 ) : $status >> 8 );
 }
 
-# Editors may replace the file on save.
-chmod 0700, $script or die "$name: $script: $!\n";
 print path_quote( abs_path($script) ), "\n";

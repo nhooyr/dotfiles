@@ -45,6 +45,8 @@ $script =~ s/^# mv -v -- original original$/mv -v -- original renamed/m if $ENV{
 open my $output, '>', "$ARGV[-1].new" or die $!;
 print {$output} $script;
 close $output;
+my $mode = (stat $ARGV[-1])[2] & 07777;
+chmod $mode, "$ARGV[-1].new" or die $!;
 rename "$ARGV[-1].new", $ARGV[-1] or die $!;
 exit($ENV{TEST_EDITOR_FAIL} // 0);
 PERL
@@ -418,7 +420,7 @@ sub script_is_executable_inside_editor {
     $self->{env}{TEST_RUN_IN_EDITOR} = 1;
     my $path = script_path( $self, invoke($self) );
     ok( -f "$path.ran",                   'the editor can execute the generated script' );
-    ok( -x $path,                         'atomic editor replacement remains executable after exit' );
+    ok( -x $path,                         'the editor preserves executable permissions after saving' );
     ok( -f "$self->{directory}/original", 'running the unchanged script performs no moves' );
 }
 
