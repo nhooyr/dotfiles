@@ -13,6 +13,7 @@ my $helpers = join "\n", map {
     $function;
 } qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous realpathc __grep_smart_case grep reload);
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
+$helpers .= read_file("$root/fish/functions/sshv.fish");
 my $cd = read_file("$root/fish/cd.fish");
 my ($mcd) = $cd =~ /^(function mcd\b.*?^end\n)/msg;
 $helpers .= $mcd;
@@ -52,6 +53,27 @@ sub fish {
             env   => $self->{env},
             check => 1,
         }
+    );
+}
+
+sub sshv_preserves_remote_paths {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+function nvim
+    printf '%s\n' $argv
+end
+sshv server
+sshv user@server 'project files/'
+sshv server /etc/hosts
+sshv 2>/dev/null
+printf '%s\n' "$status"
+sshv server first second 2>/dev/null
+printf '%s\n' "$status"
+FISH
+    is(
+        $result->{stdout},
+        "--\nscp://server/\n--\nscp://user\@server/project files/\n" . "--\nscp://server//etc/hosts\n1\n1\n",
+        'netrw receives home, relative, and absolute paths as single arguments; invalid calls fail'
     );
 }
 
@@ -288,6 +310,7 @@ FISH
 
 run_cases(
     {
+        sshv_preserves_remote_paths                       => \&sshv_preserves_remote_paths,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
         alias_values_defined_later_are_exported         => \&alias_values_defined_later_are_exported,
