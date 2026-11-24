@@ -154,7 +154,7 @@ nnoremap <Leader>r :%s###g<Left><Left>
 nnoremap <M-r> cgn
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
 xnoremap <Leader>/ "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
-xnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:noh<CR>
+xnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:nohlsearch<CR>
 xmap <Leader>r <Leader>/<Leader>r
 xnoremap <M-r> :s###g<Left><Left>
 
@@ -274,6 +274,7 @@ nnoremap Z zz
 nnoremap <Leader>e <Cmd>terminal<CR><Cmd>startinsert<CR>
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1 | nohlsearch
 xnoremap <M-v> :Reverse<CR>
+xnoremap <Leader>v :Reverse<CR>
 
 nnoremap <M-g> :silent grep ''<Left>
 nnoremap <Leader>g :silent grep ''<Left>
