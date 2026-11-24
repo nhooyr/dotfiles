@@ -32,6 +32,8 @@ abbr -a --position anywhere '&&' '; and'
 abbr -a --position anywhere '||' '; or'
 abbr -a '!' not
 abbrali v nvim
+abbrali vs nvim -o
+abbrali vv nvim -O
 abbrali vi nvim
 abbrali vim nvim
 abbrali vid vidir

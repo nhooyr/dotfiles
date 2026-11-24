@@ -317,6 +317,65 @@ eq(entered, 't', 'the shortcut enters terminal mode')
 LUA
 }
 
+sub terminal_editor_handoff {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local cwd = vim.fn.getcwd() .. '/shell cwd'
+vim.fn.mkdir(cwd, 'p')
+local name = "file's | % #.txt"
+vim.fn.writefile({ 'first' }, cwd .. '/' .. name)
+vim.fn.writefile({ 'second' }, cwd .. '/-leading.txt')
+local init, socket = cwd .. '/init.lua', cwd .. '/server'
+vim.fn.writefile({
+    "vim.opt.runtimepath:prepend(vim.env.TEST_DOTFILES .. '/nvim')",
+    'vim.o.splitbelow = true; vim.o.splitright = true',
+    "vim.cmd.terminal('cat'); vim.cmd.startinsert()",
+}, init)
+local server = vim.system({ vim.v.progpath, '--headless', '-n', '-i', 'NONE', '-u', init, '--listen', socket })
+vim.api.nvim_create_autocmd('VimLeavePre', { once = true, callback = function() server:kill(15) end })
+assert(vim.wait(1000, function() return vim.uv.fs_stat(socket) ~= nil end), 'server starts')
+local channel = vim.fn.sockconnect('pipe', socket, { rpc = true })
+local function call(method, ...) return vim.rpcrequest(channel, method, ...) end
+local function eval(expression) return call('nvim_eval', expression) end
+assert(vim.wait(1000, function() return eval('&buftype') == 'terminal' end), 'server opens terminal')
+assert(vim.wait(1000, function() return eval('mode()') == 't' end), 'server enters Terminal mode')
+local terminal, terminal_win = call('nvim_get_current_buf'), call('nvim_get_current_win')
+local job = eval('b:terminal_job_id')
+local function open(...)
+    local command = { 'fish', '--no-config', '-c',
+        'source "$TEST_DOTFILES/fish/functions/nvim.fish"; nvim $argv', '--' }
+    vim.list_extend(command, { ... })
+    local result = vim.system(command, { cwd = cwd, env = { NVIM = socket } }):wait(3000)
+    eq(result.code, 0, result.stderr)
+end
+open('--', name, '-leading.txt')
+eq(eval('mode()'), 'n', 'opening a file leaves Terminal mode')
+eq(call('nvim_get_current_win'), terminal_win, 'editing reuses the terminal window')
+eq(call('nvim_buf_get_name', 0), cwd .. '/' .. name, 'relative paths use the shell cwd and stay literal')
+eq(eval('argv()'), { cwd .. '/' .. name, cwd .. '/-leading.txt' }, 'all supplied files enter the argument list')
+eq(eval('jobwait([' .. job .. '], 0)'), { -1 }, 'the hidden terminal process stays alive')
+call('nvim_set_current_buf', terminal)
+open('-o', '--', name)
+local horizontal = call('nvim_get_current_win')
+assert(call('nvim_win_get_position', horizontal)[1] > call('nvim_win_get_position', terminal_win)[1],
+    'horizontal split opens below the terminal')
+open('-O', '--', '-leading.txt')
+local vertical = call('nvim_get_current_win')
+assert(call('nvim_win_get_position', vertical)[2] > call('nvim_win_get_position', horizontal)[2],
+    'vertical split opens to the right')
+eq(#call('nvim_tabpage_list_wins', 0), 3, 'each split adds exactly one window')
+open()
+eq(call('nvim_buf_get_name', 0), '', 'bare nvim opens an unnamed buffer without waiting for stdin')
+pcall(call, 'nvim_command', 'qa!')
+server:wait(1000)
+local command, nvim_cmd = nil, vim.api.nvim_cmd
+vim.api.nvim_cmd = function(request) command = request end
+require('terminal').open({ 'edit', cwd, 'scp://server/path' })
+vim.api.nvim_cmd = nvim_cmd
+eq(command.args, { 'scp://server/path' }, 'remote URLs are not prefixed with the local cwd')
+LUA
+}
+
 sub directory_navigation {
     my ($self) = @_;
     my $directory = "$self->{temporary}/parent dir/child";
@@ -962,7 +1021,8 @@ run_cases(
         commit_title_prefix                     => \&commit_title_prefix,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         directory_navigation                    => \&directory_navigation,
-        terminal_shortcut_enters_terminal_mode   => \&terminal_shortcut_enters_terminal_mode,
+        terminal_shortcut_enters_terminal_mode  => \&terminal_shortcut_enters_terminal_mode,
+        terminal_editor_handoff                 => \&terminal_editor_handoff,
         vidir_buffer_directory                  => \&vidir_buffer_directory,
         vidir_refresh_after_success             => \&vidir_refresh_after_success,
         gitstatus_native_directory              => \&gitstatus_native_directory,

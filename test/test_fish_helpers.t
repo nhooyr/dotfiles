@@ -107,6 +107,37 @@ FISH
     is( $result->{stderr}, "ssh: Connection refused\n", 'the SSH diagnostic is preserved' );
 }
 
+sub nvim_preserves_native_command_line_options {
+    my ($self) = @_;
+    $self->{env}{TEST_NVIM_WRAPPER} = "$root/fish/functions/nvim.fish";
+    write_file( "$self->{root}/bin/nvim", '#!' . perl_executable() . "\n" . <<'PERL' );
+use JSON::PP;
+open my $log, '>>', "$ENV{TEST_ROOT}/nvim-calls" or die $!;
+print {$log} encode_json(\@ARGV), "\n";
+exit 23;
+PERL
+    chmod 0755, "$self->{root}/bin/nvim";
+    my $result = fish( $self, <<'FISH' );
+source "$TEST_NVIM_WRAPPER"
+set -e NVIM
+nvim -- 'outside file'
+printf '%s\n' "$status"
+set -gx NVIM "$TEST_ROOT/socket"
+nvim -u NONE 'inside file'
+printf '%s\n' "$status"
+nvim -
+printf '%s\n' "$status"
+nvim +42 'inside file'
+printf '%s\n' "$status"
+FISH
+    is_deeply(
+        [ map { decode_json($_) } split /\n/, read_file("$self->{root}/nvim-calls") ],
+        [ [ '--', 'outside file' ], [ '-u', 'NONE', 'inside file' ], ['-'], [ '+42', 'inside file' ] ],
+        'ordinary launches and native options reach Neovim unchanged'
+    );
+    is( $result->{stdout}, "23\n23\n23\n23\n", 'native exit statuses are preserved' );
+}
+
 sub aliases_added_after_initialization_are_exported {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -342,6 +373,7 @@ run_cases(
     {
         sshv_preserves_remote_paths                       => \&sshv_preserves_remote_paths,
         sshv_stops_on_ssh_failure                         => \&sshv_stops_on_ssh_failure,
+        nvim_preserves_native_command_line_options        => \&nvim_preserves_native_command_line_options,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
         alias_values_defined_later_are_exported         => \&alias_values_defined_later_are_exported,
