@@ -72,7 +72,7 @@ function fzf_path_widget --argument-names widget
     set -l result
     if test "$widget" = fzf-recent-widget
         set result $(command nvim --headless -u NONE -n \
-            -c 'lua io.write(table.concat(vim.v.oldfiles, "\0")); vim.o.shadafile = "NONE"' -c 'qa!' \
+            -c 'lua for _, path in ipairs(vim.v.oldfiles) do if path:sub(1, 1) == "/" then io.write(path, "\0") end end; vim.o.shadafile = "NONE"' -c 'qa!' \
             | fzfpaths --read0 --color --classify $flags $dirs -- . '' -f \
             | fzf --query="$query" | string split0)
     else

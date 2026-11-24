@@ -308,6 +308,27 @@ cat query
 }
 
 #[test]
+fn recent_files_only_pass_absolute_filenames_to_the_scanner() {
+    let script = r#"
+set -lx TEST_NVIM "$(command -s nvim)"
+set -lx TEST_OLDFILES '["man://ls(1)","/second file","relative","scp://host/file","/first file"]'
+mkdir bin
+printf '%s\n' '#!/bin/sh' 'exec "$TEST_NVIM" -i NONE --cmd "lua vim.v.oldfiles = vim.json.decode(vim.env.TEST_OLDFILES)" "$@"' > bin/nvim
+chmod +x bin/nvim
+set -lx PATH "$PWD/bin" $PATH
+function fzfpaths
+    cat > input
+end
+function fzf
+    cat >/dev/null
+end
+fzf_path_widget fzf-recent-widget
+cat input
+"#;
+    assert_eq!(path_case(script, ""), b"/second file\0/first file\0");
+}
+
+#[test]
 fn cdpath_insertion_preserves_symlink_parents_and_aliases() {
     let script = r#"
 function fzfpaths
