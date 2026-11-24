@@ -15,6 +15,7 @@ function aqsnow_vcs_prompt_display --argument-names value
 end
 
 function aqsnow_vcs_prompt_root --argument-names directory
+    set directory "$(path resolve -- "$directory")"; or return
     while true
         if test -d "$directory/.git"; or test -f "$directory/.git"
             printf '%s\n' "$directory"

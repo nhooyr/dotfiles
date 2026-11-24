@@ -210,6 +210,43 @@ FISH
     is( output($result), " (linked-cached)\n", 'linked worktree has a separate persistent cache' );
 }
 
+sub symlink_into_a_subdirectory_uses_the_physical_repository {
+    my ($self) = @_;
+    make_path("$self->{repo}/nested");
+    my $link = "$self->{other}/link";
+    symlink "$self->{repo}/nested", $link or die $!;
+    write_file( "$self->{repo}/.fish_git_prompt",  ' (main-cached)' );
+    write_file( "$self->{other}/.fish_git_prompt", ' (other-cached)' );
+    fake_dotfiles( $self, <<'FISH' );
+function aqsnow_vcs_prompt
+    printf ' (%s-fresh)' "$(command git symbolic-ref --short HEAD)"
+end
+FISH
+    my $result = shell( $self, <<'FISH' . wait_for_refresh() . <<'FISH', $link );
+cd -- "$TEST_OTHER/link"
+aqsnow_vcs_prompt_update
+printf '%s\n%s\n%s\n' "$PWD" "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
+exit 0
+FISH
+    is(
+        output($result),
+        "$link\n$self->{repo}\n (main-cached)\n (main-fresh)\n",
+        'the logical path stays intact while prompt lookup uses the physical repository'
+    );
+    is(
+        read_file("$self->{repo}/.fish_git_prompt"),
+        ' (main-fresh)',
+        'refresh updates the actual repository cache'
+    );
+    is(
+        read_file("$self->{other}/.fish_git_prompt"),
+        ' (other-cached)',
+        'the enclosing logical repository cache is untouched'
+    );
+}
+
 sub directory_switch_while_pending {
     my ($self) = @_;
     write_file( "$self->{repo}/.fish_git_prompt",  ' (main-cached)' );
@@ -726,10 +763,12 @@ sub unwritable_cache_keeps_display {
 
 run_cases(
     {
-        cached_first_render                           => \&cached_first_render,
-        head_identity_without_cache                   => \&head_identity_without_cache,
-        subdirectories_and_metadata                   => \&subdirectories_and_metadata,
-        linked_worktrees                              => \&linked_worktrees,
+        cached_first_render                                      => \&cached_first_render,
+        head_identity_without_cache                              => \&head_identity_without_cache,
+        subdirectories_and_metadata                              => \&subdirectories_and_metadata,
+        linked_worktrees                                         => \&linked_worktrees,
+        symlink_into_a_subdirectory_uses_the_physical_repository =>
+          \&symlink_into_a_subdirectory_uses_the_physical_repository,
         directory_switch_while_pending                => \&directory_switch_while_pending,
         initialized_repository_in_same_directory      => \&initialized_repository_in_same_directory,
         nested_repository_during_refresh              => \&nested_repository_during_refresh,
