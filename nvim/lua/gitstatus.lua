@@ -11,8 +11,9 @@ local function current_directory(buf)
 	buf = buf or vim.api.nvim_get_current_buf()
 	if vim.b[buf].vidir_dir then return vim.b[buf].vidir_dir end
 	if vim.bo[buf].filetype == 'netrw' then return vim.b[buf].netrw_curdir end
-	if vim.bo[buf].buftype ~= '' then return nil end
 	local name = vim.api.nvim_buf_get_name(buf)
+	if vim.bo[buf].filetype == 'directory' and name:sub(1, 1) == '/' then return vim.fs.normalize(name) end
+	if vim.bo[buf].buftype ~= '' then return nil end
 	return name == '' and vim.fn.getcwd() or vim.fs.dirname(name)
 end
 

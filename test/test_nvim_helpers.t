@@ -255,6 +255,32 @@ eq(vim.fn.maparg('-', 'n', false, true).buffer, 0, 'remote netrw paths retain th
 LUA
 }
 
+sub gitstatus_native_directory {
+    my ($self) = @_;
+    my $directory = "$self->{temporary}/directory repo";
+    make_path("$directory/.git");
+    $self->{env}{TEST_STATUS_DIRECTORY} = $directory;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+package.loaded.gitstatus, package.loaded['gitstatus.state'] = nil, nil
+local calls = {}
+vim.system = function(_, options, callback)
+    calls[#calls + 1] = options.cwd
+    vim.schedule(function() callback({ code = 0, stdout = ' (directory-main)' }) end)
+    return { is_closing = function() return true end }
+end
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_DIRECTORY))
+eq(vim.bo.filetype, 'directory', 'fixture opens the native directory browser')
+assert(vim.bo.buftype ~= '', 'directory browser is a special buffer')
+require('gitstatus').setup()
+assert(vim.wait(1000, function() return vim.b.vcs_prompt == ' (directory-main)' end, 1),
+    'native directory receives its repository status')
+eq(#calls, 1, 'native directory requests status once')
+eq(vim.fn.resolve(calls[1]), vim.fn.resolve(vim.env.TEST_STATUS_DIRECTORY),
+    'status runs in the directory being browsed')
+LUA
+}
+
 sub snippet_completion_reload {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -559,6 +585,7 @@ run_cases(
         first_commit_summary_width              => \&first_commit_summary_width,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         netrw_navigation                        => \&netrw_navigation,
+        gitstatus_native_directory              => \&gitstatus_native_directory,
         snippet_completion_reload               => \&snippet_completion_reload,
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,
         gitstatus_event_queue                   => \&gitstatus_event_queue,
