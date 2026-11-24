@@ -1,18 +1,4 @@
 #!/bin/sh
 set -eu
 
-set -- rg --vimgrep -LS --no-heading --hidden -g '!.git' --no-require-git "$@"
-case "$PWD" in
-*/.git)
-	cd -- ..
-	exec perl -e '
-        my $root = shift;
-        open my $rg, "-|", @ARGV or die "$!\n";
-        print m{^/} ? $_ : "$root/$_" while <$rg>;
-        close $rg;
-        my $status = $?;
-        exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
-    ' "$PWD" "$@"
-	;;
-esac
-exec "$@"
+exec rg --vimgrep -LS --no-heading --hidden -g '!.git' --no-require-git "$@"
