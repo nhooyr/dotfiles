@@ -155,13 +155,8 @@ local function written(buf)
 	enqueue(current_directory(buf), true)
 end
 
-local function start()
-	if timer then return end
-	timer = vim.fn.timer_start(interval, refresh, { ['repeat'] = -1 })
-	refresh()
-end
-
 local function stop()
+	vim.api.nvim_clear_autocmds({ group = 'aqsnow.gitstatus' })
 	if timer then vim.fn.timer_stop(timer) end
 	if queued_timer then vim.fn.timer_stop(queued_timer) end
 	timer = nil
@@ -176,4 +171,19 @@ local function stop()
 	end
 end
 
-return { start = start, refresh = refresh, focus = focus, written = written, stop = stop }
+local function setup()
+	if timer then return end
+	local group = vim.api.nvim_create_augroup('aqsnow.gitstatus', { clear = true })
+	vim.api.nvim_create_autocmd({ 'BufEnter', 'BufFilePost', 'DirChanged' }, { group = group, callback = refresh })
+	vim.api.nvim_create_autocmd('FocusGained', { group = group, callback = focus })
+	vim.api.nvim_create_autocmd({ 'BufWritePost', 'FileWritePost' }, {
+		group = group,
+		callback = function(event) written(event.buf) end,
+	})
+	vim.api.nvim_create_autocmd('User', { group = group, pattern = 'AqsnowGitStatusStop', callback = stop })
+	vim.api.nvim_create_autocmd('VimLeavePre', { group = group, callback = stop })
+	timer = vim.fn.timer_start(interval, refresh, { ['repeat'] = -1 })
+	refresh()
+end
+
+return { setup = setup }

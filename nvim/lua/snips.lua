@@ -56,6 +56,13 @@ local function complete(findstart, base)
 	return matches
 end
 
+vim.api.nvim_create_autocmd('CompleteDone', {
+	group = vim.api.nvim_create_augroup('aqsnow.snips', { clear = true }),
+	callback = function()
+		if vim.v.completed_item.user_data == 'snip' then require('snips').expand() end
+	end,
+})
+
 return {
 	expand = expand_snippet,
 	expand_or_jump = expand_or_jump_snippet,

@@ -134,12 +134,7 @@ let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 let g:netrw_keepdir = 0
 set autochdir
-function s:edit_parent() abort
-	let path = &filetype ==# 'netrw' ? b:netrw_curdir : expand('%:p')
-	let parent = path =~# '^/\+$' ? '/' : fnamemodify(substitute(path, '/\+$', '', ''), ':h')
-	execute 'edit' fnameescape(parent)
-endfunction
-nnoremap - <Cmd>call <SID>edit_parent()<CR>
+nnoremap - <Cmd>lua require('netrw').edit_parent()<CR>
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
@@ -297,8 +292,6 @@ augroup aqsnow
 	autocmd RecordingEnter * redraw!
 	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
 	autocmd QuickFixCmdPost grep ++nested copen
-	autocmd CompleteDone * lua if vim.v.completed_item.user_data == 'snip' then
-			\ require('snips').expand() end
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
 	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
@@ -315,18 +308,12 @@ augroup aqsnow
 	autocmd filetype sh let &l:formatprg='shfmt -s'
 	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | call <SID>queue_config_reload() | endif
 	autocmd filetype diff lua require('diff').setup()
-	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
-	autocmd filetype netrw if exists('b:netrw_curdir') && b:netrw_curdir =~# '^/' | nnoremap <buffer> <nowait> - <Cmd>call <SID>edit_parent()<CR> | endif
-	autocmd BufEnter,BufFilePost,DirChanged * lua require('gitstatus').refresh()
-	autocmd FocusGained * lua require('gitstatus').focus()
-	autocmd BufWritePost,FileWritePost * lua require('gitstatus').written(tonumber(vim.fn.expand('<abuf>')))
-	autocmd User AqsnowGitStatusStop lua require('gitstatus').stop()
-	autocmd VimLeavePre * lua require('gitstatus').stop()
+	autocmd filetype netrw lua require('netrw').setup()
 augroup END
 if v:vim_did_enter
-	lua require('gitstatus').start()
+	lua require('gitstatus').setup()
 else
-	autocmd aqsnow VimEnter * ++once lua require('gitstatus').start()
+	autocmd aqsnow VimEnter * ++once lua require('gitstatus').setup()
 endif
 
 function s:restore_cursor() abort

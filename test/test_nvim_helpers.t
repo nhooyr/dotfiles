@@ -74,6 +74,8 @@ sub startup_and_config_paths {
 eq(vim.g.aqsnow_orig_file, vim.fn.resolve(vim.env.TEST_ORIGINAL), 'startup records the original file')
 assert(package.loaded.rendezvous == nil, 'rendezvous stays unloaded at startup')
 assert(package.loaded.vidir == nil, 'vidir stays unloaded at startup')
+assert(package.loaded.netrw == nil, 'netrw stays unloaded until navigation')
+assert(package.loaded.snips == nil, 'snippets stay unloaded until completion or expansion')
 assert(package.loaded.grep == nil, 'startup does not load a grep module')
 local grepprg = vim.fn.shellescape(vim.env.TEST_DOTFILES .. '/bin/vgrep')
 eq(vim.o.grepprg, grepprg, 'grep uses the fixed vgrep wrapper')
@@ -159,6 +161,119 @@ eq(vim.fn.synIDattr(vim.fn.synID(1, 75, 1), 'name'), 'gitcommitSummary',
     'the first commit buffer uses the configured summary width')
 eq(vim.fn.synIDattr(vim.fn.synID(1, 81, 1), 'name'), 'gitcommitOverflow',
     'summary overflow begins after column 80')
+LUA
+}
+
+sub netrw_navigation {
+    my ($self) = @_;
+    my $directory = "$self->{temporary}/parent dir/child";
+    make_path($directory);
+    write_file( "$directory/file.txt", "content\n" );
+    $self->{env}{TEST_NAV_DIRECTORY} = $directory;
+    run_script( $self, <<'LUA' );
+local directory = vim.env.TEST_NAV_DIRECTORY
+vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
+assert(package.loaded.netrw == nil, 'ordinary file editing keeps netrw unloaded')
+feed('-')
+eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(directory),
+    'normal - opens the file parent with spaces')
+assert(package.loaded.netrw ~= nil, 'navigation loads netrw helpers')
+vim.b.netrw_curdir = directory
+vim.bo.filetype = 'netrw'
+for _, key in ipairs({ 'q', '-' }) do
+    local mapping = vim.fn.maparg(key, 'n', false, true)
+    eq({ mapping.buffer, mapping.nowait }, { 1, 1 }, 'netrw ' .. key .. ' is local and immediate')
+end
+vim.b.netrw_curdir = directory .. '///'
+feed('-')
+eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
+    'netrw - ignores trailing slashes')
+vim.cmd('edit /')
+vim.b.netrw_curdir = '///'
+vim.bo.filetype = 'netrw'
+feed('-')
+eq(vim.api.nvim_buf_get_name(0), '/', 'parent navigation stays at the filesystem root')
+vim.cmd.split()
+feed('q')
+eq(#vim.api.nvim_tabpage_list_wins(0), 1, 'netrw q closes the current window')
+vim.cmd.enew()
+vim.b.netrw_curdir = 'scp://host/path'
+vim.bo.filetype = 'netrw'
+eq(vim.fn.maparg('-', 'n', false, true).buffer, 0, 'remote netrw paths retain the global - mapping')
+LUA
+}
+
+sub snippet_completion_reload {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+assert(package.loaded.snips == nil, 'snippets begin unloaded')
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { '' })
+feed('itod<C-n><C-n><C-y><Esc>')
+eq(vim.api.nvim_get_current_line(), 'TODO: desc', 'accepting snippet completion expands it')
+vim.snippet.stop()
+feed('<Esc>')
+local count = #vim.api.nvim_get_autocmds({ group = 'aqsnow.snips', event = 'CompleteDone' })
+eq(count, 1, 'completion has one snippet handler')
+vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+assert(package.loaded.snips == nil, 'reload leaves snippets lazy')
+local helper = require('snips')
+local expansions, expand = 0, helper.expand
+helper.expand = function()
+    expansions = expansions + 1
+    expand()
+end
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { '' })
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+feed('itod<C-n><C-n><C-y><Esc>')
+eq(vim.api.nvim_get_current_line(), 'TODO: desc', 'completion still expands after reload')
+eq(expansions, 1, 'completion uses the current module exactly once')
+eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow.snips', event = 'CompleteDone' }), count,
+    'reload does not duplicate snippet completion handlers')
+LUA
+}
+
+sub gitstatus_lifecycle {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local function timers()
+    local ids = {}
+    for _, timer in ipairs(vim.fn.timer_info()) do
+        if timer.time == 2000 and timer['repeat'] == -1 then ids[#ids + 1] = timer.id end
+    end
+    return ids
+end
+local function handlers()
+    return #vim.api.nvim_get_autocmds({ group = 'aqsnow.gitstatus' })
+end
+local helper = require('gitstatus')
+local registered, active = handlers(), timers()
+assert(registered > 0, 'Git status registers its handlers at startup')
+eq(#active, 1, 'Git status has one refresh timer')
+helper.setup()
+eq(handlers(), registered, 'repeated setup does not duplicate handlers')
+eq(timers(), active, 'repeated setup keeps the same timer')
+local state = package.loaded['gitstatus.state']
+vim.bo.buftype = 'nofile'
+local target = vim.api.nvim_create_buf(true, false)
+local directory = vim.fs.dirname(vim.env.TEST_ORIGINAL) .. '/write target'
+vim.api.nvim_buf_set_name(target, directory .. '/file.txt')
+for _, event in ipairs({ 'BufWritePost', 'FileWritePost' }) do
+    state.pending[directory] = nil
+    vim.api.nvim_exec_autocmds(event, { buffer = target })
+    eq(state.pending[directory], { urgent = true }, event .. ' invalidates the written buffer directory')
+end
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+eq(timers(), {}, 'stop removes the refresh timer')
+eq(handlers(), 0, 'stop removes its handlers')
+helper.setup()
+eq(#timers(), 1, 'setup restarts the refresh timer')
+eq(handlers(), registered, 'setup restores its handlers once')
+active = timers()
+vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+assert(package.loaded['gitstatus.state'] == state, 'config reload preserves cached Git status')
+eq(#timers(), 1, 'config reload leaves one refresh timer')
+assert(timers()[1] ~= active[1], 'config reload stops the old module timer')
+eq(handlers(), registered, 'config reload leaves one set of handlers')
 LUA
 }
 
@@ -270,6 +385,9 @@ run_cases(
         coalesced_config_reload    => \&coalesced_config_reload,
         nested_module_reload       => \&nested_module_reload,
         first_commit_summary_width => \&first_commit_summary_width,
+        netrw_navigation           => \&netrw_navigation,
+        snippet_completion_reload  => \&snippet_completion_reload,
+        gitstatus_lifecycle        => \&gitstatus_lifecycle,
         ripgrep_quickfix           => \&ripgrep_quickfix,
         rendezvous_routes          => \&rendezvous_routes,
         rendezvous_error_order     => \&rendezvous_error_order,
