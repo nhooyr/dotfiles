@@ -32,6 +32,7 @@ nnoremap <C-h> <C-w>h
 nnoremap <C-j> <C-w>j
 nnoremap <C-k> <C-w>k
 nnoremap <C-l> <C-w>l
+tnoremap <C-]> <C-\><C-n>
 nnoremap <C-e> <Cmd>execute 'normal!' (v:count1 * 2).'<C-e>'<CR>
 nnoremap <C-y> <Cmd>execute 'normal!' (v:count1 * 2).'<C-y>'<CR>
 

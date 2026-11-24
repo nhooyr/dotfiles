@@ -308,12 +308,13 @@ local entered
 vim.api.nvim_create_autocmd('TermEnter', { once = true, callback = function()
     vim.schedule(function()
         entered = vim.fn.mode()
-        vim.api.nvim_input('<C-\\><C-n>')
+        vim.api.nvim_input('<C-]>')
     end)
 end })
 vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Leader>e', true, false, true), 'xt!', false)
 eq(vim.bo.buftype, 'terminal', 'the shortcut opens a terminal buffer')
 eq(entered, 't', 'the shortcut enters terminal mode')
+eq(vim.fn.mode(), 'n', 'Ctrl-] returns to Normal mode')
 LUA
 }
 
