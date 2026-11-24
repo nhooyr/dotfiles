@@ -52,8 +52,8 @@ function __fzf_parse_commandline -d 'Return the directory, query and option pref
     set -l -- match_regex '(?<fzf_query>.*)$'
     set -l -- prefix_regex '^-[^\\s=]+=|^-(?!-)\\S'
 
-    # Don't use option prefix if " -- " is preceded.
-    string match -qv -- '* -- *' "$(string sub -l "$(commandline -Cp)" -- "$(commandline -p)")"
+    # Don't use an option prefix after a standalone -- token.
+    not commandline -xpc | string match -q -- --
     and set -- match_regex "(?<prefix>$prefix_regex)?$match_regex"
 
     # Split any option prefix from the expanded token.

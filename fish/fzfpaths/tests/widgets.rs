@@ -318,3 +318,34 @@ printf ':%s' "$status"
         );
     }
 }
+
+#[test]
+fn option_prefix_detection_checks_tokens_instead_of_quoted_text() {
+    let script = r#"
+set -g TEST_SEPARATOR --
+function commandline
+    switch "$argv[1]"
+        case -xpc
+            builtin commandline --tokens-expanded --input="$TEST_TOKEN"
+        case --current-token
+            printf '%s' '--file=missing'
+    end
+end
+__fzf_parse_commandline
+"#;
+    for input in [
+        "grep -e ' -- ' --file=missing",
+        "grep -e 'x; -- y' --file=missing",
+        "grep '' --file=missing",
+    ] {
+        assert_eq!(path_case(script, input), b".\0missing\0--file=\0");
+    }
+    assert_eq!(
+        path_case(script, "grep -- --file=missing"),
+        b".\0--file=missing\0\0"
+    );
+    assert_eq!(
+        path_case(script, "grep $TEST_SEPARATOR --file=missing"),
+        b".\0--file=missing\0\0"
+    );
+}
