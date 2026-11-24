@@ -366,7 +366,7 @@ function biglines --argument-names file \
     awk '{ print length, $0 }' "$file" | sort -rn | sed -E "s/^[0-9]+/$(set_color magenta)&$(set_color reset)/" | less
 end
 
-abbrali noise 'cdc "$noise" gacmp'
+abbrali noisep 'cdc "$noise" gacmp'
 
 abbrali notep 'cdc "$notes" gacmp'
 abbrali netq networkquality
