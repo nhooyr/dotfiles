@@ -301,10 +301,19 @@ for mode in default insert
     bind -M "$mode" shift-tab 'fzf_accept_and_run fzf_complete'
 end
 function aqsnow_fzf_diralis_add
-    for name in $argv
-        contains -- "$name" $aqsnow_fzf_diralis; or set -ga aqsnow_fzf_diralis "$name"
+    if not set -q aqsnow_fzf_diralis
+        set -g aqsnow_fzf_diralis
+        set -gx AQSNOW_DIRALIS ''
     end
-    set -gx AQSNOW_DIRALIS "$(string join : -- $aqsnow_fzf_diralis)"
+    for name in $argv
+        contains -- "$name" $aqsnow_fzf_diralis; and continue
+        set -ga aqsnow_fzf_diralis "$name"
+        if test -n "$AQSNOW_DIRALIS"
+            set -gx AQSNOW_DIRALIS "$AQSNOW_DIRALIS:$name"
+        else
+            set -gx AQSNOW_DIRALIS "$name"
+        end
+    end
     return 0
 end
 aqsnow_fzf_diralis_add HOME nhooyr dotfiles notes noise

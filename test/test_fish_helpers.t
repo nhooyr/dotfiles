@@ -162,7 +162,8 @@ FISH
 sub aliases_added_after_initialization_are_exported {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
-set -g aqsnow_fzf_diralis HOME
+set -eg aqsnow_fzf_diralis
+aqsnow_fzf_diralis_add HOME
 aqsnow_init_rendezvous; or exit 1
 set -l original "$__aqsnow_rendezvous_dir"
 set -g project "$TEST_ROOT"
@@ -341,7 +342,8 @@ FISH
 sub alias_registration_updates_the_exported_name_list {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
-set -g aqsnow_fzf_diralis HOME
+set -eg aqsnow_fzf_diralis
+aqsnow_fzf_diralis_add HOME
 aqsnow_fzf_diralis_add aqsnow_test_late aqsnow_test_late
 printf '%s\n' "$AQSNOW_DIRALIS"
 not set -q aqsnow_test_late
@@ -352,7 +354,8 @@ FISH
 sub alias_values_defined_later_are_exported {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
-set -g aqsnow_fzf_diralis HOME
+set -eg aqsnow_fzf_diralis
+aqsnow_fzf_diralis_add HOME
 aqsnow_init_rendezvous
 aqsnow_fzf_diralis_add aqsnow_test_late
 aqsnow_init_rendezvous
@@ -370,10 +373,37 @@ FISH
         'late values, changed values, and unexported values reach children' );
 }
 
+sub alias_registration_appends_only_new_names {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+set -eg aqsnow_fzf_diralis
+set -gx AQSNOW_DIRALIS inherited:stale
+aqsnow_fzf_diralis_add HOME first HOME
+printf '%s\n' "$AQSNOW_DIRALIS"
+set -g changes 0
+function name_changed --on-variable AQSNOW_DIRALIS
+    set -g changes "$(math "$changes + 1")"
+end
+aqsnow_fzf_diralis_add first HOME
+aqsnow_fzf_diralis_add
+printf '%s\n' "$changes"
+aqsnow_fzf_diralis_add second second third
+printf '%s\n' "$AQSNOW_DIRALIS"
+sh -c 'printf "%s\n" "$AQSNOW_DIRALIS"'
+printf '%s\n' "$(count $aqsnow_fzf_diralis)"
+FISH
+    is(
+        $result->{stdout},
+        "HOME:first\n0\nHOME:first:second:third\nHOME:first:second:third\n4\n",
+        'fresh registration discards inherited names, preserves order, and does not rewrite duplicates'
+    );
+}
+
 sub initialized_alias_exports_are_not_rewritten {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
-set -g aqsnow_fzf_diralis HOME
+set -eg aqsnow_fzf_diralis
+aqsnow_fzf_diralis_add HOME
 set -gx aqsnow_test_exported /existing
 aqsnow_fzf_diralis_add aqsnow_test_exported
 set -g changes 0
@@ -398,6 +428,7 @@ run_cases(
         nvim_preserves_native_command_line_options        => \&nvim_preserves_native_command_line_options,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
+        alias_registration_appends_only_new_names       => \&alias_registration_appends_only_new_names,
         alias_values_defined_later_are_exported         => \&alias_values_defined_later_are_exported,
         initialized_alias_exports_are_not_rewritten     => \&initialized_alias_exports_are_not_rewritten,
         cdf_completes_files_while_retaining_cd_wrapping => \&cdf_completes_files_while_retaining_cd_wrapping,
