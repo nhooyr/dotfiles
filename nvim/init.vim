@@ -347,7 +347,7 @@ highlight QuickFixLine ctermfg=0 ctermbg=3
 
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 silent doautocmd <nomodeline> User AqsnowGitStatusStop
-lua package.loaded.dirali, package.loaded.gitstatus, package.loaded.qf, package.loaded.snips = nil, nil, nil, nil
+lua for _, name in ipairs({'dirali', 'gitcommit', 'gitstatus', 'qf', 'snips'}) do package.loaded[name] = nil end
 inoremap <M-j> <Cmd>lua require('snips').expand_or_jump()<CR>
 snoremap <M-j> <Cmd>lua require('snips').jump(1)<CR>
 inoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
@@ -358,6 +358,7 @@ function s:is_config_file(path) abort
 				\ s:config_dir . '/lua/snips.lua',
 				\ s:config_dir . '/lua/qf.lua',
 				\ s:config_dir . '/lua/dirali.lua',
+				\ s:config_dir . '/lua/gitcommit.lua',
 				\ s:config_dir . '/lua/gitstatus.lua'], resolve(a:path)) >= 0
 endfunction
 
@@ -379,6 +380,7 @@ augroup aqsnow
 	autocmd BufWritePre,FileWritePre * if expand('<afile>') !~# '://' | call mkdir(expand('<afile>:p:h'), 'p') | endif
 	autocmd filetype gitcommit setlocal noet ts=4 sw=0 tw=80
 	autocmd filetype gitcommit let g:gitcommit_summary_length = &textwidth
+	autocmd filetype gitcommit lua require('gitcommit').prefill_title()
 	autocmd filetype html,jsonc,css setlocal et ts=2 sw=0
 	autocmd filetype markdown setlocal et ts=3 sw=0
 	autocmd filetype fish setlocal et ts=4 sw=0
