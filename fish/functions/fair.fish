@@ -1,4 +1,4 @@
-function fair --description 'fair [n] [--date1 ISO_DATE --date2 ISO_DATE] | fair --sort'
+function fair --description 'fair [n] [--date1 YYYY-MM-DD --date2 YYYY-MM-DD] | fair --sort'
     set -l arguments $argv
     argparse --max-args 1 --exclusive sort,date1 --exclusive sort,date2 sort date1= date2= -- $argv; or return
     if set -q _flag_sort

@@ -182,11 +182,11 @@ sub test_dated_commits_stay_ordered_in_range_and_set_both_dates {
     }
 }
 
-sub test_explicit_timezone_offsets_and_flags_before_count {
+sub test_date_flags_before_count {
     my ($self) = @_;
     my ( $ignored, $author, $end, $start, $value );
-    $start = "2024-01-02T01:00:00+02:00";
-    $end   = "2024-01-02T01:30:00-03:00";
+    $start = "2024-01-02";
+    $end   = "2024-01-03";
     assert_success( $self, fair( $self, [ "--date1", $start, "--date2", $end, "2" ], undef, "" ) );
     (
         is_deeply(
@@ -198,7 +198,7 @@ sub test_explicit_timezone_offsets_and_flags_before_count {
                     $author
                 } @{ commits($self) }
             ],
-            [ map { my $value = $_; int( iso_epoch($value) ) } @{ [ $start, $end ] } ]
+            [ map { my $value = $_; int( iso_epoch("${value}T00:00:00Z") ) } @{ [ $start, $end ] } ]
           )
           or die "assertion failed\n"
     );
@@ -232,37 +232,26 @@ sub test_date_only_values_use_local_timezone_and_forward_arguments {
 sub test_single_commit_defaults_to_midpoint {
     my ($self) = @_;
     my ($midpoint);
-    assert_success( $self,
-        fair( $self, [ "--date1", "2024-01-01T00:00:00Z", "--date2", "2024-01-01T00:00:10Z" ], undef, "" ) );
-    $midpoint = int( iso_epoch("2024-01-01T00:00:05+00:00") );
+    assert_success( $self, fair( $self, [ "--date1", "2024-01-01", "--date2", "2024-01-02" ], undef, "" ) );
+    $midpoint = int( iso_epoch("2024-01-01T12:00:00+00:00") );
     ( is_deeply( commits($self), [ [ "count: 41", $midpoint, $midpoint ] ] ) or die "assertion failed\n" );
 }
 
-sub test_minimum_interval_preserves_strict_order {
+sub test_local_midnight_bounds_follow_daylight_saving_time {
     my ($self) = @_;
-    my ( $ignored, $author, $date, $dates );
-    assert_success(
-        $self,
-        fair(
-            $self, [ "3", "--date1", "2024-01-01T00:00:00Z", "--date2", "2024-01-01T00:00:02Z" ],
-            undef, ""
-        )
+    $self->{env}{TZ} = 'America/Vancouver';
+    assert_success( $self,
+        fair( $self, [ "2", "--date1", "2024-03-10", "--date2", "2024-03-11" ], undef, "" ) );
+    my @dates = map { $_->[1] } @{ commits($self) };
+    is_deeply(
+        \@dates,
+        [ iso_epoch('2024-03-10T00:00:00-08:00'), iso_epoch('2024-03-11T00:00:00-07:00') ],
+        'each date means midnight in the local timezone'
     );
-    $dates = [
-        map {
-            my $unused_7 = ($_)->[0];
-            my $author   = ($_)->[1];
-            my $unused_8 = ($_)->[2];
-            $author
-        } @{ commits($self) }
-    ];
-    (
-        is_deeply( [ map { my $date = $_; ( $date - $dates->[0] ) } @{$dates} ], [ 0, 1, 2 ] )
-          or die "assertion failed\n"
-    );
+    is( $dates[1] - $dates[0], 23 * 3600, 'the spring transition spans 23 hours' );
 }
 
-sub test_missing_invalid_or_insufficient_dates_do_not_make_commits {
+sub test_missing_invalid_or_reversed_dates_do_not_make_commits {
     my ($self) = @_;
     my ( $args, $cases, $result );
     $cases = [
@@ -274,7 +263,6 @@ sub test_missing_invalid_or_insufficient_dates_do_not_make_commits {
         [ "--date1", "1969-12-31", "--date2", "2024-01-01" ],
         [ "--date1", "2024-01-02", "--date2", "2024-01-01" ],
         [ "--date1", "2024-01-01", "--date2", "2024-01-01" ],
-        [ "4",       "--date1",    "2024-01-01T00:00:00Z", "--date2", "2024-01-01T00:00:02Z" ],
         ["0"],
         ["10000"],
         ["invalid"],
@@ -517,10 +505,10 @@ sub dates {
 sub test_busy_days_and_two_week_gaps {
     my ($self) = @_;
     my ( $daily_counts, $dates, $end, $first, $last, $left, $right, $seed, $start, $timestamp );
-    $start = "2024-01-01T00:00:00Z";
-    $end   = "2024-04-01T00:00:00Z";
-    $first = int( iso_epoch($start) );
-    $last  = int( iso_epoch($end) );
+    $start = "2024-01-01";
+    $end   = "2024-04-01";
+    $first = int( iso_epoch("${start}T00:00:00Z") );
+    $last  = int( iso_epoch("${end}T00:00:00Z") );
     for $seed ( @{ [ 1, 2, 42, 1234 ] } ) {
         {
             $dates = dates( $self, $start, $end, 1000, { "seed" => $seed } );
@@ -577,31 +565,30 @@ sub test_schedule_changes_with_random_seed {
     );
 }
 
-sub test_dense_range_uses_every_available_second {
+sub test_large_count_fits_within_one_day {
     my ($self) = @_;
     my ( $dates, $end, $first, $start );
-    $start = "2024-01-01T00:00:00Z";
-    $end   = "2024-01-01T02:46:38Z";
+    $start = "2024-01-01";
+    $end   = "2024-01-02";
     $dates = dates( $self, $start, $end, 9999, {} );
-    $first = int( iso_epoch($start) );
-    ( is_deeply( $dates, [ $first .. ( ( $first + 9999 ) - 1 ) ] ) or die "assertion failed\n" );
+    $first = int( iso_epoch("${start}T00:00:00Z") );
+    is_deeply(
+        [ $dates->[0], $dates->[-1] ],
+        [ $first,      $first + 86400 ],
+        'the maximum count preserves both date boundaries'
+    );
 }
 
-sub test_short_ranges_keep_count_bounds_and_endpoints {
+sub test_one_day_ranges_keep_count_and_endpoints {
     my ($self) = @_;
-    my ( $count, $dates, $end, $first, $seconds );
-    $first = int( iso_epoch("2024-01-01T00:00:00+00:00") );
-    for my $item_223 ( @{ [ [ 2, 1 ], [ 3, 2 ], [ 50, 600 ], [ 500, 3600 ] ] } ) {
-        $count   = ($item_223)->[0];
-        $seconds = ($item_223)->[1];
-        {
-            $end   = epoch_iso( ( $first + $seconds ) );
-            $dates = dates( $self, "2024-01-01T00:00:00Z", $end, $count, {} );
-            (
-                is_deeply( [ $dates->[0], $dates->[ -(1) ] ], [ $first, ( $first + $seconds ) ] )
-                  or die "assertion failed\n"
-            );
-        }
+    my $first = int( iso_epoch("2024-01-01T00:00:00+00:00") );
+    for my $count ( 2, 3, 50, 500 ) {
+        my $dates = dates( $self, "2024-01-01", "2024-01-02", $count, {} );
+        is_deeply(
+            [ $dates->[0], $dates->[-1] ],
+            [ $first,      $first + 86400 ],
+            'short date ranges preserve their endpoints'
+        );
     }
 }
 
@@ -609,22 +596,21 @@ sub test_epoch_and_leap_day_are_valid {
     my ($self) = @_;
     my ($dates);
     (
-        is_deeply( dates( $self, "1970-01-01T00:00:00Z", "1970-01-01T00:00:01Z", 2, {} ), [ 0, 1 ] )
+        is_deeply( dates( $self, "1970-01-01", "1970-01-02", 2, {} ), [ 0, 86400 ] )
           or die "assertion failed\n"
     );
     $dates = dates( $self, "2024-02-29", "2024-03-01", 2, {} );
     ( is_deeply( ( $dates->[1] - $dates->[0] ), 86400 ) or die "assertion failed\n" );
 }
 
-sub test_invalid_calendar_dates_and_times_fail_without_output {
+sub test_invalid_calendar_dates_fail_without_output {
     my ($self) = @_;
     my ( $result, $start );
     for $start (
         @{
             [
-                "2024-13-01",           "2023-02-29",
-                "2024-04-31",           "2024-01-01T25:00:00Z",
-                "2024-01-01T00:60:00Z", "2024-01-01T00:00:00+24:00"
+                "2024-13-01", "2023-02-29", "2024-04-31", "2024-00-01",
+                "2024-01-00", "2024-01-32", "0000-01-01"
             ]
         }
       )
@@ -638,18 +624,38 @@ sub test_invalid_calendar_dates_and_times_fail_without_output {
     }
 }
 
+sub test_only_yyyy_mm_dd_dates_are_accepted {
+    my ($self) = @_;
+    for my $value (
+        '',                          '2024',
+        '2024-1-01',                 '2024-01-1',
+        '2024/01/01',                '20240101',
+        '2024-01-01 trailing',       '2024-01-01T00:00',
+        '2024-01-01 00:00:00',       '2024-01-01T00:00:00Z',
+        '2024-01-01T00:00:00+02:00', '2024-01-01T00:00:00.1Z',
+      )
+    {
+        for my $bounds ( [ $value, '2025-01-01' ], [ '2023-01-01', $value ] ) {
+            my $result = generate( $self, @$bounds, 2, 42, 'UTC' );
+            isnt( $result->{returncode}, 0, "reject non-date input '$value'" );
+            like( $result->{stderr}, qr/YYYY-MM-DD/, 'the error describes the required format' );
+            is( $result->{stdout}, '', 'invalid date input produces no dates' );
+        }
+    }
+}
+
 run_cases(
     {
         "test_dated_commits_stay_ordered_in_range_and_set_both_dates" =>
           \&test_dated_commits_stay_ordered_in_range_and_set_both_dates,
-        "test_explicit_timezone_offsets_and_flags_before_count" =>
-          \&test_explicit_timezone_offsets_and_flags_before_count,
+        "test_date_flags_before_count"                                   => \&test_date_flags_before_count,
         "test_date_only_values_use_local_timezone_and_forward_arguments" =>
           \&test_date_only_values_use_local_timezone_and_forward_arguments,
-        "test_single_commit_defaults_to_midpoint"      => \&test_single_commit_defaults_to_midpoint,
-        "test_minimum_interval_preserves_strict_order" => \&test_minimum_interval_preserves_strict_order,
-        "test_missing_invalid_or_insufficient_dates_do_not_make_commits" =>
-          \&test_missing_invalid_or_insufficient_dates_do_not_make_commits,
+        "test_single_commit_defaults_to_midpoint"                => \&test_single_commit_defaults_to_midpoint,
+        "test_local_midnight_bounds_follow_daylight_saving_time" =>
+          \&test_local_midnight_bounds_follow_daylight_saving_time,
+        "test_missing_invalid_or_reversed_dates_do_not_make_commits" =>
+          \&test_missing_invalid_or_reversed_dates_do_not_make_commits,
         "test_dated_commits_restore_inherited_dates_for_next_call" =>
           \&test_dated_commits_restore_inherited_dates_for_next_call,
         "test_without_dates_keeps_default_and_explicit_counts" =>
@@ -659,15 +665,15 @@ run_cases(
         'test_sort_orders_entire_branch'                    => \&test_sort_orders_entire_branch,
         'test_sort_initializes_counter_and_preserves_index' =>
           \&test_sort_initializes_counter_and_preserves_index,
-        'test_sort_rejects_merge_history'                   => \&test_sort_rejects_merge_history,
-        "test_busy_days_and_two_week_gaps"                  => \&test_busy_days_and_two_week_gaps,
-        "test_schedule_changes_with_random_seed"            => \&test_schedule_changes_with_random_seed,
-        "test_dense_range_uses_every_available_second"      => \&test_dense_range_uses_every_available_second,
-        "test_short_ranges_keep_count_bounds_and_endpoints" =>
-          \&test_short_ranges_keep_count_bounds_and_endpoints,
-        "test_epoch_and_leap_day_are_valid"                         => \&test_epoch_and_leap_day_are_valid,
-        "test_invalid_calendar_dates_and_times_fail_without_output" =>
-          \&test_invalid_calendar_dates_and_times_fail_without_output,
+        'test_sort_rejects_merge_history'                 => \&test_sort_rejects_merge_history,
+        "test_busy_days_and_two_week_gaps"                => \&test_busy_days_and_two_week_gaps,
+        "test_schedule_changes_with_random_seed"          => \&test_schedule_changes_with_random_seed,
+        "test_large_count_fits_within_one_day"            => \&test_large_count_fits_within_one_day,
+        "test_one_day_ranges_keep_count_and_endpoints"    => \&test_one_day_ranges_keep_count_and_endpoints,
+        "test_epoch_and_leap_day_are_valid"               => \&test_epoch_and_leap_day_are_valid,
+        "test_invalid_calendar_dates_fail_without_output" =>
+          \&test_invalid_calendar_dates_fail_without_output,
+        test_only_yyyy_mm_dd_dates_are_accepted => \&test_only_yyyy_mm_dd_dates_are_accepted,
     },
     \&setUp
 );

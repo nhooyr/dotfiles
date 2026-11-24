@@ -2,24 +2,17 @@
 use strict;
 use warnings;
 use List::Util  qw(min max sum);
-use Time::Local qw(timegm_modern timelocal_modern);
+use Time::Local qw(timelocal_modern);
+use Time::Piece;
 
 sub parse_date {
     my ($value) = @_;
-    my ( $year, $month, $day, $hour, $minute, $second, $zone, $sign, $zone_hour, $zone_minute ) = $value =~
-      /\A(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(Z|([+-])(\d{2}):?(\d{2}))?)?\z/;
-    my $error = "fair: --date1 and --date2 must be ISO 8601 dates or timestamps\n";
-    die $error unless defined($year) && $year >= 1;
-    die $error if defined($sign)     && ( $zone_hour > 23 || $zone_minute > 59 );
-    my @parts = ( $second // 0, $minute // 0, $hour // 0, $day, $month - 1, $year );
-    my $timestamp =
-      eval { defined($zone) ? timegm_modern(@parts) : timelocal_modern(@parts) };
-    die $error if $@;
-
-    if ( defined $sign ) {
-        $timestamp -= ( $sign eq '+' ? 1 : -1 ) * ( $zone_hour * 3600 + $zone_minute * 60 );
-    }
-    return $timestamp;
+    my $error = "fair: --date1 and --date2 must be YYYY-MM-DD dates\n";
+    die $error unless $value =~ /\A\d{4}-\d{2}-\d{2}\z/;
+    my $date = eval { Time::Piece->strptime( $value, '%Y-%m-%d' ) };
+    # strptime normalizes invalid days, so reject dates it changes.
+    die $error unless defined($date) && $date->ymd eq $value;
+    return timelocal_modern( 0, 0, 0, $date->mday, $date->mon - 1, $date->year );
 }
 
 # Floyd sampling uses bounded memory even for a long range or a nearly full window.
