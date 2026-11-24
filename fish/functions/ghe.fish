@@ -23,7 +23,7 @@ Inputs (URL paths below follow https://github.com/OWNER/REPO):
   /pull/NUMBER/commits/SHA         Enter the checkout at that PR commit.
   /pull/NUMBER/files or /changes   Print the PR diff; keep the current ref.
   /compare                         Enter the repository.
-  /compare/REF                     Print a merge-base diff from HEAD to REF.
+  /compare/REF                     Print a merge-base diff from the remote default HEAD to REF.
   /compare/BASE..HEAD              Print a two-dot diff; keep the current ref.
   /compare/BASE...HEAD             Print a merge-base diff; keep the current ref.
   Other pages (issues, etc.)       Enter the repository.
