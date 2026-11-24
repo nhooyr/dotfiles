@@ -39,13 +39,6 @@ abbrali vi nvim
 abbrali vim nvim
 abbrali vid vidir
 abbrali vid. vidir .
-function vidir
-    if set -q argv[1]
-        cdc "$argv[1]" vidir $argv[2..]
-        return
-    end
-    nvim +Vidir $argv
-end
 abbrali e nvim
 abbrali ec v '"$dotfiles/fish/config.fish"'
 abbrali ev v '"$dotfiles/nvim/init.vim"'

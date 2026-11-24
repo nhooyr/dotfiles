@@ -1,0 +1,88 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Cwd              qw(abs_path);
+use File::Basename   qw(basename);
+use File::Temp       qw(tempfile);
+use Getopt::Long     qw(GetOptions);
+use Text::ParseWords qw(shellwords);
+
+my $name = basename($0);
+my ( $recursive, $help );
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case bundling require_order));
+GetOptions( 'r|recursive' => \$recursive, 'h|help' => \$help ) or exit 2;
+if ($help) {
+    print "usage: $name [-r] [DIR]\n\n",
+      "Edit a shell script of mv commands for DIR (default: the current directory).\n",
+      "The script includes hidden entries and uses relative filenames.\n\n",
+      "  -r, --recursive  Include descendants before their parent directories.\n",
+      "                   Directory symlinks are listed without following them.\n",
+      "  -h, --help       Show this help.\n\n",
+      "Move commands start commented out. Edit and uncomment the commands you want.\n",
+      "Open the script in \$EDITOR and wait. On successful editor exit, print its\n",
+      "quoted executable path. The script is kept for you to run, edit, or reuse;\n",
+      "no file operations run automatically. Exit the editor with an error to cancel.\n";
+    exit 0;
+}
+die "usage: $name [-r] [DIR]\n" if @ARGV > 1;
+my @editor = shellwords( $ENV{EDITOR} // '' );
+die "$name: EDITOR is not set\n" unless @editor;
+my $directory = abs_path( $ARGV[0] // '.' );
+die "$name: not a directory: " . ( $ARGV[0] // '.' ) . "\n" unless defined($directory) && -d $directory;
+
+sub quote {
+    my ($value) = @_;
+    return $value if $value =~ m{\A[A-Za-z0-9_./-]+\z};
+    $value =~ s/'/'\\''/g;
+    return "'$value'";
+}
+
+sub directory_quote {
+    my ($path) = @_;
+    my ( $label, $prefix ) = ( '', '' );
+    for my $variable ( split /:/, $ENV{AQSNOW_DIRALIS} // '' ) {
+        next unless defined $ENV{$variable};
+        my $value = abs_path( $ENV{$variable} );
+        next unless defined($value) && -d $value && length($value) > length($prefix);
+        next unless $path eq $value || index( $path, $value eq '/' ? '/' : "$value/" ) == 0;
+        ( $label, $prefix ) = ( $variable eq 'HOME' ? '~' : "\$$variable", $value );
+    }
+    return quote($path) if $label eq '';
+    my $suffix = substr( $path, length($prefix) );
+    $suffix = "/$suffix" if $prefix eq '/' && length($suffix);
+    return $label . $suffix                                           if $path =~ m{\A[A-Za-z0-9_./-]+\z};
+    return $suffix eq '' ? '~' : '~/' . quote( substr( $suffix, 1 ) ) if $label eq '~';
+    $suffix =~ s/([\\"\$`])/\\$1/g;
+    return '"' . $label . $suffix . '"';
+}
+
+sub entries {
+    my ( $path, $prefix ) = @_;
+    opendir my $handle, $path or die "$name: $path: $!\n";
+    my @names = sort grep { $_ ne '.' && $_ ne '..' } readdir $handle;
+    closedir $handle or die "$name: $path: $!\n";
+    my @paths;
+    for my $entry (@names) {
+        my $relative = $prefix . $entry;
+        push @paths, entries( "$path/$entry", "$relative/" ) if $recursive && !-l "$path/$entry" && -d _;
+        push @paths, $relative;
+    }
+    return @paths;
+}
+
+my @paths = entries( $directory, '' );
+my ( $file, $script ) = tempfile( 'vidir-XXXXXX', SUFFIX => '.sh', TMPDIR => 1, UNLINK => 0 );
+print {$file} "#!/bin/sh\nset -eu\ncd -- ", directory_quote($directory), "\n";
+for my $path (@paths) {
+    my $quoted = quote($path);
+    print {$file} "# mv -v -- $quoted $quoted\n";
+}
+close $file or die "$name: $script: $!\n";
+my $status = system { $editor[0] } @editor, $script;
+die "$name: could not run editor: $!\n" if $status == -1;
+if ($status) {
+    warn "$name: editor failed; script kept at $script\n";
+    exit( ( $status & 127 ) ? 128 + ( $status & 127 ) : $status >> 8 );
+}
+chmod 0700, $script or die "$name: $script: $!\n";
+print quote($script), "\n";
