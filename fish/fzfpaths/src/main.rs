@@ -290,10 +290,9 @@ fn run(
                 };
                 for candidate in std::iter::once(candidate).chain(receiver.try_iter()) {
                     check_signal()?;
-                    let flush = match candidate {
+                    match candidate {
                         Candidate::Path { path, local, style } => {
                             picker.emit_path(path, local, style)?;
-                            !local
                         }
                         Candidate::Cdpath(path, style) => {
                             picker.emit(
@@ -301,11 +300,7 @@ fn run(
                                 false,
                                 &style,
                             )?;
-                            true
                         }
-                    };
-                    if flush {
-                        picker.output.flush()?;
                     }
                 }
                 // Never wait for a slower scan with local results still buffered.
