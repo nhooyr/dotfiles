@@ -203,9 +203,10 @@ nnoremap ]<M-P> "+]P=`]
 
 nnoremap x "_x
 nnoremap X "_X
-nnoremap C "_C
 nnoremap c "_c
 xnoremap c "_c
+nnoremap C "_C
+xnoremap C "_C
 nnoremap s "_s
 xnoremap s "_s
 nnoremap S "_S
@@ -217,13 +218,13 @@ nnoremap gp `[v`]
 nnoremap <Leader>p "+p
 nnoremap <Leader>P "+P
 inoremap <M-p> <C-o>"+P
-nnoremap Y "+y
-nnoremap YY m`^"+y$``
-xnoremap Y "+y
-xnoremap C "+c
-nnoremap D "+d
-nnoremap DD m`^"+y$``"_dd
-xnoremap D "+d
+nnoremap <M-y> "+y
+nnoremap <M-y><M-y> m`^"+y$``
+xnoremap <M-y> "+y
+xnoremap <M-c><M-c> "+c
+nnoremap <M-d> "+d
+nnoremap <M-d><M-d> m`^"+y$``"_dd
+xnoremap <M-d> "+d
 nnoremap <Leader>d <Cmd>execute '.,.+'.(v:count1-1).'t.'<CR>
 
 set completeopt=menuone,noselect,popup
