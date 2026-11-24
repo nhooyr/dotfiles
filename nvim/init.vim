@@ -152,6 +152,7 @@ xmap <Leader>r <Leader>/<Leader>r
 xnoremap <M-r> :s###g<Left><Left>
 
 nnoremap q <Cmd>quit<CR>
+nnoremap <M-x> <Cmd>cq<CR>
 nnoremap <Leader>x <Cmd>cq<CR>
 nnoremap <M-q> q
 nnoremap <C-q> <Cmd>qall!<CR>

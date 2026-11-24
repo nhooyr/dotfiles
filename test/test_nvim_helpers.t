@@ -119,6 +119,8 @@ eq(vim.fn.maparg('<M-f>', 'n'), ':Findg **<Left>', 'Alt-f starts a glob with the
 eq(vim.fn.exists(':Findr'), 0, 'the separate basic-regex command is removed')
 eq(vim.fn.exists(':Finde'), 0, 'the separate extended-regex command is removed')
 eq(vim.fn.maparg([[\g]], 'n'), vim.fn.maparg('<M-g>', 'n'), 'Leader-g and Alt-g open the same grep prompt')
+eq(vim.fn.maparg('<M-x>', 'n'), '<Cmd>cq<CR>', 'Alt-x quits with an error status')
+eq(vim.fn.maparg([[\x]], 'n'), '<Cmd>cq<CR>', 'Leader-x retains the error exit mapping')
 local name = assert(vim.fn.maparg([[\s]], 'n'):match('<SNR>%d+_is_config_file'))
 local is_config = vim.fn[name]
 local config = vim.env.TEST_DOTFILES .. '/nvim'
