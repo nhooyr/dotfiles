@@ -300,6 +300,23 @@ eq(contents, { { 'original' }, { 'unsaved edit' } }, 'comparison shows disk cont
 LUA
 }
 
+sub terminal_shortcut_enters_terminal_mode {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.o.shell = 'cat'
+local entered
+vim.api.nvim_create_autocmd('TermEnter', { once = true, callback = function()
+    vim.schedule(function()
+        entered = vim.fn.mode()
+        vim.api.nvim_input('<C-\\><C-n>')
+    end)
+end })
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Leader>e', true, false, true), 'xt!', false)
+eq(vim.bo.buftype, 'terminal', 'the shortcut opens a terminal buffer')
+eq(entered, 't', 'the shortcut enters terminal mode')
+LUA
+}
+
 sub directory_navigation {
     my ($self) = @_;
     my $directory = "$self->{temporary}/parent dir/child";
@@ -945,6 +962,7 @@ run_cases(
         commit_title_prefix                     => \&commit_title_prefix,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         directory_navigation                    => \&directory_navigation,
+        terminal_shortcut_enters_terminal_mode   => \&terminal_shortcut_enters_terminal_mode,
         vidir_buffer_directory                  => \&vidir_buffer_directory,
         vidir_refresh_after_success             => \&vidir_refresh_after_success,
         gitstatus_native_directory              => \&gitstatus_native_directory,

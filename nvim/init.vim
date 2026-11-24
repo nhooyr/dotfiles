@@ -259,7 +259,7 @@ nnoremap <M-p> <Cmd>execute v:count1.'prev'<CR>
 nnoremap Z zz
 
 command Vidir lua require('vidir').open()
-nnoremap <Leader>e <Cmd>terminal<CR>
+nnoremap <Leader>e <Cmd>terminal<CR><Cmd>startinsert<CR>
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
 nnoremap <Leader>g :silent grep '' .<Left><Left><Left>
