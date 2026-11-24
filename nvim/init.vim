@@ -174,15 +174,15 @@ endfunction
 nnoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
 inoremap <M-CR> <Cmd>call <SID>quit_and_run()<CR>
 snoremap <M-CR> <Esc><Cmd>call <SID>quit_and_run()<CR>
-function s:fzf_file_widget() abort
+function s:fzf_path_widget() abort
 	wall
 	if !empty($AQSNOW_FISH_RENDEZVOUS)
 		call writefile(['<M-v>'], $AQSNOW_FISH_RENDEZVOUS)
 	endif
 	qall
 endfunction
-nnoremap <M-v> <Cmd>call <SID>fzf_file_widget()<CR>
-inoremap <M-v> <Esc>:call <SID>fzf_file_widget()<CR>
+nnoremap <M-v> <Cmd>call <SID>fzf_path_widget()<CR>
+inoremap <M-v> <Esc>:call <SID>fzf_path_widget()<CR>
 
 inoremap <C-a> <C-o>^
 inoremap <C-d> <Del>
