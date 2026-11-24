@@ -90,10 +90,11 @@ for _, mode in ipairs({ 'n', 'i' }) do
         'recent picker mapping routes to the lazy helper in ' .. mode)
 end
 eq(vim.fn.maparg('<M-r>', 'n'), 'cgn', 'Alt-r retains its existing mapping')
-eq(vim.fn.maparg('<M-f>', 'n'), ":silent grep '' .<Left><Left><Left>", 'Alt-f opens the grep prompt')
+eq(vim.fn.maparg('<M-g>', 'n'), ":silent grep '' .<Left><Left><Left>", 'Alt-g opens the grep prompt')
 assert(vim.fn.maparg('<M-f>', 'i'):find('copilot#AcceptWord', 1, true), 'Insert Alt-f still accepts Copilot words')
 eq(vim.fn.maparg([[\f]], 'n'), ':Find ', 'Leader-f opens the filename search prompt')
-eq(vim.fn.maparg([[\g]], 'n'), '', 'Leader-g no longer opens grep')
+eq(vim.fn.maparg('<M-f>', 'n'), ':Find ', 'Alt-f opens the filename search prompt')
+eq(vim.fn.maparg([[\g]], 'n'), vim.fn.maparg('<M-g>', 'n'), 'Leader-g and Alt-g open the same grep prompt')
 local name = assert(vim.fn.maparg([[\s]], 'n'):match('<SNR>%d+_is_config_file'))
 local is_config = vim.fn[name]
 local config = vim.env.TEST_DOTFILES .. '/nvim'
@@ -897,14 +898,16 @@ LUA
 
 sub find_files_quickfix {
     my ($self) = @_;
-    plan skip_all => 'ripgrep is needed to test filename search' unless which('rg');
+    plan skip_all => 'fd is needed to test filename search' unless which('fd');
     my $directory = "$self->{temporary}/find-files";
-    make_path( map { "$directory/$_" } qw(nested src/deep ignored .git config) );
+    make_path( map { "$directory/$_" } qw(nested src/deep ignored .git config empty target .hidden-dir) );
+    symlink 'target', "$directory/linked" or die $!;
     for my $name (
-        'top.lua',            '.hidden.lua',         'nested/child.lua', 'src/direct.lua',
-        'src/deep/child.lua', 'odd name|part.lua',   'ignored/no.lua',   '.git/no.lua',
-        'skip.lua',           'config/settings.txt', 'a+b.txt',          'aaab.txt',
-        'literal[1].txt',     'literal1.txt'
+        'top.lua',            '.hidden.lua',         'nested/child.lua',      'src/direct.lua',
+        'src/deep/child.lua', 'odd name|part.lua',   'ignored/no.lua',        '.git/no.lua',
+        'skip.lua',           'config/settings.txt', 'a+b.txt',               'aaab.txt',
+        'literal[1].txt',     'literal1.txt',        '.hidden-dir/child.txt', 'Upper.LUA',
+        'upper-other.lua'
       )
     {
         write_file( "$directory/$name", "contents\n" );
@@ -924,15 +927,27 @@ local function search(pattern, command)
     local paths = {}
     for _, item in ipairs(vim.fn.getqflist()) do
         eq({ item.lnum, item.col, item.valid }, { 1, 1, 1 }, 'each result opens at the first line')
-        paths[#paths + 1] = vim.api.nvim_buf_get_name(item.bufnr):sub(#root + 2)
+        paths[#paths + 1] = vim.api.nvim_buf_get_name(item.bufnr):sub(#root + 2):gsub('/$', '')
     end
     table.sort(paths)
     return paths
 end
-eq(search('*.lua'), { '.hidden.lua', 'nested/child.lua', 'odd name|part.lua',
-    'src/deep/child.lua', 'src/direct.lua', 'top.lua' }, 'basename globs preserve hidden and ignore rules')
+eq(search('*.lua'), { '.hidden.lua', 'Upper.LUA', 'nested/child.lua', 'odd name|part.lua',
+    'src/deep/child.lua', 'src/direct.lua', 'top.lua', 'upper-other.lua' },
+    'lowercase globs include mixed-case names while preserving hidden and ignore rules')
+eq(search('*.LUA'), { 'Upper.LUA' }, 'uppercase makes a glob case-sensitive')
+eq(search('upper'), { 'Upper.LUA', 'upper-other.lua' }, 'lowercase path fragments ignore case')
+eq(search('Upper'), { 'Upper.LUA' }, 'uppercase path fragments are case-sensitive')
+eq(search('upper', 'Findf'), { 'Upper.LUA', 'upper-other.lua' }, 'lowercase fixed strings ignore case')
+eq(search('UPPER', 'Findf'), {}, 'uppercase fixed strings are case-sensitive')
+eq(search('^upper', 'Findr'), { 'Upper.LUA', 'upper-other.lua' }, 'lowercase basic regexes ignore case')
+eq(search('^Upper', 'Finde'), { 'Upper.LUA' }, 'uppercase extended regexes are case-sensitive')
 eq(search('src/**/*.lua'), { 'src/deep/child.lua', 'src/direct.lua' }, 'globstar matches zero or more directories')
-eq(search('config'), { 'config/settings.txt' }, 'bare words match anywhere in the path')
+eq(search('config'), { 'config', 'config/settings.txt' }, 'bare words include directories and their contents')
+eq(search('.hidden-dir'), { '.hidden-dir', '.hidden-dir/child.txt' }, 'hidden directories are searchable')
+eq(search('ignored*'), {}, 'ignore rules exclude directories and their contents')
+eq(search('.git/*'), {}, 'Git metadata directories stay excluded')
+eq(search('linked'), { 'linked' }, 'symlink directories are searchable')
 eq(search('odd*'), { 'odd name|part.lua' }, 'spaces and pipes remain literal filenames')
 eq(search('odd name|part.lua'), { 'odd name|part.lua' }, 'literal spaces and bars remain command arguments')
 eq(search([[^a+b\.txt$]], 'Findr'), { 'a+b.txt' }, 'basic regex treats plus as literal')
@@ -947,6 +962,10 @@ vim.notify = function(message) errors[#errors + 1] = message end
 vim.cmd('Findr [')
 assert(vim.wait(3000, function() return #errors > 0 end), 'invalid regex reports an error')
 eq(vim.fn.getqflist({ id = 0 }).id, id, 'invalid regex preserves the quickfix list')
+eq(search('^empty$', 'Findr'), { 'empty' }, 'regexes match directory names without display suffixes')
+eq(search('empty'), { 'empty' }, 'empty directories are searchable')
+vim.cmd.cfirst()
+eq(vim.bo.filetype, 'directory', 'quickfix opens the native directory browser')
 LUA
 }
 
@@ -984,7 +1003,8 @@ eq(vim.fn.getqflist({ id = 0 }).id, id, 'failed scans preserve the previous list
 find('needle', 'G')
 calls[4].callback({ code = 0, stdout = 'needle.txt\n', stderr = '' })
 assert(vim.wait(3000, function() return #calls == 5 end), 'regex filtering starts after file enumeration')
-eq(calls[5].command, { 'grep', '-G', '-a', '--color=never', '--', 'needle' }, 'Findr uses basic regex filtering')
+eq(calls[5].command, { 'grep', '-G', '-a', '--color=never', '-i', '--', 'needle' },
+    'Findr uses basic regex filtering with smart case')
 eq(calls[5].options.stdin, 'needle.txt\n', 'grep filters the enumerated paths')
 find('newer')
 eq(calls[5].signal, 15, 'a new search cancels the active regex filter')

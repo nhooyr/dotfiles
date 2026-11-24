@@ -4,7 +4,8 @@ cd -- "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
 	sudo add-apt-repository --yes ppa:fish-shell/release-4
-	sudo apt-get install --yes fish cargo zsh
+	sudo apt-get install --yes fish cargo zsh fd-find
+	sudo install "$(command -v fdfind)" /usr/local/bin/fd
 fi
 
 cargo test --manifest-path fish/fzfpaths/Cargo.toml --locked
