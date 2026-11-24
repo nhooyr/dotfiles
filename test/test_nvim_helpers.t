@@ -92,7 +92,7 @@ end
 eq(vim.fn.maparg('<M-r>', 'n'), 'cgn', 'Alt-r retains its existing mapping')
 eq(vim.fn.maparg('<M-g>', 'n'), ":silent grep '' .<Left><Left><Left>", 'Alt-g opens the grep prompt')
 assert(vim.fn.maparg('<M-f>', 'i'):find('copilot#AcceptWord', 1, true), 'Insert Alt-f still accepts Copilot words')
-eq(vim.fn.maparg([[\f]], 'n'), ':Findg **<Left>', 'Leader-f starts a glob with the cursor between stars')
+eq(vim.fn.maparg([[\f]], 'n'), ':Find ', 'Leader-f opens the regex search prompt')
 eq(vim.fn.maparg('<M-f>', 'n'), ':Findg **<Left>', 'Alt-f starts a glob with the cursor between stars')
 eq(vim.fn.exists(':Findr'), 0, 'the separate basic-regex command is removed')
 eq(vim.fn.exists(':Finde'), 0, 'the separate extended-regex command is removed')
