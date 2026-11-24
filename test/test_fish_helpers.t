@@ -171,10 +171,12 @@ sub find_names_include_directories_and_ignored_paths {
 f '*match*' | sort
 printf 'uppercase:\n'
 f '*Match*'
+printf 'glob:\n'
+f 'match-?ile'
 FISH
     is(
         $result->{stdout},
-        ".match-hidden\nMatch-upper\nmatch-dir/\nmatch-file\nuppercase:\nMatch-upper\n",
+        ".match-hidden\nMatch-upper\nmatch-dir/\nmatch-file\nuppercase:\nMatch-upper\nglob:\nmatch-file\n",
         'fd finds files, directories, hidden and ignored entries with glob smart case'
     );
 }

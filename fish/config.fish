@@ -138,7 +138,7 @@ function f
     fd --hidden --no-ignore --glob -- "$argv"
 end
 alias bigdirs='du -hd 1 | sort -hr | head -n 16'
-abbr -a --set-cursor f "f '%'"
+abbr -a --set-cursor f "f '*%*'"
 set -gx GREP_COLORS 'mt=30;43:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '30;43'
 abbrali grepe grep -E
