@@ -3,6 +3,7 @@
   my explicit approval.
 - Use `$(...)` instead of `(...)` for Fish command substitutions.
 - Quote scalar variable expansions in shell code wherever possible.
+- Prefer single quotes. Use double quotes only when variable expansion or escaping requires them.
 - Do not add compatibility code (including shims and fallbacks) without my explicit approval.
 - Do not report or change automatic commit-push behavior unless I explicitly ask.
 - Do not report or change tracking of Alfred's machine-local preferences unless I explicitly ask.
