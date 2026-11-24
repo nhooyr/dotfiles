@@ -22,8 +22,10 @@ function fzf_path_widget --argument-names widget
     set -l parsed $(__fzf_parse_commandline | string split0)
     set -l dir "$parsed[1]"
     set -l token "$(string replace -- "$parsed[3]" '' "$(commandline --current-token --tokens-expanded)")"
-    # Only scan the whole home directory when ./ explicitly requests it.
-    if test "$dir" -ef ~; and not string match -q -- './*' "$token"
+    # A bare / selects global roots; only ./ requests a full home-directory scan.
+    if test "$token" = /
+        set dir ''
+    else if test "$dir" -ef ~; and not string match -q -- './*' "$token"
         set dir ''
     end
     set -l global_dir "$nhooyr"
@@ -43,7 +45,7 @@ function fzf_path_widget --argument-names widget
         set type -d
         set opts "$FZF_ALT_C_OPTS --no-multi"
     end
-    if not set -q tokens[1]
+    if not set -q tokens[1]; and not string match -q -- '/*' "$token"
         set flags --keep-dot
     end
 
@@ -130,8 +132,10 @@ function fzf_path_widget --argument-names widget
                     else if test -f "$target"
                         set next_kind file
                         if test -x "$target"
-                            if not set -q kind[1]; and string match -q -- './*' "$result[1]"
-                                set execute 1
+                            if not set -q kind[1]
+                                if string match -q -- './*' "$result[1]"; or string match -q -- '/*' "$token"
+                                    set execute 1
+                                end
                             end
                             set -l header
                             if not read --nchars 2 header 2>/dev/null <"$target"; or test "$header" != '#!'
@@ -146,13 +150,24 @@ function fzf_path_widget --argument-names widget
                     end
                 end
                 if set -q kind[1]; and test "$kind" != "$next_kind"
-                    set kind special
-                    break
+                    if contains -- "$kind" directory file; and contains -- "$next_kind" directory file
+                        set next_kind file
+                    else
+                        set kind special
+                        break
+                    end
                 end
                 set kind "$next_kind"
                 test "$kind" = special; and break
             end
             test "$(count $result)" -eq 1; or set execute 0
+            if test "$execute" -eq 1; and string match -q -- '/*' "$token"
+                if not string match -q -- '/*' "$target"
+                    set target "$PWD/$(string replace --regex -- '^\./' '' "$target")"
+                end
+                set -l aliased "$(aqsnow_fzf_path_alias "$target" | string split0)"
+                set escaped "$(aqsnow_fzf_path_quote "$aliased" "$parsed[3]")"
+            end
             if test "$kind" = special; or test "$kind" = executable -a "$execute" -eq 0
                 set -p escaped file --
             else if test "$(count $result)" -eq 1; and test "$kind" = directory

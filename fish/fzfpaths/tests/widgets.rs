@@ -59,6 +59,7 @@ fn run_widget(widget_name: &str, commandline: &str, selection: &str) -> (String,
     let fixture = Fixture(env::temp_dir().join(format!("fzf-widget-{}-{id}", std::process::id())));
     fs::create_dir(&fixture.0).unwrap();
     fs::create_dir(fixture.0.join("bin")).unwrap();
+    fs::create_dir(fixture.0.join("directory")).unwrap();
     let nvim = fixture.0.join("bin/nvim");
     fs::write(&nvim, "#!/bin/sh\nprintf '%s\\0' \"$PWD/README.md\"\n").unwrap();
     fs::set_permissions(nvim, fs::Permissions::from_mode(0o700)).unwrap();
@@ -124,6 +125,12 @@ fn multiple_paths_choose_a_command_for_the_entire_selection() {
         ("README.md\n./script", "nvim -- README.md ./script "),
         ("./binary\nREADME.md", "file -- ./binary README.md "),
         ("README.md\n./binary", "file -- README.md ./binary "),
+        ("directory\nREADME.md", "nvim -- directory README.md "),
+        ("README.md\ndirectory", "nvim -- README.md directory "),
+        ("directory\n./script", "nvim -- directory ./script "),
+        ("./script\ndirectory", "nvim -- ./script directory "),
+        ("directory\n./binary", "file -- directory ./binary "),
+        ("./binary\ndirectory", "file -- ./binary directory "),
         ("./script", "./script "),
     ] {
         assert_eq!(run("", selection), (expected.into(), true), "{selection}");
@@ -326,6 +333,180 @@ fzf_path_widget fzf-recent-widget
 cat input
 "#;
     assert_eq!(path_case(script, ""), b"/second file\0/first file\0");
+}
+
+#[test]
+fn absolute_command_search_runs_scripts_using_directory_aliases() {
+    let script = r#"
+set -g nhooyr "$PWD/global"
+set -g secrets "$nhooyr/secrets"
+set -g aqsnow_fzf_diralis secrets
+set -g CDPATH "$PWD/cdroot"
+mkdir -p "$secrets" "$CDPATH/only-cd"
+git init --quiet "$secrets"
+printf '#!/bin/sh\n' > "$secrets/init.sh"
+chmod +x "$secrets/init.sh"
+printf local > local-only
+function commandline
+    switch "$argv[1]"
+        case --current-token
+            printf '%s' "$TEST_TOKEN"
+        case --cut-at-cursor
+            test -n "$test_command"; and printf '%s\n' "$test_command"
+        case -rt
+            set -g inserted "$argv[3]"
+    end
+end
+function fzfpaths
+    set -l separator $(contains -i -- -- $argv)
+    set -l directory "$argv[$(math "$separator + 1")]"
+    if test "$TEST_TOKEN" = /
+        test -z "$directory"; or begin
+            printf 'slash search tried to scan %s\n' "$directory" >&2
+            return 1
+        end
+        test "$argv[$(math "$separator + 2")]" = "$nhooyr"; or return 2
+        if test "$current_widget" = fzf-file-widget
+            not contains -- --cdpath $argv; or return 3
+        else
+            contains -- --cdpath $argv; or return 4
+        end
+    else
+        test "$directory" -ef "$PWD/external"; or begin
+            printf 'absolute path searched the wrong directory: %s\n' "$directory" >&2
+            return 5
+        end
+    end
+    command "$FZFPATHS" $argv
+end
+function fzf
+    set -l paths
+    while read --null --local path
+        set path $(string replace --all --regex -- '\e\[[0-9;]*m' '' "$path")
+        set path $(string replace --regex -- '.$' '' "$path")
+        set -a paths "$path"
+    end
+    test "$TEST_TOKEN" = /; or return
+    contains -- --query= $argv; or return 6
+    for target in $requested
+        test "$(count $(string match -- "$target" $paths))" -eq 1; or return 7
+    end
+    printf '%s\0' $requested
+end
+for widget in fzf-file-widget fzf-path-widget fzf-cd-widget
+    set -g current_widget "$widget"
+    set -g inserted ''
+    set -g requested '$secrets/init.sh'
+    test "$current_widget" = fzf-cd-widget; and set requested '$CDPATH/only-cd'
+    fzf_path_widget "$current_widget"
+    if test "$current_widget" = fzf-cd-widget
+        test "$inserted" = 'cd -- only-cd '; or exit 1
+    else
+        test "$inserted" = '$secrets/init.sh '; or exit 2
+    end
+end
+set -g current_widget fzf-path-widget
+set -g requested '$secrets/init.sh'
+set -g test_command nvim
+fzf_path_widget "$current_widget"
+test "$inserted" = '-- $secrets/init.sh '; or exit 5
+set -e test_command
+chmod -x "$secrets/init.sh"
+fzf_path_widget "$current_widget"
+test "$inserted" = 'nvim -- $secrets/init.sh '; or exit 6
+chmod +x "$secrets/init.sh"
+printf '#!/bin/sh\n' > "$secrets/second.sh"
+chmod +x "$secrets/second.sh"
+mkfifo "$secrets/pipe"
+ln -s pipe "$secrets/pipe-link"
+ln -s missing "$secrets/broken"
+git -C "$secrets" add -- pipe-link broken
+set -g current_widget fzf-path-widget
+set -g requested '$secrets/init.sh' '$secrets/second.sh'
+fzf_path_widget "$current_widget"
+test "$inserted" = 'nvim -- $secrets/init.sh $secrets/second.sh '; or exit 3
+printf text > "$secrets/README"
+set -l directory "$(string escape -n -- "$PWD/cdroot/only-cd")"
+for name in init.sh README
+    set -g requested '$CDPATH/only-cd' '$secrets/'"$name"
+    fzf_path_widget "$current_widget"
+    test "$inserted" = "nvim -- $directory "'$secrets/'"$name "; or exit 7
+end
+for special in pipe-link broken
+    set -g requested '$secrets/init.sh' '$secrets/'"$special"
+    fzf_path_widget "$current_widget"
+    test "$inserted" = 'file -- $secrets/init.sh $secrets/'"$special "; or exit 4
+end
+set -g TEST_TOKEN "$PWD/external/"
+set -g current_widget fzf-file-widget
+fzf_path_widget "$current_widget"
+"#;
+    assert!(path_case(script, "/").is_empty());
+}
+
+#[test]
+fn recent_absolute_command_search_uses_one_aliased_script() {
+    let script = r#"
+set -g project "$PWD"
+set -g aqsnow_fzf_diralis project
+set -g expected_paths 1
+set -g selected_path 1
+printf '#!/bin/sh\n' > script.sh
+chmod +x script.sh
+ln -s script.sh link.sh
+mkdir bin
+printf '%s\n' '#!/bin/sh' 'printf "%s\\0" "$TEST_OLDFILE"' > bin/nvim
+chmod +x bin/nvim
+set -lx PATH "$PWD/bin" $PATH
+function commandline
+    switch "$argv[1]"
+        case --current-token
+            printf '%s' "$TEST_TOKEN"
+        case --cut-at-cursor
+            printf ''
+        case -rt
+            set -g inserted "$argv[3]"
+    end
+end
+function fzfpaths
+    command "$FZFPATHS" $argv
+end
+function fzf
+    set -l paths
+    while read --null --local path
+        set -a paths "$path"
+    end
+    test "$(count $paths)" -eq "$expected_paths"; or return 1
+    set -l path $(string replace --all --regex -- '\e\[[0-9;]*m' '' "$paths[$selected_path]")
+    printf '%s\0' $(string replace --regex -- '.$' '' "$path")
+end
+for name in script.sh link.sh
+    set -lx TEST_OLDFILE "$PWD/$name"
+    fzf_path_widget fzf-recent-widget
+    test "$inserted" = '$project/'"$name "; or exit 1
+end
+set -gx TEST_OLDFILE "$PWD/script.sh"
+set -g aqsnow_fzf_diralis
+fzf_path_widget fzf-recent-widget
+test "$inserted" = "$PWD/script.sh "; or exit 2
+set -g TEST_TOKEN ./
+set -g expected_paths 2
+fzf_path_widget fzf-recent-widget
+test "$inserted" = 'nvim -- script.sh '; or exit 3
+set -g selected_path 2
+fzf_path_widget fzf-recent-widget
+test "$inserted" = './script.sh '; or exit 4
+set -g TEST_TOKEN /
+set -g expected_paths 1
+set -g selected_path 1
+set -g aqsnow_fzf_diralis project
+printf 'binary' > binary
+chmod +x binary
+set -gx TEST_OLDFILE "$PWD/binary"
+fzf_path_widget fzf-recent-widget
+test "$inserted" = '$project/binary '; or exit 5
+"#;
+    assert!(path_case(script, "/").is_empty());
 }
 
 #[test]

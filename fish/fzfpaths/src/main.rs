@@ -49,6 +49,7 @@ the most specific dirali when available.
 For cd/cdc, $CDPATH choices use the bare name unless it collides with a local
 path. Collisions are resolved the same way, preferring the first different
 match in CDPATH order. Local selections stay relative.
+Typing / on the Fish command line selects only global and CDPATH sources.
 An explicit ./ token disables global and CDPATH searches. Ctrl-T (files) and
 Alt-C (directories) use the parsed local query without ./; only Alt-V (files
 and directories) keeps ./ in the query to find local executable paths.
@@ -59,10 +60,13 @@ Starting inside an ignored directory makes that directory searchable: ignore
 rules above the ignored directory are bypassed, while rules inside still apply.
 Directories named .git and node_modules are skipped unless they are <DIR> itself.
 File searches also include special files and broken symlinks. With an empty
-command line, the Fish widgets distinguish directories, regular files, and
-executables without a #! shebang by following symlink targets. Mixed file types
-and special files use file --. Executables without a shebang run directly;
+command line, the Fish widgets follow symlink targets and open multiple
+directories, regular files, or scripts together with nvim --. Special files,
+or multiple selections containing binary executables, use file --.
+Executables without a shebang run directly;
 scripts with a shebang also run when selected with their explicit ./ form.
+At command start, an absolute-path query also runs selected executable scripts,
+using the longest matching directory alias when available.
 
 Options:
   -h, --help        Show this help.
