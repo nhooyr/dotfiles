@@ -103,12 +103,30 @@ FISH
     is( read_file("$self->{root}/clipboard"), $result->{stdout}, 'the same complete path is copied' );
 }
 
+sub grepw_uses_an_extended_whitespace_quantifier {
+    my ($self)      = @_;
+    my ($expansion) = $config =~ /^abbr -a --set-cursor grepw "([^"]+)"$/m;
+    die "Missing grepw abbreviation\n" unless defined $expansion;
+    my ($grepe) = $config =~ /^abbrali grepe (.+)$/m;
+    die "Missing grepe alias\n" unless defined $grepe;
+    $self->{env}{TEST_GREPE} = $grepe;
+    $expansion =~ s/%/needle/;
+    my $result = fish( $self, <<'FISH' . "\nprintf '  needle\\nneedle\\n +needle\\n' | $expansion\n" );
+alias grepe "$TEST_GREPE"
+function ggrep
+    command "$TEST_GREP" $argv
+end
+FISH
+    is( $result->{stdout}, "1:  needle\n", 'grepw matches indentation rather than a literal plus' );
+}
+
 run_cases(
     {
         aliases_added_after_initialization_are_exported => \&aliases_added_after_initialization_are_exported,
         realpath_failure_does_not_clear_the_clipboard   => \&realpath_failure_does_not_clear_the_clipboard,
         realpath_success_preserves_spaces_and_leading_dashes =>
           \&realpath_success_preserves_spaces_and_leading_dashes,
+        grepw_uses_an_extended_whitespace_quantifier => \&grepw_uses_an_extended_whitespace_quantifier,
     },
     \&setup
 );

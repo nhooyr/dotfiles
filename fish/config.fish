@@ -168,7 +168,7 @@ function gg --wraps 'git grep -IE --recurse-submodules'
     git grep -IE --recurse-submodules $ignore_case $argv
 end
 abbrali ggf gg -F
-abbr -a --set-cursor grepw "grep '^\s+%'"
+abbr -a --set-cursor grepw "grepe '^\s+%'"
 abbr -a --set-cursor ggw "gg '^[[:space:]]+%'"
 abbrali ws gg "'[[:space:]]+\$'"
 
