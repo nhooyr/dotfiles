@@ -1356,6 +1356,7 @@ eq(search('^upper'), { 'Upper.LUA', 'upper-other.lua' }, 'anchored regexes match
 eq(search('src/**/*.lua', 'Findg'), { 'src/deep/child.lua', 'src/direct.lua' },
     'relative globs match full paths and globstar matches zero or more directories')
 eq(vim.fn.getqflist({ title = 0 }).title, 'Findg src/**/*.lua', 'glob titles retain the original pattern')
+eq(search('./src/*.lua', 'Findg'), { 'src/direct.lua' }, 'relative globs allow a leading ./')
 eq(search(root .. '/src/*.lua', 'Findg'), { 'src/direct.lua' }, 'absolute glob patterns remain absolute')
 eq(search('config'), { 'config' }, 'bare words match directory names without matching child basenames')
 eq(search('.hidden-dir', 'Findf'), { '.hidden-dir' }, 'hidden directories are searchable')

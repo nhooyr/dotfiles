@@ -12,7 +12,7 @@ local function run(pattern, mode)
 	local query = pattern
 	if pattern:find('/', 1, true) then
 		args[#args + 1] = '--full-path'
-		if mode == 'g' and pattern:sub(1, 1) ~= '/' then query = '**/' .. pattern end
+		if mode == 'g' and pattern:sub(1, 1) ~= '/' then query = '**/' .. pattern:gsub('^%./', '') end
 	end
 	vim.list_extend(args, { '--', query })
 	state.pending = vim.system(args, { cwd = cwd }, vim.schedule_wrap(function(result)
