@@ -66,7 +66,7 @@ sub path_quote {
     my ($path) = @_;
     my ( $label, $prefix ) = ( '', '' );
     for my $variable ( split /:/, $ENV{AQSNOW_DIRALIS} // '' ) {
-        next unless defined $ENV{$variable};
+        next unless length( $ENV{$variable} // '' );
         my $value = abs_path( $ENV{$variable} );
         next unless defined($value) && -d $value && length($value) > length($prefix);
         next unless $path eq $value || index( $path, $value eq '/' ? '/' : "$value/" ) == 0;

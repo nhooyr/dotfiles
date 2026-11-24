@@ -481,6 +481,21 @@ sub editor_without_options {
     script_path( $self, invoke($self), [] );
 }
 
+sub empty_alias_does_not_change_script_directory {
+    my ($self) = @_;
+    $self->{env}{AQSNOW_DIRALIS} = 'HOME:EMPTY:TEST_PROJECT';
+    $self->{env}{EMPTY}          = '';
+    $self->{env}{TEST_RENAME}    = 1;
+    my $path = script_path( $self, invoke($self) );
+    like( read_file($path), qr/^cd -- "\$TEST_PROJECT"$/m, 'the script uses the nonempty directory alias' );
+    my $other = "$self->{root}/other";
+    make_path($other);
+    write_file( "$other/original", 'unrelated' );
+    run_command( [$path], { cwd => $other, env => $self->{env}, check => 1 } );
+    is( read_file("$self->{directory}/renamed"), 'content', 'the script operates in its original directory' );
+    is( read_file("$other/original"),            'unrelated', 'the invocation directory is untouched' );
+}
+
 sub usage_and_missing_editor {
     my ($self) = @_;
     my $result = invoke( $self, '--help' );
@@ -506,22 +521,23 @@ sub usage_and_missing_editor {
 
 run_cases(
     {
-        lists_immediate_entries_and_quotes_names    => \&lists_immediate_entries_and_quotes_names,
-        quotes_ascii_directory_aliases              => \&quotes_ascii_directory_aliases,
-        printed_script_uses_directory_aliases       => \&printed_script_uses_directory_aliases,
-        recursion_keeps_parents_before_children     => \&recursion_keeps_parents_before_children,
-        editor_changes_wait_for_manual_execution    => \&editor_changes_wait_for_manual_execution,
-        editor_failure_keeps_script_without_command => \&editor_failure_keeps_script_without_command,
-        editor_without_options                      => \&editor_without_options,
-        usage_and_missing_editor                    => \&usage_and_missing_editor,
-        ordering_matches_ls                         => \&ordering_matches_ls,
-        git_ignore_and_override                     => \&git_ignore_and_override,
-        persistent_ignore_batches_preserve_rules    => \&persistent_ignore_batches_preserve_rules,
-        invalid_ignore_replies_stop_before_editor   => \&invalid_ignore_replies_stop_before_editor,
-        ignore_files_outside_git_do_not_filter      => \&ignore_files_outside_git_do_not_filter,
-        git_environment_is_scoped_to_queries        => \&git_environment_is_scoped_to_queries,
-        includes_its_own_script                     => \&includes_its_own_script,
-        scan_errors_stop_before_editor              => \&scan_errors_stop_before_editor,
+        lists_immediate_entries_and_quotes_names     => \&lists_immediate_entries_and_quotes_names,
+        quotes_ascii_directory_aliases               => \&quotes_ascii_directory_aliases,
+        printed_script_uses_directory_aliases        => \&printed_script_uses_directory_aliases,
+        recursion_keeps_parents_before_children      => \&recursion_keeps_parents_before_children,
+        editor_changes_wait_for_manual_execution     => \&editor_changes_wait_for_manual_execution,
+        editor_failure_keeps_script_without_command  => \&editor_failure_keeps_script_without_command,
+        editor_without_options                       => \&editor_without_options,
+        empty_alias_does_not_change_script_directory => \&empty_alias_does_not_change_script_directory,
+        usage_and_missing_editor                     => \&usage_and_missing_editor,
+        ordering_matches_ls                          => \&ordering_matches_ls,
+        git_ignore_and_override                      => \&git_ignore_and_override,
+        persistent_ignore_batches_preserve_rules     => \&persistent_ignore_batches_preserve_rules,
+        invalid_ignore_replies_stop_before_editor    => \&invalid_ignore_replies_stop_before_editor,
+        ignore_files_outside_git_do_not_filter       => \&ignore_files_outside_git_do_not_filter,
+        git_environment_is_scoped_to_queries         => \&git_environment_is_scoped_to_queries,
+        includes_its_own_script                      => \&includes_its_own_script,
+        scan_errors_stop_before_editor               => \&scan_errors_stop_before_editor,
     },
     \&setup
 );
