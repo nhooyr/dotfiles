@@ -243,3 +243,52 @@ test -d "$paths[-1]"; or exit 1
     assert!(path_case(script, "").is_empty());
 }
 
+#[test]
+fn completion_preserves_quoted_arguments() {
+    let script = r#"
+function commandline
+    switch "$argv[1]"
+        case --paging-mode
+            return 1
+        case -t
+            printf fe
+        case -pc
+            if contains -- --tokens-expanded $argv
+                printf '%s\n' repro --dir "$TEST_TOKEN"
+            else
+                string join ' ' -- repro --dir "$(string escape -- "$TEST_TOKEN")"
+            end
+        case --tokens-expanded
+            builtin commandline $argv
+        case -rt
+            set -g inserted "$argv[3]"
+    end
+end
+function isatty
+    return 0
+end
+function candidates
+    set -l tokens $(builtin commandline -opc)
+    test "$tokens[3]" = "$TEST_TOKEN"; and printf feature
+end
+complete -c repro -f -a '$(candidates)'
+function fzf
+    while read -l line
+        printf '%s\n' "$line"
+    end
+end
+set -g COLUMNS 80
+set -g FZF_DEFAULT_OPTS
+fzf_complete
+printf '%s' "$inserted"
+"#;
+    for argument in [
+        "repo space",
+        "single'quote",
+        "dollar$sign",
+        "semi;colon",
+        r"back\slash",
+    ] {
+        assert_eq!(path_case(script, argument), b"feature ", "{argument:?}");
+    }
+}

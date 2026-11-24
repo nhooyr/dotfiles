@@ -275,6 +275,85 @@ end
 LUA
 }
 
+sub vidir_refresh_after_success {
+    my ($self)    = @_;
+    my $directory = "$self->{temporary}/rename dir";
+    my $bin       = "$self->{temporary}/bin";
+    make_path( $directory, $bin );
+    write_file( "$directory/original", "original\n" );
+    write_file( "$directory/other",    "other\n" );
+    write_file( "$bin/gls",            '#!' . perl_executable() . "\n" . <<'PERL' );
+use strict;
+use warnings;
+my $path = $ARGV[-1] =~ /^-/ ? '.' : $ARGV[-1];
+opendir my $directory, $path or die $!;
+print "$_\n" for sort grep { $_ ne '.' && $_ ne '..' } readdir $directory;
+PERL
+    write_file( "$bin/mv", '#!' . perl_executable() . "\n" . <<'PERL' );
+use strict;
+use warnings;
+@ARGV == 4 && $ARGV[0] eq '-v' && $ARGV[1] eq '--' or die 'unexpected mv arguments';
+my ( $from, $to ) = @ARGV[ 2, 3 ];
+exit 0 if $from eq $to;
+rename $from, $to or die $!;
+PERL
+    chmod 0755, "$bin/gls", "$bin/mv";
+    local $self->{env}{PATH} = "$bin:$ENV{PATH}";
+    $self->{env}{TEST_VIDIR_DIRECTORY} = $directory;
+    run_script( $self, <<'LUA' );
+local directory = vim.env.TEST_VIDIR_DIRECTORY
+vim.cmd('cd ' .. vim.fn.fnameescape(directory))
+vim.cmd.Vidir()
+local buffer = vim.api.nvim_get_current_buf()
+local function lines() return vim.api.nvim_buf_get_lines(buffer, 0, -1, false) end
+local function rename_command(from, to)
+    local commands, found = lines(), false
+    for i, command in ipairs(commands) do
+        if command == "mv -v -- '" .. from .. "' '" .. from .. "'" then
+            commands[i], found = "mv -v -- '" .. from .. "' '" .. to .. "'", true
+        end
+    end
+    assert(found, 'the file has a generated rename command')
+    vim.api.nvim_buf_set_lines(buffer, 0, -1, false, commands)
+end
+vim.fn.setreg('a', 'named sentinel')
+vim.fn.setreg('"', 'unnamed sentinel')
+rename_command('original', 'renamed')
+local pending = lines()
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
+vim.cmd('cd ' .. vim.fn.fnameescape(directory))
+vim.cmd.Vidir()
+eq(vim.api.nvim_get_current_buf(), buffer, 'reentry keeps the existing rename buffer')
+eq(lines(), pending, 'reentry preserves unapplied edits')
+assert(vim.bo.modified, 'unapplied commands remain modified')
+eq(vim.fn.filereadable(directory .. '/original'), 1, 'reentry does not execute commands')
+vim.cmd.write()
+eq(vim.fn.filereadable(directory .. '/renamed'), 1, 'the requested rename ran')
+eq(vim.fn.filereadable(directory .. '/original'), 0, 'the old filename is gone')
+assert(vim.tbl_contains(lines(), "mv -v -- 'renamed' 'renamed'"), 'success refreshes the command list')
+assert(not vim.bo.modified, 'the refreshed command list is unmodified')
+vim.cmd.write()
+eq(vim.v.shell_error, 0, 'applying the refreshed list does not retry the old source')
+rename_command('other', 'second')
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
+vim.cmd.wall()
+eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(vim.fs.dirname(vim.env.TEST_ORIGINAL)),
+    'wall restores the visible buffer directory')
+eq(vim.fn.filereadable(directory .. '/second'), 1, 'wall executes commands in the rename directory')
+assert(vim.tbl_contains(lines(), "mv -v -- 'second' 'second'"), 'wall refreshes the rename directory')
+vim.cmd.buffer(buffer)
+local failing = { '#!/bin/sh', 'set -eu', 'false', "mv -v -- 'renamed' 'never'" }
+vim.api.nvim_buf_set_lines(buffer, 0, -1, false, failing)
+vim.cmd.write()
+assert(vim.v.shell_error ~= 0, 'the failed command reports an error')
+eq(lines(), failing, 'failed commands remain available for correction')
+assert(vim.bo.modified, 'the failed command list stays modified')
+eq(vim.fn.filereadable(directory .. '/never'), 0, 'commands after the failure do not run')
+eq(vim.fn.getreg('a'), 'named sentinel', 'named registers are preserved')
+eq(vim.fn.getreg('"'), 'unnamed sentinel', 'the unnamed register is preserved')
+LUA
+}
+
 sub gitstatus_native_directory {
     my ($self) = @_;
     my $directory = "$self->{temporary}/directory repo";
@@ -621,6 +700,7 @@ run_cases(
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         directory_navigation                    => \&directory_navigation,
         vidir_buffer_directory                  => \&vidir_buffer_directory,
+        vidir_refresh_after_success             => \&vidir_refresh_after_success,
         gitstatus_native_directory              => \&gitstatus_native_directory,
         recording_mode_color                    => \&recording_mode_color,
         snippet_completion_reload               => \&snippet_completion_reload,
