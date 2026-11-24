@@ -2,12 +2,21 @@ local function shell_quote(path)
 	return "'" .. path:gsub("'", "'\\''") .. "'"
 end
 
+local function directory_quote(path)
+	path = require('dirali').shorten(path)
+	local alias, suffix = path:match('^(%$[%w_]+)(.*)$')
+	if alias then return '"' .. alias .. suffix:gsub('[\\`"$]', '\\%0') .. '"' end
+	if path == '~' then return path end
+	if path:sub(1, 2) == '~/' then return '~/' .. shell_quote(path:sub(3)) end
+	return shell_quote(path)
+end
+
 local function refresh()
 	local files = vim.fn.systemlist({
 		'env', 'LC_COLLATE=C', 'gls', '-1A', '-v', '--group-directories-first', '-r', '--', vim.b.vidir_dir,
 	})
 	if vim.v.shell_error ~= 0 then error(table.concat(files, '\n')) end
-	local commands = { '#!/bin/sh', 'set -eu', 'cd -- ' .. shell_quote(vim.b.vidir_dir) }
+	local commands = { '#!/bin/sh', 'set -eu', 'cd -- ' .. directory_quote(vim.b.vidir_dir) }
 	for _, path in ipairs(files) do
 		local quoted = shell_quote(path)
 		commands[#commands + 1] = 'mv -v -- ' .. quoted .. ' ' .. quoted
@@ -32,7 +41,7 @@ local function open()
 	vim.cmd.enew()
 	vim.b.vidir_dir = directory
 	vim.api.nvim_buf_set_name(0, 'vidir://' .. require('dirali').shorten(directory))
-	vim.cmd.bcd(directory)
+	vim.cmd('bcd ' .. vim.fn.fnameescape(directory))
 	refresh()
 	vim.api.nvim_create_autocmd('BufWriteCmd', { buffer = 0, command = "lua require('vidir').run()" })
 	vim.keymap.set({ 'n', 'i' }, '<M-CR>', "<Cmd>lua require('vidir').run()<CR>", { buffer = true })

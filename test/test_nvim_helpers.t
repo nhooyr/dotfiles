@@ -438,6 +438,42 @@ end
 LUA
 }
 
+sub vidir_script_directory_aliases {
+    my ($self) = @_;
+    my $literal = q{quote's" $cash `cmd` \ path};
+    $self->{env}{AQSNOW_DIRALIS}  = 'HOME:TEST_ALIAS_BASE';
+    $self->{env}{TEST_ALIAS_BASE} = "$self->{temporary}/project";
+    $self->{env}{TEST_OUTSIDE}    = "$self->{temporary}/outside";
+    make_path(
+        "$self->{env}{TEST_ALIAS_BASE}/$literal", "$self->{env}{HOME}/home's folder",
+        $self->{env}{TEST_OUTSIDE},               "$self->{temporary}/bin"
+    );
+    $self->{env}{$_} = absolute_path( $self->{env}{$_} ) for qw(HOME TEST_ALIAS_BASE TEST_OUTSIDE);
+    write_file( "$self->{temporary}/bin/gls", "#!/bin/sh\nprintf '%s\\n' '\$TEST_ALIAS_BASE'\n" );
+    chmod 0755, "$self->{temporary}/bin/gls";
+    local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
+    run_script( $self, <<'LUA' );
+local cases = {
+    { vim.env.TEST_ALIAS_BASE, 'cd -- "$TEST_ALIAS_BASE"' },
+    { vim.env.TEST_ALIAS_BASE .. [[/quote's" $cash `cmd` \ path]],
+        [=[cd -- "$TEST_ALIAS_BASE/quote's\" \$cash \`cmd\` \\ path"]=] },
+    { vim.env.HOME, 'cd -- ~' },
+    { vim.env.HOME .. "/home's folder", [[cd -- ~/'home'\''s folder']] },
+    { vim.env.TEST_OUTSIDE, "cd -- '" .. vim.env.TEST_OUTSIDE .. "'" },
+}
+for _, case in ipairs(cases) do
+    vim.cmd('bcd ' .. vim.fn.fnameescape(case[1]))
+    vim.cmd.Vidir()
+    local commands = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    eq(commands[3], case[2], 'directory aliases remain readable and safely quoted')
+    eq(commands[4], [[mv -v -- '$TEST_ALIAS_BASE' '$TEST_ALIAS_BASE']], 'filenames stay literal')
+    local result = vim.system({ 'sh' }, { cwd = '/', stdin = commands[3] .. '\npwd -P\n' }):wait()
+    eq(result.code, 0, result.stderr)
+    eq(result.stdout:gsub('\n$', ''), vim.fn.resolve(case[1]), 'the shell enters the intended directory')
+end
+LUA
+}
+
 sub vidir_refresh_after_success {
     my ($self)    = @_;
     my $directory = "$self->{temporary}/rename's dir";
@@ -1029,6 +1065,7 @@ run_cases(
         terminal_shortcut_enters_terminal_mode  => \&terminal_shortcut_enters_terminal_mode,
         terminal_editor_handoff                 => \&terminal_editor_handoff,
         vidir_buffer_directory                  => \&vidir_buffer_directory,
+        vidir_script_directory_aliases          => \&vidir_script_directory_aliases,
         vidir_refresh_after_success             => \&vidir_refresh_after_success,
         gitstatus_native_directory              => \&gitstatus_native_directory,
         recording_mode_color                    => \&recording_mode_color,
