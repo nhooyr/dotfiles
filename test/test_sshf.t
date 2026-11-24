@@ -44,6 +44,7 @@ const state = JSON.parse(fs.readFileSync(filename, 'utf8'));
 const args = process.argv.slice(2);
 if (args.slice(0, 3).join(' ') !== '-l JavaScript -') throw Error('Unexpected osascript arguments');
 const argv = args.slice(3), action = argv[0];
+if (argv.length !== (action === 'install' ? 2 : 3)) throw Error('Unexpected proxy settings arguments');
 state.calls ||= [];
 function record(operation) {
     state.calls.push(action + ':' + operation);
@@ -303,7 +304,10 @@ PLIST
 
     for my $action (qw(save install restore)) {
         my $result = run_command(
-            [ '/usr/bin/osascript', '-l', 'JavaScript', $native, $action, 'test-service', $self->{snapshot} ],
+            [
+                '/usr/bin/osascript', '-l', 'JavaScript', $native, $action, 'test-service',
+                $action eq 'install' ? () : $self->{snapshot}
+            ],
             { env => $env }
         );
         is( $result->{returncode}, 0,  "native $action succeeds: $result->{stderr}" );
@@ -334,7 +338,10 @@ JXA
 PLIST
     for my $action (qw(save install restore)) {
         my $result = run_command(
-            [ '/usr/bin/osascript', '-l', 'JavaScript', $native, $action, 'test-service', $self->{snapshot} ],
+            [
+                '/usr/bin/osascript', '-l', 'JavaScript', $native, $action, 'test-service',
+                $action eq 'install' ? () : $self->{snapshot}
+            ],
             { env => $env }
         );
         is( $result->{returncode}, 0, "native $action with absent settings succeeds: $result->{stderr}" );

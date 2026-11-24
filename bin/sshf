@@ -84,7 +84,7 @@ ObjC.import('Foundation');
 ObjC.import('SystemConfiguration');
 
 function run(argv) {
-    var action = argv[0], filename = $(argv[2]);
+    var action = argv[0];
     var path = $('/NetworkServices/' + argv[1] + '/Proxies');
     function check(ok, message) {
         if (!ok) throw new Error(message + ' (SystemConfiguration ' + $.SCError() + ')');
@@ -104,7 +104,7 @@ function run(argv) {
             var snapshot = $.NSMutableDictionary.dictionary;
             snapshot.setObjectForKey($(original !== null), $('existed'));
             snapshot.setObjectForKey(original || $.NSDictionary.dictionary, $('proxies'));
-            check(snapshot.writeToFileAtomically(filename, true), 'Could not save SOCKS settings');
+            check(snapshot.writeToFileAtomically($(argv[2]), true), 'Could not save SOCKS settings');
             return;
         }
         var updated = original ? original.mutableCopy : $.NSMutableDictionary.dictionary;
@@ -114,7 +114,7 @@ function run(argv) {
             updated.setObjectForKey($('localhost'), $('SOCKSProxy'));
             updated.setObjectForKey($(1080), $('SOCKSPort'));
         } else if (action === 'restore') {
-            var saved = $.NSDictionary.dictionaryWithContentsOfFile(filename);
+            var saved = $.NSDictionary.dictionaryWithContentsOfFile($(argv[2]));
             check(!saved.isNil(), 'Could not read saved SOCKS settings');
             var proxies = saved.objectForKey($('proxies'));
             socksKeys(proxies).forEach(function (key) {
@@ -165,7 +165,7 @@ proxy() {
 	trap 'exit 0' INT
 	trap 'exit 143' TERM
 	proxy_settings save "$service_id" "$proxy_snapshot"
-	proxy_settings install "$service_id" "$proxy_snapshot"
+	proxy_settings install "$service_id"
 	printf '%s\n' "$forward_command"
 	while IFS= read -r line; do :; done
 }
