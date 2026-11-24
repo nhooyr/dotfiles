@@ -44,7 +44,7 @@ set backupdir-=.
 set undofile
 set undolevels=99999
 set undoreload=99999
-command! Undotree packadd nvim.undotree | lua require('undotree').open()
+command Undotree packadd nvim.undotree | lua require('undotree').open()
 nnoremap <Leader>u <Cmd>Undotree<CR>
 nnoremap <M-u> <Cmd>execute 'earlier' v:count1.'f'<CR>
 
@@ -318,7 +318,7 @@ augroup aqsnow
 	autocmd FileType qf let &l:statusline = "%t%{v:lua.require'quickfix'.title()} %=%-15(%l,%c%V%) %P"
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
 	" New files wait for an explicit save.
-	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent! update | endif
+	autocmd User AqsnowAutosave nested if &modified && filereadable(expand('%:p')) | silent update | endif
 	autocmd BufWritePre,FileWritePre * if expand('<afile>') !~# '://' | call mkdir(expand('<afile>:p:h'), 'p') | endif
 	autocmd filetype gitcommit lua require('gitcommit').setup()
 	autocmd filetype html,jsonc,css setlocal et ts=2 sw=0
