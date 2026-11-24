@@ -1115,7 +1115,7 @@ vim.cmd.cd('/')
 calls[2].callback({ code = 0, stdout = 'second.lua\n', stderr = '' })
 calls[1].callback({ code = 0, stdout = 'first.lua\n', stderr = '' })
 assert(vim.wait(3000, function() return vim.fn.getqflist({ title = 0 }).title == 'Find second' end))
-eq(vim.fn.getcwd(), cwd, 'quickfix keeps the search directory when cwd changes during the scan')
+eq(vim.fn.getcwd(), '/', 'search completion preserves cwd changes made during the scan')
 eq(#vim.fn.getqflist(), 1, 'stale search results do not replace the latest list')
 eq(vim.api.nvim_buf_get_name(vim.fn.getqflist()[1].bufnr), cwd .. '/second.lua', 'results use the search cwd')
 local id = vim.fn.getqflist({ id = 0 }).id
