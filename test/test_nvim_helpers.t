@@ -262,17 +262,16 @@ local function check(expected, title)
     eq(vim.fn.getqflist({ context = 0 }).context, { cwd = directory }, 'the search records its original directory')
     eq(vim.fn.getqflist({ title = 0 }).title, title, 'display formatting preserves the search title')
     eq(helper.title(), expected, 'the title shows only the search command')
-    eq(helper.directory(), '($TEST_SEARCH) ', 'the directory field shows the aliased search directory')
+    eq(helper.label(), '[$TEST_SEARCH]', 'the label shows the aliased search directory')
     vim.cmd.lcd(other)
-    eq(helper.directory(), '($TEST_SEARCH) ', 'changing cwd preserves the original search directory')
-    local function columns(width)
+    eq(helper.label(), '[$TEST_SEARCH]', 'changing cwd preserves the original search directory')
+    for _, width in ipairs({ 80, 120 }) do
         local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = width }).str
-        return assert(display:find(expected, 1, true)), assert(display:find('($TEST_SEARCH)', 1, true))
+        local label = '[$TEST_SEARCH]'
+        eq(display:sub(1, #label + #expected), label .. expected, 'the search label and command stay left-aligned')
+        local _, last = assert(display:find('$TEST_SEARCH', 1, true))
+        assert(not display:find('$TEST_SEARCH', last + 1, true), 'the search directory appears only once')
     end
-    local title80, directory80 = columns(80)
-    local title120, directory120 = columns(120)
-    eq(title120, title80, 'the command title stays left-aligned')
-    eq(directory120 - directory80, 40, 'the search directory stays right-aligned')
 end
 vim.cmd.cd(directory)
 vim.cmd('silent grep needle .')
@@ -287,7 +286,7 @@ vim.cmd.cclose()
 vim.fn.setloclist(0, {}, ' ', { title = 'Other list', items = { { filename = directory .. '/match.txt', lnum = 1 } } })
 vim.cmd.lopen()
 eq(require('quickfix').title(), ' Other list', 'unrelated location lists do not inherit quickfix search context')
-eq(helper.directory(), '', 'unrelated location lists have no search directory')
+eq(helper.label(), vim.api.nvim_eval_statusline('%t', {}).str, 'unrelated location lists keep their native label')
 LUA
 }
 

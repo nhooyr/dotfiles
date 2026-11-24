@@ -16,13 +16,13 @@ local function title()
 	return ' ' .. text:gsub([[/[^%s'"]+]], shorten)
 end
 
-local function directory()
+local function label()
 	local list = fn.getwininfo(fn.win_getid())[1].loclist == 1
 		and fn.getloclist(0, { context = 0 }) or fn.getqflist({ context = 0 })
 	if type(list.context) == 'table' and type(list.context.cwd) == 'string' then
-		return '(' .. require('dirali').shorten(list.context.cwd) .. ') '
+		return '[' .. require('dirali').shorten(list.context.cwd) .. ']'
 	end
-	return ''
+	return vim.api.nvim_eval_statusline('%t', {}).str
 end
 
 local function fmt(info)
@@ -58,4 +58,4 @@ local function fmt(info)
 	return lines
 end
 
-return { fmt = fmt, title = title, directory = directory }
+return { fmt = fmt, title = title, label = label }
