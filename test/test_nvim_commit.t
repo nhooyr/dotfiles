@@ -98,9 +98,9 @@ sub edit {
 
 sub prefixed {
     my ( $snapshot, $path ) = @_;
-    my $title = "$path: ";
+    my $title = "$path:";
     is( $snapshot->{lines}[0], $title, 'title uses the staged path or shared directory' );
-    is_deeply( $snapshot->{cursor}, [ 1, length($title) - 1 ], 'cursor rests on the trailing space' );
+    is_deeply( $snapshot->{cursor}, [ 1, length($title) - 1 ], 'cursor rests on the colon' );
     is( $snapshot->{mode},        'n', 'editor stays in Normal mode' );
     is( $snapshot->{original}[0], '',  'Git supplied a blank title' );
     is_deeply(
@@ -191,7 +191,7 @@ vim.system, vim.uv.spawn = unexpected, unexpected
 vim.fn.system, vim.fn.systemlist, vim.fn.jobstart = unexpected, unexpected, unexpected
 os.execute, io.popen = unexpected, unexpected
 require('gitcommit').prefill_title()
-assert(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == 'one.txt: ', 'Missing buffer-derived title')
+assert(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == 'one.txt:', 'Missing buffer-derived title')
 vim.cmd.quit({ bang = true })
 LUA
     my $result = run_command(
