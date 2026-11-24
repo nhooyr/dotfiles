@@ -55,7 +55,7 @@ VIM
 }
 
 sub run_script {
-    my ( $self, $body, $arguments, $commands ) = @_;
+    my ( $self, $body, $arguments ) = @_;
     write_file( $self->{env}{TEST_SCRIPT}, <<'LUA' . $body );
 local function eq(actual, expected, message)
     assert(vim.deep_equal(actual, expected), message .. '\nexpected: '
@@ -68,8 +68,7 @@ LUA
     my $result = run_command(
         [
             $nvim, '--headless', '-n', '-i', 'NONE', '-u', "$self->{temporary}/init.vim",
-            @{ $commands // [] },
-            '--', @{ $arguments // [ $self->{env}{TEST_ORIGINAL} ] }
+            '--',  @{ $arguments // [ $self->{env}{TEST_ORIGINAL} ] }
         ],
         { env => $self->{env}, cwd => $self->{temporary}, timeout => 15 }
     );
@@ -85,8 +84,8 @@ eq(vim.g.test_plugin_specs, {
 }, 'only the patched Copilot fork is managed externally')
 eq(_G.test_plugin_options[1], { confirm = false }, 'package setup installs without an interactive prompt')
 eq(vim.o.packlockfile, vim.env.TEST_DOTFILES .. '/nvim/nvim-pack-lock.json', 'package revisions use the tracked lockfile')
-eq(vim.fn.exists(':Ls'), 2, 'the local viewer command is available')
-eq(vim.g.loaded_nvim_dir_plugin, true, 'the local viewer disables the native directory browser')
+eq(vim.fn.exists(':Ls'), 0, 'the custom viewer command is removed')
+eq(vim.g.loaded_nvim_dir_plugin, true, 'the native directory browser is loaded')
 assert(not vim.o.autochdir, 'directories change only when explicitly requested')
 local remote = false
 for _, event in ipairs(vim.api.nvim_get_autocmds({ group = 'Network', event = 'BufReadCmd' })) do
@@ -94,14 +93,14 @@ for _, event in ipairs(vim.api.nvim_get_autocmds({ group = 'Network', event = 'B
 end
 assert(remote, 'netrw keeps the scp handler for sshv')
 assert(package.loaded.rendezvous == nil, 'rendezvous stays unloaded at startup')
-assert(package.loaded.vidir == nil, 'vidir stays unloaded at startup')
 assert(package.loaded.snippets == nil, 'snippets stay unloaded until completion or expansion')
 assert(package.loaded.filelinecol == nil, 'file locations stay unloaded for ordinary files')
 assert(package.loaded.grep == nil, 'startup does not load a grep module')
 local grepprg = vim.fn.shellescape(vim.env.TEST_DOTFILES .. '/bin/vgrep')
 eq(vim.o.grepprg, grepprg, 'grep uses the fixed vgrep wrapper')
 eq(vim.o.grepformat, '%f:%l:%c:%m', 'grep uses ripgrep line and column fields')
-eq(vim.fn.exists(':Vidir'), 2, 'Vidir command remains available')
+eq(vim.fn.exists(':Vidir'), 0, 'Vidir is now an external command')
+eq(vim.fn.exists(':Shdo'), 0, 'the Shdo command is removed')
 for _, mode in ipairs({ 'n', 'i' }) do
     assert(vim.fn.maparg('<M-CR>', mode):find("require('rendezvous').quit_and_run()", 1, true),
         'run mapping routes to the lazy helper in ' .. mode)
@@ -135,7 +134,7 @@ eq(is_config(vim.env.TEST_ORIGINAL .. '.lua'), 0, 'unrelated Lua files are exclu
 vim.api.nvim_buf_set_name(0, vim.env.TEST_ORIGINAL .. '.other')
 vim.cmd('source ' .. vim.fn.fnameescape(config .. '/init.vim'))
 eq(vim.g.aqsnow_orig_file, vim.fn.resolve(vim.env.TEST_ORIGINAL), 'reload preserves the original file')
-assert(package.loaded.rendezvous == nil and package.loaded.vidir == nil, 'reload preserves lazy loading')
+assert(package.loaded.rendezvous == nil, 'reload preserves lazy loading')
 eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow' }), registrations, 'reload does not duplicate autocmds')
 vim.cmd('cd ' .. vim.fn.fnameescape(vim.env.HOME))
 vim.cmd('doautocmd CmdlineEnter :')
@@ -265,7 +264,7 @@ vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL .. ':1:1'))
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)), vim.fn.resolve(vim.env.TEST_ORIGINAL),
     'file locations still open their existing target')
 assert(not vim.bo.modified, 'a file-location placeholder does not dirty its target')
-vim.cmd('Ls ' .. vim.fn.fnameescape(vim.fs.dirname(file)))
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.fs.dirname(file)))
 assert(not vim.bo.modified, 'a directory buffer stays unmodified')
 LUA
 }
@@ -322,9 +321,8 @@ LUA
 sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
-    make_path( "$copy/nvim/lua/nested", "$copy/nvim/doc" );
-    copy_preserve( "$root/nvim/doc/ls.txt", "$copy/nvim/doc/ls.txt" );
-    copy_preserve( "$root/nvim/$_",         "$copy/nvim/$_" ) for qw(init.vim nvim-pack-lock.json);
+    make_path("$copy/nvim/lua/nested");
+    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim nvim-pack-lock.json);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
         copy_preserve( $source, "$copy/nvim/lua/" . basename($source) );
     }
@@ -525,24 +523,18 @@ vim.cmd.cd(cwd)
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(directory),
     'normal - opens the file parent with spaces')
-eq(vim.bo.filetype, 'directory', 'local folders use Dirvish')
-assert(vim.endswith(vim.fn.getline(1), '/z-folder/'), 'Ls lists folders before files')
-eq(vim.fn.getcwd(), cwd, 'browsing a directory preserves the selected working directory')
+assert(vim.b.nvim_dir, 'local folders use the native directory viewer')
+eq(vim.fn.getline(1), 'z-folder/', 'the native viewer lists folders before files')
+eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'the native viewer uses its buffer directory')
 vim.cmd.Cdh()
-eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh changes to the displayed directory')
-vim.cmd.cd(cwd)
-vim.bo.filetype = 'directory'
-vim.cmd.Cdh()
-eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh does not depend on the directory viewer')
-vim.bo.filetype = 'directory'
-vim.cmd.cd(cwd)
+eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh handles the displayed directory')
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
     'directory - opens its parent')
 vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
 feed('2-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
-    'Ls parent navigation supports counts')
+    'native parent navigation supports counts')
 vim.cmd('edit /')
 feed('-')
 eq(vim.api.nvim_buf_get_name(0), '/', 'parent navigation stays at the filesystem root')
@@ -558,353 +550,55 @@ LUA
 sub directory_quit_last_window {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
-local original = vim.api.nvim_get_current_buf()
 local directory = vim.fn.getcwd()
 vim.cmd.split()
-vim.cmd('Ls ' .. vim.fn.fnameescape(directory))
+vim.cmd('edit ' .. vim.fn.fnameescape(directory))
 feed('q')
-eq(#vim.api.nvim_list_wins(), 2, 'q preserves other windows')
-eq(vim.api.nvim_get_current_buf(), original, 'q returns to the previous file with multiple windows')
-vim.cmd.only()
-vim.cmd('Ls ' .. vim.fn.fnameescape(directory))
+eq(#vim.api.nvim_list_wins(), 1, 'q closes a directory window while preserving other windows')
+vim.cmd('edit ' .. vim.fn.fnameescape(directory))
 feed('q')
-error('q must quit when Ls occupies the final window')
+error('q must quit when the native viewer occupies the final window')
 LUA
 }
 
-sub directory_filter_bindings {
-    my ($self) = @_;
-    my $directory = "$self->{temporary}/listing";
-    make_path("$directory/.hidden-dir");
-    write_file( "$directory/.hidden-file", "hidden\n" );
-    write_file( "$directory/visible.txt",  "visible\n" );
-    $self->{env}{TEST_LISTING} = $directory;
-    run_script( $self, <<'LUA' );
-vim.cmd('Ls ' .. vim.fn.fnameescape(vim.env.TEST_LISTING))
-local original = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-eq(#original, 3, 'dotfiles are visible by default')
-vim.fn.setreg('/', 'preserved search')
-vim.fn.setreg('"', 'preserved register')
-feed('gh')
-local filtered = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-eq(#filtered, 1, 'gh hides dotfiles and dot-directories')
-assert(vim.endswith(filtered[1], '/visible.txt'), 'gh keeps ordinary files')
-eq(vim.fn.getreg('/'), 'preserved search', 'gh preserves the search pattern')
-eq(vim.fn.getreg('"'), 'preserved register', 'gh preserves the unnamed register')
-eq(vim.wo.conceallevel, 2, 'gh conceals the path prefix')
-feed('gh')
-eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), original, 'a second gh restores the complete listing')
-feed('gh')
-feed('R')
-eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), original, 'native R restores the complete listing')
-
-local child = vim.fn.jobstart({ vim.v.progpath, '--headless', '--embed', '-u', 'NONE', '-n', '-i', 'NONE' }, { rpc = true })
-local function request(method, ...) return vim.fn.rpcrequest(child, method, ...) end
-local ok, err = pcall(function()
-    request('nvim_command', 'set runtimepath^=' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim'))
-    request('nvim_exec_lua', 'require("ls").configure(); require("ls").setup()', {})
-    request('nvim_command', 'Ls ' .. vim.fn.fnameescape(vim.env.TEST_LISTING))
-    request('nvim_command', 'let g:changed = 0')
-    request('nvim_command', 'autocmd TextChanged <buffer> let g:changed = 1')
-    request('nvim_input', 'gh')
-    assert(vim.wait(1000, function()
-        return request('nvim_eval', 'g:changed && line("$") == 1 && &conceallevel > 0') == 1
-    end), 'gh keeps paths concealed after the native TextChanged handler runs')
-    request('nvim_input', 'gh')
-    assert(vim.wait(1000, function()
-        return request('nvim_eval', 'line("$") == 3 && &conceallevel == 2') == 1
-    end), 'a second gh reloads the listing after real keyboard input')
-end)
-pcall(request, 'nvim_command', 'qa!')
-vim.fn.jobwait({ child }, 1000)
-assert(ok, err)
-LUA
-}
-
-sub explore_commands {
-    my ($self) = @_;
-    my $directory = "$self->{temporary}/explore's | # % [x] \\name";
-    make_path($directory);
-    write_file( "$directory/file.txt", "content\n" );
-    $self->{env}{TEST_EXPLORE_DIRECTORY} = $directory;
-    run_script( $self, <<'LUA' );
-local directory = vim.fn.resolve(vim.env.TEST_EXPLORE_DIRECTORY)
-local function check(expected)
-    eq(vim.bo.filetype, 'directory', 'Explore opens Dirvish')
-    eq(vim.api.nvim_buf_get_name(0):gsub('/+$', ''), expected, 'Explore chooses the correct directory')
-end
-local escaped = vim.fn.fnameescape(directory)
-local cwd = vim.fn.getcwd()
-vim.cmd('Explore ' .. escaped)
-check(directory)
-vim.cmd.Explore()
-check(directory)
-vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
-vim.cmd.Explore()
-check(directory)
-vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/unwritten.txt'))
-vim.cmd.Explore()
-check(directory)
-eq(vim.fn.filereadable(directory .. '/unwritten.txt'), 0, 'browsing does not save an unwritten file')
-vim.cmd.enew({ bang = true })
-vim.cmd.Explore()
-check(vim.fn.resolve(cwd))
-
-local function split(command, layout, coordinate, after)
-    local previous = vim.api.nvim_get_current_win()
-    vim.cmd(command .. ' ' .. escaped)
-    check(directory)
-    eq(#vim.api.nvim_tabpage_list_wins(0), 2, 'split Explore creates one window')
-    eq(vim.fn.winlayout()[1], layout, 'split Explore uses the requested orientation')
-    local old = vim.fn.win_screenpos(vim.fn.win_id2win(previous))[coordinate]
-    local new = vim.fn.win_screenpos(0)[coordinate]
-    assert(after and new > old or not after and new < old, 'split Explore honors its placement')
-    vim.cmd.close()
-end
-split('Sexplore', 'col', 1, true)
-split('Vexplore', 'row', 2, true)
-split('aboveleft Sexplore', 'col', 1, false)
-split('aboveleft Vexplore', 'row', 2, false)
-vim.o.splitbelow = false
-split('Sexplore', 'col', 1, false)
-vim.o.splitright = false
-split('Vexplore', 'row', 2, false)
-eq(vim.fn.getcwd(), cwd, 'Explore preserves the working directory')
-
-vim.api.nvim_create_user_command('Explore', function() error('old command') end, {})
-vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
-vim.cmd('Explore ' .. escaped)
-check(directory)
-local remote = false
-for _, event in ipairs(vim.api.nvim_get_autocmds({ group = 'Network', event = 'BufReadCmd' })) do
-    remote = remote or event.pattern == 'scp://*'
-end
-assert(remote, 'Explore overrides preserve netrw SCP support')
-LUA
-}
-
-sub vidir_directory_arguments {
-    my ($self) = @_;
-    my $root = "$self->{temporary}/project";
-    make_path( "$root/child space", "$root/target/deep" );
-    write_file( "$root/file.txt",          'contents' );
-    write_file( "$root/child space/entry", 'contents' );
-    write_file( "$root/target/entry",      'contents' );
-    symlink 'target/deep', "$root/link" or die $!;
-    $self->{env}{TEST_VIDIR_ROOT} = $root;
-    run_script( $self, <<'LUA' );
-local root = vim.fn.resolve(vim.env.TEST_VIDIR_ROOT)
-local function target(command, expected)
-    vim.cmd(command)
-    local directory = vim.bo.filetype == 'directory' and vim.api.nvim_buf_get_name(0) or vim.b.shdo_directory
-    eq(vim.fs.normalize(directory), expected, 'Vidir selects the requested directory')
-    if vim.bo.filetype == 'sh' then vim.cmd('buffer! ' .. vim.b.shdo_listing) end
-end
-vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/file.txt'))
-target('Vidir', root)
-vim.cmd('edit ' .. vim.fn.fnameescape(root .. '/child space'))
-target('Vidir', root .. '/child space')
-vim.cmd.enew()
-vim.cmd.cd(root)
-target('Vidir', root)
-target([[Vidir child\ space]], root .. '/child space')
-target('Vidir link/..', root .. '/target')
-local before, errors = vim.api.nvim_get_current_buf(), {}
-vim.notify = function(message) errors[#errors + 1] = message end
-vim.cmd('Vidir missing')
-eq(vim.api.nvim_get_current_buf(), before, 'invalid arguments do not open a buffer')
-eq(vim.fn.isdirectory(root .. '/missing'), 0, 'invalid arguments do not create a directory')
-assert(#errors == 1, 'invalid arguments report an error')
-assert(vim.tbl_contains(vim.fn.getcompletion('Vidir child', 'cmdline'), 'child space/'),
-    'Vidir completes directories')
-LUA
-}
-
-sub vidir_buffer_directory {
-    my ($self) = @_;
-    my $directory = "$self->{temporary}/rename's dir";
-    make_path($directory);
-    write_file( "$directory/entry", 'content' );
-    $self->{env}{TEST_VIDIR_DIRECTORY} = $directory;
-    run_script( $self, <<'LUA' );
-local directory = vim.fn.resolve(vim.env.TEST_VIDIR_DIRECTORY)
-local cwd = vim.fn.getcwd()
-vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
-local buffer, path = vim.api.nvim_get_current_buf(), vim.api.nvim_buf_get_name(0)
-eq(vim.bo.filetype, 'sh', 'Shdo opens a shell script')
-eq(#vim.api.nvim_tabpage_list_wins(0), 1, 'Shdo replaces the listing in the same window')
-eq(vim.fn.filereadable(path), 1, 'Shdo creates its temporary file immediately')
-eq(vim.b.shdo_directory, directory, 'the script remembers its target directory')
-eq(vim.fn.getcwd(), cwd, 'opening the script preserves the selected working directory')
-eq(vim.fn.haslocaldir(), 0, 'Shdo does not leave a window-local directory')
-eq(vim.api.nvim_buf_get_lines(buffer, 0, 2, false), { '#!/bin/sh', 'set -eu' },
-    'scripts use POSIX sh and stop on errors')
-assert(not vim.bo.undofile, 'temporary scripts do not create persistent undo files')
-vim.cmd.write()
-eq(vim.fn.filereadable(directory .. '/entry'), 1, 'writing only saves the script')
-vim.api.nvim_set_current_buf(vim.b.shdo_listing)
-eq(vim.bo.filetype, 'directory', 'leaving the script returns to Dirvish')
-eq(vim.fn.getcwd(), cwd, 'the directory window retains the original working directory')
-LUA
-}
-
-sub directory_commands_during_startup {
+sub native_directory_startup {
     my ($self) = @_;
     my $directory = "$self->{temporary}/startup directory";
-    make_path($directory);
-    write_file( "$directory/entry", 'content' );
-    $self->{env}{TEST_STARTUP_DIRECTORY} = $directory;
-    for my $command (qw(Vidir Ls Explore)) {
-        $self->{env}{TEST_STARTUP_COMMAND} = $command;
-        run_script( $self, <<'LUA', ["$directory/entry"], ["+$command"] );
-local directory = vim.fn.resolve(vim.env.TEST_STARTUP_DIRECTORY)
-if vim.env.TEST_STARTUP_COMMAND == 'Vidir' then
-    eq(vim.bo.filetype, 'sh', '+Vidir generates its script before VimEnter')
-    eq(vim.b.shdo_directory, directory, 'the startup script uses the file parent')
-    assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false), 'mv -v -- entry entry'),
-        'the startup script includes the directory entry')
-else
-    eq(vim.bo.filetype, 'directory', 'startup commands open the local directory viewer')
-    eq(vim.b.directory.path, directory, 'startup commands use the file parent')
-end
+    make_path("$directory/child");
+    write_file( "$directory/file", 'contents' );
+    $self->{env}{TEST_DIRECTORY} = $directory;
+    run_script( $self, <<'LUA', [$directory] );
+eq(vim.bo.filetype, 'directory', 'startup directories use the native viewer')
+assert(vim.b.nvim_dir, 'the native viewer owns the startup buffer')
+eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)), vim.fn.resolve(vim.env.TEST_DIRECTORY),
+    'startup opens the requested directory')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { 'child/', 'file' }, 'the native viewer renders relative entries')
 LUA
-    }
 }
 
-sub vidir_quotes_shell_directory {
-    my ($self)    = @_;
-    my $directory = "$self->{temporary}/project space's dir";
-    my @names     = ( q{$cash}, q{quote's" name}, q{a;b}, 'plain' );
-    make_path( $directory, "$self->{temporary}/bin" );
-    write_file( "$directory/$_",             'contents' ) for @names;
-    write_file( "$self->{temporary}/bin/mv", '#!' . perl_executable() . "\n" . <<'MOCK' );
-use strict;
-use warnings;
-use Cwd qw(getcwd);
-use JSON::PP;
-open my $log, '>>', $ENV{TEST_MOVE_LOG} or die $!;
-print {$log} encode_json({cwd => getcwd, args => \@ARGV}), "\n";
-MOCK
-    chmod 0755, "$self->{temporary}/bin/mv";
-    local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
-    $self->{env}{TEST_VIDIR_DIRECTORY} = $directory;
-    $self->{env}{TEST_MOVE_LOG}        = "$self->{temporary}/moves";
-    run_script( $self, <<'LUA' );
-vim.cmd('Vidir ' .. vim.fn.fnameescape(vim.env.TEST_VIDIR_DIRECTORY))
-require('shdo').run()
-eq(vim.v.shell_error, 0, 'generated commands execute successfully')
-eq(vim.bo.filetype, 'directory', 'successful execution returns to the listing')
-LUA
-    my @calls = map { decode_json($_) } split /\n/, read_file( $self->{env}{TEST_MOVE_LOG} );
-    is_deeply(
-        [ sort map { $_->{args}[2] } @calls ],
-        [ sort @names ],
-        'shell metacharacters remain literal filenames'
-    );
-
-    for my $call (@calls) {
-        is( $call->{cwd}, absolute_path($directory), 'each command runs in the original directory' );
-        is_deeply(
-            $call->{args},
-            [ '-v', '--', $call->{args}[2], $call->{args}[2] ],
-            'each filename stays one argument'
-        );
-    }
-}
-
-sub vidir_refresh_after_success {
+sub netrw_keeps_its_parent_mapping {
     my ($self) = @_;
-    my $directory = "$self->{temporary}/rename's dir";
-    make_path( $directory, "$self->{temporary}/bin" );
-    write_file( "$directory/original",       "original\n" );
-    write_file( "$directory/other",          "other\n" );
-    write_file( "$self->{temporary}/bin/mv", '#!' . perl_executable() . "\n" . <<'MOCK' );
-use strict;
-use warnings;
-@ARGV == 4 && $ARGV[0] eq '-v' && $ARGV[1] eq '--' or die 'unexpected mv arguments';
-my ($from, $to) = @ARGV[2, 3];
-exit 0 if $from eq $to;
-rename $from, $to or die $!;
-MOCK
-    chmod 0755, "$self->{temporary}/bin/mv";
-    local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
-    $self->{env}{TEST_VIDIR_DIRECTORY} = $directory;
-    run_script( $self, <<'LUA' );
-local directory = vim.fn.resolve(vim.env.TEST_VIDIR_DIRECTORY)
-vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
-local buffer = vim.api.nvim_get_current_buf()
-local commands = vim.api.nvim_buf_get_lines(buffer, 0, -1, false)
-for i, command in ipairs(commands) do
-    if command == 'mv -v -- original original' then commands[i] = 'mv -v -- original renamed' end
-end
-vim.api.nvim_buf_set_lines(buffer, 0, -1, false, commands)
-vim.fn.setreg('a', 'named sentinel')
-vim.fn.setreg('"', 'unnamed sentinel')
-vim.cmd.write()
-eq(vim.fn.filereadable(directory .. '/original'), 1, 'saving does not execute the script')
-feed('<M-CR>')
-eq(vim.v.shell_error, 0, 'Alt-Enter runs the saved commands')
-eq(vim.fn.filereadable(directory .. '/renamed'), 1, 'the rename ran')
-eq(vim.fn.filereadable(directory .. '/original'), 0, 'the old filename is gone')
-eq(vim.bo.filetype, 'directory', 'successful execution returns to the listing')
-assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false), directory .. '/renamed'),
-    'successful execution refreshes the directory listing')
-vim.cmd('Vidir ' .. vim.fn.fnameescape(directory))
-local failed_buffer = vim.api.nvim_get_current_buf()
-local failing = { 'set -eu', 'false', 'touch should-not-exist' }
-vim.api.nvim_buf_set_lines(failed_buffer, 0, -1, false, failing)
-feed('<M-CR>')
-assert(vim.v.shell_error ~= 0, 'the failed command reports an error')
-eq(vim.api.nvim_get_current_buf(), failed_buffer, 'failure keeps the script open')
-eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), failing, 'failure preserves commands for correction')
-eq(vim.fn.filereadable(directory .. '/should-not-exist'), 0, 'commands after the failure do not run')
-eq(vim.fn.getreg('a'), 'named sentinel', 'named registers are preserved')
-eq(vim.fn.getreg('"'), 'unnamed sentinel', 'the unnamed register is preserved')
-LUA
-}
-
-sub shdo_preserves_windows_and_shell {
-    my ($self) = @_;
-    plan skip_all => 'fish is needed to test shell restoration' unless which('fish');
-    my $directory = "$self->{temporary}/script directory";
+    my $directory = "$self->{temporary}/netrw-parent/child";
     make_path($directory);
-    write_file( "$directory/" . q{back\slash $cash}, 'content' );
-    $self->{env}{TEST_SHDO_DIRECTORY} = $directory;
+    $self->{env}{TEST_NETRW_DIRECTORY} = $directory;
     run_script( $self, <<'LUA' );
-local directory = vim.fn.resolve(vim.env.TEST_SHDO_DIRECTORY)
-local other_window, other_buffer = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
-local cwd, shell = vim.fn.getcwd(), vim.o.shell
-vim.cmd.vsplit()
-local window = vim.api.nvim_get_current_win()
-vim.cmd('Ls ' .. vim.fn.fnameescape(directory))
-local listing = vim.api.nvim_get_current_buf()
-vim.o.shell = 'fish'
-vim.cmd('%Shdo cp -- {} {}.copy')
-eq(vim.o.shell, 'fish', 'Shdo restores the configured shell after generating commands')
-eq(vim.api.nvim_get_current_win(), window, 'Shdo keeps the originating window')
-eq(#vim.api.nvim_tabpage_list_wins(0), 2, 'Shdo does not leave an additional split')
-eq(vim.api.nvim_win_get_buf(other_window), other_buffer, 'other windows keep their buffers')
-eq(vim.fn.getcwd(), cwd, 'Shdo does not change the selected working directory')
-eq(vim.fn.haslocaldir(), 0, 'Shdo does not leave a local working directory')
-eq(vim.b.shdo_directory, directory, 'generic Shdo records the command directory')
-eq(vim.api.nvim_buf_get_lines(0, 0, 2, false), { '#!/bin/sh', 'set -eu' }, 'generic Shdo receives the safety header')
-assert(vim.tbl_contains(vim.api.nvim_buf_get_lines(0, 0, -1, false),
-    [[cp -- 'back\slash $cash' 'back\slash $cash'.copy]]),
-    'commands use POSIX shell quoting: ' .. vim.inspect(vim.api.nvim_buf_get_lines(0, 0, -1, false)))
-feed('i<M-CR>')
-eq(vim.v.shell_error, 0, 'Alt-Enter from Insert mode executes generic Shdo')
-eq(vim.fn.filereadable(directory .. [[/back\slash $cash.copy]]), 1, 'the generated command uses the intended filename')
-eq(vim.api.nvim_get_current_buf(), listing, 'success returns to the original listing')
-vim.cmd('%Shdo true')
-feed('<Leader>1')
-eq(vim.v.shell_error, 0, 'Leader-1 runs through the same shell helper')
-eq(vim.api.nvim_get_current_buf(), listing, 'Leader-1 returns to the listing')
-eq(vim.o.shell, 'fish', 'execution leaves the configured shell unchanged')
-vim.o.shell = shell
+local directory = vim.fn.resolve(vim.env.TEST_NETRW_DIRECTORY)
+local commands = vim.api.nvim_get_commands({ builtin = false })
+for _, name in ipairs({ 'Explore', 'Sexplore', 'Vexplore', 'Hexplore', 'Texplore', 'Lexplore' }) do
+    assert(commands[name].definition:find('netrw#', 1, true), name .. ' remains a netrw command')
+end
+vim.cmd('Explore ' .. vim.fn.fnameescape(directory))
+eq(vim.bo.filetype, 'netrw', 'Explore explicitly opens netrw')
+local mapping = vim.fn.maparg('-', 'n', false, true)
+eq(mapping.buffer, 1, 'netrw parent navigation is buffer-local')
+eq(mapping.rhs, '<Plug>NetrwBrowseUpDir', 'netrw overrides native parent navigation')
+feed('-')
+eq(vim.fn.resolve(vim.b.netrw_curdir), vim.fn.resolve(vim.fs.dirname(directory)),
+    'netrw uses its own parent-directory action')
 LUA
 }
 
-sub gitstatus_dirvish_directory {
+sub gitstatus_native_directory {
     my ($self) = @_;
     my $directory = "$self->{temporary}/directory repo";
     make_path("$directory/.git");
@@ -919,12 +613,12 @@ vim.system = function(_, options, callback)
     return { is_closing = function() return true end }
 end
 vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_DIRECTORY))
-eq(vim.bo.filetype, 'directory', 'fixture opens Dirvish')
+eq(vim.bo.filetype, 'directory', 'fixture opens the native directory viewer')
 assert(vim.bo.buftype ~= '', 'directory browser is a special buffer')
 require('gitstatus').setup()
 assert(vim.wait(1000, function() return vim.b.vcs_prompt == ' (directory-main)' end, 1),
-    'Ls receives its repository status')
-eq(#calls, 1, 'Ls requests status once')
+    'the native directory receives its repository status')
+eq(#calls, 1, 'the native directory requests status once')
 eq(vim.fn.resolve(calls[1]), vim.fn.resolve(vim.env.TEST_STATUS_DIRECTORY),
     'status runs in the directory being browsed')
 LUA
@@ -1301,7 +995,7 @@ end
 eq(search('^empty$'), { 'empty' }, 'regexes match directory names without display suffixes')
 eq(search('empty'), { 'empty' }, 'empty directories are searchable')
 vim.cmd.cfirst()
-eq(vim.bo.filetype, 'directory', 'quickfix opens Dirvish')
+eq(vim.bo.filetype, 'directory', 'quickfix opens the native directory viewer')
 LUA
 }
 
@@ -1569,18 +1263,12 @@ run_cases(
         commit_title_prefix                     => \&commit_title_prefix,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         directory_navigation                    => \&directory_navigation,
-        directory_filter_bindings               => \&directory_filter_bindings,
         directory_quit_last_window              => \&directory_quit_last_window,
-        explore_commands                        => \&explore_commands,
+        native_directory_startup                => \&native_directory_startup,
+        netrw_keeps_its_parent_mapping          => \&netrw_keeps_its_parent_mapping,
         terminal_shortcut_enters_terminal_mode  => \&terminal_shortcut_enters_terminal_mode,
         terminal_editor_handoff                 => \&terminal_editor_handoff,
-        vidir_buffer_directory                  => \&vidir_buffer_directory,
-        directory_commands_during_startup       => \&directory_commands_during_startup,
-        vidir_directory_arguments               => \&vidir_directory_arguments,
-        vidir_quotes_shell_directory            => \&vidir_quotes_shell_directory,
-        vidir_refresh_after_success             => \&vidir_refresh_after_success,
-        shdo_preserves_windows_and_shell        => \&shdo_preserves_windows_and_shell,
-        gitstatus_dirvish_directory             => \&gitstatus_dirvish_directory,
+        gitstatus_native_directory              => \&gitstatus_native_directory,
         recording_mode_color                    => \&recording_mode_color,
         snippet_completion_reload               => \&snippet_completion_reload,
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,

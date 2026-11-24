@@ -136,11 +136,11 @@ nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
 command Cdh execute 'cd' fnameescape(isdirectory(expand('%')) ? expand('%') : expand('%:h'))
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
 nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snippets.lua<CR>
-" Local directories use our directory viewer.
+" Local directories use Neovim's native browser.
 " Keep these settings for netrw's remote browsing (e.g. scp:// via sshv).
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
-nnoremap - <Cmd>lua require('ls').parent(vim.v.count1)<CR>
+nnoremap - <Plug>(nvim-dir-up)
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
@@ -264,7 +264,6 @@ nnoremap <M-n> <Cmd>execute v:count1.'next'<CR>
 nnoremap <M-p> <Cmd>execute v:count1.'prev'<CR>
 nnoremap Z zz
 
-command -nargs=? -complete=dir Vidir lua require('vidir').open(<f-args>)
 nnoremap <Leader>e <Cmd>terminal<CR><Cmd>startinsert<CR>
 command -bar -range=% Reverse <line1>,<line2>global/^/m<line1>-1
 
@@ -291,7 +290,6 @@ for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
 		call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
 	endif
 endfor
-lua require('ls').configure()
 let &grepprg = shellescape(fnamemodify(s:config_dir, ':h') . '/bin/vgrep')
 set grepformat=%f:%l:%c:%m
 inoremap <M-j> <Cmd>lua require('snippets').expand_or_jump()<CR>
@@ -339,10 +337,6 @@ augroup aqsnow
 	autocmd filetype diff lua require('diff').setup()
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
-lua require('shdo').setup()
-" Load netrw before overriding its Explore commands.
-packadd netrw
-lua require('ls').setup()
 if v:vim_did_enter
 	lua require('gitstatus').setup()
 else
