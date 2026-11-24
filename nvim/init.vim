@@ -134,7 +134,7 @@ let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 let g:netrw_keepdir = 0
 set autochdir
-nnoremap - <Cmd>lua require('netrw').edit_parent()<CR>
+nmap - <Plug>(nvim-dir-up)
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
@@ -304,11 +304,10 @@ augroup aqsnow
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
 	autocmd BufRead,BufNewFile *.json setlocal filetype=json5
 	autocmd BufReadPost * call <SID>restore_cursor()
-	autocmd BufEnter,WinEnter * if &autochdir && exists('b:vidir_dir') | call nvim_set_current_dir(b:vidir_dir) | endif
 	autocmd filetype sh let &l:formatprg='shfmt -s'
 	autocmd BufWritePost * if <SID>is_config_file(expand('<afile>:p')) | call <SID>queue_config_reload() | endif
 	autocmd filetype diff lua require('diff').setup()
-	autocmd filetype netrw lua require('netrw').setup()
+	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 if v:vim_did_enter
 	lua require('gitstatus').setup()

@@ -74,7 +74,6 @@ sub startup_and_config_paths {
 eq(vim.g.aqsnow_orig_file, vim.fn.resolve(vim.env.TEST_ORIGINAL), 'startup records the original file')
 assert(package.loaded.rendezvous == nil, 'rendezvous stays unloaded at startup')
 assert(package.loaded.vidir == nil, 'vidir stays unloaded at startup')
-assert(package.loaded.netrw == nil, 'netrw stays unloaded until navigation')
 assert(package.loaded.snips == nil, 'snippets stay unloaded until completion or expansion')
 assert(package.loaded.fileline == nil, 'file locations stay unloaded for ordinary files')
 assert(package.loaded.grep == nil, 'startup does not load a grep module')
@@ -216,7 +215,7 @@ eq(contents, { { 'original' }, { 'unsaved edit' } }, 'comparison shows disk cont
 LUA
 }
 
-sub netrw_navigation {
+sub directory_navigation {
     my ($self) = @_;
     my $directory = "$self->{temporary}/parent dir/child";
     make_path($directory);
@@ -225,33 +224,54 @@ sub netrw_navigation {
     run_script( $self, <<'LUA' );
 local directory = vim.env.TEST_NAV_DIRECTORY
 vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
-assert(package.loaded.netrw == nil, 'ordinary file editing keeps netrw unloaded')
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(directory),
     'normal - opens the file parent with spaces')
-assert(package.loaded.netrw ~= nil, 'navigation loads netrw helpers')
-vim.b.netrw_curdir = directory
-vim.bo.filetype = 'netrw'
-for _, key in ipairs({ 'q', '-' }) do
-    local mapping = vim.fn.maparg(key, 'n', false, true)
-    eq({ mapping.buffer, mapping.nowait }, { 1, 1 }, 'netrw ' .. key .. ' is local and immediate')
-end
-vim.b.netrw_curdir = directory .. '///'
+eq(vim.bo.filetype, 'directory', 'local folders use the native directory browser')
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
-    'netrw - ignores trailing slashes')
+    'directory - opens its parent')
+vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
+feed('2-')
+eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
+    'native parent navigation supports counts')
 vim.cmd('edit /')
-vim.b.netrw_curdir = '///'
-vim.bo.filetype = 'netrw'
 feed('-')
 eq(vim.api.nvim_buf_get_name(0), '/', 'parent navigation stays at the filesystem root')
+vim.bo.filetype = 'netrw'
+local mapping = vim.fn.maparg('q', 'n', false, true)
+eq({ mapping.buffer, mapping.nowait }, { 1, 1 }, 'netrw q remains local and immediate')
 vim.cmd.split()
 feed('q')
 eq(#vim.api.nvim_tabpage_list_wins(0), 1, 'netrw q closes the current window')
-vim.cmd.enew()
-vim.b.netrw_curdir = 'scp://host/path'
-vim.bo.filetype = 'netrw'
-eq(vim.fn.maparg('-', 'n', false, true).buffer, 0, 'remote netrw paths retain the global - mapping')
+LUA
+}
+
+sub vidir_buffer_directory {
+    my ($self) = @_;
+    my $directory = "$self->{temporary}/rename dir";
+    make_path( $directory, "$self->{temporary}/bin" );
+    write_file( "$directory/entry",           "content\n" );
+    write_file( "$self->{temporary}/bin/gls", "#!/bin/sh\nprintf '%s\\n' entry\n" );
+    chmod 0755, "$self->{temporary}/bin/gls";
+    local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
+    $self->{env}{TEST_VIDIR_DIRECTORY} = $directory;
+    run_script( $self, <<'LUA' );
+local directory = vim.env.TEST_VIDIR_DIRECTORY
+vim.cmd('cd ' .. vim.fn.fnameescape(directory))
+vim.cmd.Vidir()
+local buffer = vim.api.nvim_get_current_buf()
+eq(vim.fn.resolve(vim.b.vidir_dir), vim.fn.resolve(directory), 'Vidir records its directory')
+eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Vidir starts in its directory')
+eq(vim.api.nvim_buf_get_lines(buffer, 0, -1, false),
+    { '#!/bin/sh', 'set -eu', "mv -v -- 'entry' 'entry'" }, 'Vidir retains its existing command list')
+for _ = 1, 3 do
+    vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
+    eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(vim.fs.dirname(vim.env.TEST_ORIGINAL)),
+        'ordinary files use their own directory')
+    vim.cmd.buffer(buffer)
+    eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'returning to Vidir restores its directory')
+end
 LUA
 }
 
@@ -599,7 +619,8 @@ run_cases(
         nested_module_reload                    => \&nested_module_reload,
         first_commit_summary_width              => \&first_commit_summary_width,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
-        netrw_navigation                        => \&netrw_navigation,
+        directory_navigation                    => \&directory_navigation,
+        vidir_buffer_directory                  => \&vidir_buffer_directory,
         gitstatus_native_directory              => \&gitstatus_native_directory,
         recording_mode_color                    => \&recording_mode_color,
         snippet_completion_reload               => \&snippet_completion_reload,

@@ -18,6 +18,7 @@ local function open()
 	vim.cmd.enew()
 	vim.b.vidir_dir = directory
 	vim.api.nvim_buf_set_name(0, 'vidir://' .. require('dirali').shorten(directory))
+	vim.cmd.bcd(directory)
 	vim.api.nvim_buf_set_lines(0, 0, -1, false, { '#!/bin/sh', 'set -eu' })
 	vim.cmd('silent $read !LC_COLLATE=C gls -1A -v --group-directories-first -r')
 	local commands = vim.api.nvim_buf_get_lines(0, 2, -1, false)
