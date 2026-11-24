@@ -28,7 +28,9 @@ dotln ./fish/fzfpaths_ignore ~/.config/fzfpaths/ignore
 ./codex/install.sh
 ./vscode/theme/install.sh
 ./bat/install.sh
-if ! [ -d ~/.config/nvim/pack/github/start/copilot.vim ]; then
-	git clone --depth=1 https://github.com/github/copilot.vim.git \
-		~/.config/nvim/pack/github/start/copilot.vim
-fi
+output=$(nvim --headless -u ./nvim/plugins.vim -n -i NONE \
+	+'if !empty(v:errmsg) | cquit | endif' +qa 2>&1) || {
+	printf '%s\n' "$output" >&2
+	exit 1
+}
+printf 'dotfiles: nvim: %s: Installed plugins.\n' "${0##*/}"

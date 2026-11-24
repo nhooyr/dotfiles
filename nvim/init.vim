@@ -1,3 +1,6 @@
+let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
+execute 'source' fnameescape(s:config_dir . '/plugins.vim')
+
 set number
 set tabstop=4
 set shiftwidth=0
@@ -131,11 +134,11 @@ nnoremap <Leader>s <Cmd>if <SID>is_config_file(expand('%:p')) \| silent update \
 " nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
 nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snips.lua<CR>
-" Local directories use Neovim's native browser.
+" Local directories use Dirvish.
 " Keep these settings for netrw's remote browsing (e.g. scp:// via sshv).
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
-nmap - <Plug>(nvim-dir-up)
+nmap - <Plug>(dirvish_up)
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
@@ -278,7 +281,6 @@ let &quickfixtextfunc = "v:lua.require'qf'.fmt"
 highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=3
 
-let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 silent doautocmd <nomodeline> User AqsnowGitStatusStop
 for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
 	let s:module = substitute(strpart(s:lua_file, strlen(s:config_dir) + 5)[:-5], '/', '.', 'g')
@@ -297,6 +299,7 @@ snoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
 function s:is_config_file(path) abort
 	let path = resolve(a:path)
 	return path ==# resolve($MYVIMRC)
+			\ || path ==# s:config_dir . '/plugins.vim'
 			\ || (stridx(path, s:config_dir . '/lua/') == 0 && fnamemodify(path, ':e') ==# 'lua')
 endfunction
 

@@ -5,12 +5,14 @@ use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
 
-my $root = absolute_path("$FindBin::Bin/..");
-my $nvim = which('nvim');
+my $root    = absolute_path("$FindBin::Bin/..");
+my $nvim    = which('nvim');
+my $dirvish = ( $ENV{XDG_DATA_HOME} || "$ENV{HOME}/.local/share" ) . '/nvim/site/pack/core/opt/vim-dirvish';
 
 sub setup {
     my ($self) = @_;
     plan skip_all => 'Neovim is needed to test the editor helpers' unless $nvim;
+    die "Dirvish is not installed: $dirvish\n" unless -d $dirvish;
     $self->{temporary} = tempdir( 'nvim-helpers-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $tmp = $self->{temporary};
     make_path("$tmp/home");
@@ -27,6 +29,7 @@ sub setup {
         AQSNOW_FISH_RENDEZVOUS => "$tmp/request",
         dotfiles               => $root,
         TEST_DOTFILES          => $root,
+        TEST_DIRVISH           => $dirvish,
         TEST_ORIGINAL          => "$tmp/original.txt",
         TEST_SCRIPT            => "$tmp/case.lua",
     };
@@ -34,6 +37,15 @@ sub setup {
 let $MYVIMRC = expand('<sfile>:p')
 let g:test_config_sources = get(g:, 'test_config_sources', 0) + 1
 execute 'set runtimepath^=' . fnameescape($TEST_DOTFILES . '/nvim')
+lua << EOF
+vim.pack.add = function(specs, options)
+    vim.g.test_plugin_specs = specs
+    vim.g.test_plugin_options = options
+    if not vim.tbl_contains(vim.opt.runtimepath:get(), vim.env.TEST_DIRVISH) then
+        vim.opt.runtimepath:prepend(vim.env.TEST_DIRVISH)
+    end
+end
+EOF
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
 vim.api.nvim_create_autocmd('VimEnter', { callback = function()
@@ -72,6 +84,20 @@ sub startup_and_config_paths {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
 eq(vim.g.aqsnow_orig_file, vim.fn.resolve(vim.env.TEST_ORIGINAL), 'startup records the original file')
+eq(vim.g.test_plugin_specs, {
+    { src = 'https://github.com/nhooyr/copilot.vim.git', version = 'fix-partial-accept-preview' },
+    'https://github.com/justinmk/vim-dirvish.git',
+}, 'native packages preserve the patched Copilot fork and include Dirvish')
+eq(vim.g.test_plugin_options, { confirm = false }, 'package setup installs without an interactive prompt')
+eq(vim.o.packlockfile, vim.env.TEST_DOTFILES .. '/nvim/nvim-pack-lock.json', 'package revisions use the tracked lockfile')
+eq(vim.g.loaded_dirvish, 1, 'Dirvish loads during startup')
+eq(vim.g.loaded_nvim_dir_plugin, 0, 'Dirvish disables the native directory browser')
+assert(not vim.o.autochdir, 'directories change only when explicitly requested')
+local remote = false
+for _, event in ipairs(vim.api.nvim_get_autocmds({ group = 'Network', event = 'BufReadCmd' })) do
+    remote = remote or event.pattern == 'scp://*'
+end
+assert(remote, 'netrw keeps the scp handler for sshv')
 assert(package.loaded.rendezvous == nil, 'rendezvous stays unloaded at startup')
 assert(package.loaded.vidir == nil, 'vidir stays unloaded at startup')
 assert(package.loaded.snips == nil, 'snippets stay unloaded until completion or expansion')
@@ -102,6 +128,7 @@ local is_config = vim.fn[name]
 local config = vim.env.TEST_DOTFILES .. '/nvim'
 local registrations = #vim.api.nvim_get_autocmds({ group = 'aqsnow' })
 eq(is_config(vim.env.MYVIMRC), 1, 'the active init file is watched')
+eq(is_config(config .. '/plugins.vim'), 1, 'the package declaration is watched')
 eq(is_config(config .. '/lua/rendezvous.lua'), 1, 'new Lua helpers are watched')
 eq(is_config(config .. '/lua/nested/future.lua'), 1, 'nested Lua helpers are watched')
 eq(is_config(config .. '/lua/helper.txt'), 0, 'other extensions are excluded')
@@ -269,7 +296,7 @@ sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
     make_path("$copy/nvim/lua/nested");
-    copy_preserve( "$root/nvim/init.vim", "$copy/nvim/init.vim" );
+    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim plugins.vim nvim-pack-lock.json);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
         copy_preserve( $source, "$copy/nvim/lua/" . basename($source) );
     }
@@ -466,14 +493,15 @@ eq(vim.fn.getcwd(), cwd, 'opening a file does not change the working directory')
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(directory),
     'normal - opens the file parent with spaces')
-eq(vim.bo.filetype, 'directory', 'local folders use the native directory browser')
+eq(vim.bo.filetype, 'dirvish', 'local folders use Dirvish')
+eq(vim.fn.getcwd(), cwd, 'browsing a directory preserves the selected working directory')
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
     'directory - opens its parent')
 vim.cmd('edit ' .. vim.fn.fnameescape(directory .. '/file.txt'))
 feed('2-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
-    'native parent navigation supports counts')
+    'Dirvish parent navigation supports counts')
 vim.cmd('edit /')
 feed('-')
 eq(vim.api.nvim_buf_get_name(0), '/', 'parent navigation stays at the filesystem root')
@@ -681,7 +709,7 @@ eq(vim.fn.getreg('"'), 'unnamed sentinel', 'the unnamed register is preserved')
 LUA
 }
 
-sub gitstatus_native_directory {
+sub gitstatus_dirvish_directory {
     my ($self) = @_;
     my $directory = "$self->{temporary}/directory repo";
     make_path("$directory/.git");
@@ -696,12 +724,12 @@ vim.system = function(_, options, callback)
     return { is_closing = function() return true end }
 end
 vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_DIRECTORY))
-eq(vim.bo.filetype, 'directory', 'fixture opens the native directory browser')
+eq(vim.bo.filetype, 'dirvish', 'fixture opens Dirvish')
 assert(vim.bo.buftype ~= '', 'directory browser is a special buffer')
 require('gitstatus').setup()
 assert(vim.wait(1000, function() return vim.b.vcs_prompt == ' (directory-main)' end, 1),
-    'native directory receives its repository status')
-eq(#calls, 1, 'native directory requests status once')
+    'Dirvish receives its repository status')
+eq(#calls, 1, 'Dirvish requests status once')
 eq(vim.fn.resolve(calls[1]), vim.fn.resolve(vim.env.TEST_STATUS_DIRECTORY),
     'status runs in the directory being browsed')
 LUA
@@ -1078,7 +1106,7 @@ end
 eq(search('^empty$'), { 'empty' }, 'regexes match directory names without display suffixes')
 eq(search('empty'), { 'empty' }, 'empty directories are searchable')
 vim.cmd.cfirst()
-eq(vim.bo.filetype, 'directory', 'quickfix opens the native directory browser')
+eq(vim.bo.filetype, 'dirvish', 'quickfix opens Dirvish')
 LUA
 }
 
@@ -1351,7 +1379,7 @@ run_cases(
         vidir_directory_arguments               => \&vidir_directory_arguments,
         vidir_quotes_shell_directory            => \&vidir_quotes_shell_directory,
         vidir_refresh_after_success             => \&vidir_refresh_after_success,
-        gitstatus_native_directory              => \&gitstatus_native_directory,
+        gitstatus_dirvish_directory             => \&gitstatus_dirvish_directory,
         recording_mode_color                    => \&recording_mode_color,
         snippet_completion_reload               => \&snippet_completion_reload,
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,

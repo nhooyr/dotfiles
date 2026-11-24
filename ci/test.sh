@@ -8,5 +8,10 @@ if [ "${GITHUB_ACTIONS-}" ]; then
 	sudo install "$(command -v fdfind)" /usr/local/bin/fd
 fi
 
+if command -v nvim >/dev/null; then
+	nvim --headless -u ./nvim/plugins.vim -n -i NONE \
+		+'if !empty(v:errmsg) | cquit | endif' +qa
+fi
+
 cargo test --manifest-path fish/fzfpaths/Cargo.toml --locked
 perl ci/test.pl "$@"
