@@ -44,7 +44,7 @@ const state = JSON.parse(fs.readFileSync(filename, 'utf8'));
 const args = process.argv.slice(2);
 if (args.slice(0, 3).join(' ') !== '-l JavaScript -') throw Error('Unexpected osascript arguments');
 const argv = args.slice(3), action = argv[0];
-if (argv.length !== (action === 'install' ? 2 : 3)) throw Error('Unexpected proxy settings arguments');
+if (argv.length !== (action === 'enable' ? 2 : 3)) throw Error('Unexpected proxy settings arguments');
 state.calls ||= [];
 function record(operation) {
     state.calls.push(action + ':' + operation);
@@ -112,8 +112,8 @@ $.SCPreferencesCommitChanges = prefs => {
 };
 $.SCPreferencesApplyChanges = () => {
     if (!succeeds('apply')) return false;
-    if (action === 'install') {
-        state.installed = clone(state.current);
+    if (action === 'enable') {
+        state.enabled = clone(state.current);
         if (state.during_tunnel) Object.assign(state.current, state.during_tunnel);
         fs.writeFileSync(filename, JSON.stringify(state));
     }
@@ -170,7 +170,7 @@ sub enabled_authenticated_proxy {
         'credentials are never printed'
     );
     is_deeply(
-        $state->{installed},
+        $state->{enabled},
         {
             SOCKSEnable => 1,
             SOCKSProxy  => 'localhost',
@@ -219,7 +219,7 @@ sub setup_failures_restore {
     my $original = { SOCKSEnable => 1, SOCKSProxy => 'original', SOCKSPort => 1234 };
     for my $operation (qw(lock set commit apply)) {
         unlink $self->{snapshot};
-        my ( $result, $state ) = run_proxy( $self, $original, { failures => { "install:$operation" => 1 } } );
+        my ( $result, $state ) = run_proxy( $self, $original, { failures => { "enable:$operation" => 1 } } );
         isnt( $result->{returncode}, 0, "$operation failure is reported" );
         is( $result->{stdout}, '', "$operation failure never reports the tunnel as ready" );
         is_deeply( $state->{current}, $original, "$operation failure restores the original settings" );
@@ -236,7 +236,7 @@ sub snapshot_failure_does_not_modify {
     is( $result->{stdout}, '', 'no ready command' );
     unlike( $result->{stderr}, qr/saved these/, 'does not claim an unsuccessful snapshot was saved' );
     is_deeply( $state->{current}, $original, 'snapshot failure changes nothing' );
-    ok( !grep( /^(?:install|restore):/, @{ $state->{calls} } ), 'never installs without a snapshot' );
+    ok( !grep( /^(?:enable|restore):/, @{ $state->{calls} } ), 'never enables without a snapshot' );
 }
 
 sub restore_failure_is_reported {
@@ -302,11 +302,11 @@ sub native_property_list_round_trip {
 </dict></dict></dict></dict></plist>
 PLIST
 
-    for my $action (qw(save install restore)) {
+    for my $action (qw(save enable restore)) {
         my $result = run_command(
             [
                 '/usr/bin/osascript', '-l', 'JavaScript', $native, $action, 'test-service',
-                $action eq 'install' ? () : $self->{snapshot}
+                $action eq 'enable' ? () : $self->{snapshot}
             ],
             { env => $env }
         );
@@ -336,11 +336,11 @@ JXA
     write_file( $preferences, <<'PLIST' );
 <?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>NetworkServices</key><dict><key>test-service</key><dict><key>UserDefinedName</key><string>Mock Wi-Fi</string></dict></dict></dict></plist>
 PLIST
-    for my $action (qw(save install restore)) {
+    for my $action (qw(save enable restore)) {
         my $result = run_command(
             [
                 '/usr/bin/osascript', '-l', 'JavaScript', $native, $action, 'test-service',
-                $action eq 'install' ? () : $self->{snapshot}
+                $action eq 'enable' ? () : $self->{snapshot}
             ],
             { env => $env }
         );

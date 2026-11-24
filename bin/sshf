@@ -109,7 +109,7 @@ function run(argv) {
         }
         var updated = original ? original.mutableCopy : $.NSMutableDictionary.dictionary;
         socksKeys(updated).forEach(function (key) { updated.removeObjectForKey($(key)); });
-        if (action === 'install') {
+        if (action === 'enable') {
             updated.setObjectForKey($(1), $('SOCKSEnable'));
             updated.setObjectForKey($('localhost'), $('SOCKSProxy'));
             updated.setObjectForKey($(1080), $('SOCKSPort'));
@@ -129,7 +129,7 @@ function run(argv) {
         } else {
             throw new Error('Unknown proxy settings action');
         }
-        if (action === 'install') {
+        if (action === 'enable') {
             check($.SCPreferencesPathSetValue(preferences, path, updated), 'Could not configure SOCKS proxy');
         }
         check($.SCPreferencesCommitChanges(preferences), 'Could not commit SOCKS settings');
@@ -165,7 +165,7 @@ proxy() {
 	trap 'exit 0' INT
 	trap 'exit 143' TERM
 	proxy_settings save "$service_id" "$proxy_snapshot"
-	proxy_settings install "$service_id"
+	proxy_settings enable "$service_id"
 	printf '%s\n' "$forward_command"
 	while IFS= read -r line; do :; done
 }
