@@ -886,12 +886,6 @@ impl Scanner {
                 format!("--read0 requires absolute paths: {}", absolute.display()),
             ));
         }
-        let absolute = if let (Some(parent), Some(name)) = (absolute.parent(), absolute.file_name())
-        {
-            normalize(parent).join(name)
-        } else {
-            absolute
-        };
         let Some(info) = FileInfo::new(&absolute) else {
             return Ok(());
         };

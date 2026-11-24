@@ -2750,41 +2750,12 @@ fn input_paths_reject_relative_filenames() {
 }
 
 #[test]
-fn input_absolute_paths_normalize_parents_before_classification_and_deduplication() {
-    let fixture = Fixture::new();
-    fs::write(fixture.repo.join("binary"), b"\x7fELF").unwrap();
-    make_executable(fixture.repo.join("binary"));
-    let paths = from_input(
-        &mut fixture.command_with_flags(
-            &["--read0", "--keep-dot"],
-            &fixture.local,
-            Path::new(""),
-            "-f",
-            &[("$project", &fixture.repo)],
-        ),
-        &[
-            &fixture.local.join("../global_dir/project/tracked"),
-            &fixture.repo.join("tracked"),
-            &fixture.local.join("dir/../file"),
-            &fixture.local.join("file"),
-            &fixture.local.join("../global_dir/project/binary"),
-            &fixture.repo.join("binary"),
-        ],
-    );
-    assert_eq!(
-        paths,
-        ["$project/tracked", "file", "$project/binary"].map(OsString::from)
-    );
-}
-
-#[test]
-fn input_parent_normalization_preserves_the_symlink_filename() {
+fn input_paths_preserve_symlink_filenames() {
     let fixture = Fixture::new();
     let outside = fixture.root.join("outside");
-    fs::create_dir_all(outside.join("child")).unwrap();
+    fs::create_dir(&outside).unwrap();
     write(&outside, "file");
     symlink("file", outside.join("file-link")).unwrap();
-    symlink("../outside/child", fixture.local.join("link")).unwrap();
     let paths = from_input(
         &mut fixture.command_with_flags(
             &["--read0"],
@@ -2793,11 +2764,7 @@ fn input_parent_normalization_preserves_the_symlink_filename() {
             "-f",
             &[("$outside", &outside)],
         ),
-        &[
-            &fixture.local.join("link/../file-link"),
-            &fixture.local.join("../outside/file-link"),
-            &outside.join("file-link"),
-        ],
+        &[&outside.join("file-link")],
     );
     assert_eq!(paths, [OsString::from("$outside/file-link")]);
 }
