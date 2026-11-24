@@ -132,7 +132,7 @@ nnoremap <Leader>c <Cmd>e $dotfiles/fish/config.fish<CR>
 nnoremap <Leader>v <Cmd>e $MYVIMRC<CR>
 nnoremap <Leader>t <Cmd>e $dotfiles/nvim/lua/snips.lua<CR>
 " Local directories use Neovim's native browser.
-" Keep these settings for netrw's remote browsing (e.g. scp://).
+" Keep these settings for netrw's remote browsing (e.g. scp:// via sshv).
 let g:netrw_banner = 0
 let g:netrw_list_hide = '^\.\.\?\/$'
 let g:netrw_keepdir = 0
