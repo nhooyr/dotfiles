@@ -226,7 +226,7 @@ fn local_paths_replace_global_aliases_in_every_mode() {
 }
 
 #[test]
-fn global_paths_remain_when_the_local_scan_excludes_them() {
+fn local_exclusions_also_hide_overlapping_global_paths() {
     let fixture = Fixture::new();
     write(&fixture.repo, "ignored");
     fs::write(fixture.repo.join(".gitignore"), "ignored\n").unwrap();
@@ -239,8 +239,9 @@ fn global_paths_remain_when_the_local_scan_excludes_them() {
     ));
     for path in ["ignored", "node_modules/tracked"] {
         assert!(!paths.contains(&OsString::from(path)));
-        assert!(paths.contains(&Path::new("$project").join(path).into_os_string()));
+        assert!(!paths.contains(&Path::new("$project").join(path).into_os_string()));
     }
+    assert!(!paths.contains(&"$project".into()));
 }
 
 #[test]
@@ -277,15 +278,14 @@ fn absolute_local_paths_do_not_add_an_alias_copy() {
 }
 
 #[test]
-fn unrelated_globals_stream_while_overlapping_globals_wait_for_local() {
+fn unrelated_globals_stream_while_the_local_scan_is_blocked() {
     let fixture = Fixture::new();
-    let other = fixture.global_dir.join("other");
-    fs::create_dir_all(other.join(".git")).unwrap();
-    write(&other, "tracked");
+    write(&fixture.repo, "nested/ignored");
+    fs::write(fixture.repo.join("nested/.gitignore"), "ignored\n").unwrap();
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
-    fs::write(&git, "#!/bin/sh\nif [ \"$3\" = config ]; then\n  while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\n  printf '\\0'\nelse\n  printf 'tracked\\0'\nfi\n").unwrap();
+    fs::write(&git, "#!/bin/sh\nif [ \"$3\" = config ]; then\n  while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\n  printf '\\0'\nelse\n  printf 'nested/child\\0nested/ignored\\0tracked\\0'\nfi\n").unwrap();
     make_executable(&git);
     let release = fixture.root.join("release");
     let path = env::join_paths(
@@ -293,7 +293,7 @@ fn unrelated_globals_stream_while_overlapping_globals_wait_for_local() {
     )
     .unwrap();
     let mut child = fixture
-        .command(&fixture.repo, &fixture.global_dir, "-f", &[])
+        .command(&fixture.repo.join("nested"), &fixture.global_dir, "-f", &[])
         .env("PATH", path)
         .env("FZF_TEST_RELEASE", &release)
         .stdout(Stdio::piped())
@@ -313,12 +313,14 @@ fn unrelated_globals_stream_while_overlapping_globals_wait_for_local() {
     fs::write(release, "continue").unwrap();
     assert!(child.wait().unwrap().success());
     let output = reader.join().unwrap();
-    let mut expected = other.join("tracked").into_os_string().into_vec();
+    let mut expected = fixture.repo.join("tracked").into_os_string().into_vec();
     expected.push(0);
     assert_eq!(first.unwrap(), expected);
     let paths: Vec<_> = output.split(|byte| *byte == 0).collect();
-    assert!(paths.contains(&b"tracked".as_slice()));
-    assert!(!paths.contains(&fixture.repo.join("tracked").as_os_str().as_encoded_bytes()));
+    assert!(paths.contains(&b"child".as_slice()));
+    for name in ["nested/child", "nested/ignored"] {
+        assert!(!paths.contains(&fixture.repo.join(name).as_os_str().as_encoded_bytes()));
+    }
 }
 
 #[test]
@@ -1112,7 +1114,7 @@ fn global_untracked_paths_use_directory_aliases() {
 fn longest_env_keeps_local_paths_and_abbreviates_uncovered_globals() {
     let fixture = Fixture::new();
     let paths = fixture.run(&mut fixture.command(
-        &fixture.repo,
+        &fixture.repo.join("nested"),
         &fixture.global_dir,
         "-fd",
         &[
@@ -1120,8 +1122,10 @@ fn longest_env_keeps_local_paths_and_abbreviates_uncovered_globals() {
             ("$project", &fixture.repo),
         ],
     ));
-    assert!(paths.contains(&"nested/child".into()));
+    assert!(paths.contains(&"child".into()));
     assert!(paths.contains(&"$project".into()));
+    assert!(paths.contains(&"$project/tracked".into()));
+    assert!(!paths.contains(&"$project/nested".into()));
     assert!(!paths.contains(&"$project/nested/child".into()));
     assert!(
         !paths
@@ -2006,9 +2010,26 @@ fn global_executables_do_not_add_relative_variants() {
 }
 
 #[test]
-fn local_paths_replace_globals_inside_the_current_repository() {
+fn repositories_within_the_local_root_are_not_scanned_globally() {
     let fixture = Fixture::new();
-    let paths = fixture.run(&mut fixture.command(&fixture.repo, &fixture.global_dir, "-fd", &[]));
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    mock_ls_files(
+        &git,
+        "#!/bin/sh\nprintf 'unexpected global scan' >&2\nexit 1\n",
+    )
+    .unwrap();
+    make_executable(&git);
+    let path = env::join_paths(
+        std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.repo, &fixture.global_dir, "-fd", &[])
+            .env("PATH", path),
+    );
     assert!(paths.contains(&"tracked".into()));
     assert!(!paths.contains(&fixture.repo.join("tracked").into_os_string()));
 }

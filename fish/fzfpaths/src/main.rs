@@ -110,11 +110,12 @@ Output:
   indexed file types. If you replace a tracked regular file with a symlink
   to a directory, that symlink is omitted until you stage the change with
   git add. Local scans see the change immediately.
-  Local entries suppress global entries for the same path, regardless of
-  directory-alias spelling. Overlapping global entries wait for the local scan
-  to finish; unrelated global entries continue streaming. Globally listed paths
-  excluded by the local scan remain available. Identical output strings are
-  emitted only once.
+  Global paths inside <DIR>, including <DIR> itself, are skipped regardless of
+  directory-alias spelling. The local scan owns that directory, so its ignore
+  rules also apply to tracked files there. Global paths outside <DIR> continue
+  streaming without waiting for the local scan. Directory aliases only
+  abbreviate output; they do not expand the directory excluded globally.
+  Identical output strings are emitted only once.
   The Fish bindings keep directory aliases in the command line.
   The shell expands them when the command is executed.
 
@@ -222,9 +223,6 @@ fn run(
         classify,
         keep_dot,
         physical_cwd: env::current_dir()?,
-        local_root: Path::new(&args[0]).canonicalize().ok(),
-        local_paths: HashSet::new(),
-        deferred: Vec::new(),
         env_dirs,
         shown: HashSet::new(),
         output: BufWriter::new(io::stdout()),
@@ -234,6 +232,7 @@ fn run(
     let cancelled = Arc::new(AtomicBool::new(false));
     let scanner = Scanner {
         cwd: working_directory()?,
+        local_root: Path::new(&args[0]).canonicalize().ok(),
         files_only: args[2] == "-f",
         directories_only: args[2] == "-d",
         classify,
@@ -244,11 +243,7 @@ fn run(
     };
     thread::scope(|scope| {
         let local = scanner.clone();
-        let mut scans = vec![scope.spawn(move || {
-            let result = local.walk(PathBuf::from(&args[0]));
-            let finished = local.send(Candidate::LocalDone);
-            result.and(finished)
-        })];
+        let mut scans = vec![scope.spawn(move || local.walk(PathBuf::from(&args[0])))];
         if !args[1].is_empty() {
             let global = scanner.clone();
             scans.push(scope.spawn(move || global.global_paths(PathBuf::from(&args[1]))));
@@ -280,18 +275,9 @@ fn run(
                 for candidate in std::iter::once(candidate).chain(receiver.try_iter()) {
                     check_signal()?;
                     let flush = match candidate {
-                        Candidate::Path {
-                            path,
-                            absolute,
-                            local,
-                            style,
-                        } => {
-                            picker.candidate(path, absolute, local, style)?;
+                        Candidate::Path { path, local, style } => {
+                            picker.emit_path(path, local, style)?;
                             !local
-                        }
-                        Candidate::LocalDone => {
-                            picker.finish_local()?;
-                            true
                         }
                         Candidate::Cdpath(path, style) => {
                             picker.emit(
@@ -720,45 +706,12 @@ struct Picker {
     classify: bool,
     keep_dot: bool,
     physical_cwd: PathBuf,
-    local_root: Option<PathBuf>,
-    local_paths: HashSet<PathBuf>,
-    deferred: Vec<(PathBuf, PathBuf, PathStyle)>,
     env_dirs: Vec<(Vec<u8>, Vec<u8>)>,
     shown: HashSet<Vec<u8>>,
     output: BufWriter<io::Stdout>,
 }
 
 impl Picker {
-    fn candidate(
-        &mut self,
-        path: PathBuf,
-        absolute: PathBuf,
-        local: bool,
-        style: PathStyle,
-    ) -> io::Result<()> {
-        if local {
-            self.local_paths.insert(absolute);
-        } else if self.local_paths.contains(&absolute) {
-            return Ok(());
-        } else if self
-            .local_root
-            .as_ref()
-            .is_some_and(|root| absolute.starts_with(root))
-        {
-            self.deferred.push((path, absolute, style));
-            return Ok(());
-        }
-        self.emit_path(path, local, style)
-    }
-
-    fn finish_local(&mut self) -> io::Result<()> {
-        self.local_root = None;
-        for (path, absolute, style) in std::mem::take(&mut self.deferred) {
-            self.candidate(path, absolute, false, style)?;
-        }
-        Ok(())
-    }
-
     fn emit(&mut self, mut path: Vec<u8>, literal: bool, style: &PathStyle) -> io::Result<()> {
         if literal && matches!(path.first(), Some(b'$' | b'~')) {
             path.splice(..0, b"./".iter().copied());
@@ -846,17 +799,16 @@ impl Picker {
 enum Candidate {
     Path {
         path: PathBuf,
-        absolute: PathBuf,
         local: bool,
         style: PathStyle,
     },
-    LocalDone,
     Cdpath(PathBuf, PathStyle),
 }
 
 #[derive(Clone)]
 struct Scanner {
     cwd: PathBuf,
+    local_root: Option<PathBuf>,
     files_only: bool,
     directories_only: bool,
     classify: bool,
@@ -970,19 +922,8 @@ impl Scanner {
             .map_err(|_| io::ErrorKind::BrokenPipe.into())
     }
 
-    fn emit_path(
-        &self,
-        path: PathBuf,
-        absolute: PathBuf,
-        local: bool,
-        style: PathStyle,
-    ) -> io::Result<()> {
-        self.send(Candidate::Path {
-            path,
-            absolute,
-            local,
-            style,
-        })
+    fn emit_path(&self, path: PathBuf, local: bool, style: PathStyle) -> io::Result<()> {
+        self.send(Candidate::Path { path, local, style })
     }
 
     fn style(&self, path: &Path, info: &FileInfo) -> PathStyle {
@@ -1004,13 +945,7 @@ impl Scanner {
         }
     }
 
-    fn candidate(
-        &self,
-        path: PathBuf,
-        absolute: PathBuf,
-        local: bool,
-        info: Option<FileInfo>,
-    ) -> io::Result<()> {
+    fn candidate(&self, path: PathBuf, local: bool, info: Option<FileInfo>) -> io::Result<()> {
         let Some(info) = info.or_else(|| FileInfo::new(&path)) else {
             return Ok(());
         };
@@ -1027,7 +962,7 @@ impl Scanner {
         if local && style.executable {
             style.binary_executable = !has_shebang(&path).unwrap_or(false);
         }
-        self.emit_path(path, absolute, local, style)
+        self.emit_path(path, local, style)
     }
 
     fn global_candidate(
@@ -1036,6 +971,13 @@ impl Scanner {
         absolute: PathBuf,
         ignores: &Gitignore,
     ) -> io::Result<()> {
+        if self
+            .local_root
+            .as_ref()
+            .is_some_and(|root| absolute.starts_with(root))
+        {
+            return Ok(());
+        }
         let Some(info) = FileInfo::new(&path) else {
             return Ok(());
         };
@@ -1045,7 +987,7 @@ impl Scanner {
         {
             return Ok(());
         }
-        self.candidate(path, absolute, false, Some(info))
+        self.candidate(path, false, Some(info))
     }
 
     fn walk(&self, path: PathBuf) -> io::Result<()> {
@@ -1091,7 +1033,7 @@ impl Scanner {
                         continue;
                     }
                     let identity = (metadata.dev(), metadata.ino());
-                    self.candidate(path.clone(), absolute.clone(), true, Some(info))?;
+                    self.candidate(path.clone(), true, Some(info))?;
                     if is_directory && !ancestors.contains(&identity) {
                         let mut ancestors = ancestors.clone();
                         ancestors.push(identity);
@@ -1178,6 +1120,13 @@ impl Scanner {
         parallel(repos, workers, |repo| {
             self.check_cancelled()?;
             let physical_repo = repo.canonicalize()?;
+            if self
+                .local_root
+                .as_ref()
+                .is_some_and(|root| physical_repo.starts_with(root))
+            {
+                return Ok(Vec::new());
+            }
             if !self.files_only {
                 self.global_candidate(repo.clone(), physical_repo.clone(), &ignores)?;
             }
