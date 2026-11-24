@@ -231,7 +231,7 @@ sub multiple_or_no_files {
     put( $self, 'one.txt', "changed\n" );
     put( $self, 'two.txt', "changed\n" );
     git( $self, 'add', '.' );
-    unchanged( edit( $self, 'commit' ) );
+    prefixed( edit( $self, 'commit' ), 'txt' );
 }
 
 sub shared_directory {
