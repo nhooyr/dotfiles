@@ -11,13 +11,27 @@ local function run(pattern, mode)
 	generation = generation + 1
 	local current = generation
 	local command = ({ G = 'Findr', E = 'Finde', F = 'Findf' })[mode] or 'Find'
-	local finish = vim.schedule_wrap(function(result)
+	local listing = true
+	local finish
+	finish = vim.schedule_wrap(function(result)
 		if current ~= generation then return end
-		pending = nil
 		if result.code > 1 then
+			pending = nil
 			vim.notify(vim.trim(result.stderr), vim.log.levels.ERROR)
 			return
 		end
+		if listing then
+			listing = false
+			result.stdout = (result.stdout or ''):gsub('/\n', '\n')
+			if regex then
+				local args = { 'grep', '-' .. mode, '-a', '--color=never' }
+				if ignore_case then args[#args + 1] = '-i' end
+				vim.list_extend(args, { '--', pattern })
+				pending = vim.system(args, { stdin = result.stdout }, finish)
+				return
+			end
+		end
+		pending = nil
 		local items = {}
 		for file in (result.stdout or ''):gmatch('[^\n]+') do
 			local candidate = ignore_case and not regex and vim.fn.tolower(file) or file
@@ -33,19 +47,7 @@ local function run(pattern, mode)
 	end)
 	pending = vim.system({ 'fd', '--hidden', '--follow', '--no-require-git', '--exclude', '.git',
 		'--type', 'file', '--type', 'directory', '--color', 'never' },
-		{ cwd = cwd }, vim.schedule_wrap(function(result)
-			if current ~= generation then return end
-			result.stdout = (result.stdout or ''):gsub('/\n', '\n')
-			if regex and result.code <= 1 then
-				local args = { 'grep', '-' .. mode, '-a', '--color=never' }
-				if ignore_case then args[#args + 1] = '-i' end
-				vim.list_extend(args, { '--', pattern })
-				pending = vim.system(args,
-					{ stdin = result.stdout }, finish)
-			else
-				finish(result)
-			end
-		end))
+		{ cwd = cwd }, finish)
 end
 
 return { run = run }
