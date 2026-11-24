@@ -58,13 +58,23 @@ sub fish {
 
 sub sshv_preserves_remote_paths {
     my ($self) = @_;
+    make_path("$self->{root}/project files");
+    my $literal = q{project's $(touch injected); files};
+    make_path("$self->{root}/$literal");
+    $self->{env}{TEST_REMOTE_PATH} = $literal;
     my $result = fish( $self, <<'FISH' );
+function ssh
+    command sh -c "$argv[3]"
+end
 function nvim
     printf '%s\n' $argv
 end
 sshv server
+sshv user@server 'project files'
 sshv user@server 'project files/'
+sshv server "$TEST_ROOT/project files"
 sshv server /etc/hosts
+sshv server "$TEST_REMOTE_PATH"
 sshv 2>/dev/null
 printf '%s\n' "$status"
 sshv server first second 2>/dev/null
@@ -72,9 +82,29 @@ printf '%s\n' "$status"
 FISH
     is(
         $result->{stdout},
-        "--\nscp://server/\n--\nscp://user\@server/project files/\n" . "--\nscp://server//etc/hosts\n1\n1\n",
-        'netrw receives home, relative, and absolute paths as single arguments; invalid calls fail'
+        "--\nscp://server/\n--\nscp://user\@server/project files/\n--\nscp://user\@server/project files/\n"
+          . "--\nscp://server/$self->{root}/project files/\n--\nscp://server//etc/hosts\n"
+          . "--\nscp://server/$literal/\n1\n1\n",
+        'remote directories gain a slash while files, quoted paths, and invalid calls remain correct'
     );
+    ok( !-e "$self->{root}/injected", 'remote path metacharacters remain literal' );
+}
+
+sub sshv_stops_on_ssh_failure {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+function ssh
+    printf 'ssh: Connection refused\n' >&2
+    return 255
+end
+function nvim
+    printf 'editor opened\n'
+end
+sshv server
+printf '%s\n' "$status"
+FISH
+    is( $result->{stdout}, "255\n", 'SSH failure is returned without opening the editor' );
+    is( $result->{stderr}, "ssh: Connection refused\n", 'the SSH diagnostic is preserved' );
 }
 
 sub aliases_added_after_initialization_are_exported {
@@ -311,6 +341,7 @@ FISH
 run_cases(
     {
         sshv_preserves_remote_paths                       => \&sshv_preserves_remote_paths,
+        sshv_stops_on_ssh_failure                         => \&sshv_stops_on_ssh_failure,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
         alias_values_defined_later_are_exported         => \&alias_values_defined_later_are_exported,
