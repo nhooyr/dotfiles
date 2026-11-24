@@ -37,6 +37,7 @@ SH
         TEST_HPATH      => "$root/bin/hpath",
         TEST_PBC        => "$root/bin/pbc",
         TEST_GREP       => which('grep'),
+        TEST_CD         => "$root/fish/cd.fish",
         TERM            => 'dumb',
     };
 }
@@ -217,8 +218,25 @@ FISH
     is( $result->{stdout}, "7\n", 'source failure is returned without running history merge' );
 }
 
+sub cdf_completes_files_while_retaining_cd_wrapping {
+    my ($self) = @_;
+    make_path("$self->{root}/alpha_dir");
+    write_file( "$self->{root}/alpha_file.txt", 'contents' );
+    my $result = fish( $self, <<'FISH' );
+function abbrali
+end
+source "$TEST_CD"; or exit 1
+complete -C 'cdf alpha'
+complete -c cdf
+FISH
+    like( $result->{stdout}, qr/^alpha_dir\//m,      'directory completion is retained' );
+    like( $result->{stdout}, qr/^alpha_file\.txt$/m, 'regular files are also offered' );
+    like( $result->{stdout}, qr/--wraps[= ]'?cd'?/,  'cdf still inherits the cd completions' );
+}
+
 run_cases(
     {
+        cdf_completes_files_while_retaining_cd_wrapping => \&cdf_completes_files_while_retaining_cd_wrapping,
         mcd_rejects_multiple_arguments_before_creating_anything =>
           \&mcd_rejects_multiple_arguments_before_creating_anything,
         mcd_enters_one_literal_directory                    => \&mcd_enters_one_literal_directory,

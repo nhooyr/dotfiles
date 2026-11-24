@@ -45,6 +45,7 @@ end
 function cdf --wraps cd --argument-names file
     CDPATH=. cd -- "$(path dirname -- "$file")"
 end
+complete -c cdf -a '$(__fish_complete_path)'
 function up
     if not set -q argv[1]
         cd ..
