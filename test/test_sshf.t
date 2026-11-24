@@ -27,21 +27,11 @@ sub setup {
 #!/bin/sh
 exec "$SSHF_TEST_NODE" "$SSHF_TEST_DRIVER" "$@"
 SH
-    write_file( "$self->{temporary}/bin/networksetup", '#!' . perl_executable() . "\n" . <<'PERL' );
-use strict;
-use warnings;
-use JSON::PP;
-die "Unexpected networksetup mutation\n" unless @ARGV == 2 && $ARGV[0] eq '-getsocksfirewallproxy';
-open my $file, '<', $ENV{SSHF_TEST_STATE} or die $!;
-local $/;
-my $state = decode_json(<$file>);
-exit 1 if $state->{read_failure};
-my $proxy = $state->{current} // {};
-print 'Enabled: ', $proxy->{SOCKSEnable} ? 'Yes' : 'No', "\n";
-print 'Server: ', $proxy->{SOCKSProxy} // '', "\n";
-print 'Port: ', $proxy->{SOCKSPort} // 0, "\n";
-print 'Authenticated Proxy Enabled: ', exists($proxy->{SOCKSUser}) ? 1 : 0, "\n";
-PERL
+    write_file( "$self->{temporary}/bin/networksetup", <<'SH' );
+#!/bin/sh
+printf 'Unexpected networksetup call\n' >&2
+exit 1
+SH
     chmod 0755, "$self->{temporary}/bin/osascript", "$self->{temporary}/bin/networksetup";
 
     # Run the production JXA with mocked Foundation/SystemConfiguration APIs.
@@ -172,16 +162,7 @@ sub enabled_authenticated_proxy {
         "sshu -ND localhost:1080 example\n",
         'control output contains only the ready command'
     );
-    like(
-        $result->{stderr},
-        qr/Enabled: Yes\nServer: proxy\.example\nPort: 9050\nAuthenticated Proxy Enabled: 1\n/,
-        'existing settings are shown'
-    );
-    like(
-        $result->{stderr},
-        qr/saved these SOCKS settings and will restore them/,
-        'restoration is announced'
-    );
+    is( $result->{stderr}, '', 'saving and restoring proxy settings is silent' );
     unlike(
         $result->{stderr} . $result->{stdout},
         qr/private-user|private-password/,
@@ -207,7 +188,7 @@ sub disabled_proxy {
     my ( $result, $state ) = run_proxy( $self, $original );
     is( $result->{returncode}, 0, $result->{stderr} );
     is_deeply( $state->{current}, $original, 'disabled proxy retains its original host and port' );
-    like( $result->{stderr}, qr/Enabled: No/, 'disabled state is displayed' );
+    is( $result->{stderr}, '', 'disabled proxy settings are saved silently' );
 }
 
 sub absent_settings {
@@ -278,10 +259,10 @@ sub read_failure_does_not_modify {
     my ($self) = @_;
     my $original = { SOCKSEnable => 0 };
     my ( $result, $state ) =
-      run_proxy( $self, $original, { read_failure => 1 } );
+      run_proxy( $self, $original, { failures => { 'save:lock' => 1 } } );
     isnt( $result->{returncode}, 0, 'settings inspection failure fails setup' );
-    is_deeply( $state->{current}, $original, 'inspection failure changes nothing' );
-    ok( !@{ $state->{calls} // [] }, 'no native preference write is attempted' );
+    is_deeply( $state->{current}, $original,     'inspection failure changes nothing' );
+    is_deeply( $state->{calls},   ['save:lock'], 'no preference write is attempted' );
 }
 
 sub native_property_list_round_trip {

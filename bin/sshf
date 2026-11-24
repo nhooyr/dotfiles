@@ -164,10 +164,7 @@ proxy() {
 	trap 'exit 129' HUP
 	trap 'exit 0' INT
 	trap 'exit 143' TERM
-	current_settings="$(networksetup -getsocksfirewallproxy "$service")"
 	proxy_settings save "$service_id" "$proxy_snapshot"
-	printf '%s: existing SOCKS proxy settings for %s:\n%s\n' "$name" "$service" "$current_settings" >&2
-	printf '%s: saved these SOCKS settings and will restore them when the SSH connection ends.\n' "$name" >&2
 	proxy_settings install "$service_id" "$proxy_snapshot"
 	printf '%s\n' "$forward_command"
 	while IFS= read -r line; do :; done
