@@ -234,96 +234,6 @@ sub ignore_files_outside_git_do_not_filter {
     ok( grep( $_ eq 'original', @$paths ), 'ignore rules apply only inside Git repositories' );
 }
 
-sub git_environment_is_scoped_to_queries {
-    my ($self)    = @_;
-    my $directory = $self->{directory};
-    my $foreign   = "$self->{root}/foreign";
-    make_path( $foreign, "$self->{root}/bin" );
-    for my $repo ( $directory, $foreign ) {
-        run_command( [ 'git', '-C', $repo, 'init', '--quiet' ], { env => $self->{env}, check => 1 } );
-    }
-    run_command( [ 'git', '-C', $foreign, 'config', 'core.ignorecase', 'true' ],
-        { env => $self->{env}, check => 1 } );
-    run_command( [ 'git', '-C', $directory, 'config', 'core.ignorecase', 'false' ],
-        { env => $self->{env}, check => 1 } );
-    write_file( "$foreign/tracked", 'foreign' );
-    run_command( [ 'git', '-C', $foreign, 'add', '--', 'tracked' ], { env => $self->{env}, check => 1 } );
-    write_file( "$directory/.gitignore",       "*.tmp\ncase.UPPER\n" );
-    write_file( "$directory/skip.tmp",         'ignored' );
-    write_file( "$directory/case.upper",       'included' );
-    write_file( "$directory/global.ignore",    'ignored globally' );
-    write_file( "$self->{root}/global-ignore", "global.ignore\n" );
-    my $config = "$self->{root}/gitconfig";
-    run_command( [ 'git', 'config', '--file', $config, 'core.excludesFile', "$self->{root}/global-ignore" ],
-        { env => $self->{env}, check => 1 } );
-    $self->{env}{GIT_CONFIG_GLOBAL} = $config;
-    $self->{env}{TEST_GIT}          = which('git');
-    $self->{env}{TEST_GIT_LOG}      = "$self->{root}/git.json";
-    $self->{env}{TEST_EDITOR_ENV}   = "$self->{root}/editor-env.json";
-    write_file( "$self->{root}/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
-use JSON::PP;
-open my $log, '>>', $ENV{TEST_GIT_LOG} or die $!;
-print {$log} encode_json([\@ARGV, {map { $_ => $ENV{$_} } qw(GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_CONFIG_GLOBAL)}]), "\n";
-close $log;
-exec $ENV{TEST_GIT}, @ARGV;
-die $!;
-PERL
-    chmod 0755, "$self->{root}/bin/git";
-    write_file( "$self->{root}/editor bin/editor", '#!' . perl_executable() . "\n" . <<'PERL' );
-use JSON::PP;
-open my $log, '>', $ENV{TEST_EDITOR_LOG} or die $!;
-print {$log} encode_json(\@ARGV);
-close $log;
-open $log, '>', $ENV{TEST_EDITOR_ENV} or die $!;
-print {$log} encode_json({map { $_ => $ENV{$_} } qw(GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_CONFIG_GLOBAL)});
-close $log;
-PERL
-    $self->{env}{PATH} = "$self->{root}/bin:$ENV{PATH}";
-    my %foreign = (
-        GIT_DIR        => "$foreign/.git",
-        GIT_WORK_TREE  => $foreign,
-        GIT_INDEX_FILE => "$foreign/.git/index"
-    );
-
-    for my $keys ( ['GIT_INDEX_FILE'], ['GIT_DIR'], ['GIT_WORK_TREE'], [ sort keys %foreign ] ) {
-        delete @{ $self->{env} }{ keys %foreign };
-        @{ $self->{env} }{@$keys} = @foreign{@$keys};
-        unlink $self->{env}{TEST_GIT_LOG};
-        my $paths = listed_paths( script_path( $self, invoke($self) ) );
-        ok( grep( $_ eq 'case.upper', @$paths ), 'the target repository supplies case-sensitivity rules' );
-        ok( !grep( $_ eq 'skip.tmp' || $_ eq '.git', @$paths ), 'the target repository ignore rules apply' );
-        ok( !grep( $_ eq 'global.ignore', @$paths ), 'global Git configuration remains available' );
-        my $editor_env = decode_json( read_file( $self->{env}{TEST_EDITOR_ENV} ) );
-        is_deeply(
-            $editor_env,
-            { map { $_ => $self->{env}{$_} } keys %$editor_env },
-            'the editor retains the original Git environment'
-        );
-        my @calls     = map  { decode_json($_) } split /\n/, read_file( $self->{env}{TEST_GIT_LOG} );
-        my @discovery = grep { $_->[0][-1] eq '--local-env-vars' } @calls;
-        is( scalar @discovery, 1, 'Git supplies its local environment names once' );
-
-        for my $call ( grep { $_->[0][-1] ne '--local-env-vars' } @calls ) {
-            is_deeply(
-                $call->[1],
-                {
-                    GIT_CONFIG_GLOBAL => $config,
-                    map { $_ => undef } keys %foreign
-                },
-                'Git queries receive only global configuration'
-            );
-        }
-    }
-    delete @{ $self->{env} }{ grep { /^GIT_/ } keys %{ $self->{env} } };
-    unlink $self->{env}{TEST_GIT_LOG};
-    script_path( $self, invoke($self) );
-    my @calls = map { decode_json($_) } split /\n/, read_file( $self->{env}{TEST_GIT_LOG} );
-    ok(
-        !grep( { $_->[0][-1] eq '--local-env-vars' } @calls ),
-        'without inherited Git variables no discovery process is needed'
-    );
-}
-
 sub persistent_ignore_batches_preserve_rules {
     my ($self) = @_;
     my $directory = $self->{directory};
@@ -535,7 +445,6 @@ run_cases(
         persistent_ignore_batches_preserve_rules     => \&persistent_ignore_batches_preserve_rules,
         invalid_ignore_replies_stop_before_editor    => \&invalid_ignore_replies_stop_before_editor,
         ignore_files_outside_git_do_not_filter       => \&ignore_files_outside_git_do_not_filter,
-        git_environment_is_scoped_to_queries         => \&git_environment_is_scoped_to_queries,
         includes_its_own_script                      => \&includes_its_own_script,
         scan_errors_stop_before_editor               => \&scan_errors_stop_before_editor,
     },

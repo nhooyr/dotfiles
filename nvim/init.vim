@@ -1,3 +1,10 @@
+" Git's editor inherits repository-local settings that should not follow us between buffers.
+if !empty(filter(keys(environ()), {_, name -> name =~# '^GIT_'}))
+	for s:name in systemlist(['git', 'rev-parse', '--local-env-vars'])
+		call setenv(s:name, v:null)
+	endfor
+endif
+
 let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
 execute 'luafile' fnameescape(s:config_dir . '/lua/plugins.lua')
 

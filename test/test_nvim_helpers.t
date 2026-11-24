@@ -76,6 +76,41 @@ LUA
     is( $result->{returncode}, 0, $result->{stderr} );
 }
 
+sub startup_clears_git_environment {
+    my ($self) = @_;
+    for my $name (qw(current foreign)) {
+        my $repo = "$self->{temporary}/$name";
+        make_path($repo);
+        run_command( [ 'git', '-C', $repo, 'init', '-q' ], { env => $self->{env}, check => 1 } );
+        write_file( "$repo/$name.txt", "$name\n" );
+        run_command( [ 'git', '-C', $repo, 'add', '.' ], { env => $self->{env}, check => 1 } );
+    }
+    my $foreign   = "$self->{temporary}/foreign";
+    my %inherited = (
+        GIT_DIR        => "$foreign/.git",
+        GIT_WORK_TREE  => $foreign,
+        GIT_INDEX_FILE => "$foreign/.git/index",
+        GIT_COMMON_DIR => "$foreign/.git",
+        GIT_PREFIX     => 'nested/',
+    );
+    @{ $self->{env} }{ keys %inherited } = values %inherited;
+    $self->{env}{GIT_CONFIG_GLOBAL} = '/dev/null';
+    $self->{env}{GIT_AUTHOR_NAME}   = 'Test author';
+    $self->{env}{TEST_CURRENT}      = "$self->{temporary}/current";
+    run_script( $self, <<'LUA' );
+for _, name in ipairs(vim.fn.systemlist({ 'git', 'rev-parse', '--local-env-vars' })) do
+    eq(vim.fn.getenv(name), vim.NIL, name .. ' is cleared at startup')
+end
+eq(vim.env.GIT_CONFIG_GLOBAL, '/dev/null', 'global configuration is preserved')
+eq(vim.env.GIT_AUTHOR_NAME, 'Test author', 'author settings are preserved')
+local result = vim.system({ 'git', '-C', vim.env.TEST_CURRENT, 'ls-files' }, { text = true }):wait()
+eq(result.code, 0, 'child Git succeeds')
+eq(result.stdout, 'current.txt\n', 'child Git uses the requested repository and index')
+LUA
+    is_deeply( { map { $_ => $self->{env}{$_} } keys %inherited },
+        \%inherited, 'Neovim leaves the parent environment unchanged' );
+}
+
 sub startup_and_config_paths {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1050,61 +1085,6 @@ eq(require('quickfix').title(), 'Other list', 'unrelated lists have no directory
 LUA
 }
 
-sub gitstatus_ignores_editor_repository {
-    my ($self) = @_;
-    $self->{env}{GIT_CONFIG_GLOBAL}   = '/dev/null';
-    $self->{env}{GIT_CONFIG_NOSYSTEM} = 1;
-    $self->{env}{GIT_AUTHOR_NAME}     = $self->{env}{GIT_COMMITTER_NAME}  = 'Fixture';
-    $self->{env}{GIT_AUTHOR_EMAIL}    = $self->{env}{GIT_COMMITTER_EMAIL} = 'fixture@example.invalid';
-    for my $name (qw(foreign main)) {
-        my $repo = "$self->{temporary}/$name";
-        make_path($repo);
-        run_command( [ 'git', '-C', $repo, 'init', '-q', '--initial-branch', $name ],
-            { env => $self->{env}, check => 1 } );
-        write_file( "$repo/file",              $name );
-        write_file( "$repo/.git/info/exclude", ".fish_git_prompt\n" );
-        run_command( [ 'git', '-C', $repo, 'add', 'file' ], { env => $self->{env}, check => 1 } );
-        run_command( [ 'git', '-C', $repo, 'commit', '-qm', 'initial' ],
-            { env => $self->{env}, check => 1 } );
-        $self->{env}{ 'TEST_' . uc($name) } = $repo;
-    }
-    $self->{env}{TEST_CURRENT} = "$self->{temporary}/current";
-    run_command(
-        [
-            'git', '-C', $self->{env}{TEST_MAIN},
-            'worktree', 'add', '-q', '-b', 'current', $self->{env}{TEST_CURRENT}
-        ],
-        { env => $self->{env}, check => 1 }
-    );
-    write_file( "$self->{env}{TEST_CURRENT}/file", 'modified' );
-    run_script( $self, <<'LUA' );
-local foreign, current = vim.env.TEST_FOREIGN, vim.env.TEST_CURRENT
-local cache = current .. '/.fish_git_prompt'
-for _, mode in ipairs({ 'relative index', 'absolute index', 'foreign repository' }) do
-    vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
-    package.loaded.gitstatus, package.loaded['gitstatus.state'] = nil, nil
-    vim.fn.delete(cache)
-    local index = mode == 'relative index' and '.git/index' or foreign .. '/.git/index'
-    local routed = mode == 'foreign repository'
-    vim.env.GIT_INDEX_FILE = index
-    vim.env.GIT_DIR = routed and foreign .. '/.git' or nil
-    vim.env.GIT_WORK_TREE = routed and foreign or nil
-    vim.env.GIT_COMMON_DIR = routed and foreign .. '/.git' or nil
-    vim.cmd.edit(current .. '/file')
-    require('gitstatus').setup()
-    assert(vim.wait(3000, function() return vim.fn.filereadable(cache) == 1 end), 'status cache is written')
-    eq(vim.b.vcs_prompt, ' (current *)', mode .. ': status describes the dirty worktree')
-    local saved = table.concat(vim.fn.readfile(cache), '\n'):gsub('\27%[[0-?]*[ -/]*[@-~]', '')
-    eq(saved, ' (current *)', mode .. ': cache contains the worktree status')
-    eq(vim.env.GIT_INDEX_FILE, index, 'the editor keeps its original index')
-    eq(vim.env.GIT_DIR, routed and foreign .. '/.git' or nil, 'the editor keeps its original Git directory')
-    eq(vim.env.GIT_WORK_TREE, routed and foreign or nil, 'the editor keeps its original worktree')
-    eq(vim.env.GIT_COMMON_DIR, routed and foreign .. '/.git' or nil, 'the editor keeps its common Git directory')
-    eq(vim.env.GIT_CONFIG_GLOBAL, '/dev/null', 'global Git configuration remains available')
-end
-LUA
-}
-
 sub gitstatus_event_queue {
     my ($self) = @_;
     my $repo = "$self->{temporary}/status repo";
@@ -1721,6 +1701,7 @@ LUA
 
 run_cases(
     {
+        startup_clears_git_environment          => \&startup_clears_git_environment,
         startup_and_config_paths                => \&startup_and_config_paths,
         filename_display                        => \&filename_display,
         directory_alias_symlinks                => \&directory_alias_symlinks,
@@ -1752,7 +1733,6 @@ run_cases(
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,
         gitstatus_event_queue                   => \&gitstatus_event_queue,
         gitstatus_quickfix_context              => \&gitstatus_quickfix_context,
-        gitstatus_ignores_editor_repository     => \&gitstatus_ignores_editor_repository,
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         find_files_quickfix                     => \&find_files_quickfix,
         json_indentation                        => \&json_indentation,

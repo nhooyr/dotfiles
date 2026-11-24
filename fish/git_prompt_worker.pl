@@ -62,9 +62,7 @@ if ( !$child ) {
     $ENV{GIT_OPTIONAL_LOCKS} = 0;
     open STDIN,  '<', '/dev/null' or die "stdin: $!\n";
     open STDOUT, '>', $result     or die "$result: $!\n";
-    my $command = 'for name in $(command git rev-parse --local-env-vars); set -eg "$name"; end; '
-      . 'source "$argv[1]"; and aqsnow_vcs_prompt';
-    exec {$fish} $fish, '--no-config', '-c', $command, $prompt;
+    exec {$fish} $fish, '--no-config', '-c', 'source "$argv[1]"; and aqsnow_vcs_prompt', $prompt;
     die "exec $fish: $!\n";
 }
 

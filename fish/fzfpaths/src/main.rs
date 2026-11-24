@@ -12,7 +12,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{self, Child, ChildStdout, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
-use std::sync::{Arc, Condvar, Mutex, OnceLock};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -253,7 +253,6 @@ fn run(
         colors,
         sender,
         git: Arc::clone(&git),
-        git_local_env: Arc::default(),
         cancelled: Arc::clone(&cancelled),
     };
     thread::scope(|scope| {
@@ -833,38 +832,10 @@ struct Scanner {
     colors: Option<Arc<LsColors>>,
     sender: SyncSender<Candidate>,
     git: Arc<Mutex<GitScans>>,
-    git_local_env: Arc<OnceLock<io::Result<Vec<OsString>>>>,
     cancelled: Arc<AtomicBool>,
 }
 
 impl Scanner {
-    fn git_command(&self, directory: &Path) -> io::Result<Command> {
-        let mut command = Command::new("git");
-        command.arg("-C").arg(directory);
-        let names = self
-            .git_local_env
-            .get_or_init(|| self.git_local_env())
-            .as_ref()
-            .map_err(|error| io::Error::new(error.kind(), error.to_string()))?;
-        for name in names {
-            command.env_remove(name);
-        }
-        Ok(command)
-    }
-
-    fn git_local_env(&self) -> io::Result<Vec<OsString>> {
-        if !env::vars_os().any(|(name, _)| name.as_bytes().starts_with(b"GIT_")) {
-            return Ok(Vec::new());
-        }
-        let output = self.read_git(Command::new("git").args(["rev-parse", "--local-env-vars"]))?;
-        Ok(output
-            .split(|&byte| byte == b'\n')
-            .map(OsStr::from_bytes)
-            .filter(|name| env::var_os(name).is_some())
-            .map(OsStr::to_os_string)
-            .collect())
-    }
-
     fn input_paths(&self) -> io::Result<()> {
         let physical_cwd = env::current_dir()?;
         let mut input = io::stdin().lock();
@@ -953,12 +924,11 @@ impl Scanner {
         directory: &Path,
         args: impl IntoIterator<Item = impl AsRef<OsStr>>,
     ) -> io::Result<Vec<u8>> {
-        self.read_git(self.git_command(directory)?.args(args))
-    }
-
-    fn read_git(&self, command: &mut Command) -> io::Result<Vec<u8>> {
         self.check_cancelled()?;
-        let child = command
+        let child = Command::new("git")
+            .arg("-C")
+            .arg(directory)
+            .args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .process_group(0)
@@ -1257,8 +1227,10 @@ impl Scanner {
             // --recurse-submodules cannot be combined with --others.
             for tracked in [true, false] {
                 let indexed_modes = tracked && self.directories_only;
-                let mut git = self.git_command(&repo)?;
-                git.args(["ls-files", "--sparse", "-z"]);
+                let mut git = Command::new("git");
+                git.arg("-C")
+                    .arg(&repo)
+                    .args(["ls-files", "--sparse", "-z"]);
                 if tracked {
                     git.arg("--recurse-submodules");
                     if indexed_modes {
