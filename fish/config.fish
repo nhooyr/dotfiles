@@ -302,16 +302,18 @@ function aqsnow_fzf_diralis_add
     for name in $argv
         contains -- "$name" $aqsnow_fzf_diralis; or set -ga aqsnow_fzf_diralis "$name"
     end
+    set -gx AQSNOW_DIRALIS "$(string join : -- $aqsnow_fzf_diralis)"
     return 0
 end
 aqsnow_fzf_diralis_add HOME nhooyr dotfiles notes noise
 
 # Initialize the directory aliases and handoff path inherited by child processes.
 function aqsnow_init_rendezvous --on-event fish_preexec
-    set -gx AQSNOW_DIRALIS "$(string join : -- $aqsnow_fzf_diralis)"
     for name in $aqsnow_fzf_diralis
         test "$name" = HOME; and continue
-        set -q "$name"; and set -gx "$name" "$$name"
+        if not set -qx "$name"; and set -q "$name"
+            set -gx "$name" "$$name"
+        end
     end
     set -q __aqsnow_rendezvous_dir; and return
     set -e AQSNOW_FISH_RENDEZVOUS

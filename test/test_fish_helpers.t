@@ -234,8 +234,64 @@ FISH
     like( $result->{stdout}, qr/--wraps[= ]'?cd'?/,  'cdf still inherits the cd completions' );
 }
 
+sub alias_registration_updates_the_exported_name_list {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+set -g aqsnow_fzf_diralis HOME
+aqsnow_fzf_diralis_add aqsnow_test_late aqsnow_test_late
+printf '%s\n' "$AQSNOW_DIRALIS"
+not set -q aqsnow_test_late
+FISH
+    is( $result->{stdout}, "HOME:aqsnow_test_late\n", 'registration immediately exports unique names' );
+}
+
+sub alias_values_defined_later_are_exported {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+set -g aqsnow_fzf_diralis HOME
+aqsnow_init_rendezvous
+aqsnow_fzf_diralis_add aqsnow_test_late
+aqsnow_init_rendezvous
+set -g aqsnow_test_late /first
+aqsnow_init_rendezvous
+sh -c 'printf "%s\n" "$aqsnow_test_late"'
+set -g aqsnow_test_late /second
+aqsnow_init_rendezvous
+sh -c 'printf "%s\n" "$aqsnow_test_late"'
+set -gu aqsnow_test_late /third
+aqsnow_init_rendezvous
+sh -c 'printf "%s\n" "$aqsnow_test_late"'
+FISH
+    is( $result->{stdout}, "/first\n/second\n/third\n",
+        'late values, changed values, and unexported values reach children' );
+}
+
+sub initialized_alias_exports_are_not_rewritten {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+set -g aqsnow_fzf_diralis HOME
+set -gx aqsnow_test_exported /existing
+aqsnow_fzf_diralis_add aqsnow_test_exported
+set -g changes 0
+function name_changed --on-variable AQSNOW_DIRALIS
+    set -g changes "$(math "$changes + 1")"
+end
+function value_changed --on-variable aqsnow_test_exported
+    set -g changes "$(math "$changes + 1")"
+end
+aqsnow_init_rendezvous
+aqsnow_init_rendezvous
+printf '%s\n' "$changes"
+FISH
+    is( $result->{stdout}, "0\n", 'initialization does not rewrite exported names or values' );
+}
+
 run_cases(
     {
+        alias_registration_updates_the_exported_name_list =>
+          \&alias_registration_updates_the_exported_name_list,
+        alias_values_defined_later_are_exported         => \&alias_values_defined_later_are_exported,
+        initialized_alias_exports_are_not_rewritten     => \&initialized_alias_exports_are_not_rewritten,
         cdf_completes_files_while_retaining_cd_wrapping => \&cdf_completes_files_while_retaining_cd_wrapping,
         mcd_rejects_multiple_arguments_before_creating_anything =>
           \&mcd_rejects_multiple_arguments_before_creating_anything,
