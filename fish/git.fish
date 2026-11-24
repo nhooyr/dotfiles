@@ -177,3 +177,4 @@ abbrali gsub git submodule
 abbrali gsubu git submodule update --init --recursive
 abbrali grl git reflog
 abbrali gcp git cherry-pick
+abbrali gmb git merge-base HEAD origin
