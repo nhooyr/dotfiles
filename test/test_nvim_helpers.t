@@ -113,8 +113,8 @@ sub filename_display {
     my ($self) = @_;
     make_path("$self->{temporary}/project");
     $self->{env}{AQSNOW_DIRALIS} = 'HOME:TEST_PROJECT';
-    $self->{env}{HOME} = absolute_path($self->{env}{HOME});
-    $self->{env}{TEST_PROJECT} = absolute_path("$self->{temporary}/project");
+    $self->{env}{HOME}           = absolute_path( $self->{env}{HOME} );
+    $self->{env}{TEST_PROJECT}   = absolute_path("$self->{temporary}/project");
     run_script( $self, <<'LUA' );
 local helper = require('dirali')
 local function check(expected, description)

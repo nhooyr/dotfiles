@@ -10,6 +10,7 @@ sub parse_date {
     my $error = "fair: --date1 and --date2 must be YYYY-MM-DD dates\n";
     die $error unless $value =~ /\A\d{4}-\d{2}-\d{2}\z/;
     my $date = eval { Time::Piece->strptime( $value, '%Y-%m-%d' ) };
+
     # strptime normalizes invalid days, so reject dates it changes.
     die $error unless defined($date) && $date->ymd eq $value;
     return timelocal_modern( 0, 0, 0, $date->mday, $date->mon - 1, $date->year );

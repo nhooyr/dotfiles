@@ -400,10 +400,10 @@ sub test_gbp_deletes_branch_with_apostrophe {
     git( $self, $self->{seed}, [ "branch", $branch ], 1 );
     publish( $self, [$branch] );
     fetch_fixture($self);
-    git( $self, $self->{checkout}, [ "remote", "add", "secondary", $self->{remote} ], 1 );
-    git( $self, $self->{checkout}, [ "fetch", "secondary" ], 1 );
+    git( $self, $self->{checkout}, [ "remote", "add", "secondary", $self->{remote} ],            1 );
+    git( $self, $self->{checkout}, [ "fetch", "secondary" ],                                     1 );
     git( $self, $self->{checkout}, [ "branch", "--track", $branch, ( "secondary/" . $branch ) ], 1 );
-    git( $self, $self->{remote}, [ "update-ref", "-d", ( "refs/heads/" . $branch ) ], 1 );
+    git( $self, $self->{remote},   [ "update-ref", "-d", ( "refs/heads/" . $branch ) ],          1 );
     assert_success( $self,
         run_fish( $self, "gbp", [], $self->{checkout}, 0, undef, undef, [ "", "", "", "" ] ) );
     (

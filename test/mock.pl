@@ -24,8 +24,8 @@ if ( $kind eq 'git' ) {
     }
     if ( $command =~ /\A(?:clone|fetch|ls-remote)\z/ ) {
         die "fixture is offline\n" if $ENV{TEST_OFFLINE};
-        my $all = $command eq 'fetch' && grep { $_ eq '--all' } @args;
-        my %value_options = map { $_ => 1 }
+        my $all           = $command eq 'fetch' && grep { $_ eq '--all' } @args;
+        my %value_options = map                         { $_ => 1 }
           qw(-b --branch --depth --deepen --filter -c --config -o --origin --upload-pack --exec --server-option --shallow-since --shallow-exclude --reference --separate-git-dir);
         my $j = $i + 1;
         while ( $j < @args ) {
