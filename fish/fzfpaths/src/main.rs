@@ -66,18 +66,18 @@ scripts with a shebang also run when selected with their explicit ./ form.
 
 Options:
   -h, --help        Show this help.
-  --color          Color alias prefixes cyan. Use fzf --ansi to display them
-                   and strip the color escapes from selected paths.
-  --classify       Append ls-style markers: / directories, * executables,
-                   @ symlinks, | FIFOs, = sockets, and > doors where supported.
-                   Other files get an invisible ASCII Unit Separator (0x1f).
-                   With --color, basenames and markers use LS_COLORS.
-                   The Fish widgets remove the final marker.
+  --color           Color alias prefixes cyan. Use fzf --ansi to display them
+                    and strip the color escapes from selected paths.
+  --classify        Append ls-style markers: / directories, * executables,
+                    @ symlinks, | FIFOs, = sockets, and > doors where supported.
+                    Other files get an invisible ASCII Unit Separator (0x1f).
+                    With --color, basenames and markers use LS_COLORS.
+                    The Fish widgets remove the final marker.
   --keep-dot        Also offer ./ paths for local scripts with a shebang.
   --read0           Read NUL-separated filenames from stdin instead of scanning.
-                   Keep input order, skipping missing files and directories.
-                   Files under the working directory use local path rules;
-                   other files use absolute paths or directory aliases.
+                    Keep input order, skipping missing files and directories.
+                    Files under the working directory use local path rules;
+                    other files use absolute paths or directory aliases.
   --cdpath CDPATH   Include directories from these colon-separated roots.
   --dirali ENV DIR  Abbreviate paths using ENV for DIR. May be repeated.
 

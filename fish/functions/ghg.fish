@@ -11,7 +11,7 @@ Print the gist URL and copy it to the clipboard with pbc.
 Examples:
   ghg                    Upload the clipboard as a secret gist.
   ghg -p                 Upload the clipboard as a public gist.
-  ghg file.txt other.md   Upload multiple files.
+  ghg file.txt other.md  Upload multiple files.
   printf hello | ghg -   Upload standard input.'
     argparse --name "$(status current-function)" h/help p/public -- $argv; or return
     if set -q _flag_help
