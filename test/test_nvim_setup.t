@@ -172,7 +172,7 @@ lua vim.pack.add = function(specs, opts)
     assert(opts.confirm == false)
     assert(#specs == 1)
     assert(specs[1].src == 'https://github.com/nhooyr/copilot.vim.git')
-    assert(specs[1].version == 'fix-partial-accept-preview')
+    assert(specs[1].version == 'refresh-partial-accept-preview')
 end
 LUA
     my $result = run_command(

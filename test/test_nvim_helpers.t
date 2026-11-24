@@ -81,7 +81,7 @@ sub startup_and_config_paths {
     run_script( $self, <<'LUA' );
 eq(vim.g.aqsnow_orig_file, vim.fn.resolve(vim.env.TEST_ORIGINAL), 'startup records the original file')
 eq(vim.g.test_plugin_specs, {
-    { src = 'https://github.com/nhooyr/copilot.vim.git', version = 'fix-partial-accept-preview' },
+    { src = 'https://github.com/nhooyr/copilot.vim.git', version = 'refresh-partial-accept-preview' },
 }, 'only the patched Copilot fork is managed externally')
 eq(_G.test_plugin_options[1], { confirm = false }, 'package setup installs without an interactive prompt')
 eq(vim.o.packlockfile, vim.env.TEST_DOTFILES .. '/nvim/nvim-pack-lock.json', 'package revisions use the tracked lockfile')
