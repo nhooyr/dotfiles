@@ -277,7 +277,7 @@ fn run(
             scans.push(scope.spawn(move || cd.cdpath(cdpath)));
         }
         drop(scanner);
-        let result = (|| {
+        let result: io::Result<()> = (|| {
             let mut last_reap = Instant::now();
             loop {
                 check_signal()?;
@@ -314,7 +314,7 @@ fn run(
                 // Never wait for a slower scan with local results still buffered.
                 picker.output.flush()?;
             }
-            picker.output.flush()
+            Ok(())
         })();
         cancelled.store(true, Ordering::Relaxed);
         // Release blocked senders before joining if writing to fzf failed.
@@ -577,8 +577,8 @@ fn global_ignores(root: &Path) -> io::Result<Gitignore> {
 fn working_directory() -> io::Result<PathBuf> {
     let cwd = env::current_dir()?;
     if let Some(pwd) = env::var_os("PWD").map(PathBuf::from)
-        && let (Ok(a), Ok(b)) = (pwd.metadata(), cwd.metadata())
         && pwd.is_absolute()
+        && let (Ok(a), Ok(b)) = (pwd.metadata(), cwd.metadata())
         && (a.dev(), a.ino()) == (b.dev(), b.ino())
     {
         return Ok(pwd);
@@ -735,39 +735,40 @@ impl Picker {
         if literal && matches!(path.first(), Some(b'$' | b'~' | b'-')) {
             path.splice(..0, b"./".iter().copied());
         }
-        if self.shown.insert(path.clone()) {
-            let mut path = path.as_slice();
-            if self.color && !literal {
-                let end = path
-                    .iter()
-                    .position(|&byte| byte == b'/')
-                    .unwrap_or(path.len());
-                self.output.write_all(b"\x1b[36m")?;
-                self.output.write_all(&path[..end])?;
-                self.output.write_all(b"\x1b[0m")?;
-                path = &path[end..];
-            }
-            let color = style.color.as_ref().map(Style::to_nu_ansi_term_style);
-            if let Some(color) = color {
-                let basename = path
-                    .iter()
-                    .rposition(|&byte| byte == b'/')
-                    .map_or(0, |i| i + 1);
-                self.output.write_all(&path[..basename])?;
-                write!(self.output, "{}", color.prefix())?;
-                path = &path[basename..];
-            }
-            self.output.write_all(path)?;
-            if self.classify {
-                self.output.write_all(&[style.indicator])?;
-            }
-            if let Some(color) = color {
-                write!(self.output, "{}", color.suffix())?;
-            }
-            self.output.write_all(b"\0")?;
-            if self.shown.len() == 1 {
-                self.output.flush()?;
-            }
+        if !self.shown.insert(path.clone()) {
+            return Ok(());
+        }
+        let mut path = path.as_slice();
+        if self.color && !literal {
+            let end = path
+                .iter()
+                .position(|&byte| byte == b'/')
+                .unwrap_or(path.len());
+            self.output.write_all(b"\x1b[36m")?;
+            self.output.write_all(&path[..end])?;
+            self.output.write_all(b"\x1b[0m")?;
+            path = &path[end..];
+        }
+        let color = style.color.as_ref().map(Style::to_nu_ansi_term_style);
+        if let Some(color) = color {
+            let basename = path
+                .iter()
+                .rposition(|&byte| byte == b'/')
+                .map_or(0, |i| i + 1);
+            self.output.write_all(&path[..basename])?;
+            write!(self.output, "{}", color.prefix())?;
+            path = &path[basename..];
+        }
+        self.output.write_all(path)?;
+        if self.classify {
+            self.output.write_all(&[style.indicator])?;
+        }
+        if let Some(color) = color {
+            write!(self.output, "{}", color.suffix())?;
+        }
+        self.output.write_all(b"\0")?;
+        if self.shown.len() == 1 {
+            self.output.flush()?;
         }
         Ok(())
     }
@@ -807,11 +808,10 @@ impl Picker {
             path.starts_with(dir) && (path.len() == dir.len() || path.get(dir.len()) == Some(&b'/'))
         }) {
             path.splice(..dir.len(), env.iter().copied());
-            self.emit(path, false, &style)?;
+            self.emit(path, false, &style)
         } else {
-            self.emit(path, true, &style)?;
+            self.emit(path, true, &style)
         }
-        Ok(())
     }
 }
 
