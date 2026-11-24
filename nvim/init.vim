@@ -196,6 +196,12 @@ nnoremap gp `[v`]
 nnoremap <Leader>p "+p
 nnoremap <Leader>P "+P
 inoremap <M-p> <C-o>"+P
+nnoremap Y "+y
+nnoremap YY m`^"+y$``
+xnoremap Y "+y
+nnoremap D "+d
+nnoremap DD m`^"+y$``"_dd
+xnoremap D "+d
 nnoremap <M-y> "+y
 nnoremap <M-y><M-y> m`^"+y$``
 xnoremap <M-y> "+y
