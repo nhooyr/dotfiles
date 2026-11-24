@@ -8,7 +8,7 @@ function touch --wraps touch
         set -l files $(string match -v -- '*/' $argv)
         set -q files[1]; or return 0
         set -l count $(count $argv)
-        set -e args[-$count..-1]
+        set -e "args[-$count..-1]"
         set -a args $files
     end
     command touch $args
