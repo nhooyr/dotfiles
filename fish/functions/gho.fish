@@ -24,6 +24,10 @@ end
 
 function __gho_url --argument-names target
     # Build links from local metadata only; never inspect or fetch remote content.
+    set -l issue $(string match -rg '^#([0-9]+)$' -- "$target")
+    set -l revision
+    set -l revision_name
+    set -q issue[1]; and set target .
     set -l parent "$(path dirname -- "$target")"
     set -l name "$(path basename -- "$target")"
     set -l entry "$parent/$name"
@@ -44,19 +48,30 @@ function __gho_url --argument-names target
             set name "$relative"
             set entry "$parent/$name"
         else
-            set -l github $(__gh_parse "$target"); or return
-            set -l url "https://$github[4]/$github[1]"
-            if test -n "$github[2]"
-                set url "$url/$(string escape --style=url -- "$github[2]")"
+            if not string match -qr '^(https?://|ssh://|git@)' -- "$target"
+                set revision "$(git --no-lazy-fetch rev-parse --verify --quiet --end-of-options "$target^{commit}" 2>/dev/null)"
             end
-            printf '%s%s\n' "$url" "$(string match -r '[?#].*$' -- "$target")"
-            return
+            if test -n "$revision"
+                if not contains -- "$target" HEAD @
+                    set revision_name "$(git --no-lazy-fetch rev-parse --symbolic-full-name --verify --quiet --end-of-options "$target" 2>/dev/null)"
+                end
+            else
+                set -l github $(__gh_parse "$target"); or return
+                set -l url "https://$github[4]/$github[1]"
+                if test -n "$github[2]"
+                    set url "$url/$(string escape --style=url -- "$github[2]")"
+                end
+                printf '%s%s\n' "$url" "$(string match -r '[?#].*$' -- "$target")"
+                return
+            end
         end
     end
 
     set -l dir "$target"
     set -l kind tree
-    if test -L "$entry"; or not test -d "$target"
+    if test -n "$revision"
+        set dir .
+    else if test -L "$entry"; or not test -d "$target"
         set dir "$parent"
         set kind blob
     end
@@ -85,6 +100,9 @@ function __gho_url --argument-names target
     end
 
     set -l branch "$(git -C "$dir" symbolic-ref --quiet HEAD 2>/dev/null)"
+    if string match -q 'refs/heads/*' -- "$revision_name"
+        set branch "$revision_name"
+    end
     set -l ref $(string replace -r '^refs/heads/' '' -- "$branch")
     set -l remote
     set -l upstream
@@ -102,7 +120,22 @@ function __gho_url --argument-names target
             set -a remotes "$remote_name"
         end
     end
-    if test -n "$remote"; and test "$remote" != .
+    set -l revision_remote
+    set -l revision_branch
+    if string match -q 'refs/remotes/*' -- "$revision_name"
+        for name in $remotes
+            set -l prefix "refs/remotes/$name/"
+            if string match -q "$prefix*" -- "$revision_name"
+                and test "$(string length -- "$name")" -gt "$(string length -- "$revision_remote")"
+                set revision_remote "$name"
+                set revision_branch "$(string replace -- "$prefix" '' "$revision_name")"
+            end
+        end
+    end
+    if test -n "$revision_remote"
+        set remote "$revision_remote"
+        set ref "$revision_branch"
+    else if test -n "$remote"; and test "$remote" != .
         if set -q upstream[1]
             set ref "$upstream"
         end
@@ -118,6 +151,29 @@ function __gho_url --argument-names target
     set -l github $(__gh_parse "$remote_url"); or return
     set -l url "https://$github[4]/$github[1]"
 
+    if set -q issue[1]
+        printf '%s/issues/%s\n' "$url" "$issue"
+        return
+    end
+    if test -n "$revision"
+        set -l target_ref "$revision"
+        set kind commit
+        switch "$revision_name"
+            case 'refs/heads/*'
+                set kind tree
+                set target_ref "$ref"
+            case 'refs/tags/*'
+                set kind tree
+                set target_ref "$(string replace -- refs/tags/ '' "$revision_name")"
+            case 'refs/remotes/*'
+                if test -n "$revision_remote"
+                    set kind tree
+                    set target_ref "$revision_branch"
+                end
+        end
+        printf '%s/%s/%s\n' "$url" "$kind" "$(string escape --style=url -- "$target_ref")"
+        return
+    end
     if test -z "$branch"
         set ref "$(git -C "$dir" rev-parse HEAD 2>/dev/null)"; or return
     else if test -z "$repo_path"

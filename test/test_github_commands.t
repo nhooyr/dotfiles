@@ -960,6 +960,87 @@ sub test_direct_url_preserves_query_and_fragment {
     ( is_deeply( network_calls($self),                  [] )       or die "assertion failed\n" );
 }
 
+sub assert_gho_target {
+    my ( $self, $target, $expected, $cwd ) = @_;
+    my $result = run_fish( $self, 'gho', [$target], $cwd // $self->{checkout}, 1 );
+    assert_success( $self, $result );
+    is( $result->{stdout}, "$expected\n", 'the requested target URL is printed' );
+    is_deeply( calls( $self, 'open' )->[0]{args}, [$expected], 'the requested target URL is opened' );
+    is_deeply( calls( $self, 'gh' ),              [], 'target resolution makes no GitHub API calls' );
+}
+
+sub test_gho_issue_numbers_are_offline_targets {
+    my ($self) = @_;
+    write_file( "$self->{checkout}/#2321", 'literal filename' );
+    assert_gho_target( $self, '#2321',   "$self->{url}/issues/2321" );
+    assert_gho_target( $self, '#2321',   "$self->{url}/issues/2321", "$self->{checkout}/dir" );
+    assert_gho_target( $self, './#2321', "$self->{url}/blob/main/%232321" );
+    my $result = run_fish( $self, 'gho', [ '--copy', '#2321' ], $self->{checkout}, 1 );
+    assert_success( $self, $result );
+    is( read_file("$self->{log}.copy"), "$self->{url}/issues/2321\n", 'issue URLs support copy-only mode' );
+    is_deeply( calls( $self, 'open' ), [], 'copy-only mode does not open the issue' );
+    is_deeply( calls( $self, 'gh' ),   [], 'copy-only mode makes no GitHub API calls' );
+}
+
+sub test_gho_local_revisions_are_offline_targets {
+    my ($self) = @_;
+    git( $self, $self->{checkout}, [ 'commit', '--allow-empty', '-qm', 'local revision' ], 1 );
+    my $commit = trim( git( $self, $self->{checkout}, [ 'rev-parse', 'HEAD' ], 1 )->{stdout} );
+    git( $self, $self->{checkout}, [ 'tag', 'light-tag', $commit ],                                 1 );
+    git( $self, $self->{checkout}, [ 'tag', '-a', 'annotated-tag', '-m', 'tag', $self->{initial} ], 1 );
+    git( $self, $self->{checkout}, [ 'branch', 'feature/topic', $commit ],                          1 );
+    for my $case (
+        [ $commit,                    "/commit/$commit" ],
+        [ substr( $commit, 0, 12 ),   "/commit/$commit" ],
+        [ 'HEAD',                     "/commit/$commit" ],
+        [ '@',                        "/commit/$commit" ],
+        [ 'HEAD~1',                   "/commit/$self->{initial}" ],
+        [ 'light-tag',                '/tree/light-tag' ],
+        [ 'annotated-tag',            '/tree/annotated-tag' ],
+        [ 'feature/topic',            '/tree/feature/topic' ],
+        [ 'refs/heads/feature/topic', '/tree/feature/topic' ],
+        [ 'refs/tags/light-tag',      '/tree/light-tag' ],
+      )
+    {
+        assert_gho_target( $self, $case->[0], "$self->{url}$case->[1]", "$self->{checkout}/dir" );
+        my @lookups = grep {
+            my $call = $_;
+            $call->{command} eq 'rev-parse' && grep { $_ eq '--verify' } @{ $call->{args} }
+        } @{ calls( $self, 'git' ) };
+        ok( @lookups, 'the revision is resolved locally' );
+        ok( !grep( { !grep { $_ eq '--no-lazy-fetch' } @{ $_->{args} } } @lookups ),
+            'revision lookups disable lazy fetching' );
+    }
+}
+
+sub test_gho_revision_uses_its_own_remote {
+    my ($self)   = @_;
+    my $upstream = 'https://github.com/test-owner/upstream';
+    my $team     = 'https://github.com/test-owner/team';
+    git( $self, $self->{checkout}, [ 'remote', 'add', 'upstream', "$upstream.git" ], 1 );
+    git( $self, $self->{checkout}, [ 'config',     'remote.upstream/team.url',    "$team.git" ],      1 );
+    git( $self, $self->{checkout}, [ 'update-ref', 'refs/remotes/upstream/topic', $self->{initial} ], 1 );
+    git( $self, $self->{checkout}, [ 'update-ref', 'refs/remotes/upstream/team/topic', $self->{initial} ],
+        1 );
+    assert_gho_target( $self, 'upstream/topic',      "$upstream/tree/topic" );
+    assert_gho_target( $self, 'upstream/team/topic', "$team/tree/topic" );
+    git( $self, $self->{checkout}, [ 'branch', 'local-topic',               $self->{initial} ],          1 );
+    git( $self, $self->{checkout}, [ 'config', 'branch.local-topic.remote', 'upstream' ],                1 );
+    git( $self, $self->{checkout}, [ 'config', 'branch.local-topic.merge',  'refs/heads/review/topic' ], 1 );
+    assert_gho_target( $self, 'local-topic', "$upstream/tree/review/topic" );
+}
+
+sub test_gho_local_paths_take_priority_over_revisions {
+    my ($self) = @_;
+    write_file( "$self->{checkout}/topic", 'local file' );
+    git( $self, $self->{checkout}, [ 'branch', 'topic', $self->{initial} ], 1 );
+    assert_gho_target( $self, 'topic',            "$self->{url}/blob/main/topic" );
+    assert_gho_target( $self, 'refs/heads/topic', "$self->{url}/tree/topic" );
+    git( $self, $self->{checkout}, [ 'branch', 'file.txt', $self->{initial} ], 1 );
+    unlink "$self->{checkout}/file.txt" or die $!;
+    assert_gho_target( $self, 'file.txt', "$self->{url}/blob/main/file.txt" );
+}
+
 sub test_gho_copy_prints_and_copies_without_opening {
     my ($self) = @_;
     for my $case (
@@ -1019,7 +1100,8 @@ sub test_gho_opens_unknown_remote_pages_directly {
           or die "assertion failed\n"
     );
     (
-        is_deeply( [ map { my $call = $_; $call->{"command"} } @{ calls( $self, "git" ) } ], ["ls-files"] )
+        is_deeply( [ map { my $call = $_; $call->{"command"} } @{ calls( $self, "git" ) } ],
+            [ "ls-files", "rev-parse" ] )
           or die "assertion failed\n"
     );
 }
@@ -3894,8 +3976,13 @@ run_cases(
           \&test_ghe_adds_configured_host_to_checkout_without_remotes,
         "test_ghe_distinguishes_repositories_on_different_hosts" =>
           \&test_ghe_distinguishes_repositories_on_different_hosts,
-        "test_ghe_api_routes_use_configured_host"         => \&test_ghe_api_routes_use_configured_host,
-        "test_direct_url_preserves_query_and_fragment"    => \&test_direct_url_preserves_query_and_fragment,
+        "test_ghe_api_routes_use_configured_host"           => \&test_ghe_api_routes_use_configured_host,
+        "test_direct_url_preserves_query_and_fragment"      => \&test_direct_url_preserves_query_and_fragment,
+        "test_gho_issue_numbers_are_offline_targets"        => \&test_gho_issue_numbers_are_offline_targets,
+        "test_gho_local_revisions_are_offline_targets"      => \&test_gho_local_revisions_are_offline_targets,
+        "test_gho_revision_uses_its_own_remote"             => \&test_gho_revision_uses_its_own_remote,
+        "test_gho_local_paths_take_priority_over_revisions" =>
+          \&test_gho_local_paths_take_priority_over_revisions,
         "test_gho_copy_prints_and_copies_without_opening" =>
           \&test_gho_copy_prints_and_copies_without_opening,
         "test_gho_copy_preserves_clipboard_failure"    => \&test_gho_copy_preserves_clipboard_failure,
