@@ -7,8 +7,9 @@
   `git commit` with a suggested short title and body, so I can review and edit each message.
 - Print each commit-script step heading in bold, such as `Step 2/2: 02-fish-prompt-aliases.patch`,
   and reset formatting immediately afterward.
-- Choose title prefixes using `nvim/lua/gitcommit.lua`: a single file's path, otherwise the deepest shared
-  directory, otherwise the longest path chunk shared by at least two files (including extensions).
+- Choose title prefixes using `nvim/lua/gitcommit.lua`: a single file's path, otherwise the deepest directory
+  shared by all files, otherwise the deepest directory shared by more than half the files, otherwise the
+  longest path chunk shared by at least two files (including extensions).
   Break length ties by the number of files sharing the chunk, then first occurrence. Use rename/copy
   destinations, and fall back to the first file's path if no shared chunk exists.
 - Validate the commit sequence in a temporary checkout first. Preserve the worktree and unrelated changes,
