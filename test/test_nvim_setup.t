@@ -188,6 +188,30 @@ LUA
     is( $result->{returncode}, 0, "the package file is independent of caller cwd: $result->{stderr}" );
 }
 
+sub bundled_undotree_is_registered_lazily {
+    my ($self) = @_;
+    die 'Neovim is required' unless $nvim;
+    my $script = "$self->{temporary}/undotree.lua";
+    write_file( $script, <<'LUA' );
+vim.pack.add = function() end
+for _ = 1, 2 do
+    dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
+    assert(vim.fn.exists(':Undotree') == 2, 'the bundled command is registered')
+    assert(package.loaded.undotree == nil, 'the undo-tree implementation stays lazy')
+end
+vim.api.nvim_set_current_line('unsaved text')
+vim.cmd.Undotree()
+assert(package.loaded.undotree ~= nil, 'the command loads the implementation')
+assert(vim.bo.filetype == 'nvim-undotree', 'the command opens the bundled undo tree')
+assert(#vim.api.nvim_tabpage_list_wins(0) == 2, 'the undo tree opens one new window')
+vim.cmd('qa!')
+LUA
+    $self->{env}{NVIM_LOG_FILE} = "$self->{temporary}/nvim.log";
+    my $result = run_command( [ $nvim, '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', $script ],
+        { cwd => $self->{temporary}, env => $self->{env} } );
+    is( $result->{returncode}, 0, "bundled undo-tree registration and lazy loading work: $result->{stderr}" );
+}
+
 run_cases(
     {
         installs_plugins_and_app_quietly             => \&installs_plugins_and_app_quietly,
@@ -197,6 +221,7 @@ run_cases(
         ci_installs_neovim_before_plugin_setup       => \&ci_installs_neovim_before_plugin_setup,
         native_lua_errors_fail_installation          => \&native_lua_errors_fail_installation,
         package_file_sets_its_own_lock_path          => \&package_file_sets_its_own_lock_path,
+        bundled_undotree_is_registered_lazily        => \&bundled_undotree_is_registered_lazily,
     },
     \&setup
 );
