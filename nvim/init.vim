@@ -301,6 +301,7 @@ augroup aqsnow
 	autocmd filetype markdown setlocal et ts=3 sw=0
 	autocmd filetype fish setlocal et ts=4 sw=0 formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
+	autocmd BufNewFile *:[0-9]* nested lua require('fileline').open()
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
 	autocmd BufRead,BufNewFile *.json setlocal filetype=json5
 	autocmd BufReadPost * call <SID>restore_cursor()

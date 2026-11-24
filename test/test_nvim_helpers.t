@@ -48,7 +48,7 @@ VIM
 }
 
 sub run_script {
-    my ( $self, $body ) = @_;
+    my ( $self, $body, $arguments ) = @_;
     write_file( $self->{env}{TEST_SCRIPT}, <<'LUA' . $body );
 local function eq(actual, expected, message)
     assert(vim.deep_equal(actual, expected), message .. '\nexpected: '
@@ -61,7 +61,7 @@ LUA
     my $result = run_command(
         [
             $nvim, '--headless', '-n', '-i', 'NONE', '-u', "$self->{temporary}/init.vim",
-            $self->{env}{TEST_ORIGINAL}
+            '--',  @{ $arguments // [ $self->{env}{TEST_ORIGINAL} ] }
         ],
         { env => $self->{env}, cwd => $self->{temporary}, timeout => 15 }
     );
@@ -76,6 +76,7 @@ assert(package.loaded.rendezvous == nil, 'rendezvous stays unloaded at startup')
 assert(package.loaded.vidir == nil, 'vidir stays unloaded at startup')
 assert(package.loaded.netrw == nil, 'netrw stays unloaded until navigation')
 assert(package.loaded.snips == nil, 'snippets stay unloaded until completion or expansion')
+assert(package.loaded.fileline == nil, 'file locations stay unloaded for ordinary files')
 assert(package.loaded.grep == nil, 'startup does not load a grep module')
 local grepprg = vim.fn.shellescape(vim.env.TEST_DOTFILES .. '/bin/vgrep')
 eq(vim.o.grepprg, grepprg, 'grep uses the fixed vgrep wrapper')
@@ -106,6 +107,38 @@ vim.cmd('cd ' .. vim.fn.fnameescape(vim.env.HOME))
 vim.cmd('doautocmd CmdlineEnter :')
 eq(vim.o.grepprg, grepprg, 'directory and command-line changes keep the same grep command')
 eq(vim.o.grepformat, '%f:%l:%c:%m', 'directory and command-line changes keep the same grep format')
+LUA
+}
+
+sub file_locations {
+    my ($self)  = @_;
+    my $file    = "$self->{temporary}/file name.fish";
+    my $literal = "$self->{temporary}/literal:4";
+    write_file( $file,    "abcdefghij\n" x 25 );
+    write_file( $literal, "literal filename\n" );
+    $self->{env}{TEST_LOCATION} = $file;
+    $self->{env}{TEST_LITERAL}  = $literal;
+    run_script( $self, <<'LUA', [ 'file name.fish:17:5', "$file:3", "$file:999:999", $literal ] );
+local file = vim.fn.resolve(vim.env.TEST_LOCATION)
+eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)), file, 'startup opens the file without its location suffix')
+eq(vim.api.nvim_win_get_cursor(0), { 17, 4 }, 'line and column arguments are one-based')
+eq(vim.g.aqsnow_orig_file, file, 'run-and-quit still recognizes the original file')
+eq(vim.bo.filetype, 'fish', 'the real file gets its normal filetype')
+vim.cmd.next()
+eq(vim.api.nvim_win_get_cursor(0), { 3, 0 }, 'line-only arguments start at the first column')
+vim.cmd.next()
+eq(vim.api.nvim_win_get_cursor(0), { 25, 9 }, 'locations past the file end are clamped')
+vim.cmd.next()
+eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)), vim.fn.resolve(vim.env.TEST_LITERAL),
+    'an existing filename ending in a number is opened literally')
+eq(vim.api.nvim_get_current_line(), 'literal filename', 'literal filename contents are preserved')
+vim.cmd.first()
+eq(vim.api.nvim_win_get_cursor(0), { 17, 4 }, 'revisiting a location reapplies its position')
+for _, buffer in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+    local name = vim.fn.resolve(buffer.name)
+    assert(name == file or name == vim.fn.resolve(vim.env.TEST_LITERAL),
+        'location placeholders must not remain listed: ' .. buffer.name)
+end
 LUA
 }
 
@@ -238,7 +271,7 @@ sub gitstatus_lifecycle {
 local function timers()
     local ids = {}
     for _, timer in ipairs(vim.fn.timer_info()) do
-        if timer.time == 2000 and timer['repeat'] == -1 then ids[#ids + 1] = timer.id end
+        if timer['repeat'] == -1 then ids[#ids + 1] = timer.id end
     end
     return ids
 end
@@ -246,12 +279,11 @@ local function handlers()
     return #vim.api.nvim_get_autocmds({ group = 'aqsnow.gitstatus' })
 end
 local helper = require('gitstatus')
-local registered, active = handlers(), timers()
+local registered = handlers()
 assert(registered > 0, 'Git status registers its handlers at startup')
-eq(#active, 1, 'Git status has one refresh timer')
+eq(timers(), {}, 'Git status does not poll on a repeating timer')
 helper.setup()
 eq(handlers(), registered, 'repeated setup does not duplicate handlers')
-eq(timers(), active, 'repeated setup keeps the same timer')
 local state = package.loaded['gitstatus.state']
 vim.bo.buftype = 'nofile'
 local target = vim.api.nvim_create_buf(true, false)
@@ -259,21 +291,141 @@ local directory = vim.fs.dirname(vim.env.TEST_ORIGINAL) .. '/write target'
 vim.api.nvim_buf_set_name(target, directory .. '/file.txt')
 for _, event in ipairs({ 'BufWritePost', 'FileWritePost' }) do
     state.pending[directory] = nil
-    vim.api.nvim_exec_autocmds(event, { buffer = target })
-    eq(state.pending[directory], { urgent = true }, event .. ' invalidates the written buffer directory')
+    vim.api.nvim_exec_autocmds(event, { group = 'aqsnow.gitstatus', buffer = target })
+    eq(state.pending[directory], true, event .. ' invalidates the written buffer directory')
 end
 vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
-eq(timers(), {}, 'stop removes the refresh timer')
 eq(handlers(), 0, 'stop removes its handlers')
 helper.setup()
-eq(#timers(), 1, 'setup restarts the refresh timer')
 eq(handlers(), registered, 'setup restores its handlers once')
-active = timers()
 vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
 assert(package.loaded['gitstatus.state'] == state, 'config reload preserves cached Git status')
-eq(#timers(), 1, 'config reload leaves one refresh timer')
-assert(timers()[1] ~= active[1], 'config reload stops the old module timer')
+eq(timers(), {}, 'config reload does not introduce a polling timer')
 eq(handlers(), registered, 'config reload leaves one set of handlers')
+LUA
+}
+
+sub gitstatus_event_queue {
+    my ($self) = @_;
+    my $repo = "$self->{temporary}/status repo";
+    for my $directory ( $repo, "$repo-other" ) {
+        make_path("$directory/.git");
+        write_file( "$directory/file.txt", "content\n" );
+    }
+    make_path("$repo-other/nested");
+    write_file( "$repo-other/nested/file.txt", "content\n" );
+    $self->{env}{TEST_STATUS_REPO}  = $repo;
+    $self->{env}{TEST_STATUS_OTHER} = "$repo-other";
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+package.loaded.gitstatus = nil
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_REPO .. '/file.txt'))
+local now, serial, calls, timers = 0, 0, {}, {}
+vim.uv.hrtime = function() return now * 1e6 end
+vim.fn.timer_start = function(delay, callback, options)
+    assert(not options or options['repeat'] ~= -1, 'refresh timers must not repeat')
+    serial = serial + 1
+    timers[serial] = { due = now + delay, callback = callback }
+    return serial
+end
+vim.fn.timer_stop = function(id) timers[id] = nil end
+vim.system = function(_, options, callback)
+    calls[#calls + 1] = { time = now, cwd = options.cwd, done = callback }
+    return { is_closing = function() return true end }
+end
+local function wait_for(check, message)
+    assert(vim.wait(1000, check, 1), message)
+end
+local function timer_count()
+    return vim.tbl_count(timers)
+end
+local function event(name)
+    vim.api.nvim_exec_autocmds(name, { group = 'aqsnow.gitstatus' })
+end
+local function finish(index)
+    calls[index].done({ code = 0, stdout = ' (result-' .. index .. ')' })
+    local done = false
+    vim.schedule(function() done = true end)
+    wait_for(function() return done end, 'process completion is handled')
+end
+local function advance(time)
+    now = time
+    for id, timer in pairs(vim.deepcopy(timers)) do
+        if timer.due <= now then
+            timers[id] = nil
+            timer.callback(id)
+        end
+    end
+end
+local helper = require('gitstatus')
+helper.setup()
+wait_for(function() return #calls == 1 end, 'startup refreshes once')
+eq(vim.fn.resolve(calls[1].cwd), vim.fn.resolve(vim.env.TEST_STATUS_REPO),
+    'status is computed in the current repository')
+finish(1)
+eq(timer_count(), 0, 'completion alone does not queue another refresh')
+
+now = 100
+for _, name in ipairs({ 'BufWritePost', 'FileReadPost', 'ShellCmdPost',
+    'FocusGained', 'FocusLost', 'WinEnter', 'WinLeave' }) do event(name) end
+wait_for(function() return timer_count() == 1 end, 'a burst queues one timer')
+eq(#calls, 1, 'writes and focus changes respect the cooldown')
+advance(1999)
+eq(#calls, 1, 'the queued refresh waits for the full interval')
+advance(2000)
+wait_for(function() return #calls == 2 end, 'one trailing refresh handles the burst')
+finish(2)
+eq(timer_count(), 0, 'the burst leaves no recurring timer')
+advance(9000)
+eq(#calls, 2, 'an idle editor does not refresh')
+
+event('BufReadPost')
+wait_for(function() return #calls == 3 end, 'a later read refreshes immediately')
+now = 9100
+event('BufWritePost')
+event('FocusLost')
+advance(12000)
+eq(#calls, 3, 'an in-flight request is never duplicated')
+finish(3)
+wait_for(function() return #calls == 4 end, 'a dirty in-flight request gets one follow-up')
+finish(4)
+eq(timer_count(), 0, 'the follow-up becomes idle after completion')
+
+now = 12100
+vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_OTHER .. '/nested/file.txt'))
+wait_for(function() return timer_count() == 1 end, 'switching repositories queues one refresh')
+eq(#calls, 4, 'another repository shares the same cooldown')
+advance(14000)
+wait_for(function() return #calls == 5 end, 'the queued refresh updates the new repository')
+eq(vim.fn.resolve(calls[5].cwd), vim.fn.resolve(vim.env.TEST_STATUS_OTHER),
+    'the queued refresh follows the current repository')
+finish(5)
+
+now = 14100
+vim.fn.mkdir(vim.env.TEST_STATUS_OTHER .. '/nested/.git')
+event('ShellCmdPost')
+wait_for(function() return timer_count() == 1 end, 'repository changes queue a refresh')
+advance(16000)
+wait_for(function() return #calls == 6 end, 'a shell command discovers a newly created repository')
+eq(vim.fn.resolve(calls[6].cwd), vim.fn.resolve(vim.env.TEST_STATUS_OTHER .. '/nested'),
+    'repository lookup does not reuse the old parent root')
+finish(6)
+
+now = 16100
+vim.api.nvim_exec_autocmds('CmdlineLeave', { group = 'aqsnow.gitstatus', pattern = ':' })
+eq(timer_count(), 0, 'a command waits until it has executed')
+vim.api.nvim_exec_autocmds('SafeState', { group = 'aqsnow.gitstatus' })
+wait_for(function() return timer_count() == 1 end, 'a completed command queues a refresh')
+vim.api.nvim_exec_autocmds('CmdlineLeave', { group = 'aqsnow.gitstatus', pattern = ':' })
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+eq(timer_count(), 0, 'stopping clears a queued refresh')
+eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow.gitstatus', event = 'SafeState' }), 0,
+    'stopping clears deferred command refreshes')
+advance(20000)
+eq(#calls, 6, 'a stopped instance cannot refresh later')
+for index = 2, #calls do
+    assert(calls[index].time - calls[index - 1].time >= 2000, 'refresh starts stay two seconds apart')
+end
 LUA
 }
 
@@ -382,12 +534,14 @@ LUA
 run_cases(
     {
         startup_and_config_paths   => \&startup_and_config_paths,
+        file_locations             => \&file_locations,
         coalesced_config_reload    => \&coalesced_config_reload,
         nested_module_reload       => \&nested_module_reload,
         first_commit_summary_width => \&first_commit_summary_width,
         netrw_navigation           => \&netrw_navigation,
         snippet_completion_reload  => \&snippet_completion_reload,
         gitstatus_lifecycle        => \&gitstatus_lifecycle,
+        gitstatus_event_queue      => \&gitstatus_event_queue,
         ripgrep_quickfix           => \&ripgrep_quickfix,
         rendezvous_routes          => \&rendezvous_routes,
         rendezvous_error_order     => \&rendezvous_error_order,
