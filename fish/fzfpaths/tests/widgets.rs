@@ -237,6 +237,39 @@ end
 }
 
 #[test]
+fn dot_paths_in_option_values_keep_searches_local() {
+    let script = r#"
+set -g HOME "$PWD"
+set -g nhooyr /global
+function fzfpaths
+    printf '%s\0' $argv > scan
+end
+function fzf
+    cat >/dev/null
+    printf '%s' $argv > query
+end
+fzf_path_widget "$TEST_WIDGET"
+set -l args $(string split0 < scan)
+printf '%s\0' "$args[-3]" "$args[-2]" "$(cat query)"
+"#;
+    for widget in ["fzf-file-widget", "fzf-cd-widget", "fzf-path-widget"] {
+        for token in ["./example", "--file=./example", "-I./example"] {
+            let script = format!("set -g TEST_WIDGET {widget}\n{script}");
+            let query = if widget == "fzf-path-widget" {
+                "./example"
+            } else {
+                "example"
+            };
+            assert_eq!(
+                path_case(&script, token),
+                format!(".\0\0--query={query}\0").as_bytes(),
+                "{widget}: {token}"
+            );
+        }
+    }
+}
+
+#[test]
 fn parser_preserves_symlink_parents() {
     for (token, directory, query, prefix) in [
         ("link/../tar", "link/..", "tar", ""),

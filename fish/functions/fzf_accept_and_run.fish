@@ -21,7 +21,7 @@ end
 function fzf_path_widget --argument-names widget
     set -l parsed $(__fzf_parse_commandline | string split0)
     set -l dir "$parsed[1]"
-    set -l token "$(commandline --current-token --tokens-expanded)"
+    set -l token "$(string replace -- "$parsed[3]" '' "$(commandline --current-token --tokens-expanded)")"
     # Only scan the whole home directory when ./ explicitly requests it.
     if test "$dir" -ef ~; and not string match -q -- './*' "$token"
         set dir ''
