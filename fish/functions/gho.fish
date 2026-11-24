@@ -1,7 +1,7 @@
 source "$(status dirname)/../github.fish"; or return
 
 function gho --description 'Open a GitHub repository, path, revision, or issue'
-    set -l usage 'Usage: gho [--copy] [PATH | REVISION | \'#NUMBER\' | OWNER/REPO | GITHUB_URL]
+    set -l usage 'Usage: gho [--copy] [PATH | REVISION | NUMBER | \'#NUMBER\' | OWNER/REPO | GITHUB_URL]
 
 Print the GitHub URL and open it in the default browser.
 Build URLs from local information; never check or fetch the remote.
@@ -11,7 +11,8 @@ Build URLs from local information; never check or fetch the remote.
   gho SYMLINK                      Open the tracked link, or its source checkout.
   gho COMMIT                       Open a locally resolved commit, e.g. HEAD~1.
   gho BRANCH_OR_TAG                Open a local branch, remote-tracking branch, or tag.
-  gho \'#2321\'                      Open issue or PR 2321 via /issues/2321.
+  gho 2321                         Open issue or PR 2321 via /issues/2321.
+  gho \'#2321\'                      Also accept a quoted # prefix.
   gho OWNER/REPO                   Open the repository homepage.
   gho GITHUB_URL                   Open any GitHub page, preserving query/fragment.
   gho SSH_REPOSITORY_URL           Open the corresponding GitHub homepage.
@@ -20,7 +21,8 @@ Build URLs from local information; never check or fetch the remote.
 
 Existing paths, including deleted tracked files, take priority over revisions.
 Use refs/heads/NAME or refs/tags/NAME to select a revision with a conflicting name.
-Quote issue numbers so the shell does not treat # as a comment; ./#2321 selects a file.
+Plain numbers and #NUMBER select issues or PRs; ./2321 or ./#2321 selects a file.
+Quote #NUMBER so the shell does not treat # as a comment.
 Branches and tags open tree views; commit IDs and expressions open commit pages.
 Resolve revisions locally without fetching missing objects or calling the GitHub API.
 Issue and PR numbers always use /issues/NUMBER; GitHub redirects PRs.
@@ -34,7 +36,7 @@ end
 
 function __gho_url --argument-names target
     # Build links from local metadata only; never inspect or fetch remote content.
-    set -l issue $(string match -rg '^#([0-9]+)$' -- "$target")
+    set -l issue $(string match -rg '^#?([0-9]+)$' -- "$target")
     set -l revision
     set -l revision_name
     set -q issue[1]; and set target .

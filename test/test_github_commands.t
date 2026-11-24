@@ -972,10 +972,18 @@ sub assert_gho_target {
 sub test_gho_issue_numbers_are_offline_targets {
     my ($self) = @_;
     write_file( "$self->{checkout}/#2321", 'literal filename' );
-    assert_gho_target( $self, '#2321',   "$self->{url}/issues/2321" );
-    assert_gho_target( $self, '#2321',   "$self->{url}/issues/2321", "$self->{checkout}/dir" );
-    assert_gho_target( $self, './#2321', "$self->{url}/blob/main/%232321" );
-    my $result = run_fish( $self, 'gho', [ '--copy', '#2321' ], $self->{checkout}, 1 );
+    write_file( "$self->{checkout}/2321",  'numeric filename' );
+    git( $self, $self->{checkout}, [ 'branch', '2321', $self->{initial} ], 1 );
+    git( $self, $self->{checkout}, [ 'tag',    '2321', $self->{initial} ], 1 );
+    for my $target ( '#2321', '2321' ) {
+        assert_gho_target( $self, $target, "$self->{url}/issues/2321" );
+        assert_gho_target( $self, $target, "$self->{url}/issues/2321", "$self->{checkout}/dir" );
+    }
+    assert_gho_target( $self, './#2321',         "$self->{url}/blob/main/%232321" );
+    assert_gho_target( $self, './2321',          "$self->{url}/blob/main/2321" );
+    assert_gho_target( $self, 'refs/heads/2321', "$self->{url}/tree/2321" );
+    assert_gho_target( $self, 'refs/tags/2321',  "$self->{url}/tree/2321" );
+    my $result = run_fish( $self, 'gho', [ '--copy', '2321' ], $self->{checkout}, 1 );
     assert_success( $self, $result );
     is( read_file("$self->{log}.copy"), "$self->{url}/issues/2321\n", 'issue URLs support copy-only mode' );
     is_deeply( calls( $self, 'open' ), [], 'copy-only mode does not open the issue' );
