@@ -1,7 +1,7 @@
 {
   "plugins": {
     "copilot.vim": {
-      "rev": "e858262a9a8e3e6c43174a9f6c2228ebed3b0981",
+      "rev": "413a934f5bb65df5c0c31e4ae5a02d1d705ed950",
       "src": "https://github.com/nhooyr/copilot.vim.git",
       "version": "'refresh-partial-accept-preview'"
     }
