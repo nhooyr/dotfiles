@@ -98,7 +98,7 @@ Each --dirali maps a directory to an alias, such as '$dotfiles' /path/to/dotfile
 Each env must be unique. The longest matching directory wins.
 
 For example, --dirali '$code' /code --dirali '$dotfiles' /code/dotfiles
-turns /code/dotfiles/init.sh into $dotfiles/init.sh, since /code/dotfiles
+turns /code/dotfiles/install.sh into $dotfiles/install.sh, since /code/dotfiles
 is the longer matching prefix.
 
 Output:
