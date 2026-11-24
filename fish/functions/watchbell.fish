@@ -19,4 +19,5 @@ function watchbell --argument-names pattern
             printf '+%s %s\n' "$(date '+%X')" "$path"
         end
     end
+    return "$pipestatus[1]"
 end
