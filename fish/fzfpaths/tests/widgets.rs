@@ -225,7 +225,7 @@ end
 for name in --help --color
     set -g TEST_TOKEN "$name/fi"
     fzf_path_widget fzf-file-widget
-    if test "$inserted" != "-- $name/file "
+    if test "$inserted" != "-- ./$name/file "
         printf 'unexpected insertion: <%s>\n' "$inserted" >&2
         exit 1
     end

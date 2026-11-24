@@ -729,7 +729,7 @@ struct Picker {
 
 impl Picker {
     fn emit(&mut self, mut path: Vec<u8>, literal: bool, style: &PathStyle) -> io::Result<()> {
-        if literal && matches!(path.first(), Some(b'$' | b'~')) {
+        if literal && matches!(path.first(), Some(b'$' | b'~' | b'-')) {
             path.splice(..0, b"./".iter().copied());
         }
         if self.shown.insert(path.clone()) {

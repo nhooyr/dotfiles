@@ -2062,19 +2062,22 @@ fn repositories_within_the_local_root_are_not_scanned_globally() {
 
 #[test]
 fn literal_prefixes_are_escaped() {
-    let paths = Fixture::new().pick();
+    let fixture = Fixture::new();
+    write(&fixture.local, "-literal");
+    let paths = fixture.pick();
     assert!(paths.contains(&"./$literal".into()));
     assert!(paths.contains(&"./~literal".into()));
+    assert!(paths.contains(&"./-literal".into()));
 }
 
 #[test]
 fn executable_literal_prefixes_are_not_duplicated_or_expanded() {
     let fixture = Fixture::new();
-    for name in ["$literal", "~literal"] {
+    for name in ["$literal", "~literal", "-literal"] {
         write_script(&fixture.local, name);
     }
     let paths = fixture.pick();
-    for name in ["$literal", "~literal"] {
+    for name in ["$literal", "~literal", "-literal"] {
         let escaped = OsString::from(format!("./{name}"));
         assert_eq!(paths.iter().filter(|path| *path == &escaped).count(), 1);
         assert!(!paths.contains(&OsString::from(name)));
