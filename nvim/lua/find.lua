@@ -2,52 +2,35 @@ local pending
 local generation = 0
 
 local function run(pattern, mode)
-	local regex = mode == 'G' or mode == 'E'
-	local ignore_case = vim.fn.tolower(pattern) == pattern
-	local glob = not mode and pattern:find('[*?%[%]{}\\]') and vim.glob.to_lpeg(pattern)
-	local full_path = pattern:find('/', 1, true)
 	local cwd = vim.fn.getcwd()
 	if pending then pending:kill(15) end
 	generation = generation + 1
 	local current = generation
-	local command = ({ G = 'Findr', E = 'Finde', F = 'Findf' })[mode] or 'Find'
-	local listing = true
-	local finish
-	finish = vim.schedule_wrap(function(result)
+	local args = { 'fd', '--hidden', '--follow', '--no-require-git', '--exclude', '.git',
+		'--type', 'file', '--type', 'directory', '--color', 'never' }
+	if mode then args[#args + 1] = '-' .. mode end
+	local query = pattern
+	if pattern:find('/', 1, true) then
+		args[#args + 1] = '--full-path'
+		if mode == 'g' and pattern:sub(1, 1) ~= '/' then query = '**/' .. pattern end
+	end
+	vim.list_extend(args, { '--', query })
+	pending = vim.system(args, { cwd = cwd }, vim.schedule_wrap(function(result)
 		if current ~= generation then return end
-		if result.code > 1 then
-			pending = nil
+		pending = nil
+		if result.code ~= 0 then
 			vim.notify(vim.trim(result.stderr), vim.log.levels.ERROR)
 			return
 		end
-		if listing then
-			listing = false
-			result.stdout = (result.stdout or ''):gsub('/\n', '\n')
-			if regex then
-				local args = { 'grep', '-' .. mode, '-a', '--color=never' }
-				if ignore_case then args[#args + 1] = '-i' end
-				vim.list_extend(args, { '--', pattern })
-				pending = vim.system(args, { stdin = result.stdout }, finish)
-				return
-			end
-		end
-		pending = nil
 		local items = {}
 		for file in (result.stdout or ''):gmatch('[^\n]+') do
-			local candidate = ignore_case and not regex and vim.fn.tolower(file) or file
-			local matches = regex or glob and glob:match(full_path and candidate or vim.fs.basename(candidate))
-				or not glob and candidate:find(pattern, 1, true)
-			if matches then
-				items[#items + 1] = { filename = cwd .. '/' .. file, lnum = 1, col = 1 }
-			end
+			items[#items + 1] = { filename = cwd .. '/' .. file:gsub('/$', ''), lnum = 1, col = 1 }
 		end
-		vim.fn.setqflist({}, ' ', { title = command .. ' ' .. pattern, items = items })
+		local title = 'Find' .. (mode and mode:lower() or '') .. ' ' .. pattern
+		vim.fn.setqflist({}, ' ', { title = title, items = items })
 		vim.cmd.copen()
 		vim.cmd.lcd(vim.fn.fnameescape(cwd))
-	end)
-	pending = vim.system({ 'fd', '--hidden', '--follow', '--no-require-git', '--exclude', '.git',
-		'--type', 'file', '--type', 'directory', '--color', 'never' },
-		{ cwd = cwd }, finish)
+	end))
 end
 
 return { run = run }
