@@ -28,7 +28,7 @@ function fzf_path_widget --argument-names widget
     end
     set -l global_dir "$nhooyr"
     set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
-    while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else '--'; or string match -qr '^[[:alnum:]_]+=' -- "$tokens[1]"
+    while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else --; or string match -qr '^[[:alnum:]_]+=' -- "$tokens[1]"
         set -e tokens[1]
     end
     set -l type -fd
@@ -150,7 +150,9 @@ function fzf_path_widget --argument-names widget
                 set -p escaped nvim --
             end
         else if contains -- "$(path basename -- "$tokens[1]")" nvim cd; and not contains -- -- $tokens; and test -z "$parsed[3]"
-            set -p escaped --
+            if test "$(path basename -- "$tokens[1]")" != nvim; or not contains -- "$tokens[-1]" -u -l -S -s -i -w -W -q -t -c --cmd --listen --server --startuptime
+                set -p escaped --
+            end
         end
         commandline -rt -- "$(string join -- ' ' $parsed[3]$escaped) "
     end

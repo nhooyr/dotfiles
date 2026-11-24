@@ -363,3 +363,16 @@ fn command_position_ignores_only_leading_decorators() {
         ("-- README.md ".into(), false)
     );
 }
+
+#[test]
+fn option_values_skip_the_separator_only_for_nvim() {
+    for commandline in ["nvim -u ", "/usr/local/bin/nvim -u ", "command -- nvim -u "] {
+        assert_eq!(run(commandline, "README.md"), ("README.md ".into(), false));
+    }
+    for commandline in ["cd -u ", "/bin/cd -u ", "nvim ", "nvim -u config "] {
+        assert_eq!(
+            run(commandline, "README.md"),
+            ("-- README.md ".into(), false)
+        );
+    }
+}
