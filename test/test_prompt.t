@@ -761,8 +761,55 @@ sub unwritable_cache_keeps_display {
     is( read_file("$self->{repo}/.fish_git_prompt"), ' (saved)', 'unwritable saved cache remains intact' );
 }
 
+sub directory_aliases_in_prompt_and_title {
+    my ($self) = @_;
+    my $temp   = "$self->{root}/temp";
+    my $home   = "$self->{root}/home";
+    my @cases  = (
+        [ $temp,                     '$TMPDIR' ],
+        [ "$temp/child",             '$TMPDIR/child' ],
+        [ "$temp/nested/child",      '$TEST_ALIAS_PATH/child' ],
+        [ "$self->{root}/temporary", "$self->{root}/temporary" ],
+        [ "$home/child",             '~/child' ],
+        [ "$temp/\econtrol",         '$TMPDIR/control' ],
+    );
+    make_path( map { $_->[0] } @cases );
+    $self->{env}{TMPDIR}          = "$temp/";
+    $self->{env}{HOME}            = $home;
+    $self->{env}{TEST_ALIAS_PATH} = "$temp/nested";
+    my $body = <<'FISH';
+set -p fish_function_path "$TEST_DOTFILES/fish/functions"
+function set_color
+end
+function fish_is_root_user
+    return 1
+end
+function prompt_login
+    printf login
+end
+function aqsnow_vcs_prompt_update
+end
+source "$TEST_DOTFILES/fish/prompt.fish"
+set -g aqsnow_fzf_diralis HOME TMPDIR TEST_ALIAS_PATH
+set -g __aqsnow_vcs_prompt ''
+FISH
+    $body .= 'for directory in ' . join( ' ', map { shell_quote( $_->[0] ) } @cases ) . "\n";
+    $body .= <<'FISH';
+    cd -- "$directory"; or exit 1
+    fish_prompt
+    printf '\n'
+    fish_title editor
+    printf '\n'
+end
+FISH
+    my $expected = join '', map { "login $_->[1]\n[\$] \neditor $_->[1]\n" } @cases;
+    is( output( shell( $self, $body ) ),
+        $expected, 'prompt and title share longest directory aliases, home fallback, and safe display text' );
+}
+
 run_cases(
     {
+        directory_aliases_in_prompt_and_title                    => \&directory_aliases_in_prompt_and_title,
         cached_first_render                                      => \&cached_first_render,
         head_identity_without_cache                              => \&head_identity_without_cache,
         subdirectories_and_metadata                              => \&subdirectories_and_metadata,

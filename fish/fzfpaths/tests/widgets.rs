@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
 const HARNESS: &str = r#"
+set -p fish_function_path "$(path dirname -- "$WIDGET_SOURCE")"
 source "$WIDGET_SOURCE"
 set -g nhooyr ''
 set -g aqsnow_fzf_diralis
@@ -149,6 +150,7 @@ fn path_case(script: &str, token: &str) -> Vec<u8> {
     symlink("external/child", fixture.0.join("link")).unwrap();
     let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../functions/fzf_accept_and_run.fish");
     let setup = r#"
+set -p fish_function_path "$(path dirname -- "$WIDGET_SOURCE")"
 source "$WIDGET_SOURCE"
 set -g nhooyr ''
 set -g aqsnow_fzf_diralis

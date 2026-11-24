@@ -1,3 +1,7 @@
+function aqsnow_prompt_pwd
+    prompt_pwd "$(aqsnow_fzf_path_alias "$PWD" | string split0)"
+end
+
 function fish_prompt
     set -l last_status "$status"
     set -g __aqsnow_prompt_active 1
@@ -18,7 +22,7 @@ function fish_prompt
         set suffix "$status_color$(set_color --underline)$suffix$(set_color --reset)"
     end
 
-    printf '%s %s%s\n' "$(prompt_login)" "$cwd_color$(prompt_pwd)$normal" "$__aqsnow_vcs_prompt$prompt_status"
+    printf '%s %s%s\n' "$(prompt_login)" "$cwd_color$(aqsnow_prompt_pwd)$normal" "$__aqsnow_vcs_prompt$prompt_status"
     printf '%s[%s%s]%s ' "$suffix_color" "$suffix" "$suffix_color" "$normal"
 end
 set -g fish_prompt_pwd_dir_length 0
@@ -47,13 +51,13 @@ function fish_title
         set ssh "[$(prompt_hostname | string sub -l 10)] "
     end
     if set -q argv[1]
-        printf '%s%s %s' "$ssh" "$(string sub -l 20 -- "$argv[1]")" "$(prompt_pwd)"
+        printf '%s%s %s' "$ssh" "$(string sub -l 20 -- "$argv[1]")" "$(aqsnow_prompt_pwd)"
     else
         set -l command "$(status current-command | string sub -l 20) "
         if test "$command" = 'fish '
             set command
         end
-        printf '%s%s%s' "$ssh" "$command" "$(prompt_pwd)"
+        printf '%s%s%s' "$ssh" "$command" "$(aqsnow_prompt_pwd)"
     end
 end
 function fish_mode_prompt

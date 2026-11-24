@@ -452,7 +452,7 @@ sub configured_temp_directory_is_aliased {
     $self->{env}{TEST_DOTFILES} = $root;
     my ($registration) = $config =~ /^(aqsnow_fzf_diralis_add .+)$/m;
     my $result = fish( $self, $registration . "\n" . <<'FISH' );
-source "$TEST_DOTFILES/fish/functions/fzf_accept_and_run.fish"
+set -p fish_function_path "$TEST_DOTFILES/fish/functions"
 fish --no-config -c 'contains -- TMPDIR $(string split : -- "$AQSNOW_DIRALIS"); or exit 1'; or exit
 aqsnow_fzf_path_alias "$TMPDIR/example"
 FISH
