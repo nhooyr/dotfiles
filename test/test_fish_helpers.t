@@ -300,8 +300,9 @@ function pbc
     command "$TEST_PBC"
 end
 realpathc "$TEST_ROOT/missing-parent/file" 2>/dev/null
+printf '%s\n' "$status"
 FISH
-    is( $result->{stdout},                    '',     'failed resolution produces no output' );
+    like( $result->{stdout}, qr/^[1-9][0-9]*\n$/, 'failed resolution returns a failing status' );
     is( read_file("$self->{root}/clipboard"), 'keep', 'pbc preserves the clipboard after failed resolution' );
 }
 

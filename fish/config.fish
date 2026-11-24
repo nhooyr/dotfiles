@@ -57,7 +57,8 @@ abbrali rpc. realpathc .
 abbrali realpc realpathc
 abbrali realpc. realpathc .
 function realpathc --argument-names path --description 'Print and copy an absolute pathname'
-    realpath -- "$path" | hpath | pbc
+    set -l resolved "$(realpath -- "$path")"; or return
+    printf '%s\n' "$resolved" | hpath | pbc
 end
 fish_hybrid_key_bindings
 set -g fish_color_error red --underline
