@@ -39,13 +39,13 @@ abbrali grbr git rebase -i --root
 abbrali grbc git rebase --continue
 abbrali grba git rebase --abort
 abbrali gs git status
-abbrali gd git diff
+abbrali gd git diff --patch-with-stat
 abbrali grt git reset
 abbrali grtp git reset -p
 abbrali grth git reset --hard
-abbrali gdc git diff --cached
-abbr -a --command git diffc diff --cached
-abbrali gdcs git diff --cached --stat
+abbrali gdc git diff --patch-with-stat --cached
+abbr -a --command git diffc diff --patch-with-stat --cached
+abbrali gdcs git diff --cached --patch-with-stat
 abbrali grm git rm
 abbrali grmr git rm -r
 abbrali grmf git rm -f
