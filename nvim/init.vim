@@ -299,8 +299,7 @@ snoremap <M-k> <Cmd>lua require('snips').jump(-1)<CR>
 
 function s:is_config_file(path) abort
 	let path = resolve(a:path)
-	return path ==# resolve($MYVIMRC)
-			\ || path ==# s:config_dir . '/plugins.vim'
+	return (stridx(path, s:config_dir . '/') == 0 && fnamemodify(path, ':e') ==# 'vim')
 			\ || (stridx(path, s:config_dir . '/lua/') == 0 && fnamemodify(path, ':e') ==# 'lua')
 endfunction
 

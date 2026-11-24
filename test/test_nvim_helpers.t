@@ -127,8 +127,11 @@ local name = assert(vim.fn.maparg([[\s]], 'n'):match('<SNR>%d+_is_config_file'))
 local is_config = vim.fn[name]
 local config = vim.env.TEST_DOTFILES .. '/nvim'
 local registrations = #vim.api.nvim_get_autocmds({ group = 'aqsnow' })
-eq(is_config(vim.env.MYVIMRC), 1, 'the active init file is watched')
+eq(is_config(config .. '/init.vim'), 1, 'the config init file is watched')
+eq(is_config(vim.env.MYVIMRC), 0, 'an external init wrapper is not a config file')
 eq(is_config(config .. '/plugins.vim'), 1, 'the package declaration is watched')
+eq(is_config(config .. '/after/ftplugin/example.vim'), 1, 'nested Vim config files are watched')
+eq(is_config(config .. '/settings.txt'), 0, 'other filetypes are not watched')
 eq(is_config(config .. '/lua/rendezvous.lua'), 1, 'new Lua helpers are watched')
 eq(is_config(config .. '/lua/nested/future.lua'), 1, 'nested Lua helpers are watched')
 eq(is_config(config .. '/lua/helper.txt'), 0, 'other extensions are excluded')
