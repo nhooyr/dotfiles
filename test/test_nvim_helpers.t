@@ -281,6 +281,21 @@ eq(vim.fn.resolve(calls[1]), vim.fn.resolve(vim.env.TEST_STATUS_DIRECTORY),
 LUA
 }
 
+sub recording_mode_color {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+for _, register in ipairs({ 'a', 'b' }) do
+    vim.cmd('normal! q' .. register)
+    eq(vim.fn.reg_recording(), register, 'macro recording starts')
+    eq(vim.api.nvim_get_hl(0, { name = 'ModeMsg' }).ctermfg, 4,
+        'the first and subsequent recordings use the recording color')
+    vim.cmd('normal! q')
+    eq(vim.fn.reg_recording(), '', 'macro recording stops')
+    eq(vim.api.nvim_get_hl(0, { name = 'ModeMsg' }).ctermfg, 2, 'stopping restores the normal color')
+end
+LUA
+}
+
 sub snippet_completion_reload {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -586,6 +601,7 @@ run_cases(
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
         netrw_navigation                        => \&netrw_navigation,
         gitstatus_native_directory              => \&gitstatus_native_directory,
+        recording_mode_color                    => \&recording_mode_color,
         snippet_completion_reload               => \&snippet_completion_reload,
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,
         gitstatus_event_queue                   => \&gitstatus_event_queue,

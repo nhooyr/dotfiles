@@ -289,7 +289,6 @@ filetype on
 augroup aqsnow
 	autocmd!
 	autocmd ModeChanged,RecordingEnter * call <SID>set_mode_highlight(v:true)
-	autocmd RecordingEnter * redraw!
 	autocmd RecordingLeave * call <SID>set_mode_highlight(v:false)
 	autocmd QuickFixCmdPost grep ++nested copen
 	autocmd FocusLost,BufLeave * nested if !empty(getbufinfo({'bufmodified': 1})) | doautoall <nomodeline> aqsnow User AqsnowAutosave | endif
