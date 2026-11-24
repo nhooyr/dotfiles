@@ -288,7 +288,7 @@ set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-h
     --color=query:regular,info:italic,pointer:black,\
 fg+:black:regular:strip,bg+:yellow,hl+:black:regular:underline:strip"
 # Display no prefix by default in history view.
-set -gx FZF_CTRL_R_OPTS "--with-nth 3.. --bind 'alt-t:change-with-nth(2..|1,3..|3..)'"
+set -gx FZF_CTRL_R_OPTS '--with-nth 3.. --bind "alt-t:change-with-nth(2..|1,3..|3..),ctrl-x:trigger(shift-delete)"'
 for mode in default insert
     bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
     bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
