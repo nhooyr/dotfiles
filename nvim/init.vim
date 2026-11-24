@@ -9,15 +9,15 @@ set smartcase
 set laststatus=3
 set title
 set titlestring=%{v:lua.require'dirali'.filename()}%(\ %M%)%a\ -\ nvim
-let &statusline = substitute(&statusline, '%f', "%{v:lua.require'dirali'.filename()}", '')
+let &g:statusline = substitute(&g:statusline, '%f', "%{v:lua.require'dirali'.filename()}", '')
 " File-watcher activity should not flash a busy symbol beside the Git prompt.
-let &statusline = substitute(&statusline, "%{ &busy > 0 ? '[^']*' : '' }", '', 'g')
+let &g:statusline = substitute(&g:statusline, "%{ &busy > 0 ? '[^']*' : '' }", '', 'g')
 " Remove our previous VCS field before rebuilding the status line.
 if exists('s:vcs_statusline')
-	let &statusline = substitute(&statusline, '\V' . s:vcs_statusline, '', 'g')
+	let &g:statusline = substitute(&g:statusline, '\V' . s:vcs_statusline, '', 'g')
 endif
 let s:vcs_statusline = "%{get(b:,'vcs_prompt','')} "
-let &statusline = substitute(&statusline, '%=', '%=' . s:vcs_statusline, '')
+let &g:statusline = substitute(&g:statusline, '%=', '%=' . s:vcs_statusline, '')
 set textwidth=110
 let g:gitcommit_summary_length = 80
 set foldmethod=indent
@@ -334,6 +334,7 @@ augroup aqsnow
 	autocmd filetype fish setlocal et formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd FileType help setlocal concealcursor=nc
+	autocmd FileType help,man setlocal number
 	autocmd BufNewFile *:[0-9]* nested lua require('filelinecol').open()
 	autocmd BufNewFile * if expand('<abuf>') == bufnr() && &buftype == '' | setlocal modified | endif
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
@@ -345,6 +346,7 @@ augroup aqsnow
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 if v:vim_did_enter
+	silent doautocmd <nomodeline> aqsnow FileType
 	lua require('gitstatus').setup()
 else
 	autocmd aqsnow VimEnter * ++once lua require('gitstatus').setup()

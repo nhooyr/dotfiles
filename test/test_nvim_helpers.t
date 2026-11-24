@@ -407,6 +407,40 @@ eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow', event = 'SafeState' }), 0,
 LUA
 }
 
+sub config_reload_preserves_options {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local global_statusline = vim.go.statusline
+vim.fn.setqflist({ { filename = vim.env.TEST_ORIGINAL, lnum = 1 } })
+vim.cmd.copen()
+local quickfix_statusline = vim.wo.statusline
+vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+eq(vim.go.statusline, global_statusline, 'reloading from quickfix preserves the global statusline')
+eq(vim.wo.statusline, quickfix_statusline, 'reloading preserves the quickfix statusline')
+vim.cmd.cclose()
+vim.cmd.vnew()
+eq(vim.wo.statusline, global_statusline, 'new windows retain the normal statusline')
+
+local external_events = 0
+vim.api.nvim_create_autocmd('FileType', {
+    group = vim.api.nvim_create_augroup('test_external_filetype', {}),
+    callback = function() external_events = external_events + 1 end,
+})
+for _, case in ipairs({ { 'markdown', 'tabstop', 3 }, { 'gitcommit', 'textwidth', 80 } }) do
+    vim.bo.filetype = case[1]
+    local before = external_events
+    vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+    eq(vim.bo[case[2]], case[3], 'reloading preserves ' .. case[1] .. ' options')
+    eq(external_events, before, 'reloading does not replay third-party FileType handlers')
+end
+for _, filetype in ipairs({ 'help', 'man' }) do
+    vim.wo.number = false
+    vim.bo.filetype = filetype
+    eq(vim.wo.number, true, filetype .. ' buffers show line numbers')
+end
+LUA
+}
+
 sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
@@ -1623,6 +1657,7 @@ run_cases(
         new_files_are_modified                  => \&new_files_are_modified,
         file_locations                          => \&file_locations,
         coalesced_config_reload                 => \&coalesced_config_reload,
+        config_reload_preserves_options         => \&config_reload_preserves_options,
         nested_module_reload                    => \&nested_module_reload,
         first_commit_summary_width              => \&first_commit_summary_width,
         commit_title_prefix                     => \&commit_title_prefix,
