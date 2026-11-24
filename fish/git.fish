@@ -129,6 +129,7 @@ function papp --wraps 'git apply' --description 'git apply from clipboard'
 end
 
 alias gh='NO_COLOR=1 command gh'
+abbrali ghgp ghg -p
 abbrali ghf 'gh repo fork --remote; and gh repo set-default upstream'
 abbrali ghch gh pr checkout
 abbrali ghop gh pr view --web
