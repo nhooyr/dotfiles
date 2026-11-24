@@ -36,8 +36,18 @@ sub owned {
 
 sub identity {
     return '' if $root eq '';
-    my @stat = lstat "$root/.git";
-    return @stat ? "$stat[0]:$stat[1]" : '';
+    my $git   = "$root/.git";
+    my @entry = lstat $git;
+    return '' unless @entry;
+    if ( -f $git ) {
+        open my $file, '<', $git or return '';
+        my $target = <$file> // '';
+        chomp $target;
+        return '' unless $target =~ s/\Agitdir: //;
+        $git = $target =~ m{\A/} ? $target : "$root/$target";
+    }
+    my @directory = stat $git;
+    return @directory ? join( ':', @entry[ 0, 1 ], @directory[ 0, 1 ] ) : '';
 }
 
 owned() or stop();

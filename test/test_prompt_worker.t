@@ -285,6 +285,45 @@ FISH
     is( $self->{notifications}, 1, 'parent is notified to retry the replaced repository' );
 }
 
+sub retargeted_git_file_rejects_result {
+    my ($self) = @_;
+    rename "$self->{work}/.git", "$self->{root}/old.git" or die $!;
+    make_path("$self->{root}/new.git");
+    write_file( "$self->{work}/.git", "gitdir: ../old.git\n" );
+    my $inode = ( stat "$self->{work}/.git" )[1];
+    write_file( $self->{prompt}, <<'FISH' );
+function aqsnow_vcs_prompt
+    printf started > "$TEST_ROOT/ready"
+    while not test -f "$TEST_ROOT/release"
+        command sleep 0.01
+    end
+    printf ' (old-repository)'
+end
+FISH
+    my $job = start_helper($self);
+    ok( wait_until( sub { -s "$self->{root}/ready" }, 2 ), 'worker starts with the original git-file target' )
+      or die "worker did not start\n";
+    write_file( "$self->{work}/.git", "gitdir: ../new.git\n" );
+    is( ( stat "$self->{work}/.git" )[1], $inode, 'retargeting preserves the git file inode' );
+    write_file( "$self->{root}/release", 'go' );
+    is( finished_status( $self, $job, 1.5 ), '75', 'changed git-directory target invalidates the result' );
+}
+
+sub unchanged_git_file_keeps_result {
+    my ($self) = @_;
+    rename "$self->{work}/.git", "$self->{root}/actual.git" or die $!;
+    write_file( $self->{prompt}, <<'FISH' );
+function aqsnow_vcs_prompt
+    printf ' (unchanged)'
+end
+FISH
+    for my $target ( '../actual.git', "$self->{root}/actual.git" ) {
+        write_file( "$self->{work}/.git", "gitdir: $target\n" );
+        my $job = start_helper($self);
+        is( finished_status( $self, $job, 1.5 ), '0', 'an unchanged git-file target is accepted' );
+    }
+}
+
 run_cases(
     {
         immediate_completion_and_optional_locks         => \&immediate_completion_and_optional_locks,
@@ -294,6 +333,8 @@ run_cases(
         parent_death_kills_stubborn_descendants         => \&parent_death_kills_stubborn_descendants,
         status_write_failure_kills_stubborn_descendants => \&status_write_failure_kills_stubborn_descendants,
         replaced_git_directory_rejects_result           => \&replaced_git_directory_rejects_result,
+        retargeted_git_file_rejects_result              => \&retargeted_git_file_rejects_result,
+        unchanged_git_file_keeps_result                 => \&unchanged_git_file_keeps_result,
     },
     \&setup
 );
