@@ -1,11 +1,13 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Cwd              qw(abs_path);
-use File::Basename   qw(basename);
-use File::Temp       qw(tempfile);
-use Getopt::Long     qw(GetOptions);
-use Text::ParseWords qw(shellwords);
+use Cwd                   qw(abs_path);
+use File::Basename        qw(basename);
+use File::Path            qw(make_path);
+use File::Spec::Functions qw(tmpdir);
+use File::Temp            qw(tempfile);
+use Getopt::Long          qw(GetOptions);
+use Text::ParseWords      qw(shellwords);
 
 my $name = basename($0);
 my ( $recursive, $help );
@@ -70,8 +72,11 @@ sub entries {
     return @paths;
 }
 
-my @paths = entries( $directory, '' );
-my ( $file, $script ) = tempfile( 'vidir-XXXXXX', SUFFIX => '.sh', TMPDIR => 1, UNLINK => 0 );
+my @paths     = entries( $directory, '' );
+my $prefix    = $directory eq '/' ? 'root' : basename($directory);
+my $temporary = tmpdir() . '/vidir';
+make_path( $temporary, { mode => 0700 } );
+my ( $file, $script ) = tempfile( "$prefix.XXXXXX", SUFFIX => '.sh', DIR => $temporary, UNLINK => 0 );
 print {$file} "#!/bin/sh\nset -eu\ncd -- ", directory_quote($directory), "\n";
 for my $path (@paths) {
     my $quoted = quote($path);

@@ -4,6 +4,7 @@ use FindBin;
 use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
+use File::Basename   qw(basename dirname);
 use Text::ParseWords qw(shellwords);
 
 my $program = absolute_path("$FindBin::Bin/../bin/vidir");
@@ -65,6 +66,7 @@ sub script_path {
     my @command = shellwords( $result->{stdout} );
     is( scalar @command, 1, 'prints one shell-quoted executable path' );
     ok( -x $command[0], 'the generated script is executable' );
+    is( dirname( $command[0] ), "$self->{env}{TMPDIR}/vidir", 'scripts use the vidir temporary directory' );
     is_deeply(
         decode_json( read_file( $self->{env}{TEST_EDITOR_LOG} ) ),
         [ '--test-option', $command[0] ],
@@ -75,8 +77,13 @@ sub script_path {
 
 sub lists_immediate_entries_and_quotes_names {
     my ($self) = @_;
-    my $path   = script_path( $self, invoke($self) );
-    my @lines  = split /\n/, read_file($path);
+    my $path = script_path( $self, invoke($self) );
+    like(
+        basename($path),
+        qr/\Asource dir\.[A-Za-z0-9_]{6}\.sh\z/,
+        'the short script name uses the directory basename'
+    );
+    my @lines = split /\n/, read_file($path);
     is_deeply(
         [ @lines[ 0 .. 2 ] ],
         [ '#!/bin/sh', 'set -eu', 'cd -- "$TEST_PROJECT"' ],
