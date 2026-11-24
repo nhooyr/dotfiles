@@ -533,6 +533,11 @@ eq(vim.fn.getcwd(), cwd, 'browsing a directory preserves the selected working di
 vim.cmd.Cdh()
 eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh changes to the displayed directory')
 vim.cmd.cd(cwd)
+vim.bo.filetype = 'directory'
+vim.cmd.Cdh()
+eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Cdh does not depend on the directory viewer')
+vim.bo.filetype = 'dirvish'
+vim.cmd.cd(cwd)
 feed('-')
 eq(vim.fn.resolve(vim.api.nvim_buf_get_name(0)):gsub('/+$', ''), vim.fn.resolve(vim.fs.dirname(directory)),
     'directory - opens its parent')
