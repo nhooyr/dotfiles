@@ -12,7 +12,7 @@ my $helpers = join "\n", map {
     die "Missing Fish function $_\n" unless defined $function;
     $function;
 } qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested realpathc __grep_smart_case grep reload);
-for my $name (qw(fd f)) {
+for my $name (qw(fd fdg)) {
     my ($alias) = $config =~ /^(alias \Q$name\E=.+)$/m;
     die "Missing $name alias" unless defined $alias;
     $helpers .= "$alias\n";
@@ -176,19 +176,19 @@ sub fd_defaults_respect_ignores_and_follow_symlinks {
     my $result = fish( $self, <<'FISH' );
 fd --type file -- '^[.]|found' | sort
 printf 'glob:\n'
-f '*found*' | sort
+fdg '*found*' | sort
 FISH
     is(
         $result->{stdout},
         ".gitignore\n.hidden\nlink/found\ntarget/found\nglob:\nlink/found\ntarget/found\n",
-        'fd and f follow links and respect ignores outside Git, including hidden paths'
+        'fd and fdg follow links and respect ignores outside Git, including hidden paths'
     );
 
     make_path("$self->{root}/.git");
     write_file( "$self->{root}/.git/found", 'contents' );
-    $result = fish( $self, q{f '*found*' | sort} );
+    $result = fish( $self, q{fdg '*found*' | sort} );
     is( $result->{stdout}, "link/found\ntarget/found\n",
-        'f inherits fd ignore rules and excludes .git inside Git repositories' );
+        'fdg inherits fd ignore rules and excludes .git inside Git repositories' );
 }
 
 sub find_names_respect_ignores {
@@ -201,16 +201,16 @@ sub find_names_respect_ignores {
     write_file( "$self->{root}/.match-hidden",      'contents' );
     write_file( "$self->{root}/Match-upper",        'contents' );
     my $result = fish( $self, <<'FISH' );
-f '*match*' | sort
+fdg '*match*' | sort
 printf 'uppercase:\n'
-f '*Match*'
+fdg '*Match*'
 printf 'glob:\n'
-f 'match-?ile'
+fdg 'match-?ile'
 FISH
     is(
         $result->{stdout},
         ".match-hidden\nMatch-upper\nmatch-dir/\nmatch-file\nuppercase:\nMatch-upper\nglob:\nmatch-file\n",
-        'f finds files, directories and hidden entries with glob smart case while respecting ignores'
+        'fdg finds files, directories and hidden entries with glob smart case while respecting ignores'
     );
 }
 

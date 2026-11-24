@@ -134,9 +134,9 @@ alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git
     --colors=match:fg:black \
     --colors=match:bg:yellow \
 "
-alias f='fd --glob'
+alias fdg='fd --glob'
 alias bigdirs='du -hd 1 | sort -hr | head -n 16'
-abbr -a --set-cursor f "f '*%*'"
+abbr -a --set-cursor fdg "fdg '*%*'"
 set -gx GREP_COLORS 'mt=30;43:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '30;43'
 abbrali grepe grep -E
