@@ -344,55 +344,7 @@ abbrali dnsq 'sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder'
 abbrali goi 'go install'
 abbr -a --command go i install
 
-function tex --argument-names texfile
-    if test -z "$texfile"; or not test -f "$texfile"
-        printf 'Usage: %s %s\n' "$(status function)" '<main.tex>' >&2
-        return 1
-    end
-    set texfile "$(path resolve "$texfile")"
-    set -l texbase "$(path basename "$texfile")"
-    set -l dir "$(path dirname "$texfile")"
-    cdc "$dir" latexmk -pdf -silent -pv "$texbase"
-    set -l last_path
-    fswatch -r0 --batch-marker='' -e '.*' -i '\.tex$' "$dir" | while read -zl path
-        if test -z "$path"
-            set -e last_path
-            cdc "$dir" latexmk -pdf -silent "$texbase"
-        else
-            set path "$(string replace "$dir/" '' "$path")"
-            if test "$path" = "$last_path"
-                continue
-            end
-            set last_path "$path"
-            printf '%s+%s %s%s\n' "$(set_color --bold)" "$(date '+%X')" "$path" "$(set_color reset)"
-        end
-    end
-end
-
 abbrali wb watchbell
-function watchbell --argument-names pattern
-    if test -z "$pattern"
-        set pattern '.*'
-    end
-    set -l last_path
-    fswatch -r0 --batch-marker='' -e '.*' -i "$pattern" . | while read -zl path
-        if test -z "$path"
-            set -e last_path
-            printf '\a'
-        else
-            set path "$(string replace "$PWD/" '' "$path")"
-            if test "$path" = "$last_path"
-                continue
-            end
-            set last_path "$path"
-            if test "$(path basename "$path")" = 4913
-                continue
-            end
-            printf '+%s %s\n' "$(date '+%X')" "$path"
-        end
-    end
-end
-
 function biglines --argument-names file \
     --description 'Print lines in a file with their lengths, sorted by length'
     awk '{ print length, $0 }' "$file" | sort -rn | sed -E "s/^[0-9]+/$(set_color magenta)&$(set_color reset)/" | less
@@ -400,67 +352,7 @@ end
 
 abbrali noise 'cdc "$noise" gacmp'
 
-function fair --description 'fair [n] [--date1 ISO_DATE --date2 ISO_DATE]'
-    if test "$(path resolve -- "$PWD")" != "$(path resolve -- "$fair_repo")"
-        cdc "$fair_repo" fair $argv
-        return
-    end
-    argparse --max-args 1 date1= date2= -- $argv; or return
-    set -l n "$argv[1]"
-    test -n "$n"; or set n 1
-    if not string match -qr '^[0-9]{1,4}$' -- "$n"; or test "$n" -lt 1
-        printf '%s: 1 <= n <= 9999\n' "$(status function)" >&2
-        return 1
-    end
-    set -l dates
-    if set -q _flag_date1; or set -q _flag_date2
-        if not set -q _flag_date1; or not set -q _flag_date2
-            printf '%s: --date1 and --date2 must be provided together\n' "$(status function)" >&2
-            return 1
-        end
-        set dates $(perl "$dotfiles/fish/fair_dates.pl" "$_flag_date1" "$_flag_date2" "$n"); or return
-    end
-    set -l msg "$(git show -s --format=%s)"
-    set -l msgn "$(string match -rg ': ([0-9]+)$' -- "$msg")"; or set msgn 0
-    for i in $(seq 1 "$n")
-        set msgn "$(math "$msgn" + 1)"
-        if set -q dates[$i]
-            set -fx GIT_AUTHOR_DATE "@$dates[$i] +0000"
-            set -fx GIT_COMMITTER_DATE "$GIT_AUTHOR_DATE"
-        end
-        git commit --allow-empty --only -m "count: $msgn"; or return
-    end
-    git push
-end
-
 abbrali notep 'cdc "$notes" gacmp'
-function note --description '$EDITOR $notes/YYYY/MM/DD.md'
-    set -l note "$notes/$(date '+%Y/%m/%d').md"
-    if test -e "$note"
-        $EDITOR "$note"
-        return
-    end
-    printf '# %s\n* %s *\n\n\n' "$(date '+%B %d, %Y')" "$(date '+%A')" | note="$note" $EDITOR - \
-        '+execute "file " . fnameescape($note)' \
-        '+filetype detect' \
-        '+normal! G'
-end
-
-function rootimg --description 'Shrink image to 1/4' --argument-names img
-    if test -z "$img"; or set -q argv[2]
-        printf 'Usage: %s <img>\n' "$(status current-function)" >&2
-        return 1
-    end
-    if contains -- "$img" -h --help
-        printf 'Usage: %s <img>\n' "$(status current-function)"
-        return 0
-    end
-    set -l img_dst "$(path basename --no-extension "$img")"
-    set img_dst "$img_dst-root$(path extension "$img")"
-    set img_dst "$(path dirname "$img")/$img_dst"
-    magick "$img" -resize 50% "$img_dst"
-end
-
 abbrali netq networkquality
 
 source "$dotfiles/fish/git.fish"

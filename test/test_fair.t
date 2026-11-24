@@ -12,20 +12,6 @@ my $GIT      = which("git");
 my $PERL     = which("perl");
 my $DOTFILES = ancestors( absolute_path(__FILE__) )->[1];
 my $DATES    = join_path( join_path( $DOTFILES, "fish" ), "fair_dates.pl" );
-my $CONFIG =
-  read_file( join_path( join_path( $DOTFILES, "fish" ), "config.fish" ) );
-my $FAIR = (
-    (
-        "function fair" . split_literal(
-            split_literal( $CONFIG, "function fair", 1 )->[1], '
-end
-', 1
-        )->[0]
-    )
-    . '
-end
-'
-);
 
 sub setUp {
     my ($self) = @_;
@@ -84,7 +70,7 @@ sub fair {
     my ($script);
     $script = (
         (
-            $FAIR . '
+            'set -p fish_function_path "$TEST_DOTFILES/fish/functions"
 function git
     if test "$argv[1]" = push
         return 0
