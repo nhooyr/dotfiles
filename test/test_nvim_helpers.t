@@ -709,6 +709,55 @@ eq(vim.g.test_copilot_calls, 2, 'each mapped keypress calls AcceptWord once')
 LUA
 }
 
+sub copilot_line_mapping {
+    my ($self) = @_;
+    make_path("$self->{temporary}/autoload");
+    my $autoload = "$self->{temporary}/autoload/copilot.vim";
+    write_file( $autoload, <<'VIM' );
+function! copilot#AcceptLine(fallback) abort
+    let g:test_copilot_calls = get(g:, 'test_copilot_calls', 0) + 1
+    let g:test_copilot_fallback = a:fallback
+    return get(g:, 'test_copilot_line', '') ==# '' ? a:fallback : g:test_copilot_line
+endfunction
+VIM
+    $self->{env}{TEST_COPILOT_AUTOLOAD} = $autoload;
+    run_script( $self, <<'LUA' );
+local function attempt()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'abc tail' })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    feed('iQ<C-e>x<Esc>')
+    return vim.api.nvim_get_current_line()
+end
+local function popup()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { '' })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    local states = {}
+    _G.test_popup_open = function() vim.fn.complete(1, { 'alpha', 'alpine' }) end
+    _G.test_popup_record = function()
+        states[#states + 1] = { vim.fn.pumvisible(), vim.api.nvim_get_current_line() }
+    end
+    feed('ia<Cmd>lua test_popup_open()<CR><C-n><Cmd>lua test_popup_record()<CR>'
+        .. '<C-e><Cmd>lua test_popup_record()<CR><Esc>')
+    eq(states, { { 1, 'alpha' }, { 0, 'a' } }, 'Ctrl-e cancels completion without accepting it')
+end
+eq(vim.fn.exists('*copilot#AcceptLine'), 0, 'the test begins without Copilot')
+eq(attempt(), 'Qabc tailx', 'without Copilot, Ctrl-e moves to the end of the line')
+popup()
+vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_COPILOT_AUTOLOAD))
+eq(attempt(), 'Qabc tailx', 'without a suggestion, Ctrl-e moves to the end of the line')
+eq(vim.g.test_copilot_fallback, vim.api.nvim_replace_termcodes('<C-o>$', true, false, true),
+    'Copilot receives the end-of-line fallback')
+vim.g.test_copilot_line = 'accepted line'
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'tail' })
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+feed('i<C-e><Esc>')
+eq(vim.api.nvim_get_current_line(), 'accepted linetail', 'Ctrl-e inserts the line returned by Copilot')
+eq(vim.g.test_copilot_calls, 2, 'each non-popup keypress calls AcceptLine once')
+popup()
+eq(vim.g.test_copilot_calls, 2, 'completion cancellation takes priority over Copilot')
+LUA
+}
+
 sub rendezvous_error_order {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -753,6 +802,7 @@ run_cases(
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         rendezvous_routes                       => \&rendezvous_routes,
         copilot_word_mapping                    => \&copilot_word_mapping,
+        copilot_line_mapping                    => \&copilot_line_mapping,
         rendezvous_error_order                  => \&rendezvous_error_order,
     },
     \&setup
