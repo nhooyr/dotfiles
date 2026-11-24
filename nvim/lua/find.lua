@@ -29,7 +29,7 @@ local function run(pattern, mode)
 		local title = 'Find' .. (mode and mode:lower() or '') .. ' ' .. pattern
 		vim.fn.setqflist({}, ' ', { title = title, items = items, context = { cwd = cwd } })
 		vim.cmd.copen()
-		vim.cmd.lcd(vim.fn.fnameescape(cwd))
+		vim.cmd.lcd({ vim.fn.fnameescape(cwd), mods = { silent = true } })
 	end))
 end
 

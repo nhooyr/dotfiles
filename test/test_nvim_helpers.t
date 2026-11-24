@@ -251,8 +251,8 @@ sub quickfix_search_directory {
     my $directory = "$self->{env}{HOME}/search";
     make_path( $directory, "$self->{temporary}/other" );
     write_file( "$directory/match.txt", "needle\n" );
-    $self->{env}{TEST_SEARCH} = absolute_path($directory);
-    $self->{env}{TEST_OTHER} = absolute_path("$self->{temporary}/other");
+    $self->{env}{TEST_SEARCH}    = absolute_path($directory);
+    $self->{env}{TEST_OTHER}     = absolute_path("$self->{temporary}/other");
     $self->{env}{AQSNOW_DIRALIS} = 'HOME:TEST_SEARCH';
     run_script( $self, <<'LUA' );
 local directory, other = vim.env.TEST_SEARCH, vim.env.TEST_OTHER
@@ -1030,6 +1030,11 @@ sub find_files_quickfix {
     run_script( $self, <<'LUA' );
 local root = vim.fn.resolve(vim.env.TEST_SEARCH)
 vim.cmd.cd(root)
+vim.cmd('messages clear')
+local id = vim.fn.getqflist({ id = 0 }).id
+feed(';Find top<CR>')
+assert(vim.wait(3000, function() return vim.fn.getqflist({ id = 0 }).id ~= id end), 'typed Find finishes')
+eq(vim.api.nvim_exec2('messages', { output = true }).output, '', 'typed Find does not echo the directory')
 local function search(pattern, command)
     local id = vim.fn.getqflist({ id = 0 }).id
     vim.cmd((command or 'Find') .. ' ' .. pattern)
@@ -1110,6 +1115,7 @@ vim.cmd.cd('/')
 calls[2].callback({ code = 0, stdout = 'second.lua\n', stderr = '' })
 calls[1].callback({ code = 0, stdout = 'first.lua\n', stderr = '' })
 assert(vim.wait(3000, function() return vim.fn.getqflist({ title = 0 }).title == 'Find second' end))
+eq(vim.fn.getcwd(), cwd, 'quickfix keeps the search directory when cwd changes during the scan')
 eq(#vim.fn.getqflist(), 1, 'stale search results do not replace the latest list')
 eq(vim.api.nvim_buf_get_name(vim.fn.getqflist()[1].bufnr), cwd .. '/second.lua', 'results use the search cwd')
 local id = vim.fn.getqflist({ id = 0 }).id
@@ -1350,8 +1356,8 @@ run_cases(
         first_commit_summary_width              => \&first_commit_summary_width,
         commit_title_prefix                     => \&commit_title_prefix,
         diff_original_preserves_unsaved_changes => \&diff_original_preserves_unsaved_changes,
-        diff_original_missing_file             => \&diff_original_missing_file,
-        diff_strip_mappings                    => \&diff_strip_mappings,
+        diff_original_missing_file              => \&diff_original_missing_file,
+        diff_strip_mappings                     => \&diff_strip_mappings,
         directory_navigation                    => \&directory_navigation,
         directory_quit_last_window              => \&directory_quit_last_window,
         native_directory_startup                => \&native_directory_startup,
