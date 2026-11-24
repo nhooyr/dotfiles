@@ -39,8 +39,10 @@ local function filename()
 	end
 	local path = vim.api.nvim_buf_get_name(0)
 	local shortened = shorten(path)
-	-- Keep Neovim's own names for buffers without a matching alias.
-	if shortened == path then return vim.api.nvim_eval_statusline('%f', {}).str end
+	-- Keep Neovim's own labels for unnamed and special buffers.
+	if shortened == path and (path == '' or vim.bo.buftype ~= '') then
+		return vim.api.nvim_eval_statusline('%f', {}).str
+	end
 	return vim.fn.strtrans(shortened)
 end
 

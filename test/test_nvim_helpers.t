@@ -109,6 +109,38 @@ eq(vim.o.grepformat, '%f:%l:%c:%m', 'directory and command-line changes keep the
 LUA
 }
 
+sub filename_display {
+    my ($self) = @_;
+    make_path("$self->{temporary}/project");
+    $self->{env}{AQSNOW_DIRALIS} = 'HOME:TEST_PROJECT';
+    $self->{env}{HOME} = absolute_path($self->{env}{HOME});
+    $self->{env}{TEST_PROJECT} = absolute_path("$self->{temporary}/project");
+    run_script( $self, <<'LUA' );
+local helper = require('dirali')
+local function check(expected, description)
+    eq(helper.filename(), expected, description)
+    for _, format in ipairs({ vim.o.statusline, vim.o.titlestring }) do
+        local rendered = vim.api.nvim_eval_statusline(format, { maxwidth = 10000 }).str
+        assert(rendered:find(expected, 1, true), description .. ': ' .. rendered)
+    end
+end
+local path = vim.api.nvim_buf_get_name(0)
+eq(vim.api.nvim_eval_statusline('%f', {}).str, 'original.txt', 'the native name is cwd-relative')
+check(path, 'unaliased files use absolute paths in the statusline and title')
+for _, alias in ipairs({ { 'HOME', '~' }, { 'TEST_PROJECT', '$TEST_PROJECT' } }) do
+    vim.cmd.enew()
+    vim.api.nvim_buf_set_name(0, vim.env[alias[1]] .. '/notes.txt')
+    check(alias[2] .. '/notes.txt', 'directory aliases remain abbreviated')
+end
+vim.cmd.enew()
+check(vim.api.nvim_eval_statusline('%f', {}).str, 'unnamed buffers retain the native label')
+vim.bo.buftype = 'nofile'
+vim.cmd('cd ' .. vim.fn.fnameescape(vim.fs.dirname(path)))
+vim.api.nvim_buf_set_name(0, path .. '.scratch')
+check(vim.api.nvim_eval_statusline('%f', {}).str, 'special buffers retain the native label')
+LUA
+}
+
 sub file_locations {
     my ($self)  = @_;
     my $file    = "$self->{temporary}/file name.fish";
@@ -820,6 +852,7 @@ LUA
 run_cases(
     {
         startup_and_config_paths                => \&startup_and_config_paths,
+        filename_display                        => \&filename_display,
         file_locations                          => \&file_locations,
         coalesced_config_reload                 => \&coalesced_config_reload,
         nested_module_reload                    => \&nested_module_reload,
