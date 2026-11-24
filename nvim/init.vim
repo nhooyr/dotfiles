@@ -290,7 +290,7 @@ for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
 		call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
 	endif
 endfor
-let &grepprg = shellescape(fnamemodify(s:config_dir, ':h') . '/bin/vgrep')
+set grepprg=vgrep
 set grepformat=%f:%l:%c:%m
 inoremap <M-j> <Cmd>lua require('snippets').expand_or_jump()<CR>
 snoremap <M-j> <Cmd>lua require('snippets').jump(1)<CR>

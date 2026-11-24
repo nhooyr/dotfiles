@@ -17,6 +17,7 @@ sub setup {
     write_file( "$tmp/original.txt", "original\n" );
     $self->{env} = {
         %ENV,
+        PATH                   => "$root/bin:$ENV{PATH}",
         HOME                   => "$tmp/home",
         XDG_CONFIG_HOME        => "$tmp/config",
         XDG_DATA_HOME          => "$tmp/data",
@@ -96,8 +97,9 @@ assert(package.loaded.rendezvous == nil, 'rendezvous stays unloaded at startup')
 assert(package.loaded.snippets == nil, 'snippets stay unloaded until completion or expansion')
 assert(package.loaded.filelinecol == nil, 'file locations stay unloaded for ordinary files')
 assert(package.loaded.grep == nil, 'startup does not load a grep module')
-local grepprg = vim.fn.shellescape(vim.env.TEST_DOTFILES .. '/bin/vgrep')
-eq(vim.o.grepprg, grepprg, 'grep uses the fixed vgrep wrapper')
+local grepprg = 'vgrep'
+eq(vim.o.grepprg, grepprg, 'grep resolves vgrep through PATH')
+eq(vim.fn.exepath('vgrep'), vim.env.TEST_DOTFILES .. '/bin/vgrep', 'tests use the checkout vgrep wrapper')
 eq(vim.o.grepformat, '%f:%l:%c:%m', 'grep uses ripgrep line and column fields')
 eq(vim.fn.exists(':Vidir'), 0, 'Vidir is now an external command')
 eq(vim.fn.exists(':Shdo'), 0, 'the Shdo command is removed')
@@ -175,7 +177,7 @@ check(vim.api.nvim_eval_statusline('%f', {}).str, 'special buffers retain the na
 LUA
 }
 
-sub quickfix_directory_aliases {
+sub quickfix_relative_paths {
     my ($self) = @_;
     $self->{env}{HOME} = absolute_path( $self->{env}{HOME} );
     make_path("$self->{env}{HOME}/project");
@@ -193,8 +195,8 @@ local items = {
     { filename = project .. '/code.lua', lnum = 8, module = 'compiler', text = 'module' },
 }
 local expected = {
-    '$TEST_PROJECT/code.lua|2-4 error   7| first line',
-    '~/notes.txt|5| home',
+    'code.lua|2-4 error   7| first line',
+    home .. '/notes.txt|5| home',
     outside .. '|6| outside',
     'help.txt|7| help',
     'compiler|8| module',
@@ -202,12 +204,12 @@ local expected = {
 vim.fn.setqflist({}, ' ', { items = items })
 local format = require('quickfix').fmt
 eq(format({ quickfix = 1, id = 0, start_idx = 1, end_idx = #items }), expected,
-    'quickfix abbreviates absolute paths while preserving help, modules, ranges, and types')
+    'quickfix uses cwd-relative paths while preserving help, modules, ranges, and types')
 eq(vim.api.nvim_buf_get_name(vim.fn.getqflist()[1].bufnr), project .. '/code.lua',
-    'display aliases do not change the file opened by quickfix')
+    'relative display paths do not change the file opened by quickfix')
 vim.fn.setloclist(0, {}, ' ', { items = items })
 eq(format({ quickfix = 0, winid = vim.api.nvim_get_current_win(), id = 0, start_idx = 1, end_idx = #items }),
-    expected, 'location lists use the same directory aliases')
+    expected, 'location lists use the same relative paths')
 LUA
 }
 
@@ -1253,7 +1255,7 @@ run_cases(
     {
         startup_and_config_paths                => \&startup_and_config_paths,
         filename_display                        => \&filename_display,
-        quickfix_directory_aliases              => \&quickfix_directory_aliases,
+        quickfix_relative_paths                 => \&quickfix_relative_paths,
         quickfix_title_directory_aliases        => \&quickfix_title_directory_aliases,
         new_files_are_modified                  => \&new_files_are_modified,
         file_locations                          => \&file_locations,
