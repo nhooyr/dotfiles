@@ -20,6 +20,7 @@
 - Do not add compatibility code (including shims and fallbacks) without my explicit approval.
 - Do not report or change automatic commit-push behavior unless I explicitly ask.
 - Do not report or change tracking of Alfred's machine-local preferences unless I explicitly ask.
-- Assume file paths never contain newlines. Do not report, fix, or test newline-containing paths; NUL-delimited path transport is for performance only.
+- Assume file paths never contain control characters, including newlines. Do not report such cases or add
+  tests or code to handle them; NUL-delimited path transport is for performance only.
 - Prefer Perl over Python for scripting.
 - Never create or modify `README.md` or other documentation without my explicit permission.
