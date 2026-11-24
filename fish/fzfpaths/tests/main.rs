@@ -2780,6 +2780,27 @@ fn input_paths_preserve_order_and_share_executable_rules() {
 }
 
 #[test]
+fn directory_aliases_match_logical_and_physical_input_paths() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("external");
+    write(&directory, "file");
+    let alias = fixture.root.join("alias");
+    symlink(&directory, &alias).unwrap();
+    let physical = directory.canonicalize().unwrap();
+    let paths = from_input(
+        &mut fixture.command_with_flags(
+            &["--read0"],
+            &fixture.local,
+            Path::new(""),
+            "-f",
+            &[("$TMPDIR", &alias)],
+        ),
+        &[&alias.join("file"), &physical.join("file")],
+    );
+    assert_eq!(paths, [OsString::from("$TMPDIR/file")]);
+}
+
+#[test]
 fn input_paths_use_local_rules_for_physical_and_logical_cwd() {
     let fixture = Fixture::new();
     let alias = fixture.root.join("alias");

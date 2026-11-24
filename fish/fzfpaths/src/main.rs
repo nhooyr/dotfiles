@@ -217,6 +217,12 @@ fn run(
         } else {
             directory.to_path_buf()
         };
+        if directory.is_absolute()
+            && let Ok(physical) = directory.canonicalize()
+            && physical != directory
+        {
+            env_dirs.push((env.to_vec(), physical.into_os_string().into_vec()));
+        }
         env_dirs.push((env.to_vec(), directory.into_os_string().into_vec()));
     }
     env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
