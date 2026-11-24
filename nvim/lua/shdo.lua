@@ -62,7 +62,7 @@ function generate(options)
 	vim.api.nvim_buf_set_lines(script, 0, -1, false, lines)
 	vim.bo[script].undofile = false
 	vim.bo[script].swapfile = false
-	vim.bo[script].bufhidden = 'wipe'
+	vim.bo[script].bufhidden = 'hide'
 	vim.api.nvim_set_current_buf(script)
 	vim.b.shdo_directory, vim.b.shdo_listing = directory, listing
 	vim.bo.filetype = 'sh'

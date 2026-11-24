@@ -209,12 +209,31 @@ eq(vim.v.shell_error, 0, 'the standalone script handles quoted aliases and liter
 LUA
 }
 
+sub shdo_keeps_scripts_in_jump_history {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local shdo = require('shdo')
+directory.open(project)
+local listing = vim.api.nvim_get_current_buf()
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { '$TEST_PROJECT/visible.txt' })
+shdo.generate({ args = 'test -f {}', line1 = 1, line2 = 1, bang = false })
+local script, commands = vim.api.nvim_get_current_buf(), lines()
+shdo.run()
+eq(vim.api.nvim_get_current_buf(), listing, 'success returns to the listing')
+assert(vim.api.nvim_buf_is_loaded(script), 'the executed script stays loaded')
+feed('<C-o>')
+eq(vim.api.nvim_get_current_buf(), script, 'Ctrl-O returns to the executed script')
+eq(lines(), commands, 'the executed script keeps its commands')
+LUA
+}
+
 run_cases(
     {
         listing_and_inline_expansion             => \&listing_and_inline_expansion,
         hidden_toggle_and_file_opening           => \&hidden_toggle_and_file_opening,
         shdo_bindings_select_all_or_visual_lines => \&shdo_bindings_select_all_or_visual_lines,
         shdo_quotes_relative_and_aliased_paths   => \&shdo_quotes_relative_and_aliased_paths,
+        shdo_keeps_scripts_in_jump_history       => \&shdo_keeps_scripts_in_jump_history,
     },
     \&setup
 );
