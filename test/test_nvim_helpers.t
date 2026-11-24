@@ -410,7 +410,7 @@ LUA
 
 sub vidir_buffer_directory {
     my ($self) = @_;
-    my $directory = "$self->{temporary}/rename dir";
+    my $directory = "$self->{temporary}/rename's dir";
     make_path( $directory, "$self->{temporary}/bin" );
     write_file( "$directory/entry",           "content\n" );
     write_file( "$self->{temporary}/bin/gls", "#!/bin/sh\nprintf '%s\\n' entry\n" );
@@ -424,8 +424,9 @@ vim.cmd.Vidir()
 local buffer = vim.api.nvim_get_current_buf()
 eq(vim.fn.resolve(vim.b.vidir_dir), vim.fn.resolve(directory), 'Vidir records its directory')
 eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Vidir starts in its directory')
+local cd = "cd -- '" .. vim.b.vidir_dir:gsub("'", "'\\''") .. "'"
 eq(vim.api.nvim_buf_get_lines(buffer, 0, -1, false),
-    { '#!/bin/sh', 'set -eu', "mv -v -- 'entry' 'entry'" }, 'Vidir retains its existing command list')
+    { '#!/bin/sh', 'set -eu', cd, "mv -v -- 'entry' 'entry'" }, 'Vidir includes its quoted directory in the script')
 for _ = 1, 3 do
     vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
     eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(vim.fs.dirname(vim.env.TEST_ORIGINAL)),
@@ -438,7 +439,7 @@ LUA
 
 sub vidir_refresh_after_success {
     my ($self)    = @_;
-    my $directory = "$self->{temporary}/rename dir";
+    my $directory = "$self->{temporary}/rename's dir";
     my $bin       = "$self->{temporary}/bin";
     make_path( $directory, $bin );
     write_file( "$directory/original", "original\n" );
@@ -467,6 +468,7 @@ vim.cmd('cd ' .. vim.fn.fnameescape(directory))
 vim.cmd.Vidir()
 local buffer = vim.api.nvim_get_current_buf()
 local function lines() return vim.api.nvim_buf_get_lines(buffer, 0, -1, false) end
+local cd = "cd -- '" .. vim.b.vidir_dir:gsub("'", "'\\''") .. "'"
 local function rename_command(from, to)
     local commands, found = lines(), false
     for i, command in ipairs(commands) do
@@ -488,10 +490,12 @@ eq(vim.api.nvim_get_current_buf(), buffer, 'reentry keeps the existing rename bu
 eq(lines(), pending, 'reentry preserves unapplied edits')
 assert(vim.bo.modified, 'unapplied commands remain modified')
 eq(vim.fn.filereadable(directory .. '/original'), 1, 'reentry does not execute commands')
+vim.cmd.bcd(vim.fs.dirname(vim.env.TEST_ORIGINAL))
 vim.cmd.write()
 eq(vim.fn.filereadable(directory .. '/renamed'), 1, 'the requested rename ran')
 eq(vim.fn.filereadable(directory .. '/original'), 0, 'the old filename is gone')
 assert(vim.tbl_contains(lines(), "mv -v -- 'renamed' 'renamed'"), 'success refreshes the command list')
+eq(lines()[3], cd, 'success retains the directory command')
 assert(not vim.bo.modified, 'the refreshed command list is unmodified')
 vim.cmd.write()
 eq(vim.v.shell_error, 0, 'applying the refreshed list does not retry the old source')

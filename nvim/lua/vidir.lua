@@ -7,7 +7,7 @@ local function refresh()
 		'env', 'LC_COLLATE=C', 'gls', '-1A', '-v', '--group-directories-first', '-r', '--', vim.b.vidir_dir,
 	})
 	if vim.v.shell_error ~= 0 then error(table.concat(files, '\n')) end
-	local commands = { '#!/bin/sh', 'set -eu' }
+	local commands = { '#!/bin/sh', 'set -eu', 'cd -- ' .. shell_quote(vim.b.vidir_dir) }
 	for _, path in ipairs(files) do
 		local quoted = shell_quote(path)
 		commands[#commands + 1] = 'mv -v -- ' .. quoted .. ' ' .. quoted
@@ -17,7 +17,7 @@ local function refresh()
 end
 
 local function run()
-	vim.cmd('write !cd -- ' .. vim.fn.shellescape(vim.b.vidir_dir, true) .. ' && sh')
+	vim.cmd('write !sh')
 	if vim.v.shell_error == 0 then refresh() end
 end
 
