@@ -171,31 +171,33 @@ sub fd_defaults_respect_ignores_and_follow_symlinks {
     write_file( "$self->{root}/ignored/found", 'contents' );
     write_file( "$self->{root}/target/found",  'contents' );
     symlink 'target', "$self->{root}/link" or die $!;
-    my $result = fish( $self, q{fd --type file -- '^[.]|found' | sort} );
+    my $result = fish( $self, <<'FISH' );
+fd --type file -- '^[.]|found' | sort
+printf 'glob:\n'
+f '*found*' | sort
+FISH
     is(
         $result->{stdout},
-        ".gitignore\n.hidden\nlink/found\ntarget/found\n",
-        'fd includes hidden paths, follows links, and respects ignores outside Git'
+        ".gitignore\n.hidden\nlink/found\ntarget/found\nglob:\nlink/found\ntarget/found\n",
+        'fd and f follow links and respect ignores outside Git, including hidden paths'
     );
 
     make_path("$self->{root}/.git");
     write_file( "$self->{root}/.git/found", 'contents' );
     $result = fish( $self, q{f '*found*' | sort} );
-    is(
-        $result->{stdout},
-        "ignored/found\nlink/found\ntarget/found\n",
-        'f inherits fd defaults while including ignored paths and excluding .git'
-    );
+    is( $result->{stdout}, "link/found\ntarget/found\n",
+        'f inherits fd ignore rules and excludes .git inside Git repositories' );
 }
 
-sub find_names_include_directories_and_ignored_paths {
+sub find_names_respect_ignores {
     my ($self) = @_;
     plan skip_all => 'fd is needed to test filename search' unless which('fd');
     make_path("$self->{root}/match-dir");
-    write_file( "$self->{root}/.gitignore",    "*match*\n" );
-    write_file( "$self->{root}/match-file",    'contents' );
-    write_file( "$self->{root}/.match-hidden", 'contents' );
-    write_file( "$self->{root}/Match-upper",   'contents' );
+    write_file( "$self->{root}/.gitignore",         "ignored*\n" );
+    write_file( "$self->{root}/ignored-match-file", 'contents' );
+    write_file( "$self->{root}/match-file",         'contents' );
+    write_file( "$self->{root}/.match-hidden",      'contents' );
+    write_file( "$self->{root}/Match-upper",        'contents' );
     my $result = fish( $self, <<'FISH' );
 f '*match*' | sort
 printf 'uppercase:\n'
@@ -206,7 +208,7 @@ FISH
     is(
         $result->{stdout},
         ".match-hidden\nMatch-upper\nmatch-dir/\nmatch-file\nuppercase:\nMatch-upper\nglob:\nmatch-file\n",
-        'fd finds files, directories, hidden and ignored entries with glob smart case'
+        'f finds files, directories and hidden entries with glob smart case while respecting ignores'
     );
 }
 
@@ -494,14 +496,13 @@ FISH
 
 run_cases(
     {
-        fd_defaults_respect_ignores_and_follow_symlinks  => \&fd_defaults_respect_ignores_and_follow_symlinks,
-        find_names_include_directories_and_ignored_paths =>
-          \&find_names_include_directories_and_ignored_paths,
-        rendezvous_routes_both_file_pickers               => \&rendezvous_routes_both_file_pickers,
-        sshv_preserves_remote_paths                       => \&sshv_preserves_remote_paths,
-        sshv_stops_on_ssh_failure                         => \&sshv_stops_on_ssh_failure,
-        sshv_stops_on_missing_paths                       => \&sshv_stops_on_missing_paths,
-        nvim_preserves_native_command_line_options        => \&nvim_preserves_native_command_line_options,
+        fd_defaults_respect_ignores_and_follow_symlinks => \&fd_defaults_respect_ignores_and_follow_symlinks,
+        find_names_respect_ignores                      => \&find_names_respect_ignores,
+        rendezvous_routes_both_file_pickers             => \&rendezvous_routes_both_file_pickers,
+        sshv_preserves_remote_paths                     => \&sshv_preserves_remote_paths,
+        sshv_stops_on_ssh_failure                       => \&sshv_stops_on_ssh_failure,
+        sshv_stops_on_missing_paths                     => \&sshv_stops_on_missing_paths,
+        nvim_preserves_native_command_line_options      => \&nvim_preserves_native_command_line_options,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
         alias_registration_appends_only_new_names            => \&alias_registration_appends_only_new_names,
