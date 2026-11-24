@@ -1,11 +1,20 @@
+local function shell_safe(path)
+	return path:match('^[%w_./-]+$') ~= nil
+end
+
 local function shell_quote(path)
+	if shell_safe(path) then return path end
 	return "'" .. path:gsub("'", "'\\''") .. "'"
 end
 
 local function directory_quote(path)
 	path = require('dirali').shorten(path)
 	local alias, suffix = path:match('^(%$[%w_]+)(.*)$')
-	if alias then return '"' .. alias .. suffix:gsub('[\\`"$]', '\\%0') .. '"' end
+	if alias then
+		local value = vim.env[alias:sub(2)]
+		if value and shell_safe(value .. suffix) then return path end
+		return '"' .. alias .. suffix:gsub('[\\`"$]', '\\%0') .. '"'
+	end
 	if path == '~' then return path end
 	if path:sub(1, 2) == '~/' then return '~/' .. shell_quote(path:sub(3)) end
 	return shell_quote(path)

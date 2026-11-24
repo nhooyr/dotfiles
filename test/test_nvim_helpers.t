@@ -427,7 +427,7 @@ eq(vim.fn.resolve(vim.b.vidir_dir), vim.fn.resolve(directory), 'Vidir records it
 eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(directory), 'Vidir starts in its directory')
 local cd = "cd -- '" .. vim.b.vidir_dir:gsub("'", "'\\''") .. "'"
 eq(vim.api.nvim_buf_get_lines(buffer, 0, -1, false),
-    { '#!/bin/sh', 'set -eu', cd, "mv -v -- 'entry' 'entry'" }, 'Vidir includes its quoted directory in the script')
+    { '#!/bin/sh', 'set -eu', cd, 'mv -v -- entry entry' }, 'Vidir includes its quoted directory in the script')
 for _ = 1, 3 do
     vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_ORIGINAL))
     eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(vim.fs.dirname(vim.env.TEST_ORIGINAL)),
@@ -441,25 +441,32 @@ LUA
 sub vidir_script_directory_aliases {
     my ($self) = @_;
     my $literal = q{quote's" $cash `cmd` \ path};
-    $self->{env}{AQSNOW_DIRALIS}  = 'HOME:TEST_ALIAS_BASE';
-    $self->{env}{TEST_ALIAS_BASE} = "$self->{temporary}/project";
-    $self->{env}{TEST_OUTSIDE}    = "$self->{temporary}/outside";
+    $self->{env}{AQSNOW_DIRALIS}    = 'HOME:TEST_ALIAS_BASE:TEST_SPACED_ALIAS';
+    $self->{env}{TEST_ALIAS_BASE}   = "$self->{temporary}/project";
+    $self->{env}{TEST_SPACED_ALIAS} = "$self->{temporary}/project root";
+    $self->{env}{TEST_OUTSIDE}      = "$self->{temporary}/outside";
     make_path(
-        "$self->{env}{TEST_ALIAS_BASE}/$literal", "$self->{env}{HOME}/home's folder",
-        $self->{env}{TEST_OUTSIDE},               "$self->{temporary}/bin"
+        "$self->{env}{TEST_ALIAS_BASE}/$literal", "$self->{env}{TEST_ALIAS_BASE}/plain/path",
+        "$self->{env}{HOME}/home's folder",       "$self->{env}{HOME}/plain/path",
+        $self->{env}{TEST_SPACED_ALIAS},          $self->{env}{TEST_OUTSIDE},
+        "$self->{temporary}/bin"
     );
-    $self->{env}{$_} = absolute_path( $self->{env}{$_} ) for qw(HOME TEST_ALIAS_BASE TEST_OUTSIDE);
-    write_file( "$self->{temporary}/bin/gls", "#!/bin/sh\nprintf '%s\\n' '\$TEST_ALIAS_BASE'\n" );
+    $self->{env}{$_} = absolute_path( $self->{env}{$_} )
+      for qw(HOME TEST_ALIAS_BASE TEST_SPACED_ALIAS TEST_OUTSIDE);
+    write_file( "$self->{temporary}/bin/gls", "#!/bin/sh\nprintf '%s\\n' '\$TEST_ALIAS_BASE' plain 'a;b'\n" );
     chmod 0755, "$self->{temporary}/bin/gls";
     local $self->{env}{PATH} = "$self->{temporary}/bin:$ENV{PATH}";
     run_script( $self, <<'LUA' );
 local cases = {
-    { vim.env.TEST_ALIAS_BASE, 'cd -- "$TEST_ALIAS_BASE"' },
+    { vim.env.TEST_ALIAS_BASE, 'cd -- $TEST_ALIAS_BASE' },
+    { vim.env.TEST_ALIAS_BASE .. '/plain/path', 'cd -- $TEST_ALIAS_BASE/plain/path' },
     { vim.env.TEST_ALIAS_BASE .. [[/quote's" $cash `cmd` \ path]],
         [=[cd -- "$TEST_ALIAS_BASE/quote's\" \$cash \`cmd\` \\ path"]=] },
+    { vim.env.TEST_SPACED_ALIAS, 'cd -- "$TEST_SPACED_ALIAS"' },
     { vim.env.HOME, 'cd -- ~' },
+    { vim.env.HOME .. '/plain/path', 'cd -- ~/plain/path' },
     { vim.env.HOME .. "/home's folder", [[cd -- ~/'home'\''s folder']] },
-    { vim.env.TEST_OUTSIDE, "cd -- '" .. vim.env.TEST_OUTSIDE .. "'" },
+    { vim.env.TEST_OUTSIDE, 'cd -- ' .. vim.env.TEST_OUTSIDE },
 }
 for _, case in ipairs(cases) do
     vim.cmd('bcd ' .. vim.fn.fnameescape(case[1]))
@@ -467,6 +474,8 @@ for _, case in ipairs(cases) do
     local commands = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     eq(commands[3], case[2], 'directory aliases remain readable and safely quoted')
     eq(commands[4], [[mv -v -- '$TEST_ALIAS_BASE' '$TEST_ALIAS_BASE']], 'filenames stay literal')
+    eq(commands[5], 'mv -v -- plain plain', 'plain filenames do not need quotes')
+    eq(commands[6], [[mv -v -- 'a;b' 'a;b']], 'shell operators in filenames stay quoted')
     local result = vim.system({ 'sh' }, { cwd = '/', stdin = commands[3] .. '\npwd -P\n' }):wait()
     eq(result.code, 0, result.stderr)
     eq(result.stdout:gsub('\n$', ''), vim.fn.resolve(case[1]), 'the shell enters the intended directory')
@@ -509,8 +518,8 @@ local cd = "cd -- '" .. vim.b.vidir_dir:gsub("'", "'\\''") .. "'"
 local function rename_command(from, to)
     local commands, found = lines(), false
     for i, command in ipairs(commands) do
-        if command == "mv -v -- '" .. from .. "' '" .. from .. "'" then
-            commands[i], found = "mv -v -- '" .. from .. "' '" .. to .. "'", true
+        if command == 'mv -v -- ' .. from .. ' ' .. from then
+            commands[i], found = 'mv -v -- ' .. from .. ' ' .. to, true
         end
     end
     assert(found, 'the file has a generated rename command')
@@ -531,7 +540,7 @@ vim.cmd.bcd(vim.fs.dirname(vim.env.TEST_ORIGINAL))
 vim.cmd.write()
 eq(vim.fn.filereadable(directory .. '/renamed'), 1, 'the requested rename ran')
 eq(vim.fn.filereadable(directory .. '/original'), 0, 'the old filename is gone')
-assert(vim.tbl_contains(lines(), "mv -v -- 'renamed' 'renamed'"), 'success refreshes the command list')
+assert(vim.tbl_contains(lines(), 'mv -v -- renamed renamed'), 'success refreshes the command list')
 eq(lines()[3], cd, 'success retains the directory command')
 assert(not vim.bo.modified, 'the refreshed command list is unmodified')
 vim.cmd.write()
@@ -542,7 +551,7 @@ vim.cmd.wall()
 eq(vim.fn.resolve(vim.fn.getcwd()), vim.fn.resolve(vim.fs.dirname(vim.env.TEST_ORIGINAL)),
     'wall restores the visible buffer directory')
 eq(vim.fn.filereadable(directory .. '/second'), 1, 'wall executes commands in the rename directory')
-assert(vim.tbl_contains(lines(), "mv -v -- 'second' 'second'"), 'wall refreshes the rename directory')
+assert(vim.tbl_contains(lines(), 'mv -v -- second second'), 'wall refreshes the rename directory')
 vim.cmd.buffer(buffer)
 local failing = { '#!/bin/sh', 'set -eu', 'false', "mv -v -- 'renamed' 'never'" }
 vim.api.nvim_buf_set_lines(buffer, 0, -1, false, failing)
