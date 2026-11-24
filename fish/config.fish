@@ -75,8 +75,10 @@ set -g fish_color_autosuggestion 808080
 set -g fish_color_comment brblack --italic
 abbrali r reload
 function reload
-    source "$__fish_config_dir/config.fish"
-    history merge
+    source "$__fish_config_dir/config.fish"; or return
+    if not set -q fish_private_mode
+        history merge
+    end
 end
 
 set -gx LSCOLORS \

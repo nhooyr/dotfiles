@@ -11,7 +11,7 @@ my $helpers = join "\n", map {
     my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
     die "Missing Fish function $_\n" unless defined $function;
     $function;
-} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous realpathc __grep_smart_case grep);
+} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous realpathc __grep_smart_case grep reload);
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 my $cd = read_file("$root/fish/cd.fish");
 my ($mcd) = $cd =~ /^(function mcd\b.*?^end\n)/msg;
@@ -42,9 +42,10 @@ SH
 }
 
 sub fish {
-    my ( $self, $body ) = @_;
+    my ( $self, $body, $flags ) = @_;
+    $flags //= [];
     return run_command(
-        [ 'fish', '--no-config', '-c', "$helpers\n$body" ],
+        [ 'fish', '--no-config', @$flags, '-c', "$helpers\n$body" ],
         {
             cwd   => $self->{root},
             env   => $self->{env},
@@ -178,11 +179,52 @@ FISH
     ok( -d "$self->{root}/-project name", 'the intended directory exists' );
 }
 
+sub reload_skips_history_merge_in_private_mode {
+    my ($self) = @_;
+    make_path("$self->{root}/config/fish");
+    write_file( "$self->{root}/config/fish/config.fish", "set -g loaded yes\n" );
+    my $result = fish( $self, <<'FISH', ['--private'] );
+reload; or exit 1
+printf '%s\n' "$loaded"
+FISH
+    is( $result->{stdout}, "yes\n", 'private reload still sources the configuration' );
+    is( $result->{stderr}, '',      'private reload does not attempt the forbidden history merge' );
+}
+
+sub reload_merges_history_and_preserves_source_failures {
+    my ($self) = @_;
+    make_path("$self->{root}/config/fish");
+    write_file( "$self->{root}/config/fish/config.fish", "set -g loaded yes\n" );
+    my $result = fish( $self, <<'FISH' );
+set -e fish_private_mode
+function history
+    printf '%s\n' $argv
+end
+reload; or exit 1
+printf '%s\n' "$loaded"
+FISH
+    is( $result->{stdout}, "merge\nyes\n",
+        'ordinary reload still merges history after sourcing configuration' );
+    write_file( "$self->{root}/config/fish/config.fish", "return 7\n" );
+    $result = fish( $self, <<'FISH' );
+set -e fish_private_mode
+function history
+    printf 'unexpected merge\n'
+end
+reload
+printf '%s\n' "$status"
+FISH
+    is( $result->{stdout}, "7\n", 'source failure is returned without running history merge' );
+}
+
 run_cases(
     {
         mcd_rejects_multiple_arguments_before_creating_anything =>
           \&mcd_rejects_multiple_arguments_before_creating_anything,
         mcd_enters_one_literal_directory                    => \&mcd_enters_one_literal_directory,
+        reload_skips_history_merge_in_private_mode          => \&reload_skips_history_merge_in_private_mode,
+        reload_merges_history_and_preserves_source_failures =>
+          \&reload_merges_history_and_preserves_source_failures,
         aliases_added_after_initialization_are_exported => \&aliases_added_after_initialization_are_exported,
         realpath_failure_does_not_clear_the_clipboard   => \&realpath_failure_does_not_clear_the_clipboard,
         realpath_success_preserves_spaces_and_leading_dashes =>
