@@ -293,8 +293,10 @@ for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
 endfor
 set grepprg=vgrep
 set grepformat=%f:%l:%c:%m
-inoremap <M-j> <Cmd>lua require('snippets').expand_or_jump()<CR>
-snoremap <M-j> <Cmd>lua require('snippets').jump(1)<CR>
+inoremap <M-j> <Cmd>lua require('snippets').expand()<CR>
+snoremap <M-j> <Esc>`>a<Cmd>lua require('snippets').expand()<CR>
+inoremap <M-l> <Cmd>lua require('snippets').expand_or_jump()<CR>
+snoremap <M-l> <Cmd>lua require('snippets').jump(1)<CR>
 inoremap <M-k> <Cmd>lua require('snippets').jump(-1)<CR>
 snoremap <M-k> <Cmd>lua require('snippets').jump(-1)<CR>
 
