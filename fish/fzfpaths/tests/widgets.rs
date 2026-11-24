@@ -30,13 +30,14 @@ function commandline
 end
 function fzfpaths
     contains -- --keep-dot $argv; and printf yes > "$TEST_FLAGS"
+    contains -- --read0 $argv; and cat >/dev/null
     printf '\0'
 end
 function fzf
     cat >/dev/null
     printf '%s\0' (string split \n -- "$TEST_SELECTION")
 end
-fzf_path_widget fzf-path-widget
+fzf_path_widget "$TEST_WIDGET"
 printf '%s' "$inserted"
 "#;
 
@@ -49,9 +50,17 @@ impl Drop for Fixture {
 }
 
 fn run(commandline: &str, selection: &str) -> (String, bool) {
+    run_widget("fzf-path-widget", commandline, selection)
+}
+
+fn run_widget(widget_name: &str, commandline: &str, selection: &str) -> (String, bool) {
     let id = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
     let fixture = Fixture(env::temp_dir().join(format!("fzf-widget-{}-{id}", std::process::id())));
     fs::create_dir(&fixture.0).unwrap();
+    fs::create_dir(fixture.0.join("bin")).unwrap();
+    let nvim = fixture.0.join("bin/nvim");
+    fs::write(&nvim, "#!/bin/sh\nprintf '%s\\0' \"$PWD/README.md\"\n").unwrap();
+    fs::set_permissions(nvim, fs::Permissions::from_mode(0o700)).unwrap();
     for (name, contents) in [
         ("script", b"#!/bin/sh\n".as_slice()),
         ("binary", b"\x7fELF\0".as_slice()),
@@ -68,7 +77,16 @@ fn run(commandline: &str, selection: &str) -> (String, bool) {
         .args(["--no-config", "-c", HARNESS])
         .current_dir(&fixture.0)
         .env("XDG_CONFIG_HOME", &fixture.0)
+        .env(
+            "PATH",
+            env::join_paths(
+                std::iter::once(fixture.0.join("bin"))
+                    .chain(env::split_paths(&env::var_os("PATH").unwrap())),
+            )
+            .unwrap(),
+        )
         .env("WIDGET_SOURCE", widget)
+        .env("TEST_WIDGET", widget_name)
         .env("TEST_COMMANDLINE", commandline)
         .env("TEST_SELECTION", selection)
         .env("TEST_FLAGS", fixture.0.join("flags"))
@@ -80,6 +98,22 @@ fn run(commandline: &str, selection: &str) -> (String, bool) {
         String::from_utf8(output.stdout).unwrap(),
         fixture.0.join("flags").exists(),
     )
+}
+
+#[test]
+fn recent_files_use_the_same_insertion_rules() {
+    for (commandline, selection) in [
+        ("", "./script"),
+        ("", "script"),
+        ("", "./binary"),
+        ("", "./script\nREADME.md"),
+        ("nvim ", "script"),
+    ] {
+        assert_eq!(
+            run_widget("fzf-recent-widget", commandline, selection),
+            run(commandline, selection)
+        );
+    }
 }
 
 #[test]
@@ -216,6 +250,26 @@ fn parser_preserves_symlink_parents() {
             "{token:?}"
         );
     }
+}
+
+#[test]
+fn recent_files_use_the_file_picker_query() {
+    let script = r#"
+mkdir bin
+printf '#!/bin/sh\nexit 0\n' > bin/nvim
+chmod +x bin/nvim
+set -lx PATH "$PWD/bin" $PATH
+function fzfpaths
+    cat >/dev/null
+end
+function fzf
+    cat >/dev/null
+    printf '%s' $argv > query
+end
+fzf_path_widget fzf-recent-widget
+cat query
+"#;
+    assert_eq!(path_case(script, "link/../tar"), b"--query=tar");
 }
 
 #[test]

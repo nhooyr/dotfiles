@@ -11,7 +11,7 @@ my $helpers = join "\n", map {
     my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
     die "Missing Fish function $_\n" unless defined $function;
     $function;
-} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous realpathc __grep_smart_case grep reload);
+} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested realpathc __grep_smart_case grep reload);
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 $helpers .= read_file("$root/fish/functions/sshv.fish");
 my $cd = read_file("$root/fish/cd.fish");
@@ -157,6 +157,27 @@ FISH
         'ordinary launches and native options reach Neovim unchanged'
     );
     is( $result->{stdout}, "23\n23\n23\n23\n", 'native exit statuses are preserved' );
+}
+
+sub rendezvous_routes_both_file_pickers {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+set -gx AQSNOW_FISH_RENDEZVOUS "$TEST_ROOT/request"
+function fzf_accept_and_run
+    printf '%s\n' $argv
+end
+for request in '<M-v>' recent exec
+    printf '%s\n' "$request" > "$AQSNOW_FISH_RENDEZVOUS"
+    aqsnow_run_requested
+    printf '%s\n' "$status"
+    test ! -e "$AQSNOW_FISH_RENDEZVOUS"; or exit 1
+end
+FISH
+    is(
+        $result->{stdout},
+        "fzf-path-widget\n1\nfzf-recent-widget\n1\n0\n",
+        'normal and recent pickers consume their requests without executing the command'
+    );
 }
 
 sub aliases_added_after_initialization_are_exported {
@@ -422,6 +443,7 @@ FISH
 
 run_cases(
     {
+        rendezvous_routes_both_file_pickers               => \&rendezvous_routes_both_file_pickers,
         sshv_preserves_remote_paths                       => \&sshv_preserves_remote_paths,
         sshv_stops_on_ssh_failure                         => \&sshv_stops_on_ssh_failure,
         sshv_stops_on_missing_paths                       => \&sshv_stops_on_missing_paths,

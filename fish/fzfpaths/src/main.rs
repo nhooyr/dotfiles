@@ -21,7 +21,7 @@ fn print_help(name: &str) {
         "\
 Generate path candidates for fzf from local files and Git repositories.
 
-usage: {name} [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...
+usage: {name} [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...
 
 Scan <DIR>, Git repositories directly under <GLOBAL_DIR>, and optional CDPATH
 roots concurrently. Stream results as they are found; paths from the three
@@ -74,6 +74,10 @@ Options:
                    With --color, basenames and markers use LS_COLORS.
                    The Fish widgets remove the final marker.
   --keep-dot        Also offer ./ paths for local scripts with a shebang.
+  --read0           Read NUL-separated filenames from stdin instead of scanning.
+                   Keep input order, skipping missing files and directories.
+                   Files under the working directory use local path rules;
+                   other files use absolute paths or directory aliases.
   --cdpath CDPATH   Include directories from these colon-separated roots.
   --dirali ENV DIR  Abbreviate paths using ENV for DIR. May be repeated.
 
@@ -128,7 +132,7 @@ Examples (Fish):
 
 fn usage_error(name: &str) -> ! {
     eprintln!(
-        "usage: {name} [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+        "usage: {name} [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
     );
     process::exit(1);
 }
@@ -145,6 +149,7 @@ fn main() {
     let mut color = false;
     let mut classify = false;
     let mut keep_dot = false;
+    let mut read0 = false;
     let mut cdpath = None;
     while let Some(arg) = arguments.next() {
         if arg == "--color" {
@@ -153,6 +158,8 @@ fn main() {
             classify = true;
         } else if arg == "--keep-dot" {
             keep_dot = true;
+        } else if arg == "--read0" {
+            read0 = true;
         } else if arg == "--cdpath" {
             cdpath = Some(arguments.next().unwrap_or_else(|| usage_error(&name)));
         } else if arg == "--dirali" {
@@ -172,8 +179,8 @@ fn main() {
         usage_error(&name);
     }
     args.extend(aliases);
-    let result =
-        install_signal_handlers().and_then(|()| run(&args, keep_dot, cdpath, color, classify));
+    let result = install_signal_handlers()
+        .and_then(|()| run(&args, keep_dot, cdpath, color, classify, read0));
     let signal = TERMINATING_SIGNAL.load(Ordering::Relaxed);
     if signal != 0 {
         process::exit(128 + signal);
@@ -192,6 +199,7 @@ fn run(
     cdpath: Option<OsString>,
     color: bool,
     classify: bool,
+    read0: bool,
 ) -> io::Result<()> {
     let mut seen_envs = HashSet::new();
     let mut env_dirs = Vec::new();
@@ -243,12 +251,20 @@ fn run(
     };
     thread::scope(|scope| {
         let local = scanner.clone();
-        let mut scans = vec![scope.spawn(move || local.walk(PathBuf::from(&args[0])))];
-        if !args[1].is_empty() {
+        let mut scans = vec![scope.spawn(move || {
+            if read0 {
+                local.input_paths()
+            } else {
+                local.walk(PathBuf::from(&args[0]))
+            }
+        })];
+        if !read0 && !args[1].is_empty() {
             let global = scanner.clone();
             scans.push(scope.spawn(move || global.global_paths(PathBuf::from(&args[1]))));
         }
-        if let Some(cdpath) = cdpath.filter(|value| !value.is_empty() && !scanner.files_only) {
+        if let Some(cdpath) =
+            cdpath.filter(|value| !read0 && !value.is_empty() && !scanner.files_only)
+        {
             let cd = scanner.clone();
             scans.push(scope.spawn(move || cd.cdpath(cdpath)));
         }
@@ -819,6 +835,76 @@ struct Scanner {
 }
 
 impl Scanner {
+    fn input_paths(&self) -> io::Result<()> {
+        let physical_cwd = env::current_dir()?;
+        let mut input = io::stdin().lock();
+        let mut pending = Vec::new();
+        let mut buffer = [0; 8192];
+        loop {
+            self.check_cancelled()?;
+            let mut fd = libc::pollfd {
+                fd: input.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            match unsafe { libc::poll(&mut fd, 1, 50) } {
+                0 => continue,
+                -1 => {
+                    let error = io::Error::last_os_error();
+                    if error.kind() == io::ErrorKind::Interrupted {
+                        continue;
+                    }
+                    return Err(error);
+                }
+                _ => {}
+            }
+            let length = input.read(&mut buffer)?;
+            if length == 0 {
+                return self.input_path(&pending, &physical_cwd);
+            }
+            for part in buffer[..length].split_inclusive(|byte| *byte == 0) {
+                pending.extend_from_slice(part);
+                if pending.last() == Some(&0) {
+                    pending.pop();
+                    self.input_path(&pending, &physical_cwd)?;
+                    pending.clear();
+                }
+            }
+        }
+    }
+
+    fn input_path(&self, bytes: &[u8], physical_cwd: &Path) -> io::Result<()> {
+        if bytes.is_empty() {
+            return Ok(());
+        }
+        let absolute = self.cwd.join(OsStr::from_bytes(bytes));
+        let Some(info) = FileInfo::new(&absolute) else {
+            return Ok(());
+        };
+        if !info.followed().is_file() {
+            return Ok(());
+        }
+        let relative = absolute
+            .strip_prefix(&self.cwd)
+            .map(Path::to_path_buf)
+            .ok()
+            .or_else(|| {
+                // Resolve directory aliases without replacing a symlink's filename.
+                let physical = absolute
+                    .parent()?
+                    .canonicalize()
+                    .ok()?
+                    .join(absolute.file_name()?);
+                physical
+                    .strip_prefix(physical_cwd)
+                    .map(Path::to_path_buf)
+                    .ok()
+            });
+        let local = relative.is_some();
+        let path = relative.unwrap_or(absolute);
+        self.candidate(path, local, Some(info))
+    }
+
     fn check_cancelled(&self) -> io::Result<()> {
         if self.cancelled.load(Ordering::Relaxed) {
             return Err(io::ErrorKind::BrokenPipe.into());

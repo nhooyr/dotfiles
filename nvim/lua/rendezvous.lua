@@ -15,9 +15,9 @@ local function quit_and_run()
 	vim.cmd.qall()
 end
 
-local function fzf_path_widget()
+local function fzf_path_widget(request)
 	vim.cmd.wall()
-	write_request('<M-v>')
+	write_request(request or '<M-v>')
 	vim.cmd.qall()
 end
 

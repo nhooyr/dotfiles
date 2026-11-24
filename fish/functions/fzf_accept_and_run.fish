@@ -10,7 +10,7 @@ function fzf_accept_and_run --argument-names widget
         set --function --export "$name" "$$name $option"
     end
 
-    if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget
+    if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget fzf-recent-widget
         fzf_path_widget "$widget"
     else
         $widget
@@ -34,8 +34,11 @@ function fzf_path_widget --argument-names widget
     set -l type -fd
     set -l flags
     set -l opts "--multi $FZF_CTRL_T_OPTS"
-    if test "$widget" = fzf-file-widget
+    if contains -- "$widget" fzf-file-widget fzf-recent-widget
         set type -f
+        if test "$widget" = fzf-recent-widget
+            set opts "$opts --no-sort"
+        end
     else if test "$widget" = fzf-cd-widget
         set type -d
         set opts "$FZF_ALT_C_OPTS --no-multi"
@@ -60,13 +63,21 @@ function fzf_path_widget --argument-names widget
     set -lx FZF_DEFAULT_OPTS_FILE
     set -l query "$parsed[2]"
     # ./ selects local search; only Alt-V keeps it in the query.
-    if string match -q -- './*' "$token"
+    if test "$widget" != fzf-recent-widget; and string match -q -- './*' "$token"
         test "$widget" = fzf-path-widget; and set query "$token"
         set global_dir ''
-    else if test "$widget" != fzf-file-widget
+    else if not contains -- "$widget" fzf-file-widget fzf-recent-widget
         set -a flags --cdpath "$CDPATH"
     end
-    set -l result $(fzfpaths --color --classify $flags $dirs -- "$dir" "$global_dir" "$type" | fzf --query="$query" | string split0)
+    set -l result
+    if test "$widget" = fzf-recent-widget
+        set result $(command nvim --headless -u NONE -n \
+            -c 'lua io.write(table.concat(vim.v.oldfiles, "\0")); vim.o.shadafile = "NONE"' -c 'qa!' \
+            | fzfpaths --read0 --color --classify $flags $dirs -- . '' -f \
+            | fzf --query="$query" | string split0)
+    else
+        set result $(fzfpaths --color --classify $flags $dirs -- "$dir" "$global_dir" "$type" | fzf --query="$query" | string split0)
+    end
     if set -q result[1]
         set -l resolve_cdpath 1
         if contains -- "$tokens[1]" cd cdc

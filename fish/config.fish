@@ -295,6 +295,7 @@ fg+:black:regular:strip,bg+:yellow,hl+:black:regular:underline:strip"
 set -gx FZF_CTRL_R_OPTS '--with-nth 3.. --bind "alt-t:change-with-nth(2..|1,3..|3..),ctrl-x:trigger(shift-delete)"'
 for mode in default insert
     bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
+    bind -M "$mode" alt-o fzf-recent-widget
     bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
     bind -M "$mode" alt-v 'fzf_accept_and_run fzf-path-widget'
     bind -M "$mode" alt-c 'fzf_accept_and_run fzf-cd-widget'
@@ -334,12 +335,16 @@ function aqsnow_init_rendezvous --on-event fish_preexec
 end
 function aqsnow_run_requested
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 1
-    if not printf '%s\n' '<M-v>' | cmp -s - "$AQSNOW_FISH_RENDEZVOUS"
-        rm -- "$AQSNOW_FISH_RENDEZVOUS"
-        return 0
+    set -l widget
+    switch "$(cat "$AQSNOW_FISH_RENDEZVOUS")"
+        case '<M-v>'
+            set widget fzf-path-widget
+        case recent
+            set widget fzf-recent-widget
     end
     rm -- "$AQSNOW_FISH_RENDEZVOUS"
-    fzf_accept_and_run fzf-path-widget
+    set -q widget[1]; or return 0
+    fzf_accept_and_run "$widget"
     return 1
 end
 function aqsnow_rendezvous

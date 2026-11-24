@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fs;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Write};
 use std::os::unix::net::UnixListener;
 use std::os::unix::{ffi::OsStringExt, fs::PermissionsExt, fs::symlink, process::CommandExt};
 use std::path::{Path, PathBuf};
@@ -26,6 +26,32 @@ fn checked(command: &mut Command) -> Output {
     let output = command.output().expect("run command");
     assert!(output.status.success(), "{command:?}: {output:?}");
     output
+}
+
+fn from_input(command: &mut Command, paths: &[&Path]) -> Vec<OsString> {
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut input = child.stdin.take().unwrap();
+    for path in paths {
+        input
+            .write_all(path.as_os_str().as_encoded_bytes())
+            .unwrap();
+        input.write_all(&[0]).unwrap();
+    }
+    drop(input);
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert!(output.stderr.is_empty(), "{output:?}");
+    output
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .map(|path| OsString::from_vec(path.to_vec()))
+        .collect()
 }
 
 fn mock_ls_files(path: &Path, script: &str) -> io::Result<()> {
@@ -2619,6 +2645,133 @@ fn escaped_gitignore_patterns_are_respected() {
 }
 
 #[test]
+fn input_paths_preserve_order_and_share_executable_rules() {
+    let fixture = Fixture::new();
+    let script = fixture.local.join("executable");
+    let binary = fixture.local.join("binary");
+    fs::write(&binary, b"\x7fELF").unwrap();
+    make_executable(&binary);
+    write_script(&fixture.repo, "script");
+    for keep_dot in [false, true] {
+        let mut command = fixture.command_with_flags(
+            if keep_dot {
+                &["--read0", "--keep-dot"]
+            } else {
+                &["--read0"]
+            },
+            &fixture.local,
+            &fixture.global_dir,
+            "-f",
+            &[("$project", &fixture.repo)],
+        );
+        let paths = from_input(
+            &mut command,
+            &[
+                &script,
+                &fixture.repo.join("tracked"),
+                &fixture.local.join("missing"),
+                &fixture.local.join("dir"),
+                &binary,
+                &fixture.local.join("file"),
+                &script,
+                &fixture.repo.join("script"),
+                &fixture.local.join("node_modules/excluded"),
+            ],
+        );
+        let mut expected = vec![OsString::from("executable")];
+        if keep_dot {
+            expected.push("./executable".into());
+        }
+        expected.extend(
+            [
+                "$project/tracked",
+                "./binary",
+                "file",
+                "$project/script",
+                "node_modules/excluded",
+            ]
+            .map(OsString::from),
+        );
+        assert_eq!(paths, expected);
+    }
+}
+
+#[test]
+fn input_paths_use_local_rules_for_physical_and_logical_cwd() {
+    let fixture = Fixture::new();
+    let alias = fixture.root.join("alias");
+    symlink(&fixture.local, &alias).unwrap();
+    let paths = from_input(
+        &mut fixture.command_with_flags(
+            &["--read0", "--keep-dot"],
+            &alias,
+            &fixture.global_dir,
+            "-f",
+            &[],
+        ),
+        &[
+            &fixture.local.join("file"),
+            &alias.join("file"),
+            &alias.join("executable"),
+        ],
+    );
+    assert_eq!(
+        paths,
+        ["file", "executable", "./executable"].map(OsString::from)
+    );
+}
+
+#[test]
+fn empty_input_does_not_start_any_scans() {
+    let fixture = Fixture::new();
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    fs::write(&git, "#!/bin/sh\necho unexpected Git scan >&2\nexit 1\n").unwrap();
+    make_executable(&git);
+    let paths = from_input(
+        fixture
+            .command_with_flags(
+                &["--read0"],
+                &fixture.local,
+                &fixture.global_dir,
+                "-fd",
+                &[],
+            )
+            .env("PATH", &bin),
+        &[],
+    );
+    assert!(paths.is_empty());
+}
+
+#[test]
+fn input_waiting_for_data_stops_when_output_is_closed() {
+    let fixture = Fixture::new();
+    let mut child = fixture
+        .command_with_flags(&["--read0"], &fixture.local, &fixture.global_dir, "-f", &[])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let input = child.stdin.take().unwrap();
+    drop(child.stdout.take());
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert!(status.success());
+            break;
+        }
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("input reader ignored the closed output pipe");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    drop(input);
+}
+
+#[test]
 fn dirali_options_work_before_and_after_positions() {
     let fixture = Fixture::new();
     let paths = fixture.run(
@@ -2678,7 +2831,7 @@ fn invalid_arguments() {
         assert!(output.stdout.is_empty());
         assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
     }
 }
@@ -2693,6 +2846,7 @@ fn help_uses_invoked_basename() {
         vec!["--color", "--classify", "--help"],
         vec!["--color", "--keep-dot", "--help"],
         vec!["--keep-dot", "--help"],
+        vec!["--read0", "--help"],
         vec!["--cdpath", "", "--help"],
         vec!["--keep-dot", "--cdpath", "", "--help"],
     ] {
@@ -2705,7 +2859,7 @@ fn help_uses_invoked_basename() {
         assert!(output.stderr.is_empty());
         let help = String::from_utf8(output.stdout).unwrap();
         assert!(help.contains(
-            "usage: renamed-picker [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+            "usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
         ));
         assert!(help.contains("Generate path candidates"));
         assert!(help.contains(".gitignore"));
@@ -2718,6 +2872,7 @@ fn help_uses_invoked_basename() {
         assert!(help.contains("Fish bindings keep directory aliases in the command line"));
         assert!(help.contains("shell expands them when the command is executed"));
         assert!(help.contains("--keep-dot"));
+        assert!(help.contains("--read0"));
         assert!(!help.contains("LABEL"));
         assert!(!help.contains("OWNER"));
         assert!(!help.contains("usage: fzfpaths"));
@@ -2735,7 +2890,7 @@ fn incomplete_dirali_is_a_usage_error() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
 }
 

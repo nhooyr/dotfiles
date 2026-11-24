@@ -164,6 +164,8 @@ inoremap <M-CR> <Cmd>lua require('rendezvous').quit_and_run()<CR>
 snoremap <M-CR> <Esc><Cmd>lua require('rendezvous').quit_and_run()<CR>
 nnoremap <M-v> <Cmd>lua require('rendezvous').fzf_path_widget()<CR>
 inoremap <M-v> <Esc><Cmd>lua require('rendezvous').fzf_path_widget()<CR>
+nnoremap <M-o> <Cmd>lua require('rendezvous').fzf_path_widget('recent')<CR>
+inoremap <M-o> <Esc><Cmd>lua require('rendezvous').fzf_path_widget('recent')<CR>
 
 inoremap <C-a> <C-o>^
 inoremap <C-d> <Del>
