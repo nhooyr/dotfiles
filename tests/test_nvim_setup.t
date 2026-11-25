@@ -208,6 +208,10 @@ sub package_file_sets_its_own_lock_path {
     die 'Neovim is required' unless $nvim;
     my $check = <<'LUA';
 local calls = {}
+vim.loader.enable()
+vim.opt.runtimepath:prepend(vim.env.TEST_DIRECTORY)
+vim.fn.writefile({ 'return true' }, vim.env.TEST_DIRECTORY .. '/lua/before_update.lua')
+assert(require('before_update'))
 vim.pack.add = function(specs, opts)
     assert(vim.o.packlockfile == vim.env.TEST_DIRECTORY .. '/pack-lock.json')
     assert(opts.confirm == false)
@@ -221,8 +225,10 @@ end
 vim.pack.update = function(names, opts)
     assert(names == nil and opts.force == true)
     calls[#calls + 1] = 'plugins updated'
+    vim.fn.writefile({ 'return true' }, vim.env.TEST_DIRECTORY .. '/lua/after_update.lua')
 end
 package.preload['nvim-treesitter'] = function()
+    assert(require('after_update'), 'plugin updates refresh the module index before loading parser helpers')
     local function task(kind)
         return function(languages)
             assert(vim.deep_equal(languages, { 'go' }))

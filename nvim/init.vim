@@ -4,6 +4,8 @@ if s:config_file !=# expand('<sfile>:p')
 	finish
 endif
 
+lua vim.loader.enable()
+
 " Git's editor inherits repository-local settings that should not follow us between buffers.
 if !empty(filter(keys(environ()), {_, name -> name =~# '^GIT_'}))
 	for s:name in systemlist(['git', 'rev-parse', '--local-env-vars'])
@@ -364,6 +366,7 @@ augroup aqsnow
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 if v:vim_did_enter
+	lua vim.loader.reset()
 	silent doautocmd <nomodeline> User AqsnowGitStatusStop
 	for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
 		let s:module = substitute(strpart(s:lua_file, strlen(s:config_dir) + 5)[:-5], '/', '.', 'g')

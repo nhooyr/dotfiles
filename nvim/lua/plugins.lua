@@ -3,6 +3,7 @@ local plugins, update_parsers
 vim.api.nvim_create_user_command('Plug', function()
 	vim.pack.add(plugins, { confirm = false })
 	vim.pack.update(nil, { force = true })
+	vim.loader.reset()
 	update_parsers()
 end, {})
 

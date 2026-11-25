@@ -1011,12 +1011,13 @@ for _, kind in ipairs({ 'file', 'netrw', 'directory' }) do
     elseif kind == 'directory' then
         vim.b.nvim_dir = true
     end
+    local gitstatus = require('gitstatus')
     local probes = 0
     vim.uv.fs_stat = function(...)
         probes = probes + 1
         return stat(...)
     end
-    require('gitstatus').setup()
+    gitstatus.setup()
     vim.uv.fs_stat = stat
     eq(probes, 0, kind .. ' remote buffers never inspect the local filesystem for Git status')
     eq(vim.b.vcs_prompt, '', kind .. ' remote buffers do not show a local branch')
