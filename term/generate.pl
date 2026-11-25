@@ -89,7 +89,8 @@ sub read_file {
 
 sub write_file {
     my ( $path, $text ) = @_;
-    return if -f $path && read_file($path) eq $text;
+    utf8::encode($text) if utf8::is_utf8($text);
+    return              if -f $path && read_file($path) eq $text;
     open my $file, '>:raw', $path or die "$path: $!\n";
     print {$file} $text or die "$path: $!\n";
     close $file         or die "$path: $!\n";
@@ -177,7 +178,11 @@ sub textmate {
         findHighlightForeground => 'editor.findMatchForeground',
     );
     my %globals = map { $_ => $theme->{colors}{ $mapping{$_} } } keys %mapping;
-    my @tokens  = map { +{ %$_, scope => join( ', ', @{ $_->{scope} } ) } } @{ $theme->{tokenColors} };
+    my @tokens  = map {
+        my %rule = %$_;
+        $rule{scope} = join( ', ', @{ $rule{scope} } ) if ref $rule{scope} eq 'ARRAY';
+        \%rule;
+    } @{ $theme->{tokenColors} };
     return
       <<'XML' . plist( { name => $theme->{name}, settings => [ { settings => \%globals }, @tokens ] }, 0 ) . "</plist>\n";
 <?xml version="1.0" encoding="UTF-8"?>

@@ -115,11 +115,32 @@ JAVASCRIPT
     is( theme($self)->{colors}{'terminal.ansiYellow'}, '#C10077', 'P3 colors convert before quantization' );
 }
 
+sub string_and_global_token_rules {
+    my ($self) = @_;
+    my $json = read_file("$self->{term}/theme.json.in");
+    $json =~ s{^\s*//.*$}{}mg;
+    my $template = decode_json($json);
+    $template->{tokenColors}[0]{scope} = 'keyword.control';
+    $template->{tokenColors}[0]{name}  = "caf\x{e9} \x{1f600}";
+    push @{ $template->{tokenColors} }, { settings => { foreground => '${black}' } };
+    write_file( "$self->{term}/theme.json.in", JSON::PP->new->ascii->encode($template) );
+    generate($self);
+    my $mate = JSON::PP->new->decode(
+        run_command( [ 'plutil', '-convert', 'json', '-o', '-', "$self->{theme}/nhooyr.tmTheme" ],
+            { check => 1 } )->{stdout}
+    );
+    is( $mate->{settings}[1]{scope}, 'keyword.control',     'a string scope is preserved' );
+    is( $mate->{settings}[1]{name},  "caf\x{e9} \x{1f600}", 'Unicode rule names produce valid UTF-8' );
+    ok( !exists $mate->{settings}[-1]{scope}, 'a global rule stays unscoped' );
+    is( $mate->{settings}[-1]{settings}{foreground}, '#000000', 'global rules still expand the palette' );
+}
+
 run_cases(
     {
         palette_drives_both_themes                      => \&palette_drives_both_themes,
         compacts_srgb_without_changing_profile_settings => \&compacts_srgb_without_changing_profile_settings,
         converts_display_p3_to_srgb                     => \&converts_display_p3_to_srgb,
+        string_and_global_token_rules                   => \&string_and_global_token_rules,
     },
     \&setup
 );
