@@ -4,6 +4,7 @@ package.loaded['find.state'] = state
 local function run(pattern, mode)
 	local cwd = vim.fn.getcwd()
 	if state.pending then state.pending:kill(15) end
+	if state.show then vim.api.nvim_del_autocmd(state.show) state.show = nil end
 	state.generation = state.generation + 1
 	local current = state.generation
 	local args = { 'fd', '--hidden', '--follow', '--no-require-git', '--exclude', '.git',
@@ -28,7 +29,18 @@ local function run(pattern, mode)
 		end
 		local title = 'Find' .. (mode and mode:lower() or '') .. ' ' .. pattern
 		vim.fn.setqflist({}, ' ', { title = title, items = items, context = { cwd = cwd } })
-		vim.cmd.copen()
+		if vim.fn.mode(1) == 'n' then
+			vim.cmd.copen()
+		else
+			state.show = vim.api.nvim_create_autocmd('SafeState', {
+				callback = function()
+					if vim.fn.mode(1) ~= 'n' then return end
+					state.show = nil
+					vim.cmd.copen()
+					return true
+				end,
+			})
+		end
 	end))
 end
 

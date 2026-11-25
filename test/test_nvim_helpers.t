@@ -1502,6 +1502,57 @@ eq({ calls[1].signal, vim.fn.getqflist({ title = 0 }).title,
 LUA
 }
 
+sub find_files_preserve_insert_mode {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+local complete, finished
+vim.system = function(_, _, callback)
+    complete = callback
+    return { kill = function() end }
+end
+local buffer = vim.api.nvim_get_current_buf()
+require('find').run('first')
+_G.finish_find = function()
+    complete({ code = 0, stdout = 'first.lua\n', stderr = '' })
+    vim.schedule(function() finished = true end)
+    assert(vim.wait(1000, function() return finished end))
+    eq(vim.api.nvim_get_current_buf(), buffer, 'results do not steal focus while typing')
+end
+feed('i<Cmd>lua finish_find()<CR>X<Esc>')
+eq(vim.api.nvim_get_current_line(), 'Xoriginal', 'typing continues in the original buffer')
+vim.api.nvim_exec_autocmds('SafeState')
+eq(vim.bo.buftype, 'quickfix', 'results open after returning to Normal mode')
+
+vim.cmd.cclose()
+finished = false
+require('find').run('second')
+feed('i<Cmd>lua finish_find()<CR><Esc>')
+require('find').run('third')
+vim.api.nvim_exec_autocmds('SafeState')
+eq(vim.api.nvim_get_current_buf(), buffer, 'a newer search cancels the deferred display')
+
+local modes = {}
+_G.finish_find = function()
+    modes[#modes + 1] = vim.fn.mode(1)
+    complete({ code = 0, stdout = 'first.lua\n', stderr = '' })
+    vim.schedule(function() finished = true end)
+    assert(vim.wait(1000, function() return finished end))
+    vim.api.nvim_exec_autocmds('SafeState')
+end
+for _, keys in ipairs({ 'd', 'i<C-o>' }) do
+    finished = false
+    require('find').run('pending')
+    feed(keys .. '<Cmd>lua finish_find()<CR><Esc>')
+    eq(vim.api.nvim_get_current_buf(), buffer, 'results do not interrupt a pending operation')
+    vim.api.nvim_exec_autocmds('SafeState')
+    eq(vim.bo.buftype, 'quickfix', 'results open after the pending operation ends')
+    vim.cmd.cclose()
+end
+eq(modes, { 'no', 'niI' }, 'the test reaches operator-pending and temporary Normal modes')
+LUA
+}
+
 sub rendezvous_routes {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1762,6 +1813,7 @@ run_cases(
         markdown_checkbox_abbreviation          => \&markdown_checkbox_abbreviation,
         find_files_async_results                => \&find_files_async_results,
         find_files_config_reload                => \&find_files_config_reload,
+        find_files_preserve_insert_mode         => \&find_files_preserve_insert_mode,
         rendezvous_routes                       => \&rendezvous_routes,
         clipboard_mappings                      => \&clipboard_mappings,
         copilot_word_mapping                    => \&copilot_word_mapping,
