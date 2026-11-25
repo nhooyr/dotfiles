@@ -58,10 +58,23 @@ sub run_command {
     binmode $_, ':encoding(UTF-8)' for ( $in, $out, $err );
     print {$in} $options->{input} // '';
     seek $in, 0, 0;
-    my $pid = fork();
+    my ( $pid, $interrupted, $timed_out );
+    my @forward;
+    my @signals  = qw(INT TERM HUP);
+    my %handlers = map { $_ => $SIG{$_} } @signals;
+    local @SIG{@signals} = map {
+        my $signal = $_;
+        sub {
+            push @forward, $signal;
+            $interrupted //= $signal unless ( $handlers{$signal} // '' ) eq 'IGNORE';
+        }
+    } @signals;
+    $pid = fork();
     die "fork: $!\n" unless defined $pid;
 
     if ( !$pid ) {
+        @SIG{@signals} = @handlers{@signals};
+        setpgrp( 0, 0 ) or die "setpgrp: $!\n";
         chdir $options->{cwd}
           or die "chdir $options->{cwd}: $!\n"
           if defined $options->{cwd};
@@ -77,23 +90,31 @@ sub run_command {
     }
     my $deadline = time + ( $options->{timeout} // 30 );
     while ( waitpid( $pid, WNOHANG ) == 0 ) {
-        if ( time > $deadline ) {
-            kill 'TERM', $pid;
+        kill $_, -$pid for splice @forward;
+        if ( $interrupted || time > $deadline ) {
+            kill $interrupted // 'TERM', -$pid;
             sleep 0.1;
+            kill 'KILL', -$pid;
             kill 'KILL', $pid;
             waitpid( $pid, 0 );
-            die "Command timed out: " . join( ' ', @$command ) . "\n";
+            $timed_out = !$interrupted;
+            last;
         }
         sleep 0.005;
     }
     my $status = $?;
     close $_ for ( $in, $out, $err );
     my $result = {
-        returncode => ( $status & 127 ) ? -( $status & 127 ) : $status >> 8,
-        stdout     => read_file($output_path),
-        stderr     => read_file($error_path),
+        returncode => ( $status & 127 )          ? -( $status & 127 ) : $status >> 8,
+        stdout     => $interrupted || $timed_out ? ''                 : read_file($output_path),
+        stderr     => $interrupted || $timed_out ? ''                 : read_file($error_path),
     };
     unlink $input_path, $output_path, $error_path;
+    if ($interrupted) {
+        @SIG{@signals} = @handlers{@signals};
+        kill $interrupted, $$;
+    }
+    die "Command timed out: " . join( ' ', @$command ) . "\n" if $timed_out;
     die "Command failed ($result->{returncode}): " . join( ' ', @$command ) . "\n$result->{stderr}"
       if $options->{check} && $result->{returncode};
     return $result;
