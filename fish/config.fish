@@ -332,16 +332,14 @@ function aqsnow_init_rendezvous --on-event fish_preexec
 end
 function aqsnow_run_requested
     test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 1
-    set -l widget
-    switch "$(cat "$AQSNOW_FISH_RENDEZVOUS")"
-        case '<M-v>'
-            set widget fzf-path-widget
-        case recent
-            set widget fzf-recent-widget
-    end
+    set -l request "$(cat "$AQSNOW_FISH_RENDEZVOUS")"
     rm -- "$AQSNOW_FISH_RENDEZVOUS"
-    set -q widget[1]; or return 0
-    fzf_accept_and_run "$widget"
+    switch "$request"
+        case exec
+            return 0
+        case path-widget recent-widget
+            fzf_accept_and_run "fzf-$request"
+    end
     return 1
 end
 function aqsnow_rendezvous

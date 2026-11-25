@@ -251,7 +251,9 @@ set -gx AQSNOW_FISH_RENDEZVOUS "$TEST_ROOT/request"
 function fzf_accept_and_run
     printf '%s\n' $argv
 end
-for request in '<M-v>' recent exec
+aqsnow_run_requested
+printf '%s\n' "$status"
+for request in path-widget recent-widget exec
     printf '%s\n' "$request" > "$AQSNOW_FISH_RENDEZVOUS"
     aqsnow_run_requested
     printf '%s\n' "$status"
@@ -260,7 +262,7 @@ end
 FISH
     is(
         $result->{stdout},
-        "fzf-path-widget\n1\nfzf-recent-widget\n1\n0\n",
+        "1\nfzf-path-widget\n1\nfzf-recent-widget\n1\n0\n",
         'normal and recent pickers consume their requests without executing the command'
     );
 }

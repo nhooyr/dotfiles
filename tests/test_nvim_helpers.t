@@ -145,9 +145,9 @@ eq(vim.fn.exists(':Shdo'), 0, 'the Shdo command is removed')
 for _, mode in ipairs({ 'n', 'i' }) do
     assert(vim.fn.maparg('<M-CR>', mode):find("require('rendezvous').quit_and_run()", 1, true),
         'run mapping routes to the lazy helper in ' .. mode)
-    assert(vim.fn.maparg('<M-v>', mode):find("require('rendezvous').fzf_path_widget()", 1, true),
+    assert(vim.fn.maparg('<M-v>', mode):find("require('rendezvous').fzf_widget_request('path-widget')", 1, true),
         'picker mapping routes to the lazy helper in ' .. mode)
-    assert(vim.fn.maparg('<M-o>', mode):find("fzf_path_widget('recent')", 1, true),
+    assert(vim.fn.maparg('<M-o>', mode):find("fzf_widget_request('recent-widget')", 1, true),
         'recent picker mapping routes to the lazy helper in ' .. mode)
 end
 eq(vim.fn.maparg('<M-r>', 'n'), 'cgn', 'Alt-r retains its existing mapping')
@@ -1639,11 +1639,11 @@ vim.api.nvim_buf_set_name(0, vim.env.TEST_ORIGINAL .. '.other')
 feed('<M-CR>')
 eq(vim.fn.filereadable(request), 0, 'other files do not request execution')
 feed('<M-v>')
-eq(vim.fn.readfile(request), { '<M-v>' }, 'picker requests are independent of the original file')
+eq(vim.fn.readfile(request), { 'path-widget' }, 'picker requests are independent of the original file')
 
 calls = {}
 feed('<M-o>')
-eq(vim.fn.readfile(request), { 'recent' }, 'recent files request their own picker')
+eq(vim.fn.readfile(request), { 'recent-widget' }, 'recent files request their own picker')
 eq(calls, { 'wall', 'qall' }, 'recent files save before quitting')
 
 vim.fn.delete(request)
@@ -1658,9 +1658,9 @@ eq(vim.api.nvim_get_current_line(), 'run accepted', 'accepted text reaches the b
 eq(vim.fn.readfile(request), { 'exec' }, 'Insert mode still requests execution')
 feed('A<M-v>')
 eq(accepted, 1, 'the Insert-mode picker does not accept Copilot')
-eq(vim.fn.readfile(request), { '<M-v>' }, 'Insert mode routes the picker request')
+eq(vim.fn.readfile(request), { 'path-widget' }, 'Insert mode routes the picker request')
 feed('A<M-o>')
-eq(vim.fn.readfile(request), { 'recent' }, 'Insert mode routes the recent picker request')
+eq(vim.fn.readfile(request), { 'recent-widget' }, 'Insert mode routes the recent picker request')
 LUA
 }
 
@@ -1815,7 +1815,11 @@ sub rendezvous_failed_quit {
 vim.api.nvim_set_current_line('unsaved')
 vim.api.nvim_create_autocmd('BufWriteCmd', { buffer = 0, callback = function() end })
 local helper = require('rendezvous')
-for _, action in ipairs({ helper.quit_and_run, helper.fzf_path_widget }) do
+for _, action in ipairs({
+    helper.quit_and_run,
+    function() helper.fzf_widget_request('path-widget') end,
+    function() helper.fzf_widget_request('recent-widget') end,
+}) do
     local ok, err = pcall(action)
     assert(not ok and err:find('E37', 1, true), 'a failed quit preserves the original error')
     eq(vim.fn.filereadable(vim.env.AQSNOW_FISH_RENDEZVOUS), 0, 'a failed quit removes its request')
@@ -1836,13 +1840,13 @@ eq(vim.fn.filereadable(vim.env.AQSNOW_FISH_RENDEZVOUS), 0, 'save failure sends n
 
 vim.cmd.wall = function() saved = saved + 1 end
 vim.env.AQSNOW_FISH_RENDEZVOUS = vim.env.TEST_ORIGINAL .. '/missing/request'
-ok = pcall(helper.fzf_path_widget)
+ok = pcall(helper.fzf_widget_request, 'path-widget')
 assert(not ok, 'request write errors are propagated')
 eq(saved, 1, 'the buffer is saved before attempting the request')
 assert(not quit, 'request failure prevents quitting')
 
 vim.env.AQSNOW_FISH_RENDEZVOUS = nil
-helper.fzf_path_widget()
+helper.fzf_widget_request('recent-widget')
 eq(saved, 2, 'without a rendezvous path the helper still saves')
 assert(quit, 'without a rendezvous path the helper still quits')
 LUA

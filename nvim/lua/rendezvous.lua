@@ -21,9 +21,9 @@ local function quit_and_run()
 	quit_with_request(request)
 end
 
-local function fzf_path_widget(request)
+local function fzf_widget_request(request)
 	vim.cmd.wall()
-	quit_with_request(request or '<M-v>')
+	quit_with_request(request)
 end
 
-return { quit_and_run = quit_and_run, fzf_path_widget = fzf_path_widget }
+return { quit_and_run = quit_and_run, fzf_widget_request = fzf_widget_request }
