@@ -15,6 +15,7 @@
   Break length ties by the number of files sharing the chunk, then first occurrence. Use rename/copy
   destinations, and fall back to the first file's path if no shared chunk exists.
 - Capitalize the first word after the commit-title prefix.
+- Wrap commit messages prepared for commit scripts to an 80-column text width.
 - Validate the commit sequence in a temporary checkout first. Preserve the worktree and unrelated changes,
   and stop the script on failure.
 - Scripts must be idempotent and automatically resumable: rerunning after interruption must safely
