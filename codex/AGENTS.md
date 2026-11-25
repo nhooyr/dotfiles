@@ -23,6 +23,11 @@
   continue from the current state without repeating completed work.
 - After the full commit sequence succeeds, move `./commit` to the Trash using `trash` so it can be recovered.
   Also do this when a rerun finds the sequence already complete. Keep the script on failure or interruption.
+  Coordinate updates and cleanup with the same per-script lock:
+  `/tmp/aqsnow-commit-<SHA256 of the absolute script path>.lock`.
+  Publish updates with an atomic rename while holding the lock. Before trashing, hold the same lock
+  and verify the file still matches the running version's generated fingerprint. Preserve modified or
+  replaced scripts, and regenerate the fingerprint whenever updating the script.
 - Always add usage/help text and Fish completions for custom functions and commands.
   Load each command's completions only when requested.
 - Leave abbralis unchanged. Command wrappers should use the underlying command's help
