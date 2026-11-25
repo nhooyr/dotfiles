@@ -36,6 +36,7 @@ use JSON::PP;
 $| = 1;
 open my $log, '>>', $ENV{TEST_CALLS} or die $!;
 print {$log} encode_json(['nvim', @ARGV]), "\n";
+system('fzf', '--version') == 0 or die "fzf is unavailable\n" if $ENV{GITHUB_ACTIONS};
 print "plugin progress\n";
 if ($ENV{TEST_PLUGIN_FAIL}) {
     print STDERR "plugin failed\n";
@@ -134,13 +135,20 @@ sub ci_installs_neovim_before_plugin_setup {
     rename "$self->{bin}/nvim", "$bundle/nvim-linux-x86_64/bin/nvim" or die $!;
     run_command( [ 'tar', '-czf', "$runner/download.tar.gz", '-C', $bundle, 'nvim-linux-x86_64' ],
         { check => 1 } );
+    write_file( "$bundle/fzf", "#!/bin/sh\nexit 0\n" );
+    chmod 0755, "$bundle/fzf";
+    run_command( [ 'tar', '-czf', "$runner/fzf-download.tar.gz", '-C', $bundle, 'fzf' ], { check => 1 } );
     write_file( "$self->{bin}/sudo", "#!/bin/sh\nexit 0\n" );
     write_file( "$self->{bin}/curl", '#!' . perl_executable() . "\n" . <<'PERL' );
 use File::Copy qw(copy);
+my %archives = (
+    'https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz' => 'download.tar.gz',
+    'https://github.com/junegunn/fzf/releases/download/v0.75.0/fzf-0.75.0-linux_amd64.tar.gz' => 'fzf-download.tar.gz',
+);
 die "unexpected download arguments\n" unless @ARGV == 5
     && $ARGV[0] eq '--fail' && $ARGV[1] eq '--location' && $ARGV[2] eq '--output'
-    && $ARGV[4] eq 'https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz';
-copy "$ENV{RUNNER_TEMP}/download.tar.gz", $ARGV[3] or die $!;
+    && exists $archives{$ARGV[4]};
+copy "$ENV{RUNNER_TEMP}/$archives{$ARGV[4]}", $ARGV[3] or die $!;
 PERL
     chmod 0755, "$self->{bin}/sudo", "$self->{bin}/curl";
     $self->{env}{GITHUB_ACTIONS}   = 1;
@@ -149,6 +157,7 @@ PERL
     my $result = run_command( ["$self->{temporary}/source tree/ci/test.sh"], { env => $self->{env} } );
     is( $result->{returncode}, 7,                 'CI reaches Neovim and preserves plugin setup failures' );
     is( $result->{stderr},     "plugin failed\n", 'the provisioned Neovim ran' );
+    ok( -x "$runner/fzf", 'the fzf archive was installed before plugin setup' );
     is_deeply(
         calls($self),
         [ [ 'nvim', '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', './nvim/lua/plugins.lua' ] ],
