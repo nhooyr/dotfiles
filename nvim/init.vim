@@ -317,6 +317,7 @@ snoremap <expr> <M-h> v:lua.vim.snippet.active()
             \ ? "\<Cmd>lua vim.snippet.jump(-1)\<CR>" : "\<Esc>h"
 inoremap <M-k> <Cmd>lua vim.snippet.stop()<CR>
 snoremap <M-k> <Cmd>lua vim.snippet.stop()<CR><Esc>i
+snoremap <C-u> <C-g>"_c<C-u>
 
 function s:is_config_file(path) abort
 	let path = resolve(a:path)
