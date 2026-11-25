@@ -133,9 +133,9 @@ sub does_not_load_embedded_completion_files {
 set -g fish_complete_path "$TEST_ROOT/no-completions"
 prime ./fish --
 prime ./fish --
-test -z "$(complete --color never -c fish)"; or exit 10
+test -z "$(complete -c fish)"; or exit 10
 test "$(count $compgen_paths)" -eq 1; or exit 11
-complete --color never -c "$(path resolve -- ./fish)"
+complete -c "$(path resolve -- ./fish)"
 FISH
     is( $result->{returncode}, 0, $result->{stderr} );
     like( $result->{stdout}, qr/compgen\.pl/, 'an unloaded embedded provider does not suppress generation' );
@@ -195,6 +195,42 @@ FISH
     is( read_file( $self->{calls} ), "$self->{temporary}/work/build.sh\n", 'the script helper runs once' );
 }
 
+sub erased_rules_can_be_registered_again {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+prime ./build.sh --
+complete -e -p "$(path resolve -- ./build.sh)"
+prime ./build.sh --
+prime ./build.sh --
+complete -C './build.sh --'
+FISH
+    is( $result->{returncode}, 0, $result->{stderr} );
+    like( $result->{stdout}, qr/^--generated$/m, 'explicitly erased generated rules can be restored' );
+    is(
+        read_file( $self->{calls} ),
+        "$self->{temporary}/work/build.sh\n",
+        'restoring the rule does not create duplicate fallback invocations'
+    );
+}
+
+sub symlink_paths_follow_native_completion_names {
+    my ($self) = @_;
+    symlink 'build.sh', "$self->{temporary}/work/alias.sh" or die $!;
+    for my $case ( [ './alias.sh', '--target-native' ],
+        [ "$self->{temporary}/work/alias.sh", '--alias-native' ] )
+    {
+        my $result = fish( $self, <<'FISH', $case->[0] );
+complete -c build.sh -l target-native
+complete -c alias.sh -l alias-native
+prime "$argv[1]" --
+complete -C "$(string escape -- "$argv[1]") --"
+FISH
+        is( $result->{returncode}, 0,              $result->{stderr} );
+        is( $result->{stdout},     "$case->[1]\n", 'symlink spelling uses the same native provider as Fish' );
+        ok( !-e $self->{calls}, 'native symlink completions prevent generated help probing' );
+    }
+}
+
 sub does_not_probe_commands_or_file_arguments {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -231,7 +267,7 @@ set -l line "$(string escape -- "$relative") --"
 set -l native_path "$(path resolve -- ./build.sh)"
 complete -p "$native_path" -l path-native
 complete -c build.sh -l basename-native
-set -l path_rules "$(complete --color never -c "$native_path")"
+set -l path_rules "$(complete -c "$native_path")"
 set -l basename_rules "$(complete -c build.sh)"
 test -n "$path_rules"; or exit 9
 prime "$relative" --
@@ -241,7 +277,7 @@ reload; or exit 11
 test "$reloaded" = yes; or exit 12
 test "$history_action" = merge; or exit 13
 not set -q compgen_paths[1]; or exit 14
-test "$(complete --color never -c "$native_path")" = "$path_rules"; or exit 15
+test "$(complete -c "$native_path")" = "$path_rules"; or exit 15
 test "$(complete -c build.sh)" = "$basename_rules"; or exit 16
 not string match -q -- '*--generated*' "$(complete -C "$line")"; or exit 17
 prime "$relative" --
@@ -287,6 +323,8 @@ run_cases(
         first_completion_prefers_a_lazy_native_provider => \&first_completion_prefers_a_lazy_native_provider,
         first_completion_prefers_an_embedded_provider   => \&first_completion_prefers_an_embedded_provider,
         empty_argument_includes_flags_and_files         => \&empty_argument_includes_flags_and_files,
+        erased_rules_can_be_registered_again            => \&erased_rules_can_be_registered_again,
+        symlink_paths_follow_native_completion_names    => \&symlink_paths_follow_native_completion_names,
         does_not_probe_commands_or_file_arguments       => \&does_not_probe_commands_or_file_arguments,
         reload_clears_only_generated_completions        => \&reload_clears_only_generated_completions,
         help_and_completions_are_lazy                   => \&help_and_completions_are_lazy,
