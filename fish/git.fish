@@ -1,20 +1,3 @@
-function git
-    if test "$(count $argv)" -eq 2
-        and test "$argv[1]" = rebase
-        and contains -- "$argv[2]" -i --interactive
-        for base in origin/main origin/master
-            if command git show-ref --verify --quiet "refs/remotes/$base"
-                set -a argv "$base"
-                break
-            end
-        end
-    end
-    command git $argv
-    set -l code $status
-    # Ignore SIGPIPE. See intro commit.
-    test "$code" -eq 141; and return 0
-    return "$code"
-end
 abbrali g git
 abbrali grv 'git rev-parse --abbrev-ref HEAD | pbc'
 abbrali grvs 'git rev-parse --short HEAD | pbc'
@@ -44,11 +27,11 @@ function gacma
     ga; and gcma $argv
 end
 abbrali gcmf git commit --fixup
-abbrali grb git rebase
-abbrali grbi git rebase -i
-abbrali grbr git rebase -i --root
-abbrali grbc git rebase --continue
-abbrali grba git rebase --abort
+abbrali grb git_rebase
+abbrali grbi git_rebase -i
+abbrali grbr git_rebase -i --root
+abbrali grbc git_rebase --continue
+abbrali grba git_rebase --abort
 abbrali gs git status
 abbrali gd git diff --patch-with-stat
 abbrali grt git reset
@@ -64,11 +47,11 @@ abbrali grmrf git rm -rf
 abbrali grmc git rm --cached
 abbrali grmcr git rm --cached -r
 abbrali grmcrf git rm --cached -rf
-abbrali gl git log
-abbrali glp git log -p
-abbrali glo git log --oneline
-abbrali glol git log --oneline \| wc -l
-abbrali glss git log --show-signature
+abbrali gl git_log
+abbrali glp git_log -p
+abbrali glo git_log --oneline
+abbrali glol git_log --oneline \| wc -l
+abbrali glss git_log --show-signature
 abbrali gls git ls-files
 abbrali gcl git clone
 abbrali gpl git pull

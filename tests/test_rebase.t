@@ -5,9 +5,8 @@ use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
 
-my $git = which('git');
-my ($wrapper) = read_file("$FindBin::Bin/../fish/git.fish") =~ /\A(function git\n.*?^end\n)/ms;
-die "Git wrapper not found\n" unless defined $wrapper;
+my $git  = which('git');
+my $fish = absolute_path("$FindBin::Bin/../fish");
 
 sub setup {
     my ($self) = @_;
@@ -26,15 +25,15 @@ sub setup {
         GIT_COMMITTER_NAME  => 'Test',
         GIT_COMMITTER_EMAIL => 'test@example.invalid',
         TEST_REAL_GIT       => $git,
-        TEST_WRAPPER        => "$dir/git.fish",
-        TEST_REBASE_STATUS  => 0,
+        TEST_FISH_FUNCTIONS => "$fish/functions",
+        TEST_GIT_CONFIG     => "$fish/git.fish",
+        TEST_GIT_STATUS     => 0,
     };
-    write_file( "$dir/git.fish", $wrapper );
-    write_file( "$dir/bin/git",  '#!' . perl_executable() . "\n" . <<'PERL' );
+    write_file( "$dir/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
 use JSON::PP;
-if (grep { $_ eq 'rebase' } @ARGV) {
+if ($ARGV[0] eq 'rebase' || $ARGV[0] eq 'log') {
     print encode_json(\@ARGV);
-    exit $ENV{TEST_REBASE_STATUS};
+    exit $ENV{TEST_GIT_STATUS};
 }
 exec $ENV{TEST_REAL_GIT}, @ARGV;
 PERL
@@ -58,9 +57,12 @@ sub refs {
 }
 
 sub run {
-    my ( $self, @args ) = @_;
-    return run_command( [ 'fish', '--no-config', '-c', 'source "$TEST_WRAPPER"; git $argv', '--', @args ],
-        { cwd => $self->{temporary}, env => $self->{env} } );
+    my ( $self, $wrapper, @args ) = @_;
+    my $script = 'set --prepend fish_function_path "$TEST_FISH_FUNCTIONS"; ' . "$wrapper \$argv";
+    return run_command(
+        [ 'fish', '--no-config', '-c', $script, '--', @args ],
+        { cwd => $self->{temporary}, env => $self->{env} }
+    );
 }
 
 sub preferred_default {
@@ -75,7 +77,7 @@ sub preferred_default {
     {
         refs( $self, @{ $case->[0] } );
         for my $flag (qw(-i --interactive)) {
-            my $result = run( $self, 'rebase', $flag );
+            my $result = run( $self, 'git_rebase', $flag );
             is( $result->{returncode}, 0, 'rebase succeeds' );
             is_deeply(
                 decode_json( $result->{stdout} ),
@@ -89,32 +91,76 @@ sub preferred_default {
 sub explicit_invocations {
     my ($self) = @_;
     refs( $self, qw(origin/main origin/master) );
-    for my $args ( [qw(rebase -i HEAD~2)], [qw(rebase -i --root)], [qw(rebase -i --autosquash)],
-        [qw(rebase --continue)], [qw(-C . rebase -i)], ['rebase'] )
+    for my $args ( [qw(-i HEAD~2)], [qw(-i --root)], [qw(-i --autosquash)], ['--continue'], ['--abort'], [] )
     {
-        my $result = run( $self, @$args );
+        my $result = run( $self, 'git_rebase', @$args );
         is( $result->{returncode}, 0, 'rebase succeeds' );
-        is_deeply( decode_json( $result->{stdout} ), $args, 'other invocations are unchanged' );
+        is_deeply( decode_json( $result->{stdout} ), [ 'rebase', @$args ],
+            'other invocations are unchanged' );
     }
 }
 
 sub exit_statuses {
     my ($self) = @_;
-    for my $status ( 17, 141 ) {
-        $self->{env}{TEST_REBASE_STATUS} = $status;
-        is(
-            run( $self, 'rebase', '-i' )->{returncode},
-            $status == 141 ? 0 : $status,
-            'the wrapper preserves failures and continues to ignore SIGPIPE'
-        );
+    for my $status ( 0, 17, 141 ) {
+        $self->{env}{TEST_GIT_STATUS} = $status;
+        is( run( $self, 'git_rebase', '-i' )->{returncode}, $status, 'rebase preserves every exit status' );
+        is( run( $self, 'git', 'rebase', '-i' )->{returncode},
+            $status, 'plain Git preserves every exit status' );
     }
+}
+
+sub log_arguments_and_statuses {
+    my ($self) = @_;
+    for my $args ( [], [ '--oneline', 'HEAD', '--', 'file name' ] ) {
+        for my $status ( 0, 17, 141 ) {
+            $self->{env}{TEST_GIT_STATUS} = $status;
+            my $result = run( $self, 'git_log', @$args );
+            is( $result->{returncode}, $status == 141 ? 0 : $status, 'log ignores only SIGPIPE' );
+            is_deeply( decode_json( $result->{stdout} ), [ 'log', @$args ], 'log preserves its arguments' );
+        }
+    }
+}
+
+sub aliases_use_specific_wrappers {
+    my ($self) = @_;
+    my $result = run_command(
+        [ 'fish', '--no-config', '-c', <<'FISH' ],
+set --prepend fish_function_path "$TEST_FISH_FUNCTIONS"
+function abbrali
+    printf '%s\t%s\n' "$argv[1]" "$(string join ' ' -- $argv[2..])"
+end
+source "$TEST_GIT_CONFIG"; or exit
+functions --query git; and exit 1
+exit 0
+FISH
+        { cwd => $self->{temporary}, env => $self->{env} }
+    );
+    is( $result->{returncode}, 0, 'loading Git aliases does not define a global Git wrapper' );
+    my %aliases  = map { split /\t/, $_, 2 } split /\n/, $result->{stdout};
+    my %expected = (
+        grb  => 'git_rebase',
+        grbi => 'git_rebase -i',
+        grbr => 'git_rebase -i --root',
+        grbc => 'git_rebase --continue',
+        grba => 'git_rebase --abort',
+        gl   => 'git_log',
+        glp  => 'git_log -p',
+        glo  => 'git_log --oneline',
+        glol => 'git_log --oneline | wc -l',
+        glss => 'git_log --show-signature',
+    );
+    is( $aliases{$_}, $expected{$_}, "$_ calls its specific wrapper" ) for sort keys %expected;
+    ok( !-e "$fish/functions/git.fish", 'plain Git has no autoload wrapper' );
 }
 
 run_cases(
     {
-        preferred_default    => \&preferred_default,
-        explicit_invocations => \&explicit_invocations,
-        exit_statuses        => \&exit_statuses
+        preferred_default             => \&preferred_default,
+        explicit_invocations          => \&explicit_invocations,
+        exit_statuses                 => \&exit_statuses,
+        log_arguments_and_statuses    => \&log_arguments_and_statuses,
+        aliases_use_specific_wrappers => \&aliases_use_specific_wrappers,
     },
     \&setup
 );
