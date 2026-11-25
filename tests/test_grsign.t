@@ -9,12 +9,13 @@ my $root = absolute_path("$FindBin::Bin/..");
 
 sub setup {
     my ($self) = @_;
-    $self->{temporary} = tempdir( 'git-resign-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+    $self->{temporary} = tempdir( 'grsign-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     $self->{repo}      = "$self->{temporary}/repo";
     make_path( $self->{repo} );
     $self->{env} = {
         ( map { $_ => $ENV{$_} } grep { !/^GIT_/ } keys %ENV ),
         HOME                => "$self->{temporary}/home",
+        PATH                => "$root/bin:$ENV{PATH}",
         GIT_CONFIG_GLOBAL   => '/dev/null',
         GIT_CONFIG_NOSYSTEM => 1,
     };
@@ -104,7 +105,7 @@ sub resigns_history_and_tags {
     my $before = commits($self);
     my %tags   = map { $_ => tag_metadata( $self, $_ ) } qw(annotated signed);
 
-    my $result = run_command( ["$root/bin/git-resign"], { cwd => $self->{repo}, env => $self->{env} } );
+    my $result = run_command( ["$root/bin/grsign"], { cwd => $self->{repo}, env => $self->{env} } );
     is( $result->{returncode}, 0, "history re-signing succeeds: $result->{stderr}" );
     my $after = commits($self);
     is_deeply(
@@ -147,7 +148,7 @@ sub resigns_history_and_tags {
     my @backups = split /\n/,
       git( $self, 'for-each-ref', '--format=%(refname) %(objectname)', 'refs/original/' );
     ok( @backups, 'the first rewrite keeps original refs' );
-    $result = run_command( ["$root/bin/git-resign"], { cwd => $self->{repo}, env => $self->{env} } );
+    $result = run_command( ["$root/bin/grsign"], { cwd => $self->{repo}, env => $self->{env} } );
     is( $result->{returncode}, 0, "a second invocation succeeds: $result->{stderr}" );
     my %backups = map { $_ => 1 } split /\n/,
       git( $self, 'for-each-ref', '--format=%(refname) %(objectname)', 'refs/original/' );
@@ -157,12 +158,12 @@ sub resigns_history_and_tags {
 sub validates_arguments {
     my ($self) = @_;
     my $help =
-      run_command( [ "$root/bin/git-resign", '--help' ], { cwd => $self->{repo}, env => $self->{env} } );
+      run_command( [ 'grsign', '--help' ], { cwd => $self->{repo}, env => $self->{env} } );
     is( $help->{returncode}, 0, 'help works without a repository' );
-    like( $help->{stdout}, qr/Usage: git resign/, 'help identifies the Git command' );
+    like( $help->{stdout}, qr/Usage: grsign/, 'help identifies the command' );
     for my $argument ( '--unknown', '' ) {
         my $invalid =
-          run_command( [ "$root/bin/git-resign", $argument ], { cwd => $self->{repo}, env => $self->{env} } );
+          run_command( [ "$root/bin/grsign", $argument ], { cwd => $self->{repo}, env => $self->{env} } );
         is( $invalid->{returncode}, 2, 'unexpected arguments are rejected before rewriting' );
     }
 }
