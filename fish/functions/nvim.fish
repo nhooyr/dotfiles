@@ -1,5 +1,5 @@
 function nvim --wraps nvim
-    if not set -q NVIM; or test -z "$NVIM"
+    if not set -q NVIM; or test -z "$NVIM"; or not isatty stdin
         command nvim $argv
         return
     end

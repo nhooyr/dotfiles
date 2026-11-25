@@ -698,7 +698,7 @@ local terminal, terminal_win = call('nvim_get_current_buf'), call('nvim_get_curr
 local job = eval('b:terminal_job_id')
 local function open(...)
     local command = { 'fish', '--no-config', '-c',
-        'source "$TEST_DOTFILES/fish/functions/nvim.fish"; nvim $argv', '--' }
+        'source "$TEST_DOTFILES/fish/functions/nvim.fish"; function isatty; return 0; end; nvim $argv', '--' }
     vim.list_extend(command, { ... })
     local result = vim.system(command, { cwd = cwd, env = { NVIM = socket } }):wait(3000)
     eq(result.code, 0, result.stderr)
