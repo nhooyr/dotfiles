@@ -2904,6 +2904,19 @@ fn input_paths_use_local_rules_for_physical_and_logical_cwd() {
 }
 
 #[test]
+fn physical_input_keeps_local_symlink_paths_with_a_logical_cwd() {
+    let fixture = Fixture::new();
+    let alias = fixture.root.join("alias");
+    symlink(&fixture.local, &alias).unwrap();
+    symlink(&fixture.repo, fixture.local.join("link")).unwrap();
+    let paths = from_input(
+        &mut fixture.command_with_flags(&["--read0"], &alias, Path::new(""), "-f", &[]),
+        &[&fixture.local.canonicalize().unwrap().join("link/tracked")],
+    );
+    assert_eq!(paths, [OsString::from("link/tracked")]);
+}
+
+#[test]
 fn empty_input_does_not_start_any_scans() {
     let fixture = Fixture::new();
     let bin = fixture.root.join("bin");

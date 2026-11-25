@@ -972,6 +972,7 @@ impl Scanner {
         }
         let relative = absolute
             .strip_prefix(&self.cwd)
+            .or_else(|_| absolute.strip_prefix(physical_cwd))
             .map(Path::to_path_buf)
             .ok()
             .or_else(|| {
