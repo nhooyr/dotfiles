@@ -61,6 +61,14 @@ sub fair_and_tex_can_autoload_cdc {
     my $result = fish( $self, <<'FISH' );
 set -g dotfiles "$TEST_DOTFILES"
 set -g fair "$TEST_ROOT/target"
+set -lx GIT_CONFIG_GLOBAL /dev/null
+set -lx GIT_CONFIG_NOSYSTEM 1
+set -lx GIT_AUTHOR_NAME 'Regression Test'
+set -lx GIT_AUTHOR_EMAIL test@example.invalid
+set -lx GIT_COMMITTER_NAME "$GIT_AUTHOR_NAME"
+set -lx GIT_COMMITTER_EMAIL "$GIT_AUTHOR_EMAIL"
+command git init --quiet "$fair"; or exit
+command git -C "$fair" commit --quiet --allow-empty -m fixture; or exit
 function git
     switch "$argv[1]"
         case show
