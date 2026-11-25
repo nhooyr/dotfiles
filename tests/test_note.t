@@ -15,7 +15,7 @@ sub setup {
     $self->{log}  = "$temporary/editor.json";
     $self->{env}  = {
         %ENV,
-        EDITOR   => "'$editor' --clean",
+        EDITOR   => $editor,
         notes    => dirname( dirname( dirname( $self->{note} ) ) ),
         NOTE_LOG => $self->{log},
     };
@@ -52,19 +52,15 @@ FISH
     );
 }
 
-sub existing_note_preserves_editor_arguments {
+sub existing_note_preserves_literal_paths {
     my ($self) = @_;
     make_path( dirname( $self->{note} ) );
     write_file( $self->{note}, "Existing note\n" );
     my $result = run_note($self);
     is( $result->{returncode}, 23, 'returns the editor exit status' );
-    is( $result->{stderr},     '', 'the quoted editor command runs without errors' );
+    is( $result->{stderr},     '', 'the editor path with spaces runs without errors' );
     my $record = decode_json( read_file( $self->{log} ) );
-    is_deeply(
-        $record->{args},
-        [ '--clean', $self->{note} ],
-        'passes editor options and the literal note path'
-    );
+    is_deeply( $record->{args}, [ $self->{note} ], 'passes the literal note path' );
     is( $record->{stdin},           undef,             'existing notes do not receive generated input' );
     is( read_file( $self->{note} ), "Existing note\n", 'opening the note does not rewrite it' );
 }
@@ -73,11 +69,11 @@ sub new_note_preserves_editor_arguments_and_input {
     my ($self) = @_;
     my $result = run_note($self);
     is( $result->{returncode}, 23, 'returns the editor exit status' );
-    is( $result->{stderr},     '', 'the quoted editor command runs without errors' );
+    is( $result->{stderr},     '', 'the editor path with spaces runs without errors' );
     my $record = decode_json( read_file( $self->{log} ) );
     is_deeply(
         $record->{args},
-        [ '--clean', '-', '+execute "file " . fnameescape($note)', '+filetype detect', '+normal! G' ],
+        [ '-', '+execute "file " . fnameescape($note)', '+filetype detect', '+normal! G' ],
         'preserves stdin and the fixed Vim commands as separate arguments'
     );
     is( $record->{note}, $self->{note}, 'exports the literal note filename for the Vim command' );
@@ -91,7 +87,7 @@ sub new_note_preserves_editor_arguments_and_input {
 
 run_cases(
     {
-        existing_note_preserves_editor_arguments      => \&existing_note_preserves_editor_arguments,
+        existing_note_preserves_literal_paths         => \&existing_note_preserves_literal_paths,
         new_note_preserves_editor_arguments_and_input => \&new_note_preserves_editor_arguments_and_input,
     },
     \&setup
