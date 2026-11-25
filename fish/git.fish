@@ -127,6 +127,7 @@ function gcd
     set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
     cd -- "$git_root"
 end
+abbrali .co 'gcd && ./commit'
 function scd
     set -l super_root "$(git rev-parse --show-superproject-working-tree)"; or return 1
     # Git prints nothing, and still succeeds, outside a submodule.
