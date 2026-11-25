@@ -52,6 +52,7 @@ LUA
             env => {
                 %ENV,
                 HOME            => "$temp/home",
+                AQSNOW_DIRALIS  => 'HOME',
                 XDG_CONFIG_HOME => "$temp/config",
                 XDG_DATA_HOME   => "$temp/data",
                 XDG_STATE_HOME  => "$temp/state",
