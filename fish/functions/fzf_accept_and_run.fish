@@ -30,7 +30,9 @@ function fzf_path_widget --argument-names widget
     end
     set -l global_dir "$nhooyr"
     set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
+    set -l modifier
     while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else --; or string match -qr '^[[:alnum:]_]+=' -- "$tokens[1]"
+        contains -- "$tokens[1]" command builtin; and set modifier "$tokens[1]"
         set -e tokens[1]
     end
     set -l type -fd
@@ -168,12 +170,25 @@ function fzf_path_widget --argument-names widget
                 set -l aliased "$(aqsnow_fzf_path_alias "$target" | string split0)"
                 set escaped "$(aqsnow_fzf_path_quote "$aliased" "$parsed[3]")"
             end
+            set -l default_command
             if test "$kind" = special; or test "$kind" = executable -a "$execute" -eq 0
-                set -p escaped file --
+                set default_command file
             else if test "$(count $result)" -eq 1; and test "$kind" = directory
-                set -p escaped cd --
+                set default_command cd
             else if test "$execute" -eq 0
-                set -p escaped nvim --
+                set default_command nvim
+            end
+            if set -q default_command[1]
+                set -p escaped "$default_command" --
+            end
+            if test "$modifier" = command -a "$default_command" = cd; or test "$modifier" = builtin -a "$default_command" != cd
+                set -l process "$(commandline -p)"
+                set -l cursor "$(commandline -Cp)"
+                set -l length "$(string length -- "$(commandline -ct)")"
+                set -l prefix "$(string sub --length "$(math "$cursor - $length")" -- "$process")"
+                set -l adjusted "$(string replace --regex -- '(^|[[:space:]])'"$modifier"'[[:space:]]+(?:--[[:space:]]+)?$' '$1' "$prefix")"
+                commandline -rp -- "$(string replace -- "$prefix" "$adjusted" "$process")"
+                commandline -Cp "$(math "$cursor - $(string length -- "$prefix") + $(string length -- "$adjusted")")"
             end
         else if contains -- "$(path basename -- "$tokens[1]")" nvim cd; and not contains -- -- $tokens; and test -z "$parsed[3]"
             if test "$(path basename -- "$tokens[1]")" != nvim; or not contains -- "$tokens[-1]" -u -l -S -s -i -w -W -q -t -c --cmd --listen --server --startuptime

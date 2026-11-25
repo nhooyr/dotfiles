@@ -16,12 +16,15 @@ set -g CDPATH .
 function commandline
     switch "$argv[1]"
         case -Cp
+            set -q argv[2]; and return
             string length -- "$TEST_COMMANDLINE"
         case -p
             printf '%s' "$TEST_COMMANDLINE"
         case --current-token
             # These cases complete an empty token after the existing command.
             printf ''
+        case -rp
+            set -g TEST_COMMANDLINE "$argv[3]"
         case --cut-at-cursor
             printf '%s\0' "$TEST_COMMANDLINE" | read --null --array --tokenize tokens
             set -q tokens[1]; and printf '%s\n' $tokens
@@ -39,6 +42,7 @@ function fzf
     printf '%s\0' (string split \n -- "$TEST_SELECTION")
 end
 fzf_path_widget "$TEST_WIDGET"
+test "$TEST_FULL_COMMAND" = 1; and printf '%s' "$TEST_COMMANDLINE"
 printf '%s' "$inserted"
 "#;
 
@@ -55,6 +59,15 @@ fn run(commandline: &str, selection: &str) -> (String, bool) {
 }
 
 fn run_widget(widget_name: &str, commandline: &str, selection: &str) -> (String, bool) {
+    run_widget_output(widget_name, commandline, selection, false)
+}
+
+fn run_widget_output(
+    widget_name: &str,
+    commandline: &str,
+    selection: &str,
+    full_command: bool,
+) -> (String, bool) {
     let id = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
     let fixture = Fixture(env::temp_dir().join(format!("fzf-widget-{}-{id}", std::process::id())));
     fs::create_dir(&fixture.0).unwrap();
@@ -90,6 +103,7 @@ fn run_widget(widget_name: &str, commandline: &str, selection: &str) -> (String,
         .env("WIDGET_SOURCE", widget)
         .env("TEST_WIDGET", widget_name)
         .env("TEST_COMMANDLINE", commandline)
+        .env("TEST_FULL_COMMAND", if full_command { "1" } else { "0" })
         .env("TEST_SELECTION", selection)
         .env("TEST_FLAGS", fixture.0.join("flags"))
         .output()
@@ -655,6 +669,33 @@ fn command_position_ignores_only_leading_decorators() {
         run("command -- nvim ", "README.md"),
         ("-- README.md ".into(), false)
     );
+}
+
+#[test]
+fn default_commands_keep_only_compatible_modifiers() {
+    for (commandline, selection, expected) in [
+        ("command -- ", "directory", "cd -- directory "),
+        ("builtin -- ", "README.md", "nvim -- README.md "),
+        ("builtin -- ", "./script", "./script "),
+        ("command -- ", "README.md", "command -- nvim -- README.md "),
+        ("builtin -- ", "directory", "builtin -- cd -- directory "),
+        (
+            "not VAR='a command b' command -- ",
+            "directory",
+            "not VAR='a command b' cd -- directory ",
+        ),
+        (
+            "VAR='x builtin -- ' builtin ",
+            "README.md",
+            "VAR='x builtin -- ' nvim -- README.md ",
+        ),
+    ] {
+        assert_eq!(
+            run_widget_output("fzf-path-widget", commandline, selection, true).0,
+            expected,
+            "{commandline:?} {selection:?}"
+        );
+    }
 }
 
 #[test]
