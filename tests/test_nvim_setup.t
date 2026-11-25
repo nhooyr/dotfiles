@@ -13,7 +13,10 @@ sub setup {
     $self->{temporary} = tempdir( 'nvim-setup-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $directory = absolute_path( $self->{temporary} ) . '/source tree/nvim';
     my $bin       = "$self->{temporary}/bin";
-    make_path( "$directory/app", "$directory/lua", "$self->{temporary}/source tree/ci", $bin );
+    make_path( "$directory/app", "$directory/lua", "$directory/../bin",
+        "$self->{temporary}/source tree/ci", $bin );
+    copy_preserve( "$root/bin/$_",                  "$directory/../bin/$_" ) for qw(dotln hpath);
+    copy_preserve( "$root/nvim/$_",                 "$directory/$_" )        for qw(init.vim vimrc);
     copy_preserve( "$root/nvim/install.sh",         "$directory/install.sh" );
     copy_preserve( "$root/nvim/lua/plugins.lua",    "$directory/lua/plugins.lua" );
     copy_preserve( "$root/nvim/lua/treesitter.lua", "$directory/lua/treesitter.lua" );
@@ -23,6 +26,7 @@ sub setup {
     $self->{env}       = {
         %ENV,
         PATH            => "$bin:/usr/bin:/bin",
+        HOME            => "$self->{temporary}/home",
         GITHUB_ACTIONS  => '',
         TEST_CALLS      => "$self->{temporary}/calls",
         TEST_DIRECTORY  => $directory,
@@ -73,13 +77,20 @@ sub calls {
     return [ map { decode_json($_) } split /\n/, read_file( $self->{env}{TEST_CALLS} ) ];
 }
 
+sub link_output {
+    return
+        "nvim: dotln: Linking ~/.config/nvim/init.vim\n"
+      . "nvim: dotln: Linking ~/.config/nvim/lua\n"
+      . "nvim: dotln: Linking ~/.vimrc\n";
+}
+
 sub installs_plugins_and_app_quietly {
     my ($self) = @_;
     my $result = run_install($self);
     is( $result->{returncode}, 0, 'installation succeeds' );
     is(
         $result->{stdout},
-        "dotfiles: nvim: install.sh: Updated plugins and parsers.\napp installed\n",
+        link_output() . "dotfiles: nvim: install.sh: Updated plugins and parsers.\napp installed\n",
         'plugin progress is hidden while concise statuses remain'
     );
     is( $result->{stderr}, '', 'successful installation has no errors' );
@@ -91,6 +102,11 @@ sub installs_plugins_and_app_quietly {
         ],
         'the installer handles plugins and app defaults from its own directory'
     );
+    is( readlink("$self->{env}{HOME}/.config/nvim/init.vim"),
+        "$self->{directory}/init.vim", 'links init.vim' );
+    is( readlink("$self->{env}{HOME}/.config/nvim/lua"), "$self->{directory}/lua",
+        'links Lua configuration' );
+    is( readlink("$self->{env}{HOME}/.vimrc"), "$self->{directory}/vimrc", 'links vimrc' );
 }
 
 sub plugin_failure_stops_before_app_installation {
@@ -98,7 +114,7 @@ sub plugin_failure_stops_before_app_installation {
     $self->{env}{TEST_PLUGIN_FAIL} = 1;
     my $result = run_install($self);
     isnt( $result->{returncode}, 0, 'plugin failure returns an error' );
-    is( $result->{stdout}, '',                                 'failure does not print a success status' );
+    is( $result->{stdout}, link_output(),                      'failure does not print a success status' );
     is( $result->{stderr}, "plugin progress\nplugin failed\n", 'failure reveals captured diagnostics' );
     is( scalar @{ calls($self) }, 1,                           'the app installer is not called' );
 }

@@ -2,6 +2,12 @@
 set -eu
 
 cd -- "$(dirname "$0")"
+PATH="$PWD/../bin:$PATH"
+
+dotln ./init.vim ~/.config/nvim/init.vim
+dotln ./lua ~/.config/nvim/lua
+dotln ./vimrc ~/.vimrc
+
 if ! output=$(nvim --headless -u NONE -n -i NONE -l ./lua/plugins.lua install 2>&1); then
 	printf '%s\n' "$output" >&2
 	exit 1
