@@ -1,10 +1,7 @@
 #!/bin/sh
 set -eu
 
-N_flag=-N
-if [ "${N-}" = 0 ]; then
-	N_flag=
-else
-	N_flag="$N_flag --line-num-width=${N:-3}"
+if [ "${N-}" != 0 ]; then
+	set -- -N "--line-num-width=${N:-3}" "$@"
 fi
-exec less $N_flag "$@"
+exec less "$@"
