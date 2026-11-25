@@ -258,7 +258,7 @@ fg+:black:regular:strip,bg+:bright-yellow,hl+:black:regular:underline:strip"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS '--with-nth 3.. --bind "alt-t:change-with-nth(2..|1,3..|3..),ctrl-x:trigger(shift-delete)"'
 for mode in default insert
-    bind -M "$mode" tab _complete_script complete
+    bind -M "$mode" tab compgen complete
     bind -M "$mode" ctrl-r '_fzf fzf-history-widget'
     bind -M "$mode" ctrl-space '_fzf fzf-history-first-widget'
     bind -M "$mode" alt-o '_fzf fzf-recent-widget'
@@ -266,7 +266,7 @@ for mode in default insert
     bind -M "$mode" alt-v '_fzf fzf-path-widget'
     bind -M "$mode" alt-space '_fzf fzf-path-first-widget'
     bind -M "$mode" alt-c '_fzf fzf-cd-widget'
-    bind -M "$mode" shift-tab _complete_script '_fzf fzf_complete'
+    bind -M "$mode" shift-tab compgen '_fzf fzf_complete'
 end
 function aqsnow_fzf_diralis_add
     if not set -q aqsnow_fzf_diralis

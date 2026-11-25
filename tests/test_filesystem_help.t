@@ -7,7 +7,7 @@ use Test::More;
 
 my $root = absolute_path("$FindBin::Bin/..");
 my @helpers =
-  qw(up realpathc reload colors note watchbell tex biglines dirali sshv multicd cdpath_add rootimg);
+  qw(up realpathc reload colors note watchbell tex biglines dirali sshv multicd cdpath_add rootimg compgen);
 
 sub setup {
     my ($self) = @_;
