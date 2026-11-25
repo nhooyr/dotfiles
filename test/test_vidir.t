@@ -13,7 +13,7 @@ sub setup {
     my ($self) = @_;
     $self->{root} = tempdir( 'vidir-tests-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $root = $self->{root};
-    make_path( "$root/source dir/nested/deep", "$root/temp files", "$root/editor bin" );
+    make_path( "$root/source dir/nested/deep", "$root/temp files", "$root/editor bin", "$root/bin" );
     $self->{directory} = "$root/source dir";
     write_file( "$self->{directory}/original",             'content' );
     write_file( "$self->{directory}/.hidden",              'hidden' );
@@ -27,6 +27,10 @@ sub setup {
 use strict;
 use warnings;
 use JSON::PP;
+open my $clipboard, '<', "$ENV{TEST_VIDIR_ROOT}/clipboard" or die $!;
+open my $saved, '>', "$ENV{TEST_VIDIR_ROOT}/clipboard-at-editor" or die $!;
+print {$saved} do { local $/; <$clipboard> };
+close $saved;
 if ($ENV{TEST_RUN_IN_EDITOR}) {
     die "script is not executable in editor\n" unless -x $ARGV[-1];
     system { $ARGV[-1] } $ARGV[-1];
@@ -51,8 +55,26 @@ rename "$ARGV[-1].new", $ARGV[-1] or die $!;
 exit($ENV{TEST_EDITOR_FAIL} // 0);
 PERL
     chmod 0755, $editor;
+
+    for my $program (qw(pbcopy pbc)) {
+        write_file( "$root/bin/$program", '#!' . perl_executable() . "\n" . <<'PERL' );
+use strict;
+use warnings;
+use File::Basename qw(basename);
+my $program = basename($0);
+my $text = do { local $/; <STDIN> };
+if ($ENV{"TEST_FAIL_$program"}) { warn "$program failed\n"; exit 23 }
+print $text if $program eq 'pbc';
+chomp $text if $program eq 'pbc';
+open my $clipboard, '>', "$ENV{TEST_VIDIR_ROOT}/clipboard" or die $!;
+print {$clipboard} $text;
+PERL
+        chmod 0755, "$root/bin/$program";
+    }
     $self->{env} = {
         %ENV,
+        PATH                => "$root/bin:$ENV{PATH}",
+        TEST_VIDIR_ROOT     => $root,
         EDITOR              => shell_quote($editor) . ' --test-option',
         TMPDIR              => "$root/temp files",
         HOME                => $root,
@@ -492,6 +514,33 @@ sub script_is_executable_inside_editor {
     ok( -f "$self->{directory}/original", 'running the unchanged script performs no moves' );
 }
 
+sub script_command_is_copied_before_and_after_editor {
+    my ($self) = @_;
+    my $result = invoke($self);
+    script_path( $self, $result );
+    my $command = $result->{stdout};
+    chomp $command;
+    is( read_file("$self->{root}/clipboard-at-editor"),
+        $command, 'the quoted executable command is already copied when the editor opens' );
+    is( read_file("$self->{root}/clipboard"),
+        $command, 'successful editing prints and copies the same command' );
+}
+
+sub clipboard_failures_are_reported {
+    my ($self) = @_;
+    $self->{env}{TEST_FAIL_pbcopy} = 1;
+    my $result = invoke($self);
+    isnt( $result->{returncode}, 0, 'failure to copy before editing is returned' );
+    ok( !-e $self->{env}{TEST_EDITOR_LOG}, 'a failed initial copy does not open the editor' );
+    is( $result->{stdout}, '', 'a failed initial copy does not print a command' );
+    delete $self->{env}{TEST_FAIL_pbcopy};
+    $self->{env}{TEST_FAIL_pbc} = 1;
+    $result = invoke($self);
+    isnt( $result->{returncode}, 0, 'failure to copy after editing is returned' );
+    ok( -e $self->{env}{TEST_EDITOR_LOG}, 'the final copy follows the editor' );
+    like( $result->{stderr}, qr/pbc failed/, 'the failing clipboard command is identified' );
+}
+
 sub editor_without_options {
     my ($self) = @_;
     $self->{env}{EDITOR} = shell_quote("$self->{root}/editor bin/editor");
@@ -539,14 +588,17 @@ sub usage_and_missing_editor {
 
 run_cases(
     {
-        lists_immediate_entries_and_quotes_names     => \&lists_immediate_entries_and_quotes_names,
-        quotes_ascii_directory_aliases               => \&quotes_ascii_directory_aliases,
-        printed_script_uses_directory_aliases        => \&printed_script_uses_directory_aliases,
-        recursion_keeps_parents_before_children      => \&recursion_keeps_parents_before_children,
-        editor_changes_wait_for_manual_execution     => \&editor_changes_wait_for_manual_execution,
-        editor_failure_keeps_script_without_command  => \&editor_failure_keeps_script_without_command,
-        editor_without_options                       => \&editor_without_options,
-        script_is_executable_inside_editor           => \&script_is_executable_inside_editor,
+        lists_immediate_entries_and_quotes_names         => \&lists_immediate_entries_and_quotes_names,
+        quotes_ascii_directory_aliases                   => \&quotes_ascii_directory_aliases,
+        printed_script_uses_directory_aliases            => \&printed_script_uses_directory_aliases,
+        recursion_keeps_parents_before_children          => \&recursion_keeps_parents_before_children,
+        editor_changes_wait_for_manual_execution         => \&editor_changes_wait_for_manual_execution,
+        editor_failure_keeps_script_without_command      => \&editor_failure_keeps_script_without_command,
+        editor_without_options                           => \&editor_without_options,
+        script_is_executable_inside_editor               => \&script_is_executable_inside_editor,
+        script_command_is_copied_before_and_after_editor =>
+          \&script_command_is_copied_before_and_after_editor,
+        clipboard_failures_are_reported              => \&clipboard_failures_are_reported,
         empty_alias_does_not_change_script_directory => \&empty_alias_does_not_change_script_directory,
         usage_and_missing_editor                     => \&usage_and_missing_editor,
         ordering_matches_ls                          => \&ordering_matches_ls,

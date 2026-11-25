@@ -77,6 +77,13 @@ sub path_quote {
     return '"' . $label . $suffix . '"';
 }
 
+sub copy_command {
+    my ( $program, $text ) = @_;
+    open my $pipe, '|-', $program or die "$name: $program: $!\n";
+    print {$pipe} $text or die "$name: write to $program: $!\n";
+    close $pipe         or die "$name: $program failed\n";
+}
+
 my ( $ignore_input, $ignore_output, $ignore_pid );
 
 sub ignored_paths {
@@ -170,6 +177,8 @@ if ( defined $ignore_pid ) {
 }
 close $file or die "$name: $script: $!\n";
 chmod 0700, $script or die "$name: $script: $!\n";
+my $command = path_quote( abs_path($script) );
+copy_command( 'pbcopy', $command );
 my $status = system @editor, $script;
 die "$name: could not run editor: $!\n" if $status == -1;
 
@@ -178,4 +187,4 @@ if ($status) {
     exit( ( $status & 127 ) ? 128 + ( $status & 127 ) : $status >> 8 );
 }
 
-print path_quote( abs_path($script) ), "\n";
+copy_command( 'pbc', "$command\n" );
