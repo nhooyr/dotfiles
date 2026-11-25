@@ -29,7 +29,7 @@ function fair --description 'fair [n] [--date1 YYYY-MM-DD --date2 YYYY-MM-DD] | 
         set dates $(perl "$dotfiles/fish/fair_dates.pl" "$_flag_date1" "$_flag_date2" "$n"); or return
     end
     set -l msg "$(git show -s --format=%s)"
-    set -l msgn "$(string match -rg ': ([0-9]+)$' -- "$msg")"; or set msgn 0
+    set -l msgn "$(string match -rg '^count: ([0-9]+)$' -- "$msg")"; or set msgn 0
     for i in $(seq 1 "$n")
         set msgn "$(math "$msgn" + 1)"
         if set -q dates[$i]

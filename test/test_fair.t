@@ -204,6 +204,16 @@ sub test_date_flags_before_count {
     );
 }
 
+sub test_only_exact_counter_subjects_are_continued {
+    my ($self) = @_;
+    for my $subject ( 'Release: 7', 'recount: 7' ) {
+        git( $self, [ 'commit', '--quiet', '--allow-empty', '-m', $subject ], undef );
+        assert_success( $self, fair( $self, [], undef, '' ) );
+        is( trim( git( $self, [ 'show', '-s', '--format=%s' ], undef )->{stdout} ),
+            'count: 1', 'unrelated numeric subjects do not change the counter' );
+    }
+}
+
 sub test_date_only_values_use_local_timezone_and_forward_arguments {
     my ($self) = @_;
     my ( $ignored, $author, $value );
@@ -686,7 +696,8 @@ run_cases(
     {
         "test_dated_commits_stay_ordered_in_range_and_set_both_dates" =>
           \&test_dated_commits_stay_ordered_in_range_and_set_both_dates,
-        "test_date_flags_before_count"                                   => \&test_date_flags_before_count,
+        "test_date_flags_before_count"                 => \&test_date_flags_before_count,
+        test_only_exact_counter_subjects_are_continued => \&test_only_exact_counter_subjects_are_continued,
         "test_date_only_values_use_local_timezone_and_forward_arguments" =>
           \&test_date_only_values_use_local_timezone_and_forward_arguments,
         "test_single_commit_defaults_to_midpoint"                => \&test_single_commit_defaults_to_midpoint,
