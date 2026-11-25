@@ -690,9 +690,13 @@ fn command_position_ignores_only_leading_decorators() {
 fn default_commands_keep_only_compatible_modifiers() {
     for (commandline, selection, expected) in [
         ("command -- ", "directory", "cd -- directory "),
+        ("exec -- ", "directory", "cd -- directory "),
         ("builtin -- ", "README.md", "nvim -- README.md "),
         ("builtin -- ", "./script", "./script "),
         ("command -- ", "README.md", "command -- nvim -- README.md "),
+        ("exec -- ", "README.md", "exec -- nvim -- README.md "),
+        ("exec -- ", "./script", "exec -- ./script "),
+        ("exec -- ", "./binary", "exec -- ./binary "),
         ("builtin -- ", "directory", "builtin -- cd -- directory "),
         (
             "not VAR='a command b' command -- ",

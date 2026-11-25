@@ -32,7 +32,7 @@ function fzf_path_widget --argument-names widget
     set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
     set -l modifier
     while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else --; or string match -qr '^[[:alnum:]_]+=' -- "$tokens[1]"
-        contains -- "$tokens[1]" command builtin; and set modifier "$tokens[1]"
+        contains -- "$tokens[1]" command builtin exec; and set modifier "$tokens[1]"
         set -e tokens[1]
     end
     set -l type -fd
@@ -181,7 +181,8 @@ function fzf_path_widget --argument-names widget
             if set -q default_command[1]
                 set -p escaped "$default_command" --
             end
-            if test "$modifier" = command -a "$default_command" = cd; or test "$modifier" = builtin -a "$default_command" != cd
+            if test "$default_command" = cd; and contains -- "$modifier" command exec
+                or test "$modifier" = builtin -a "$default_command" != cd
                 set -l process "$(commandline -p)"
                 set -l cursor "$(commandline -Cp)"
                 set -l length "$(string length -- "$(commandline -ct)")"
