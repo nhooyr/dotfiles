@@ -105,7 +105,7 @@ sub finished_status {
     is( $job->{status} & 127,                     9,  'private process group finishes with SIGKILL' );
     is( read_file("$self->{root}/helper.stderr"), '', 'helper has no diagnostics' );
     my ( $status, $identity ) = split /\s+/, read_file("$self->{result}.status");
-    my @entry = stat "$self->{work}/.git";
+    my @entry = stat( $self->{git_directory} // "$self->{work}/.git" );
     is( $identity, "$entry[0]:$entry[1]", 'status retains the original Git directory identity' )
       if $status != 75;
     return $status;
@@ -315,6 +315,7 @@ FISH
 
 sub unchanged_git_file_keeps_result {
     my ($self) = @_;
+    $self->{git_directory} = "$self->{root}/actual.git";
     rename "$self->{work}/.git", "$self->{root}/actual.git" or die $!;
     write_file( $self->{prompt}, <<'FISH' );
 function aqsnow_vcs_prompt

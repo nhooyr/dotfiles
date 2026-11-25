@@ -47,14 +47,12 @@ sub identity {
         $git = $target =~ m{\A/} ? $target : "$root/$target";
     }
     my @directory = stat $git;
-    return @directory ? join( ':', @entry[ 0, 1 ], @directory[ 0, 1 ] ) : '';
+    return @directory ? join( ':', @directory[ 0, 1 ] ) : '';
 }
 
 owned() or stop();
-my $identity       = identity();
-my @entry          = $root eq '' ? ()                    : stat "$root/.git";
-my $cache_identity = @entry      ? "$entry[0]:$entry[1]" : '';
-my $child          = fork();
+my $identity = identity();
+my $child    = fork();
 defined $child or die "fork: $!\n";
 if ( !$child ) {
     $owns_group = 0;
@@ -85,7 +83,7 @@ owned() or stop();
 my $code = ( $status & 127 ) ? 128 + ( $status & 127 ) : $status >> 8;
 $code = 75 if identity() ne $identity;
 open my $status_file, '>', "$result.status" or die "$result.status: $!\n";
-print {$status_file} "$code $cache_identity\n";
+print {$status_file} "$code $identity\n";
 close $status_file or die "$result.status: $!\n";
 kill 'USR1', $parent if owned();
 

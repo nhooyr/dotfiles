@@ -634,6 +634,93 @@ FISH
     );
 }
 
+sub completed_worker_rejects_replaced_linked_gitdir {
+    my ($self) = @_;
+    run_command( [ $git, '-C', $self->{repo}, 'commit', '--quiet', '--allow-empty', '-m', 'Initial' ],
+        { env => $self->{env}, check => 1 } );
+    my $linked = "$self->{root}/linked";
+    run_command( [ $git, '-C', $self->{repo}, 'worktree', 'add', '--quiet', '-b', 'linked', $linked ],
+        { env => $self->{env}, check => 1 } );
+    run_command( [ $git, '-C', $self->{repo}, 'branch', 'replacement' ],
+        { env => $self->{env}, check => 1 } );
+    write_file( "$linked/.fish_git_prompt", ' (last-known)' );
+    fake_dotfiles( $self, <<'FISH' );
+function aqsnow_vcs_prompt
+    printf ' (%s)' "$(command git symbolic-ref --short HEAD)"
+end
+FISH
+    my $result = shell( $self, <<'FISH' . wait_for_refresh() . <<'FISH', $linked );
+function hold_completion
+    block --local
+    vcs_update
+    for i in $(seq 1 100)
+        test -f "$__aqsnow_vcs_file.status"; and break
+        command sleep 0.01
+    end
+    test -f "$__aqsnow_vcs_file.status"; or exit 3
+    set -l gitdir "$(command git rev-parse --absolute-git-dir)"
+    command cp -R "$gitdir" "$gitdir.new"
+    printf 'ref: refs/heads/replacement\n' > "$gitdir.new/HEAD"
+    command mv "$gitdir" "$gitdir.old"
+    command mv "$gitdir.new" "$gitdir"
+end
+hold_completion
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
+vcs_update
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
+exit 0
+FISH
+    is(
+        output($result),
+        " (last-known)\n (last-known)\n (replacement)\n (replacement)\n",
+        'a replaced linked Git directory invalidates delayed completion'
+    );
+}
+
+sub replaced_linked_gitdir_before_cache_write {
+    my ($self) = @_;
+    rename "$self->{repo}/.git", "$self->{root}/actual.git" or die $!;
+    write_file( "$self->{repo}/.git",             "gitdir: ../actual.git\n" );
+    write_file( "$self->{repo}/.fish_git_prompt", ' (keep)' );
+    my $result = shell( $self, <<'FISH' );
+set -l identity "$(vcs_identity "$PWD")"
+command mv "$TEST_ROOT/actual.git" "$TEST_ROOT/old.git"
+command mkdir "$TEST_ROOT/actual.git"
+vcs_cache "$PWD" ' (stale)' "$identity"
+printf '%s\n' "$status"
+vcs_cache "$PWD" ' (keep)' "$identity"
+printf '%s\n' "$status"
+printf '%s\n' "$(string collect < .fish_git_prompt)"
+FISH
+    is(
+        output($result),
+        "75\n75\n (keep)\n",
+        'writer rejects a replaced gitfile target, even for unchanged text'
+    );
+}
+
+sub cache_rejection_does_not_publish_stale_status {
+    my ($self) = @_;
+    write_file( "$self->{repo}/.fish_git_prompt", ' (keep)' );
+    my $result = shell( $self, <<'FISH' . stage_completion( ' (stale)', '0' ) . <<'FISH' );
+aqsnow_vcs_prompt_restore
+set -e __aqsnow_vcs_dirty
+set -g __aqsnow_vcs_pending 1
+functions --copy vcs_cache original_vcs_cache
+function vcs_cache
+    command mv .git "$TEST_ROOT/original.git"
+    command mkdir .git
+    original_vcs_cache $argv
+end
+FISH
+aqsnow_vcs_prompt_done
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)" "$__aqsnow_vcs_dirty"
+FISH
+    is( output($result), " (keep)\n (keep)\n1\n",
+        'a rejected cache write also retries the displayed status' );
+}
+
 sub failed_refresh_keeps_display {
     my ($self) = @_;
     write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
@@ -939,14 +1026,17 @@ run_cases(
         external_repository_replacement_is_rejected   => \&external_repository_replacement_is_rejected,
         completed_worker_rejects_replacement_before_delivery =>
           \&completed_worker_rejects_replacement_before_delivery,
-        failed_refresh_keeps_display                => \&failed_refresh_keeps_display,
-        successful_refresh_is_atomic                => \&successful_refresh_is_atomic,
-        unchanged_cache_is_not_rewritten            => \&unchanged_cache_is_not_rewritten,
-        staging_file_uses_cache_ignore_pattern      => \&staging_file_uses_cache_ignore_pattern,
-        real_async_refresh                          => \&real_async_refresh,
-        cancellation_immediately_stops_worker_group => \&cancellation_immediately_stops_worker_group,
-        real_git_refresh                            => \&real_git_refresh,
-        unwritable_cache_keeps_display              => \&unwritable_cache_keeps_display,
+        completed_worker_rejects_replaced_linked_gitdir => \&completed_worker_rejects_replaced_linked_gitdir,
+        replaced_linked_gitdir_before_cache_write       => \&replaced_linked_gitdir_before_cache_write,
+        cache_rejection_does_not_publish_stale_status   => \&cache_rejection_does_not_publish_stale_status,
+        failed_refresh_keeps_display                    => \&failed_refresh_keeps_display,
+        successful_refresh_is_atomic                    => \&successful_refresh_is_atomic,
+        unchanged_cache_is_not_rewritten                => \&unchanged_cache_is_not_rewritten,
+        staging_file_uses_cache_ignore_pattern          => \&staging_file_uses_cache_ignore_pattern,
+        real_async_refresh                              => \&real_async_refresh,
+        cancellation_immediately_stops_worker_group     => \&cancellation_immediately_stops_worker_group,
+        real_git_refresh                                => \&real_git_refresh,
+        unwritable_cache_keeps_display                  => \&unwritable_cache_keeps_display,
     },
     \&setup
 );

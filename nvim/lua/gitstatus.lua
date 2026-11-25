@@ -40,6 +40,19 @@ local function same_file(a, b)
 		and a.mtime.sec == b.mtime.sec and a.mtime.nsec == b.mtime.nsec
 end
 
+local function git_identity(directory)
+	local path = vim.fs.joinpath(directory, '.git')
+	local stat = uv.fs_stat(path)
+	if not stat or stat.type ~= 'file' then return stat end
+	local file = io.open(path)
+	if not file then return nil end
+	local target = (file:read('*l') or ''):match('^gitdir: (.+)$')
+	file:close()
+	if not target then return nil end
+	if target:sub(1, 1) ~= '/' then target = vim.fs.joinpath(directory, target) end
+	return uv.fs_stat(target)
+end
+
 local function read_cache(root, cached, done)
 	-- Once we have live status, an older Fish cache must never replace it.
 	if cached.live then done() return end
@@ -85,7 +98,7 @@ local function update(root, cached)
 	end
 	if queued_timer then vim.fn.timer_stop(queued_timer) queued_timer = nil end
 	local directory = uv.fs_realpath(root)
-	local identity = directory and uv.fs_stat(vim.fs.joinpath(directory, '.git'))
+	local identity = directory and git_identity(directory)
 	if not identity then return end
 	state.started = now
 	local request = { cached = cached }
@@ -100,23 +113,32 @@ local function update(root, cached)
 		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
 	}, { text = true, detach = true, cwd = directory, env = { GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
 		if job ~= request then return end
-		if request.obsolete or not same_file(identity, uv.fs_stat(vim.fs.joinpath(directory, '.git'))) then
+		if request.obsolete or not same_file(identity, git_identity(directory)) then
 			cached.pending = true
 		elseif result.code == 0 and result.stdout and result.stdout ~= '' then
 			local text = plain(result.stdout)
 			if text ~= '' then
-				cached.prompt, cached.live = text, true
+				local function publish()
+					if job ~= request then return end
+					if request.obsolete or not same_file(identity, git_identity(directory)) then
+						cached.pending = true
+					else
+						cached.prompt, cached.live = text, true
+					end
+					finish()
+				end
 				local saved, writer = pcall(vim.system, {
 					'fish', '--no-config', '-c',
 					'source "$argv[1]"; and vcs_cache "$argv[2]" "$argv[3]" "$argv[4]"',
 					vim.env.dotfiles .. '/fish/functions/vcs_cache.fish',
 					directory, result.stdout:gsub('[\r\n]+$', ''), identity.dev .. ':' .. identity.ino,
-				}, { detach = true }, vim.schedule_wrap(finish))
+				}, { detach = true }, vim.schedule_wrap(publish))
 				if saved then
 					request.process = writer
-					refresh()
-					return
+				else
+					publish()
 				end
+				return
 			end
 		end
 		finish()
