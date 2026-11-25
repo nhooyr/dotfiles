@@ -264,7 +264,7 @@ sub test_missing_invalid_or_reversed_dates_do_not_make_commits {
         [ "--date1", "2024-01-02", "--date2", "2024-01-01" ],
         [ "--date1", "2024-01-01", "--date2", "2024-01-01" ],
         ["0"],
-        ["10000"],
+        ["100000"],
         ["invalid"],
         [ "1", "2" ],
         ["--unknown"]
@@ -575,8 +575,44 @@ sub test_large_count_fits_within_one_day {
     is_deeply(
         [ $dates->[0], $dates->[-1] ],
         [ $first,      $first + 86400 ],
+        'a large count preserves both date boundaries'
+    );
+}
+
+sub test_maximum_count {
+    my ($self) = @_;
+    my $dates = dates( $self, '2024-01-01', '2024-01-03', 99999, {} );
+    is_deeply(
+        [ $dates->[0],                       $dates->[-1] ],
+        [ iso_epoch('2024-01-01T00:00:00Z'), iso_epoch('2024-01-03T00:00:00Z') ],
         'the maximum count preserves both date boundaries'
     );
+
+    my $result = run_command(
+        [ $FISH, '--no-config', '-c', <<'FISH' ],
+set -p fish_function_path "$TEST_DOTFILES/fish/functions"
+set -g fair_repo "$TEST_FAIR_REPO"
+function git
+    if test "$argv[1]" = commit
+        printf '%s\n' $argv
+        return 73
+    end
+    command git $argv
+end
+fair 99999
+FISH
+        { cwd => $self->{repo}, env => $self->{env}, timeout => 10 }
+    );
+    is( $result->{returncode}, 73, 'the maximum count reaches the first commit' );
+    is(
+        $result->{stdout},
+        "commit\n--allow-empty\n--only\n-m\ncount: 41\n",
+        'the stub stops before creating any commits'
+    );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
+        $self->{initial}, 'the maximum-count check leaves HEAD unchanged' );
+    $result = generate( $self, '2024-01-01', '2024-01-03', 100000, 42, 'UTC' );
+    isnt( $result->{returncode}, 0, 'the date generator rejects a count above the limit' );
 }
 
 sub test_one_day_ranges_keep_count_and_endpoints {
@@ -669,6 +705,7 @@ run_cases(
         "test_busy_days_and_two_week_gaps"                => \&test_busy_days_and_two_week_gaps,
         "test_schedule_changes_with_random_seed"          => \&test_schedule_changes_with_random_seed,
         "test_large_count_fits_within_one_day"            => \&test_large_count_fits_within_one_day,
+        'test_maximum_count'                              => \&test_maximum_count,
         "test_one_day_ranges_keep_count_and_endpoints"    => \&test_one_day_ranges_keep_count_and_endpoints,
         "test_epoch_and_leap_day_are_valid"               => \&test_epoch_and_leap_day_are_valid,
         "test_invalid_calendar_dates_fail_without_output" =>

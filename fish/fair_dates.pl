@@ -27,8 +27,8 @@ sub sample_seconds {
     return keys %selected;
 }
 
-@ARGV == 3 && $ARGV[2] =~ /\A[0-9]{1,4}\z/ && $ARGV[2] >= 1
-  or die "Usage: fair_dates.pl DATE1 DATE2 COUNT (1..9999)\n";
+@ARGV == 3 && $ARGV[2] =~ /\A[0-9]{1,5}\z/ && $ARGV[2] >= 1
+  or die "Usage: fair_dates.pl DATE1 DATE2 COUNT (1..99999)\n";
 my ( $date1, $date2, $count ) = @ARGV;
 my ( $start, $end ) = ( parse_date($date1), parse_date($date2) );
 die "fair: --date1 must be on or after the Unix epoch\n" if $start < 0;
