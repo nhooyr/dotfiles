@@ -1,4 +1,8 @@
 function sshv --description 'Open a remote path with netrw' --argument-names server path
+    if contains -- "$argv" -h --help
+        printf 'Usage: sshv SERVER [PATH]\nCheck the remote path with SSH, then open it in Neovim using netrw.\n'
+        return 0
+    end
     if test -z "$server"; or set -q argv[3]
         printf 'Usage: %s <server> [path]\n' "$(status current-function)" >&2
         return 1

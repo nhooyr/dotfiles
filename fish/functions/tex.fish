@@ -1,4 +1,8 @@
 function tex --argument-names texfile
+    if contains -- "$argv" -h --help
+        printf 'Usage: tex MAIN.tex\nBuild and preview a TeX document, then rebuild it when TeX files change.\n'
+        return 0
+    end
     if test -z "$texfile"; or not test -f "$texfile"
         printf 'Usage: %s %s\n' "$(status function)" '<main.tex>' >&2
         return 1

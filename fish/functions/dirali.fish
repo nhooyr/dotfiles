@@ -1,4 +1,8 @@
 function dirali --argument-names target
+    if contains -- "$argv" -h --help
+        printf 'Usage: dirali PATH\nPrint PATH using directory aliases, followed by a NUL terminator.\n'
+        return 0
+    end
     set -l aliased "$target"
     set -l longest 0
     for name in $aqsnow_fzf_diralis

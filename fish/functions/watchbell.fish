@@ -1,4 +1,8 @@
 function watchbell --argument-names pattern
+    if contains -- "$argv" -h --help
+        printf 'Usage: watchbell [PATTERN]\nWatch the current directory recursively, printing matching changes and ringing the bell.\n'
+        return 0
+    end
     if test -z "$pattern"
         set pattern '.*'
     end

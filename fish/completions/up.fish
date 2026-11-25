@@ -8,3 +8,4 @@ end
 
 complete -c up -f
 complete -c up -n 'test "$(count $(commandline -xpc))" -eq 1' -a '(__fish_up_parents)' -d 'Parent directory'
+complete -c up -n 'test "$(count $(commandline -xpc))" -eq 1' -s h -l help -d 'Show help'

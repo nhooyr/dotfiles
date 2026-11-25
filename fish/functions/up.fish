@@ -1,4 +1,8 @@
 function up
+    if contains -- "$argv" -h --help
+        printf 'Usage: up [COUNT|PATTERN]\nGo up COUNT directories, or to the nearest parent matching PATTERN.\nWith no argument, go up one directory.\n'
+        return 0
+    end
     if not set -q argv[1]
         cd ..
         return

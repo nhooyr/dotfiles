@@ -1,5 +1,11 @@
 function cdpath_add
-    argparse --exclusive p,a,b p/prepend a/after= b/before= -- $argv; or return
+    argparse --exclusive p,a,b h/help p/prepend a/after= b/before= -- $argv; or return
+    if set -q _flag_help
+        printf '%s\n' 'Usage: cdpath_add [-p|--prepend | -a|--after ENTRY | -b|--before ENTRY] DIRECTORY...' \
+            'Add directories to CDPATH, ignoring empty and duplicate entries.' \
+            'By default append them; --after and --before require an existing CDPATH entry.'
+        return 0
+    end
     set -l index "$(count $CDPATH)"
     set -q _flag_prepend; and set index 0
     set -l anchor $_flag_before $_flag_after

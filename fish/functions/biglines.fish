@@ -1,5 +1,9 @@
 function biglines --argument-names file \
     --description 'Print lines in a file with their lengths, sorted by length'
+    if contains -- "$argv" -h --help
+        printf 'Usage: biglines FILE|-\nShow lines and their lengths in a pager, longest first. Use - for standard input.\n'
+        return 0
+    end
     if test "$file" != -; and not string match -q '/*' -- "$file"
         set file "./$file"
     end
