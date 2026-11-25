@@ -2248,7 +2248,6 @@ fn global_symlink_parent_roots_use_the_target_and_preserve_aliases() {
     let link = fixture.local.join("global-link");
     symlink("../global_dir/child", fixture.local.join("middle-link")).unwrap();
     let root = link.join("..");
-    let alias = root.join("project");
     let wrong = fixture.local.join("wrong-project");
     checked(Command::new("git").args(["init", "-q"]).arg(&wrong));
     write(&wrong, "wrong-file");
@@ -2259,11 +2258,7 @@ fn global_symlink_parent_roots_use_the_target_and_preserve_aliases() {
         Path::new("middle-link"),
     ] {
         symlink(target, &link).unwrap();
-        for aliases in [
-            vec![],
-            vec![("$project", fixture.repo.as_path())],
-            vec![("$project", alias.as_path())],
-        ] {
+        for aliases in [vec![], vec![("$project", fixture.repo.as_path())]] {
             let paths = fixture.run(&mut fixture.command(&fixture.local, &root, "-f", &aliases));
             let expected = if aliases.is_empty() {
                 fixture.repo.join("tracked").into_os_string()
@@ -2941,10 +2936,43 @@ fn directory_aliases_match_logical_and_physical_input_paths() {
 }
 
 #[test]
+fn directory_aliases_trim_only_trailing_slashes() {
+    let fixture = Fixture::new();
+    let directory = fixture.root.join("external");
+    write(&directory, "file");
+    let directory = directory.canonicalize().unwrap();
+    fs::create_dir(fixture.root.join("parent")).unwrap();
+    let file = directory.join("file");
+    for (alias, logical) in [
+        (
+            PathBuf::from(format!("{}///", directory.display())),
+            file.clone(),
+        ),
+        (directory.join("."), directory.join("./file")),
+        (
+            fixture.root.join("parent/../external"),
+            fixture.root.join("parent/../external/file"),
+        ),
+    ] {
+        let paths = from_input(
+            &mut fixture.command_with_flags(
+                &["--read0"],
+                &fixture.local,
+                Path::new(""),
+                "-f",
+                &[("$project", &alias)],
+            ),
+            &[&logical, &file],
+        );
+        assert_eq!(paths, [OsString::from("$project/file")], "{alias:?}");
+    }
+}
+
+#[test]
 fn root_directory_alias_preserves_the_path_separator() {
     let fixture = Fixture::new();
-    for specific in [false, true] {
-        let mut aliases = vec![("$root", Path::new("/"))];
+    for (root, specific) in [("/", false), ("////", false), ("/", true)] {
+        let mut aliases = vec![("$root", Path::new(root))];
         if specific {
             aliases.push(("$project", fixture.repo.as_path()));
         }

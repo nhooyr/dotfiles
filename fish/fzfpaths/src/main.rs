@@ -228,9 +228,13 @@ fn run(
                 ),
             ));
         }
-        let directory = normalize(directory);
+        let mut directory = directory.as_os_str().as_bytes();
+        while directory.len() > 1 && directory.ends_with(b"/") {
+            directory = &directory[..directory.len() - 1];
+        }
+        let directory = PathBuf::from(OsStr::from_bytes(directory));
         if let Ok(physical) = directory.canonicalize()
-            && physical != directory
+            && physical.as_os_str() != directory.as_os_str()
         {
             env_dirs.push((env.to_vec(), physical.into_os_string().into_vec()));
         }
