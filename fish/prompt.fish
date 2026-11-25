@@ -5,7 +5,7 @@ end
 function fish_prompt
     set -l last_status "$status"
     set -g __aqsnow_prompt_active 1
-    aqsnow_vcs_prompt_update
+    vcs_update
     set -l normal "$(set_color --reset)"
     set -l cwd_color "$(set_color $fish_color_cwd)"
     set -l prompt_status ''

@@ -1,4 +1,4 @@
-source "$(status dirname)/aqsnow_vcs_prompt_cache.fish"
+source "$(status dirname)/vcs_cache.fish"
 
 set -g __aqsnow_vcs_directory ''
 set -g __aqsnow_vcs_dirty 1
@@ -135,7 +135,7 @@ function aqsnow_vcs_prompt_done --on-signal USR1
         set -g __aqsnow_vcs_dirty 1
         set -e __aqsnow_vcs_checked_generation
     else if test "$code" = 0; and test -n "$value"
-        aqsnow_vcs_prompt_cache "$__aqsnow_vcs_request_root" "$value" 2>/dev/null
+        vcs_cache "$__aqsnow_vcs_request_root" "$value" 2>/dev/null
         if test "$__aqsnow_vcs_request_root" = "$__aqsnow_vcs_root"; and test "$__aqsnow_vcs_request_directory" = "$PWD"
             aqsnow_vcs_prompt_display "$value"
         end
@@ -144,14 +144,14 @@ function aqsnow_vcs_prompt_done --on-signal USR1
     end
     command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
     if status is-interactive; and test "$__aqsnow_prompt_active" = 1
-        aqsnow_vcs_prompt_update
+        vcs_update
         if test "$previous" != "$__aqsnow_vcs_prompt"
             commandline -f repaint
         end
     end
 end
 
-function aqsnow_vcs_prompt_update
+function vcs_update
     aqsnow_vcs_prompt_restore
     if set -q __aqsnow_vcs_pending
         if not set -q __aqsnow_vcs_process

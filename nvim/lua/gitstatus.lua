@@ -109,8 +109,8 @@ local function update(root, cached)
 				if same_file(identity, uv.fs_stat(vim.fs.joinpath(directory, '.git'))) then
 					local saved, writer = pcall(vim.system, {
 						'fish', '--no-config', '-c',
-						'source "$argv[1]"; and aqsnow_vcs_prompt_cache "$argv[2]" "$argv[3]" "$argv[4]"',
-						vim.env.dotfiles .. '/fish/functions/aqsnow_vcs_prompt_cache.fish',
+						'source "$argv[1]"; and vcs_cache "$argv[2]" "$argv[3]" "$argv[4]"',
+						vim.env.dotfiles .. '/fish/functions/vcs_cache.fish',
 						directory, result.stdout:gsub('[\r\n]+$', ''), identity.dev .. ':' .. identity.ino,
 					}, { detach = true }, vim.schedule_wrap(finish))
 					if saved then

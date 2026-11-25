@@ -1,4 +1,4 @@
-function aqsnow_vcs_prompt_cache --argument-names root value identity
+function vcs_cache --argument-names root value identity
     if test -z "$root"; or not test -w "$root"
         return
     end

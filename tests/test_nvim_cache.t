@@ -18,7 +18,7 @@ vim.env.dotfiles = vim.env.TEST_DOTFILES
 vim.cmd.edit(vim.env.TEST_REPO .. '/file')
 local system, finished = vim.system, false
 vim.system = function(args, options, callback)
-    if args[4]:find('aqsnow_vcs_prompt_cache', 1, true) then
+    if args[4]:find('vcs_cache', 1, true) then
         if vim.env.TEST_REPLACE == '1' then
             assert(vim.uv.fs_rename(vim.env.TEST_REPO .. '/.git', vim.env.TEST_REPO .. '/old.git'))
             vim.fn.mkdir(vim.env.TEST_REPO .. '/.git')
