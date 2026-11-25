@@ -3,20 +3,44 @@ use strict;
 use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../tests";
-use TestHelpers    qw(run_command read_file test_environment);
+use TestHelpers    qw(run_command read_file);
 use Getopt::Long   qw(GetOptions);
 use File::Basename qw(basename);
 use File::Temp     qw(tempdir);
-use Time::HiRes    qw(time sleep);
-use POSIX          qw(SIG_BLOCK SIG_SETMASK SIGHUP SIGINT SIGTERM sigprocmask);
+use File::Spec;
+use Time::HiRes qw(time sleep);
+use POSIX       qw(SIG_BLOCK SIG_SETMASK SIGHUP SIGINT SIGTERM sigprocmask);
 
 my $jobs = 8;
-GetOptions( 'jobs|j=i' => \$jobs )
-  or die "Usage: test.pl [-j JOBS] [test_module[.test_case] ...]\n";
+my $rust;
+GetOptions( 'jobs|j=i' => \$jobs, 'rust' => \$rust )
+  or die "Usage: test.pl [--rust] [-j JOBS] [test_module[.test_case] ...]\n";
 die "--jobs must be positive\n" if $jobs < 1;
-my @selectors = @ARGV;
-my $home      = tempdir( 'dotfiles-test-home-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
-%ENV = %{ test_environment($home) };
+my @selectors     = @ARGV;
+my $home          = tempdir( 'dotfiles-test-home-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+my $original_home = $ENV{HOME} // $home;
+%ENV = (
+    PATH            => $ENV{PATH},
+    HOME            => $home,
+    TMPDIR          => $ENV{TMPDIR} // File::Spec->tmpdir(),
+    XDG_CONFIG_HOME => "$home/.config",
+    XDG_DATA_HOME   => "$home/.local/share",
+    XDG_CACHE_HOME  => "$home/.cache",
+    XDG_STATE_HOME  => "$home/.local/state",
+    LANG            => 'C',
+    LC_ALL          => 'C',
+    TERM            => 'dumb',
+
+    # Keep compiler downloads and installed Rustup toolchains available.
+    CARGO_HOME  => $ENV{CARGO_HOME}  // "$original_home/.cargo",
+    RUSTUP_HOME => $ENV{RUSTUP_HOME} // "$original_home/.rustup",
+);
+if ($rust) {
+    my $status = system( 'cargo', 'test', '--manifest-path', "$FindBin::Bin/../fzfp/Cargo.toml", '--locked' );
+    exit 127                        if $status == -1;
+    exit( 128 + ( $status & 127 ) ) if $status & 127;
+    exit( $status >> 8 )            if $status;
+}
 my @tests;
 my %matched;
 
