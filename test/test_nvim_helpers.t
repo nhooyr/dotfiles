@@ -1764,6 +1764,20 @@ eq(vim.g.test_copilot_calls, 2, 'completion cancellation takes priority over Cop
 LUA
 }
 
+sub rendezvous_failed_quit {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_set_current_line('unsaved')
+vim.api.nvim_create_autocmd('BufWriteCmd', { buffer = 0, callback = function() end })
+local helper = require('rendezvous')
+for _, action in ipairs({ helper.quit_and_run, helper.fzf_path_widget }) do
+    local ok, err = pcall(action)
+    assert(not ok and err:find('E37', 1, true), 'a failed quit preserves the original error')
+    eq(vim.fn.filereadable(vim.env.AQSNOW_FISH_RENDEZVOUS), 0, 'a failed quit removes its request')
+end
+LUA
+}
+
 sub rendezvous_error_order {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1860,6 +1874,7 @@ run_cases(
         copilot_word_mapping                    => \&copilot_word_mapping,
         copilot_line_mapping                    => \&copilot_line_mapping,
         rendezvous_error_order                  => \&rendezvous_error_order,
+        rendezvous_failed_quit                  => \&rendezvous_failed_quit,
     },
     \&setup
 );
