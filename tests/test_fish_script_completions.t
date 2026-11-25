@@ -97,7 +97,7 @@ FISH
     }
 }
 
-sub skips_lazy_completion_files {
+sub does_not_load_completion_files {
     my ($self) = @_;
     write_file( "$self->{temporary}/completions/build.sh.fish",
         'printf x >>"$TEST_ROOT/lazy-loads"' . "\ncomplete -c build.sh -l lazy\n" );
@@ -106,17 +106,22 @@ set -p fish_complete_path "$TEST_LOCAL_COMPLETIONS"
 test -z "$(complete -c build.sh)"; or exit 10
 prime ./build.sh --
 prime ./build.sh --
-not set -q compgen_paths[1]; or exit 11
+test ! -e "$TEST_ROOT/lazy-loads"; or exit 11
+test -z "$(complete -c build.sh)"; or exit 12
+test "$(count $compgen_paths)" -eq 1; or exit 13
 complete -C './build.sh --'
 FISH
     is( $result->{returncode}, 0, $result->{stderr} );
-    like( $result->{stdout}, qr/^--lazy$/m, 'the existing completion file loads normally' );
-    unlike( $result->{stdout}, qr/^--generated$/m, 'the completion file suppresses generation' );
-    ok( !-e $self->{calls}, 'a completion file prevents help probing' );
-    is( read_file("$self->{temporary}/lazy-loads"), 'x', 'the completion file is sourced once' );
+    like( $result->{stdout}, qr/^--generated$/m, 'an unloaded completion file does not suppress generation' );
+    is(
+        read_file( $self->{calls} ),
+        "$self->{temporary}/work/build.sh\n",
+        'generated completion probes once'
+    );
+    ok( !-e "$self->{temporary}/lazy-loads", 'compgen never sources the completion file' );
 }
 
-sub skips_embedded_completion_files {
+sub does_not_load_embedded_completion_files {
     my ($self) = @_;
     write_file( "$self->{temporary}/work/fish", "#!/bin/sh\nexit 0\n" );
     chmod 0755, "$self->{temporary}/work/fish" or die $!;
@@ -124,12 +129,13 @@ sub skips_embedded_completion_files {
 set -g fish_complete_path "$TEST_ROOT/no-completions"
 prime ./fish --
 prime ./fish --
-not set -q compgen_paths[1]; or exit 10
-complete --color never -c fish
+test -z "$(complete --color never -c fish)"; or exit 10
+test "$(count $compgen_paths)" -eq 1; or exit 11
+complete --color never -c "$(path resolve -- ./fish)"
 FISH
     is( $result->{returncode}, 0, $result->{stderr} );
-    like( $result->{stdout}, qr/ -l private\b/, 'the embedded Fish completion provider is loaded' );
-    ok( !-e $self->{calls}, 'an embedded completion provider prevents help probing' );
+    like( $result->{stdout}, qr/compgen\.pl/, 'an unloaded embedded provider does not suppress generation' );
+    ok( !-e $self->{calls}, 'registration alone does not probe the script' );
 }
 
 sub empty_argument_includes_flags_and_files {
@@ -233,8 +239,8 @@ run_cases(
     {
         completes_relative_absolute_and_quoted_paths => \&completes_relative_absolute_and_quoted_paths,
         skips_existing_manual_completions            => \&skips_existing_manual_completions,
-        skips_lazy_completion_files                  => \&skips_lazy_completion_files,
-        skips_embedded_completion_files              => \&skips_embedded_completion_files,
+        does_not_load_completion_files               => \&does_not_load_completion_files,
+        does_not_load_embedded_completion_files      => \&does_not_load_embedded_completion_files,
         empty_argument_includes_flags_and_files      => \&empty_argument_includes_flags_and_files,
         does_not_probe_commands_or_file_arguments    => \&does_not_probe_commands_or_file_arguments,
         reload_clears_only_generated_completions     => \&reload_clears_only_generated_completions,

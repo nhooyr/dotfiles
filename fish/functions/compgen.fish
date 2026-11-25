@@ -16,16 +16,6 @@ function compgen
     end
     contains -- "$path" $compgen_paths; and return
     test -n "$(complete --color never -c "$name" -c "$path")"; and return
-    for directory in $fish_complete_path
-        if test -f "$directory/$name.fish"
-            source "$directory/$name.fish"
-            return
-        end
-    end
-    if set -l definition "$(status get-file "completions/$name.fish" 2>/dev/null)"
-        printf '%s\n' "$definition" | source
-        return
-    end
     set -l arguments "$(string join ' ' -- $(string escape -- "$dotfiles/fish/compgen.pl" "$path"))"
     complete -p "$path" -n 'test -z "$(commandline -ct)"; or string match -q -- "-*" "$(commandline -ct)"; and not contains -- -- $(commandline -xpc)' \
         -a "\$(command perl $arguments)"
