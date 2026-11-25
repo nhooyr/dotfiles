@@ -341,8 +341,7 @@ augroup aqsnow
 	autocmd FileType markdown inoreabbrev <buffer> [] - [ ]
 	autocmd filetype fish setlocal et formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
-	autocmd FileType help setlocal concealcursor=nc
-	autocmd FileType help,man setlocal number
+	autocmd FileType help setlocal concealcursor=nc number
 	autocmd BufNewFile *:[0-9]* nested lua require('filelinecol').open()
 	autocmd BufNewFile * if expand('<abuf>') == bufnr() && &buftype == '' | setlocal modified | endif
 	autocmd BufRead,BufNewFile gitconfig,*.gitconfig setfiletype gitconfig
