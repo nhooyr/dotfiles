@@ -1,32 +1,16 @@
-#!/bin/sh
-set -eu
-
-case "$#:$*" in
-0:) ;;
-1:-h | 1:--help)
-	printf 'Usage: grsign\nRe-sign commits and annotated tags on all local branches and tags.\n'
-	exit 0
-	;;
-*)
-	printf 'Usage: grsign\n' >&2
-	exit 2
-	;;
-esac
-
-grsign_dir=$(mktemp -d)
-trap 'rm -rf -- "$grsign_dir"' 0
-trap 'exit 1' HUP INT TERM
-
-git for-each-ref --format='%(refname) %(objectname)' refs/tags >"$grsign_dir/refs"
-FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch \
-	--original "refs/original/grsign-$$" \
-	--commit-filter 'git commit-tree -S "$@"' \
-	--tag-name-filter cat -- --branches --tags
-
-perl - "$grsign_dir" "refs/original/grsign-$$" <<'PERL'
+#!/usr/bin/env perl
 use strict;
 use warnings;
-my ($directory, $backup) = @ARGV;
+use File::Temp qw(tempdir);
+
+if (@ARGV) {
+    my $help = @ARGV == 1 && ( $ARGV[0] eq '-h' || $ARGV[0] eq '--help' );
+    print { $help ? \*STDOUT : \*STDERR } "Usage: grsign\n";
+    print "Re-sign commits and annotated tags on all local branches and tags.\n" if $help;
+    exit( $help ? 0 : 2 );
+}
+$SIG{$_} = sub { exit 1 }
+  for qw(HUP INT TERM);
 
 sub git {
     open my $output, '-|', 'git', @_ or die "git: $!\n";
@@ -36,40 +20,43 @@ sub git {
     return $text;
 }
 
-sub git_line {
-    my $text = git(@_);
-    chomp $text;
-    return $text;
-}
-
-open my $saved, '<', "$directory/refs" or die "$directory/refs: $!\n";
-my @refs = map { [split] } <$saved>;
-close $saved;
+my @refs = map { [split] } split /\n/,
+  git( 'for-each-ref', '--format=%(refname) %(objectname)', 'refs/tags' );
+my $backup = "refs/original/grsign-$$";
+$ENV{FILTER_BRANCH_SQUELCH_WARNING} = 1;
+my $status =
+  system( 'git', 'filter-branch', '--original', $backup, '--commit-filter', 'git commit-tree -S "$@"',
+    '--tag-name-filter', 'cat', '--', '--branches', '--tags' );
+exit 127                        if $status == -1;
+exit( 128 + ( $status & 127 ) ) if $status & 127;
+exit( $status >> 8 )            if $status;
 exit unless @refs;
 
 my %rewritten;
 for my $entry (@refs) {
-    my ($ref, $object) = @$entry;
-    $rewritten{git_line('rev-parse', "$object^{}")} = git_line('rev-parse', "$ref^{}");
+    my ( $ref, $object ) = @$entry;
+    my ( $old, $new ) = split /\n/, git( 'rev-parse', "$object^{}", "$ref^{}" );
+    $rewritten{$old} = $new;
 }
+my $directory = tempdir( 'grsign-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 
 # Sign tag objects without replacing real refs while rebuilding inner tags.
-my $objects = git_line('rev-parse', '--path-format=absolute', '--git-path', 'objects');
-my $format = git_line('rev-parse', '--show-object-format');
-git('init', '--bare', '--quiet', "--object-format=$format", "$directory/tags");
-my @signer = ("--git-dir=$directory/tags", '-c', 'advice.nestedTag=false');
-for (split /\0/, git('config', '--null', '--list')) {
-    my ($key, $value) = split /\n/, $_, 2;
+my ( $objects, $format ) = split /\n/,
+  git( 'rev-parse', '--path-format=absolute', '--git-path', 'objects', '--show-object-format' );
+git( 'init', '--bare', '--quiet', "--object-format=$format", "$directory/tags" );
+my @signer = ( "--git-dir=$directory/tags", '-c', 'advice.nestedTag=false' );
+for ( split /\0/, git( 'config', '--null', '--list' ) ) {
+    my ( $key, $value ) = split /\n/, $_, 2;
     push @signer, '-c', defined $value ? "$key=$value" : $key if $key =~ /^(?:user|gpg)\./;
 }
 
 sub rewrite_tag {
     my ($object) = @_;
     return $rewritten{$object} if exists $rewritten{$object};
-    my ($header, $message) = split /\n\n/, git('cat-file', 'tag', $object), 2;
+    my ( $header, $message ) = split /\n\n/, git( 'cat-file', 'tag', $object ), 2;
     my ($target) = $header =~ /^object (.+)$/m;
-    my ($tag) = $header =~ /^tag (.+)$/m;
-    my ($name, $email, $date) = $header =~ /^tagger (.*) <(.*)> (\d+ [+-]\d{4})$/m;
+    my ($tag)    = $header =~ /^tag (.+)$/m;
+    my ( $name, $email, $date ) = $header =~ /^tagger (.*) <(.*)> (\d+ [+-]\d{4})$/m;
     defined $date or die "Missing tagger in $object\n";
     $target = rewrite_tag($target);
     $message =~ s/^-----BEGIN (?:PGP|SSH) SIGNATURE-----.*\z//ms;
@@ -77,17 +64,20 @@ sub rewrite_tag {
     print {$file} $message;
     close $file or die "$directory/message: $!\n";
     local $ENV{GIT_OBJECT_DIRECTORY} = $objects;
-    local $ENV{GIT_COMMITTER_NAME} = $name;
-    local $ENV{GIT_COMMITTER_EMAIL} = $email;
-    local $ENV{GIT_COMMITTER_DATE} = '@' . $date;
-    git(@signer, 'tag', '--force', '--sign', '--cleanup=verbatim', '--file', "$directory/message", '--', $tag, $target);
-    return $rewritten{$object} = git_line(@signer, 'rev-parse', "refs/tags/$tag");
+    local $ENV{GIT_COMMITTER_NAME}   = $name;
+    local $ENV{GIT_COMMITTER_EMAIL}  = $email;
+    local $ENV{GIT_COMMITTER_DATE}   = '@' . $date;
+    git(
+        @signer, 'tag', '--force', '--sign', '--cleanup=verbatim', '--file',
+        "$directory/message", '--', $tag, $target
+    );
+    chomp( my $replacement = git( @signer, 'rev-parse', "refs/tags/$tag" ) );
+    return $rewritten{$object} = $replacement;
 }
 
 for my $entry (@refs) {
-    my ($ref, $object) = @$entry;
+    my ( $ref, $object ) = @$entry;
     my $replacement = rewrite_tag($object);
-    git('update-ref', "$backup/$ref", $object);
-    git('update-ref', $ref, $replacement);
+    git( 'update-ref', "$backup/$ref", $object );
+    git( 'update-ref', $ref,           $replacement );
 }
-PERL
