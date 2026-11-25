@@ -120,7 +120,7 @@ function fzf_path_widget --argument-names widget
                         test "$name" -ef "$path"; or break
                     end
                     if set -q path[1]
-                        string match -q -- '/*' "$path"; or set path "$PWD/$path"
+                        string match -q -- '/*' "$path"; or set path "$PWD/$(string replace --regex -- '^(\./)+' '' "$path")"
                         set path $(dirali "$path" | string split0)
                         set selected "$(aqsnow_fzf_path_quote "$path" "$parsed[3]")"
                     end

@@ -600,6 +600,33 @@ test -d "$paths[-1]"; or exit 1
 }
 
 #[test]
+fn cdpath_current_directory_does_not_add_a_dot_component() {
+    let script = r#"
+mkdir dist
+set -g project "$PWD"
+set -g aqsnow_fzf_diralis project
+function fzfpaths
+    printf '\0'
+end
+function fzf
+    cat >/dev/null
+    printf '%s\0' '$CDPATH/dist'
+end
+for root in . ./.
+    set -g CDPATH "$root"
+    for widget in fzf-path-widget fzf-path-first-widget
+        fzf_path_widget "$widget"
+        test "$inserted" = '-- $project/dist '; or begin
+            printf 'unexpected insertion: %s\n' "$inserted" >&2
+            exit 1
+        end
+    end
+end
+"#;
+    assert!(path_case(script, "").is_empty());
+}
+
+#[test]
 fn root_directory_alias_preserves_the_path_separator() {
     let script = r#"
 set -g root /
