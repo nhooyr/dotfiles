@@ -85,6 +85,35 @@ fn write_script(root: &Path, name: &str) {
     make_executable(path);
 }
 
+fn assert_error_cancels_stalled_git(command: &mut Command, release: &Path, message: &str) {
+    let mut child = command
+        .env("FZF_TEST_RELEASE", release)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let exited = loop {
+        if child.try_wait().unwrap().is_some() {
+            break true;
+        }
+        if Instant::now() >= deadline {
+            break false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    // Release the sibling on failure so the regression test leaves no processes.
+    fs::write(release, "continue").unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(
+        exited,
+        "the scan failure waited for stalled Git: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains(message));
+}
+
 impl Fixture {
     fn new() -> Self {
         let root = loop {
@@ -987,6 +1016,38 @@ fn failed_git_scan_reports_failure() {
 }
 
 #[test]
+fn failed_git_scan_cancels_other_repositories() {
+    for hold_output in [false, true] {
+        let fixture = Fixture::new();
+        fs::create_dir_all(fixture.global_dir.join("stalled/.git")).unwrap();
+        let bin = fixture.root.join("bin");
+        fs::create_dir(&bin).unwrap();
+        let git = bin.join("git");
+        mock_ls_files(
+        &git,
+        "#!/bin/sh\ncase \"$2\" in */project)\n  while [ ! -e \"$FZF_TEST_STARTED\" ]; do sleep 0.01; done\n  if [ \"$FZF_TEST_HOLD_OUTPUT\" = 1 ]; then\n    while [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done &\n  fi\n  exit 7;;\nesac\n: > \"$FZF_TEST_STARTED\"\nwhile [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\n",
+    )
+    .unwrap();
+        make_executable(&git);
+        let path = env::join_paths(
+            std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+        )
+        .unwrap();
+        let started = fixture.root.join("started");
+        assert_error_cancels_stalled_git(
+            fixture
+                .command(&fixture.local, &fixture.global_dir, "-f", &[])
+                .env("PATH", path)
+                .env("FZF_TEST_STARTED", &started)
+                .env("FZF_TEST_HOLD_OUTPUT", if hold_output { "1" } else { "0" }),
+            &fixture.root.join("release"),
+            "git failed: exit status: 7",
+        );
+        assert!(started.exists(), "the sibling repository never started");
+    }
+}
+
+#[test]
 fn global_files_and_parents() {
     let fixture = Fixture::new();
     let paths = fixture.pick();
@@ -1249,6 +1310,35 @@ fn global_ignore_reports_unclosed_character_classes() {
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     assert!(String::from_utf8_lossy(&output.stderr).contains("unclosed character class"));
+}
+
+#[test]
+fn failed_scan_cancels_other_sources() {
+    let fixture = Fixture::new();
+    let config = fixture.root.join("config");
+    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::write(config.join("fzfpaths/ignore"), "[\n").unwrap();
+    let bin = fixture.root.join("bin");
+    fs::create_dir(&bin).unwrap();
+    let git = bin.join("git");
+    mock_ls_files(
+        &git,
+        "#!/bin/sh\nwhile [ ! -e \"$FZF_TEST_RELEASE\" ]; do sleep 0.01; done\n",
+    )
+    .unwrap();
+    make_executable(&git);
+    let path = env::join_paths(
+        std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
+    )
+    .unwrap();
+    assert_error_cancels_stalled_git(
+        fixture
+            .command(&fixture.local, &fixture.global_dir, "-f", &[])
+            .env("PATH", path)
+            .env("XDG_CONFIG_HOME", config),
+        &fixture.root.join("release"),
+        "unclosed character class",
+    );
 }
 
 #[test]

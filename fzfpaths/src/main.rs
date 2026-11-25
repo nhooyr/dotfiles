@@ -305,21 +305,23 @@ fn run(
     thread::scope(|scope| {
         let local = scanner.clone();
         let mut scans = vec![scope.spawn(move || {
-            if read0 {
-                local.input_paths()
-            } else {
-                local.walk(PathBuf::from(&args[0]))
-            }
+            local.scan(|local| {
+                if read0 {
+                    local.input_paths()
+                } else {
+                    local.walk(PathBuf::from(&args[0]))
+                }
+            })
         })];
         if let Some(global_dir) = global_dir.filter(|_| !read0) {
             let global = scanner.clone();
-            scans.push(scope.spawn(move || global.global_paths(global_dir)));
+            scans.push(scope.spawn(move || global.scan(|global| global.global_paths(global_dir))));
         }
         if let Some(cdpath) =
             cdpath.filter(|value| !read0 && !value.is_empty() && !scanner.files_only)
         {
             let cd = scanner.clone();
-            scans.push(scope.spawn(move || cd.cdpath(cdpath)));
+            scans.push(scope.spawn(move || cd.scan(|cd| cd.cdpath(cdpath))));
         }
         drop(scanner);
         let result: io::Result<()> = (|| {
@@ -333,7 +335,9 @@ fn run(
                     if output_closed() {
                         return Err(io::ErrorKind::BrokenPipe.into());
                     }
-                    git.lock().unwrap().reap_finished()?;
+                    let mut git = git.lock().unwrap();
+                    git.reap_finished()?;
+                    git.check_failed()?;
                     last_reap = Instant::now();
                 }
                 let candidate = match receiver.recv_timeout(Duration::from_millis(50)) {
@@ -349,7 +353,7 @@ fn run(
                     .take(256)
                 {
                     check_signal()?;
-                    match candidate {
+                    match candidate? {
                         Candidate::Path { path, local, style } => {
                             picker.emit_path(path, local, style)?;
                         }
@@ -368,18 +372,17 @@ fn run(
             Ok(())
         })();
         cancelled.store(true, Ordering::Relaxed);
-        // Release blocked senders before joining if writing to fzf failed.
+        // Release blocked senders before joining cancelled scans.
         drop(receiver);
         if result.is_err() {
             git.lock().unwrap().cancel();
         }
-        let results: Vec<_> = scans.into_iter().map(|scan| scan.join().unwrap()).collect();
+        for scan in scans {
+            scan.join().unwrap();
+        }
         let waited = git.lock().unwrap().wait();
         result?;
         waited?;
-        for result in results {
-            result?;
-        }
         Ok(())
     })
 }
@@ -531,7 +534,7 @@ impl Drop for GitOutput {
     }
 }
 
-fn child_has_exited(child: &Child) -> io::Result<bool> {
+fn child_exit_status(child: &Child) -> io::Result<Option<libc::siginfo_t>> {
     loop {
         let mut info = unsafe { std::mem::zeroed::<libc::siginfo_t>() };
         let result = unsafe {
@@ -543,7 +546,7 @@ fn child_has_exited(child: &Child) -> io::Result<bool> {
             )
         };
         if result == 0 {
-            return Ok(info.si_signo != 0);
+            return Ok((info.si_signo != 0).then_some(info));
         }
         let error = io::Error::last_os_error();
         if error.kind() != io::ErrorKind::Interrupted {
@@ -582,8 +585,16 @@ impl GitScans {
         let mut index = 0;
         while index < self.children.len() {
             let entry = &mut self.children[index];
-            // A descendant can still be writing after the Git leader exits.
-            if entry.output_open.load(Ordering::Acquire) || !child_has_exited(&entry.child)? {
+            let Some(info) = child_exit_status(&entry.child)? else {
+                index += 1;
+                continue;
+            };
+            // Preserve output from successful descendants; a failed leader
+            // invalidates the scan even if descendants still hold stdout open.
+            if info.si_code == libc::CLD_EXITED
+                && unsafe { info.si_status() } == 0
+                && entry.output_open.load(Ordering::Acquire)
+            {
                 index += 1;
                 continue;
             }
@@ -613,7 +624,9 @@ impl GitScans {
             self.reap_finished()?;
             // Git may close stdout before exiting; keep signals responsive then too.
             if !self.cancelled
-                && (TERMINATING_SIGNAL.load(Ordering::Relaxed) != 0 || output_closed())
+                && (self.failed.is_some()
+                    || TERMINATING_SIGNAL.load(Ordering::Relaxed) != 0
+                    || output_closed())
             {
                 self.cancel();
             }
@@ -621,9 +634,11 @@ impl GitScans {
                 thread::sleep(Duration::from_millis(1));
             }
         }
-        if !self.cancelled
-            && let Some(status) = self.failed
-        {
+        self.check_failed()
+    }
+
+    fn check_failed(&self) -> io::Result<()> {
+        if let Some(status) = self.failed {
             return Err(io::Error::other(format!("git failed: {status}")));
         }
         Ok(())
@@ -957,12 +972,18 @@ struct Scanner {
     directories_only: bool,
     classify: bool,
     colors: Option<Arc<LsColors>>,
-    sender: SyncSender<Candidate>,
+    sender: SyncSender<io::Result<Candidate>>,
     git: Arc<Mutex<GitScans>>,
     cancelled: Arc<AtomicBool>,
 }
 
 impl Scanner {
+    fn scan(&self, scan: impl FnOnce(&Self) -> io::Result<()>) {
+        if let Err(error) = scan(self) {
+            let _ = self.sender.send(Err(error));
+        }
+    }
+
     fn input_paths(&self) -> io::Result<()> {
         let physical_cwd = env::current_dir()?;
         let mut input = io::stdin().lock();
@@ -1139,7 +1160,7 @@ impl Scanner {
 
     fn send(&self, candidate: Candidate) -> io::Result<()> {
         self.sender
-            .send(candidate)
+            .send(Ok(candidate))
             .map_err(|_| io::ErrorKind::BrokenPipe.into())
     }
 
@@ -1446,7 +1467,7 @@ mod tests {
             .spawn()
             .unwrap();
         let deadline = Instant::now() + Duration::from_secs(5);
-        while !child_has_exited(&child).unwrap() {
+        while child_exit_status(&child).unwrap().is_none() {
             if Instant::now() >= deadline {
                 kill_group(&child);
                 let _ = child.wait();
@@ -1491,6 +1512,33 @@ mod tests {
         assert_eq!(scans.0.children.len(), 1);
         assert_eq!(
             scans.0.wait().unwrap_err().to_string(),
+            "git failed: exit status: 7"
+        );
+    }
+
+    #[test]
+    fn git_failure_cancels_waiting_children_after_readers_finish() {
+        let mut scans = TestScans::default();
+        let mut child = Command::new("/bin/sh")
+            .args(["-c", "exec 1>&-; read line"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .process_group(0)
+            .spawn()
+            .unwrap();
+        let input = child.stdin.take().unwrap();
+        drop(scans.0.register(child).unwrap());
+        drop(scans.0.register(exited_git("exit 7")).unwrap());
+        let (sender, receiver) = mpsc::channel();
+        let waiter = thread::spawn(move || sender.send(scans.0.wait()).unwrap());
+        let result = receiver.recv_timeout(Duration::from_secs(5));
+        drop(input);
+        waiter.join().unwrap();
+        assert_eq!(
+            result
+                .expect("Git failure waited for another child")
+                .unwrap_err()
+                .to_string(),
             "git failed: exit status: 7"
         );
     }
