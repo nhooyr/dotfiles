@@ -10,7 +10,7 @@ my $root = absolute_path("$FindBin::Bin/..");
 sub setup {
     my ($self) = @_;
     my $temporary = tempdir( 'fish-script-completions-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
-    make_path( "$temporary/fish", "$temporary/work" );
+    make_path( "$temporary/fish", "$temporary/work", "$temporary/completions" );
     for my $name ( 'work/build.sh', 'work/with space.sh', 'parent.sh' ) {
         write_file( "$temporary/$name", "#!/bin/sh\nexit 0\n" );
         chmod 0755, "$temporary/$name" or die $!;
@@ -26,13 +26,14 @@ PERL
     $self->{calls}     = "$temporary/calls";
     $self->{env}       = {
         %ENV,
-        HOME             => "$temporary/home",
-        TEST_CALLS       => $self->{calls},
-        TEST_ROOT        => $self->{temporary},
-        TEST_SOURCE      => "$root/fish/functions/compgen.fish",
-        TEST_RELOAD      => "$root/fish/functions/reload.fish",
-        TEST_COMPLETIONS => "$root/fish/completions",
-        XDG_CONFIG_HOME  => "$temporary/config",
+        HOME                   => "$temporary/home",
+        TEST_CALLS             => $self->{calls},
+        TEST_ROOT              => $self->{temporary},
+        TEST_SOURCE            => "$root/fish/functions/compgen.fish",
+        TEST_RELOAD            => "$root/fish/functions/reload.fish",
+        TEST_COMPLETIONS       => "$root/fish/completions",
+        TEST_LOCAL_COMPLETIONS => "$temporary/completions",
+        XDG_CONFIG_HOME        => "$temporary/config",
     };
 }
 
@@ -75,22 +76,60 @@ FISH
     }
 }
 
-sub preserves_native_completions_and_registers_once {
+sub skips_existing_manual_completions {
     my ($self) = @_;
+    for my $kind (qw(basename path)) {
+        my $result = fish( $self, <<'FISH', $kind );
+if test "$argv[1]" = basename
+    complete -c build.sh -l native
+else
+    complete -p "$(path resolve -- ./build.sh)" -l native
+end
+prime ./build.sh --
+prime ./build.sh --
+not set -q compgen_paths[1]; or exit 10
+complete -C './build.sh --'
+FISH
+        is( $result->{returncode}, 0, $result->{stderr} );
+        like( $result->{stdout}, qr/^--native$/m, "$kind completions remain available" );
+        unlike( $result->{stdout}, qr/^--generated$/m, "$kind completions suppress generation" );
+        ok( !-e $self->{calls}, "$kind completions prevent help probing" );
+    }
+}
+
+sub skips_lazy_completion_files {
+    my ($self) = @_;
+    write_file( "$self->{temporary}/completions/build.sh.fish",
+        'printf x >>"$TEST_ROOT/lazy-loads"' . "\ncomplete -c build.sh -l lazy\n" );
     my $result = fish( $self, <<'FISH' );
-complete -c build.sh -l native
+set -p fish_complete_path "$TEST_LOCAL_COMPLETIONS"
+test -z "$(complete -c build.sh)"; or exit 10
 prime ./build.sh --
 prime ./build.sh --
+not set -q compgen_paths[1]; or exit 11
 complete -C './build.sh --'
 FISH
     is( $result->{returncode}, 0, $result->{stderr} );
-    like( $result->{stdout}, qr/^--native$/m,    'native completions remain available' );
-    like( $result->{stdout}, qr/^--generated$/m, 'generated completions are added' );
-    is(
-        read_file( $self->{calls} ),
-        "$self->{temporary}/work/build.sh\n",
-        'the helper runs once per completion'
-    );
+    like( $result->{stdout}, qr/^--lazy$/m, 'the existing completion file loads normally' );
+    unlike( $result->{stdout}, qr/^--generated$/m, 'the completion file suppresses generation' );
+    ok( !-e $self->{calls}, 'a completion file prevents help probing' );
+    is( read_file("$self->{temporary}/lazy-loads"), 'x', 'the completion file is sourced once' );
+}
+
+sub skips_embedded_completion_files {
+    my ($self) = @_;
+    write_file( "$self->{temporary}/work/fish", "#!/bin/sh\nexit 0\n" );
+    chmod 0755, "$self->{temporary}/work/fish" or die $!;
+    my $result = fish( $self, <<'FISH' );
+set -g fish_complete_path "$TEST_ROOT/no-completions"
+prime ./fish --
+prime ./fish --
+not set -q compgen_paths[1]; or exit 10
+complete --color never -c fish
+FISH
+    is( $result->{returncode}, 0, $result->{stderr} );
+    like( $result->{stdout}, qr/ -l private\b/, 'the embedded Fish completion provider is loaded' );
+    ok( !-e $self->{calls}, 'an embedded completion provider prevents help probing' );
 }
 
 sub empty_argument_includes_flags_and_files {
@@ -140,12 +179,12 @@ function history
 end
 set -l relative './with space.sh'
 set -l line "$(string escape -- "$relative") --"
-set -l path "$(path resolve -- "$relative")"
-complete -p "$path" -l path-second -d 'Second native path flag'
-complete -p "$path" -l path-first -d 'First native path flag mentioning compgen.pl'
-complete -c 'with space.sh' -l basename-native -d 'Native basename flag'
-set -l path_rules "$(complete -p "$path")"
-set -l basename_rules "$(complete -c 'with space.sh')"
+set -l native_path "$(path resolve -- ./build.sh)"
+complete -p "$native_path" -l path-native
+complete -c build.sh -l basename-native
+set -l path_rules "$(complete --color never -c "$native_path")"
+set -l basename_rules "$(complete -c build.sh)"
+test -n "$path_rules"; or exit 9
 prime "$relative" --
 complete -C "$line" >/dev/null
 test "$(count $compgen_paths)" -eq 1; or exit 10
@@ -153,18 +192,19 @@ reload; or exit 11
 test "$reloaded" = yes; or exit 12
 test "$history_action" = merge; or exit 13
 not set -q compgen_paths[1]; or exit 14
-test "$(complete -p "$path")" = "$path_rules"; or exit 15
-test "$(complete -c 'with space.sh')" = "$basename_rules"; or exit 16
+test "$(complete --color never -c "$native_path")" = "$path_rules"; or exit 15
+test "$(complete -c build.sh)" = "$basename_rules"; or exit 16
 not string match -q -- '*--generated*' "$(complete -C "$line")"; or exit 17
 prime "$relative" --
 prime "$relative" --
 test "$(count $compgen_paths)" -eq 1; or exit 18
 complete -C "$line"
+complete -C './build.sh --'
 FISH
     is( $result->{returncode}, 0, $result->{stderr} );
     like( $result->{stdout}, qr/^--generated$/m,   'generated flags can be registered again after reload' );
-    like( $result->{stdout}, qr/^--path-first\t/m, 'native exact-path flags remain available' );
-    like( $result->{stdout}, qr/^--basename-native\t/m, 'native basename flags remain available' );
+    like( $result->{stdout}, qr/^--path-native$/m, 'native exact-path flags remain available' );
+    like( $result->{stdout}, qr/^--basename-native$/m, 'native basename flags remain available' );
     is( read_file($cache), '{"keep":"cached flags"}', 'reload keeps the on-disk cache intact' );
     is(
         read_file( $self->{calls} ),
@@ -191,12 +231,14 @@ FISH
 
 run_cases(
     {
-        completes_relative_absolute_and_quoted_paths    => \&completes_relative_absolute_and_quoted_paths,
-        preserves_native_completions_and_registers_once => \&preserves_native_completions_and_registers_once,
-        empty_argument_includes_flags_and_files         => \&empty_argument_includes_flags_and_files,
-        does_not_probe_commands_or_file_arguments       => \&does_not_probe_commands_or_file_arguments,
-        reload_clears_only_generated_completions        => \&reload_clears_only_generated_completions,
-        help_and_completions_are_lazy                   => \&help_and_completions_are_lazy,
+        completes_relative_absolute_and_quoted_paths => \&completes_relative_absolute_and_quoted_paths,
+        skips_existing_manual_completions            => \&skips_existing_manual_completions,
+        skips_lazy_completion_files                  => \&skips_lazy_completion_files,
+        skips_embedded_completion_files              => \&skips_embedded_completion_files,
+        empty_argument_includes_flags_and_files      => \&empty_argument_includes_flags_and_files,
+        does_not_probe_commands_or_file_arguments    => \&does_not_probe_commands_or_file_arguments,
+        reload_clears_only_generated_completions     => \&reload_clears_only_generated_completions,
+        help_and_completions_are_lazy                => \&help_and_completions_are_lazy,
     },
     \&setup
 );
