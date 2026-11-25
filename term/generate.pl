@@ -8,7 +8,7 @@ use JSON::PP       qw(decode_json);
 use MIME::Base64   qw(encode_base64);
 
 if (@ARGV) {
-    die "usage: $0\n" unless @ARGV == 1 && $ARGV[0] eq '--help';
+    die "usage: $0\n" unless @ARGV == 1 && ( $ARGV[0] eq '-h' || $ARGV[0] eq '--help' );
     print "usage: $0\n\nGenerate editor themes and the palette table, and compact Terminal colors.\n";
     exit;
 }
@@ -36,13 +36,13 @@ function run(argv) {
 JAVASCRIPT
 write_file( "$temporary/colors.js", $decoder );
 my $colors = decode_json( capture( 'osascript', '-l', 'JavaScript', "$temporary/colors.js", $profile_path ) );
-my ( %hex, %archives );
+my ( %hex, %archives, %encoded );
 
 for my $key ( sort keys %$colors ) {
     my @rgb = map { int( 255 * ( $_ < 0 ? 0 : $_ > 1 ? 1 : $_ ) + 0.5 ) } @{ $colors->{$key} }[ 0 .. 2 ];
     $hex{$key} = sprintf '#%02X%02X%02X', @rgb;
     my $components = join ' ', ( map { sprintf '%.10g', $_ / 255 } @rgb ), $colors->{$key}[3];
-    $archives{$key} = color_archive($components);
+    $archives{$key} = $encoded{$components} //= color_archive($components);
 }
 $profile =~ s{(<key>([^<]*Color)</key>\s*<data>).*?(</data>)}{
     my ($start, $key, $end) = ($1, $2, $3);
