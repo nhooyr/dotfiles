@@ -76,12 +76,14 @@ sub resigns_history_and_tags {
     run_command( [ 'ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', "$self->{temporary}/key" ],
         { check => 1 } );
     write_file( "$self->{temporary}/allowed", '* ' . read_file("$self->{temporary}/key.pub") );
-    git( $self, 'init',   '-q',                         '-b', 'main' );
-    git( $self, 'config', 'user.name',                  'Test' );
-    git( $self, 'config', 'user.email',                 'test@example.invalid' );
-    git( $self, 'config', 'gpg.format',                 'ssh' );
-    git( $self, 'config', 'user.signingkey',            "$self->{temporary}/key" );
-    git( $self, 'config', 'gpg.ssh.allowedSignersFile', "$self->{temporary}/allowed" );
+    git( $self, 'init',   '-q',         '-b', 'main' );
+    git( $self, 'config', 'user.name',  'Test' );
+    git( $self, 'config', 'user.email', 'test@example.invalid' );
+    my $signing = "$self->{temporary}/signing";
+    git( $self, 'config', '--file', $signing, 'gpg.format',                 'ssh' );
+    git( $self, 'config', '--file', $signing, 'user.signingkey',            "$self->{temporary}/key" );
+    git( $self, 'config', '--file', $signing, 'gpg.ssh.allowedSignersFile', "$self->{temporary}/allowed" );
+    git( $self, 'config', 'includeIf.gitdir:' . absolute_path("$self->{repo}/.git") . '.path', $signing );
     dated( $self, 'commit', '-q', '--allow-empty', '-m', 'Root' );
     git( $self, 'checkout', '-qb', 'feature' );
     write_file( "$self->{repo}/feature", "feature\n" );
@@ -102,8 +104,17 @@ sub resigns_history_and_tags {
     dated( $self, 'tag', '-a', '--cleanup=verbatim', '-F', "$self->{temporary}/message", 'annotated',
         $tag_only );
     dated( $self, 'tag', '-s', '--cleanup=verbatim', '-F', "$self->{temporary}/message", 'signed' );
-    my $before = commits($self);
-    my %tags   = map { $_ => tag_metadata( $self, $_ ) } qw(annotated signed);
+    dated( $self, 'tag', '-a', '-m', 'Inner tag', 'z-inner' );
+    dated( $self, 'tag', '-a', '-m', 'Outer tag', 'a-outer', 'z-inner' );
+    git( $self, 'update-ref', 'refs/tags/alias', git( $self, 'rev-parse', 'z-inner' ) );
+    dated( $self, 'tag', '-a', '-m', 'Anonymous inner tag', 'temporary-inner' );
+    my $anonymous = git( $self, 'rev-parse', 'temporary-inner' );
+    dated( $self, 'tag', '-a', '-m', 'Anonymous outer tag', 'anonymous-outer', 'temporary-inner' );
+    git( $self, 'tag', '-d', 'temporary-inner' );
+    my $anonymous_metadata = tag_metadata( $self, $anonymous );
+    my $before             = commits($self);
+    my %tags =
+      map { $_ => tag_metadata( $self, $_ ) } qw(annotated signed z-inner a-outer alias anonymous-outer);
 
     my $result = run_command( ["$root/bin/grsign"], { cwd => $self->{repo}, env => $self->{env} } );
     is( $result->{returncode}, 0, "history re-signing succeeds: $result->{stderr}" );
@@ -128,7 +139,7 @@ sub resigns_history_and_tags {
         is( git( $self, 'show', '-s', '--format=%G?', $after->{$subject}{oid} ),
             'G', "$subject has a valid signature" );
     }
-    for my $tag (qw(annotated signed)) {
+    for my $tag ( sort keys %tags ) {
         is( tag_metadata( $self, $tag ), $tags{$tag}, "$tag retains its message and tagger metadata" );
         is(
             run_command( [ 'git', 'verify-tag', $tag ], { cwd => $self->{repo}, env => $self->{env} } )
@@ -142,6 +153,24 @@ sub resigns_history_and_tags {
         git( $self, 'rev-parse', 'light' ),
         git( $self, 'rev-parse', 'feature' ),
         'lightweight tag follows its rewritten branch'
+    );
+    my ($inner) = git( $self, 'cat-file', 'tag', 'a-outer' ) =~ /^object (.+)/;
+    is( $inner, git( $self, 'rev-parse', 'z-inner' ), 'outer tag still points directly to the inner tag' );
+    is( git( $self, 'rev-parse', 'alias' ), $inner,   'tag aliases still share the same tag object' );
+    my ($anonymous_after) = git( $self, 'cat-file', 'tag', 'anonymous-outer' ) =~ /^object (.+)/;
+    is( tag_metadata( $self, $anonymous_after ),
+        $anonymous_metadata, 'anonymous inner tag keeps its metadata' );
+    is(
+        run_command( [ 'git', 'verify-tag', $anonymous_after ],
+            { cwd => $self->{repo}, env => $self->{env} } )->{returncode},
+        0,
+        'anonymous inner tag has a valid signature'
+    );
+    is(
+        run_command( [ 'git', 'rev-parse', '--verify', '--quiet', 'refs/tags/temporary-inner' ],
+            { cwd => $self->{repo}, env => $self->{env} } )->{returncode},
+        1,
+        'anonymous inner tag does not gain a ref'
     );
     is( git( $self, 'rev-parse', 'refs/remotes/origin/main' ),
         $old_head, 'remote-tracking refs are unchanged' );
