@@ -79,14 +79,14 @@ sub installs_plugins_and_app_quietly {
     is( $result->{returncode}, 0, 'installation succeeds' );
     is(
         $result->{stdout},
-        "dotfiles: nvim: install.sh: Installed plugins.\napp installed\n",
+        "dotfiles: nvim: install.sh: Updated plugins and parsers.\napp installed\n",
         'plugin progress is hidden while concise statuses remain'
     );
     is( $result->{stderr}, '', 'successful installation has no errors' );
     is_deeply(
         calls($self),
         [
-            [ 'nvim', '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', './lua/plugins.lua' ],
+            [ 'nvim', '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', './lua/plugins.lua', 'install' ],
             [ 'app',  $self->{directory}, '--set-defaults' ],
         ],
         'the installer handles plugins and app defaults from its own directory'
@@ -181,7 +181,8 @@ sub package_file_sets_its_own_lock_path {
     my ($self) = @_;
     die 'Neovim is required' unless $nvim;
     my $check = <<'LUA';
-lua vim.pack.add = function(specs, opts)
+local calls = {}
+vim.pack.add = function(specs, opts)
     assert(vim.o.packlockfile == vim.env.TEST_DIRECTORY .. '/pack-lock.json')
     assert(opts.confirm == false)
     assert(#specs == 2)
@@ -189,12 +190,34 @@ lua vim.pack.add = function(specs, opts)
     assert(specs[1].version == 'refresh-partial-accept-preview')
     assert(specs[2].src == 'https://github.com/nvim-treesitter/nvim-treesitter')
     assert(specs[2].version == 'main')
+    calls[#calls + 1] = 'plugins installed'
+end
+vim.pack.update = function(names, opts)
+    assert(names == nil and opts.force == true)
+    calls[#calls + 1] = 'plugins updated'
+end
+package.preload['nvim-treesitter'] = function()
+    local function task(kind)
+        return function(languages)
+            assert(vim.deep_equal(languages, { 'go' }))
+            calls[#calls + 1] = kind
+            return { wait = function(_, timeout)
+                assert(timeout == 300000)
+                vim.fn.writefile(calls, vim.env.TEST_CALLS)
+                return true
+            end }
+        end
+    end
+    return { install = task('parsers installed'), update = task('parsers updated') }
 end
 LUA
+    my $mock = "$self->{temporary}/mock-pack.lua";
+    write_file( $mock, $check );
     my $result = run_command(
         [
             $nvim,   '--headless', '-u', 'NONE', '-n', '-i', 'NONE',
-            '--cmd', $check,       '-l', "$self->{directory}/lua/plugins.lua"
+            '--cmd', 'lua dofile(' . encode_json($mock) . ')',
+            '-l',    "$self->{directory}/lua/plugins.lua", 'install'
         ],
         {
             cwd => $self->{temporary},
@@ -202,6 +225,11 @@ LUA
         }
     );
     is( $result->{returncode}, 0, "the package file is independent of caller cwd: $result->{stderr}" );
+    is(
+        read_file( $self->{env}{TEST_CALLS} ),
+        "plugins installed\nplugins updated\nparsers installed\nparsers updated\n",
+        'the explicit command installs and updates plugins before parsers'
+    );
 }
 
 sub bundled_undotree_is_registered_lazily {
@@ -209,9 +237,11 @@ sub bundled_undotree_is_registered_lazily {
     die 'Neovim is required' unless $nvim;
     my $script = "$self->{temporary}/undotree.lua";
     write_file( $script, <<'LUA' );
-vim.pack.add = function() end
+vim.pack.add = function() error('startup must not install plugins') end
+vim.pack.update = function() error('startup must not update plugins') end
 for _ = 1, 2 do
     dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
+    assert(vim.fn.exists(':Plug') == 2, 'the explicit install command is registered')
     assert(vim.fn.exists(':Undotree') == 2, 'the bundled command is registered')
     assert(package.loaded.undotree == nil, 'the undo-tree implementation stays lazy')
 end
@@ -228,6 +258,30 @@ LUA
     is( $result->{returncode}, 0, "bundled undo-tree registration and lazy loading work: $result->{stderr}" );
 }
 
+sub installed_plugins_load_without_installing {
+    my ($self) = @_;
+    die 'Neovim is required' unless $nvim;
+    my $packages = "$self->{env}{XDG_DATA_HOME}/nvim/site/pack/core/opt";
+    for my $name (qw(copilot.vim nvim-treesitter)) {
+        make_path("$packages/$name/plugin");
+        write_file( "$packages/$name/plugin/loaded.lua", "vim.g['loaded_$name'] = true\n" );
+    }
+    my $init = "$self->{temporary}/init.lua";
+    write_file( $init, <<'LUA' );
+vim.pack.add = function() error('startup must not install plugins') end
+dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
+LUA
+    my $result = run_command(
+        [
+            $nvim, '--headless', '-u', $init, '-n', '-i', 'NONE',
+            '-c',  "lua assert(vim.g['loaded_copilot.vim'] and vim.g['loaded_nvim-treesitter'])",
+            '-c',  'qa'
+        ],
+        { cwd => $self->{temporary}, env => $self->{env} }
+    );
+    is( $result->{returncode}, 0, "installed plugin scripts load during startup: $result->{stderr}" );
+}
+
 run_cases(
     {
         installs_plugins_and_app_quietly             => \&installs_plugins_and_app_quietly,
@@ -238,6 +292,7 @@ run_cases(
         native_lua_errors_fail_installation          => \&native_lua_errors_fail_installation,
         package_file_sets_its_own_lock_path          => \&package_file_sets_its_own_lock_path,
         bundled_undotree_is_registered_lazily        => \&bundled_undotree_is_registered_lazily,
+        installed_plugins_load_without_installing    => \&installed_plugins_load_without_installing,
     },
     \&setup
 );

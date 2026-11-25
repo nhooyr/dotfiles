@@ -36,11 +36,7 @@ let $MYVIMRC = expand('<sfile>:p')
 let g:test_config_sources = get(g:, 'test_config_sources', 0) + 1
 execute 'set runtimepath^=' . fnameescape($TEST_DOTFILES . '/nvim')
 lua << EOF
-vim.pack.add = function(specs, options)
-    vim.g.test_plugin_specs = vim.list_extend(vim.g.test_plugin_specs or {}, specs)
-    _G.test_plugin_options = _G.test_plugin_options or {}
-    table.insert(_G.test_plugin_options, options)
-end
+vim.pack.add = function() error('startup must not install plugins') end
 package.preload['nvim-treesitter'] = function()
     return {
         get_installed = function() return { 'go' } end,
@@ -50,6 +46,7 @@ package.preload['nvim-treesitter'] = function()
         end,
     }
 end
+vim.treesitter.language.add = function(language) return language == 'go' end
 EOF
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
@@ -124,11 +121,7 @@ sub startup_and_config_paths {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
 eq(vim.g.aqsnow_orig_file, vim.fn.resolve(vim.env.TEST_ORIGINAL), 'startup records the original file')
-eq(vim.g.test_plugin_specs, {
-    { src = 'https://github.com/nhooyr/copilot.vim.git', version = 'refresh-partial-accept-preview' },
-    { src = 'https://github.com/nvim-treesitter/nvim-treesitter', version = 'main' },
-}, 'external plugins are managed with vim.pack')
-eq(_G.test_plugin_options[1], { confirm = false }, 'package setup installs without an interactive prompt')
+eq(vim.fn.exists(':Plug'), 2, 'plugin installation is an explicit command')
 eq(vim.o.packlockfile, vim.env.TEST_DOTFILES .. '/nvim/pack-lock.json', 'package revisions use the tracked lockfile')
 eq(vim.fn.exists(':Ls'), 0, 'the custom viewer command is removed')
 eq(vim.g.loaded_nvim_dir_plugin, true, 'the native directory browser is loaded')
@@ -632,9 +625,12 @@ local alias = vim.env.TEST_ORIGINAL .. '.vim'
 assert(vim.uv.fs_symlink(vim.env.TEST_DOTFILES .. '/nvim/init.vim', alias))
 local statusline = vim.go.statusline
 local commands = vim.api.nvim_get_commands({})
+commands.Plug.callback = nil
 vim.cmd.source(alias)
 eq(vim.go.statusline, statusline, 'sourcing an alias keeps one Git status field')
-eq(vim.api.nvim_get_commands({}), commands, 'sourcing an alias keeps the existing commands')
+local reloaded = vim.api.nvim_get_commands({})
+reloaded.Plug.callback = nil
+eq(reloaded, commands, 'sourcing an alias keeps the existing commands')
 LUA
 }
 
