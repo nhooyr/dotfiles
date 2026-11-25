@@ -273,7 +273,7 @@ sub directory_without_majority {
 sub shared_word {
     my ($self) = @_;
     seed($self);
-    put( $self, $_, "new\n" ) for qw(nvim/lua/gitcommit.lua tests/test_nvim_commit.t);
+    put( $self, $_, "new\n" ) for qw(nvim/lua/gitcommit.lua tests/test-nvim-commit.t);
     git( $self, 'add', '.' );
     prefixed( edit( $self, 'commit' ), 'nvim' );
 }
@@ -282,9 +282,25 @@ sub most_common_word {
     my ($self) = @_;
     seed($self);
     put( $self, $_, "new\n" )
-      for qw(alpha/repeat-repeat-repeat.lua beta/cache_writer.lua gamma/cache_reader.lua);
+      for qw(alpha/repeat-repeat-repeat.lua beta/cache-writer.lua gamma/cache-reader.lua);
     git( $self, 'add', '.' );
     prefixed( edit( $self, 'commit' ), 'cache' );
+}
+
+sub underscores_stay_within_words {
+    my ($self) = @_;
+    seed($self);
+    put( $self, $_, "new\n" ) for qw(ci/test.sh tests/test_nvim_setup.t);
+    git( $self, 'add', '.' );
+    prefixed( edit( $self, 'commit' ), 'ci/test.sh' );
+}
+
+sub shared_underscore_chunk {
+    my ($self) = @_;
+    seed($self);
+    put( $self, $_, "new\n" ) for qw(alpha/cache_writer.lua beta/cache_writer.test.lua);
+    git( $self, 'add', '.' );
+    prefixed( edit( $self, 'commit' ), 'cache_writer' );
 }
 
 sub directory_component_boundaries {
@@ -433,6 +449,8 @@ run_cases(
         directory_without_majority     => \&directory_without_majority,
         shared_word                    => \&shared_word,
         most_common_word               => \&most_common_word,
+        underscores_stay_within_words  => \&underscores_stay_within_words,
+        shared_underscore_chunk        => \&shared_underscore_chunk,
         directory_component_boundaries => \&directory_component_boundaries,
         file_replaced_by_directory     => \&file_replaced_by_directory,
         partial_commit                 => \&partial_commit,

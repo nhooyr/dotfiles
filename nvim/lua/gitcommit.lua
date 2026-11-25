@@ -68,10 +68,10 @@ function prefill_title()
 			end
 			for component in file:gmatch('[^/]+') do
 				add(component)
-				-- Keep punctuation inside shared chunks, such as foo-bar in foo-bar.test.js.
-				for first in component:gmatch('()%w+') do
+				-- Keep underscores within words and punctuation inside shared chunks like foo-bar.
+				for first in component:gmatch('()[%w_]+') do
 					local tail = component:sub(first)
-					for last in tail:gmatch('%w+()') do
+					for last in tail:gmatch('[%w_]+()') do
 						add(tail:sub(1, last - 1))
 					end
 				end

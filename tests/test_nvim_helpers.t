@@ -679,7 +679,7 @@ eq(title({ 'modified: nvim/init.vim' }),
 eq(title({ 'modified: nvim/lua/one.lua', 'modified: nvim/lua/two.lua' }),
     'nvim/lua: ${1:desc}', 'a common directory takes priority')
 eq(title({ 'modified: autoload/copilot.vim', 'modified: test/copilot_partial_accept.lua' }),
-    'copilot: ${1:desc}', 'shared path words still take priority over the first file')
+    'autoload/copilot.vim: ${1:desc}', 'underscores keep separate words from matching')
 eq(title({ 'modified: index.html', 'modified: more/links.html' }),
     'html: ${1:desc}', 'file extensions count as shared path words')
 eq(title({ 'modified: a/foo-bar.js', 'modified: b/foo-bar.test.js' }),
