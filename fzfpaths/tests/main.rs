@@ -2037,6 +2037,29 @@ fn cdpath_adds_two_directory_levels_from_all_roots() {
 }
 
 #[test]
+fn current_directory_cdpath_entries_use_only_the_local_scan() {
+    let fixture = Fixture::new();
+    let other = fixture.root.join("other");
+    fs::create_dir_all(other.join("outside")).unwrap();
+    for current in [".", "./", "./.", "././."] {
+        let cdpath = env::join_paths([Path::new(current), &other]).unwrap();
+        for kind in ["-d", "-fd"] {
+            let paths = fixture.run(&mut fixture.command_with_cdpath(
+                &[],
+                &fixture.local,
+                Path::new(""),
+                Some(&cdpath),
+                kind,
+                &[],
+            ));
+            assert!(paths.contains(&"dir".into()));
+            assert!(!paths.contains(&"$CDPATH/dir".into()), "{current:?}");
+            assert!(paths.contains(&"$CDPATH/outside".into()));
+        }
+    }
+}
+
+#[test]
 fn cdpath_labels_are_independent_of_aliases_and_global_repositories() {
     let fixture = Fixture::new();
     let directory = fixture.root.join("cdpath with spaces");
