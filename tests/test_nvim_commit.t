@@ -273,7 +273,7 @@ sub directory_without_majority {
 sub shared_word {
     my ($self) = @_;
     seed($self);
-    put( $self, $_, "new\n" ) for qw(nvim/lua/gitcommit.lua test/test_nvim_commit.t);
+    put( $self, $_, "new\n" ) for qw(nvim/lua/gitcommit.lua tests/test_nvim_commit.t);
     git( $self, 'add', '.' );
     prefixed( edit( $self, 'commit' ), 'nvim' );
 }

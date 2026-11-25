@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use FindBin;
-use lib "$FindBin::Bin/../test";
+use lib "$FindBin::Bin/../tests";
 use TestHelpers    qw(run_command read_file);
 use Getopt::Long   qw(GetOptions);
 use File::Basename qw(basename);
@@ -16,7 +16,7 @@ die "--jobs must be positive\n" if $jobs < 1;
 my @selectors = @ARGV;
 my @tests;
 my %matched;
-for my $file ( sort glob "$FindBin::Bin/../test/test_*.t" ) {
+for my $file ( sort glob "$FindBin::Bin/../tests/test_*.t" ) {
     my $module = basename( $file, '.t' );
     next
       if @selectors && !grep { $_ eq $module || index( $_, "$module." ) == 0 } @selectors;
