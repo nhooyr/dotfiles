@@ -14,9 +14,14 @@ sub run_script {
     my $tmp = tempdir( 'nvim-treesitter-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     write_file( "$tmp/case.lua", <<'LUA' . $body );
 local source = vim.env.TEST_DOTFILES .. '/nvim/lua/treesitter.lua'
-local installs, updates, waits, starts = {}, {}, {}, {}
+local installs, updates, waits, starts, packages = {}, {}, {}, {}, {}
 local existing, runtimepath_sets = {}, 0
 local failure, on_wait
+vim.cmd.packadd = function(name)
+    assert(name == 'nvim-treesitter')
+    packages[#packages + 1] = name
+    vim.g.loaded_nvim_treesitter = true
+end
 local set_option = vim.api.nvim_set_option_value
 vim.api.nvim_set_option_value = function(name, ...)
     if name == 'runtimepath' then runtimepath_sets = runtimepath_sets + 1 end
@@ -109,6 +114,21 @@ eq(runtimepath_sets, 0)
 LUA
 }
 
+sub plugin_loads_once_on_first_go_buffer {
+    run_script(<<'LUA');
+buffer('lua')
+buffer('rust')
+eq(packages, {})
+buffer('go')
+buffer('go')
+dofile(source)
+buffer('go')
+eq(packages, { 'nvim-treesitter' })
+eq(installs, {})
+eq(updates, {})
+LUA
+}
+
 sub reload_keeps_one_handler {
     run_script(<<'LUA');
 dofile(source)
@@ -172,6 +192,7 @@ run_cases(
     {
         missing_parser_does_not_install        => \&missing_parser_does_not_install,
         go_features_only                       => \&go_features_only,
+        plugin_loads_once_on_first_go_buffer   => \&plugin_loads_once_on_first_go_buffer,
         reload_keeps_one_handler               => \&reload_keeps_one_handler,
         explicit_install_and_update            => \&explicit_install_and_update,
         failed_install_is_reported             => \&failed_install_is_reported,

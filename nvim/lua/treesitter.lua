@@ -11,6 +11,7 @@ vim.api.nvim_create_autocmd('FileType', {
 	group = vim.api.nvim_create_augroup('aqsnow_treesitter', { clear = true }),
 	pattern = vim.tbl_keys(parsers),
 	callback = function(event)
+		if not vim.g.loaded_nvim_treesitter then vim.cmd.packadd('nvim-treesitter') end
 		if vim.treesitter.language.add(event.match) then parsers[event.match](event) end
 	end,
 })

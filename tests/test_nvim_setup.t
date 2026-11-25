@@ -265,17 +265,28 @@ sub bundled_undotree_is_registered_lazily {
     write_file( $script, <<'LUA' );
 vim.pack.add = function() error('startup must not install plugins') end
 vim.pack.update = function() error('startup must not update plugins') end
+local packadd, loads = vim.cmd.packadd, 0
+vim.cmd.packadd = function(name)
+    if name == 'nvim.undotree' then loads = loads + 1 end
+    return packadd(name)
+end
 for _ = 1, 2 do
     dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
     assert(vim.fn.exists(':Plug') == 2, 'the explicit install command is registered')
     assert(vim.fn.exists(':Undotree') == 2, 'the bundled command is registered')
     assert(package.loaded.undotree == nil, 'the undo-tree implementation stays lazy')
+    assert(vim.g.loaded_undotree_plugin == nil, 'the bundled package stays unloaded')
 end
 vim.api.nvim_set_current_line('unsaved text')
 vim.cmd.Undotree()
 assert(package.loaded.undotree ~= nil, 'the command loads the implementation')
 assert(vim.bo.filetype == 'nvim-undotree', 'the command opens the bundled undo tree')
 assert(#vim.api.nvim_tabpage_list_wins(0) == 2, 'the undo tree opens one new window')
+vim.cmd.close()
+dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
+vim.cmd.Undotree()
+assert(loads == 1, 'the real command replaces the helper and survives config reloads')
+assert(vim.bo.filetype == 'nvim-undotree', 'the real command still opens the undo tree')
 vim.cmd('qa!')
 LUA
     $self->{env}{NVIM_LOG_FILE} = "$self->{temporary}/nvim.log";
@@ -299,13 +310,18 @@ dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
 LUA
     my $result = run_command(
         [
-            $nvim, '--headless', '-u', $init, '-n', '-i', 'NONE',
-            '-c',  "lua assert(vim.g['loaded_copilot.vim'] and vim.g['loaded_nvim-treesitter'])",
-            '-c',  'qa'
+            $nvim,                                                                             '--headless',
+            '-u',                                                                              $init,
+            '-n',                                                                              '-i',
+            'NONE',                                                                            '-c',
+            "lua assert(vim.g['loaded_copilot.vim'] and not vim.g['loaded_nvim-treesitter'])", '-c',
+            "setfiletype go",                                                                  '-c',
+            "lua assert(vim.g['loaded_nvim-treesitter'])",                                     '-c',
+            'qa'
         ],
         { cwd => $self->{temporary}, env => $self->{env} }
     );
-    is( $result->{returncode}, 0, "installed plugin scripts load during startup: $result->{stderr}" );
+    is( $result->{returncode}, 0, "installed plugins load at startup or on first use: $result->{stderr}" );
 }
 
 run_cases(
