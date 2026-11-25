@@ -718,7 +718,7 @@ fn configured_ignores(
     let mut builder = GitignoreBuilder::new(root);
     builder.allow_unclosed_class(false);
     if let Some(file) = file {
-        for line in file.contents.lines() {
+        for line in file.contents.trim_start_matches('\u{feff}').lines() {
             if line.strip_prefix('!').unwrap_or(line).starts_with('/') == global {
                 builder
                     .add_line(Some(file.path.clone()), line)

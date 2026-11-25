@@ -1268,6 +1268,36 @@ fn configured_ignore_rules_keep_local_and_global_scopes_separate() {
 }
 
 #[test]
+fn configured_ignore_skips_only_the_initial_utf8_bom() {
+    for pattern in ["*.tmp", "/project/*.tmp"] {
+        let fixture = Fixture::new();
+        for root in [&fixture.local, &fixture.repo] {
+            write(root, "drop.tmp");
+            write(root, "literal");
+        }
+        let config = fixture.root.join("config");
+        fs::create_dir_all(config.join("fzfpaths")).unwrap();
+        fs::write(
+            config.join("fzfpaths/ignore"),
+            format!("\u{feff}{pattern}\n\u{feff}literal\n\u{feff}/project/literal\n"),
+        )
+        .unwrap();
+        let paths = fixture.run(
+            fixture
+                .command(&fixture.local, &fixture.global_dir, "-f", &[])
+                .env("XDG_CONFIG_HOME", config),
+        );
+        assert_eq!(paths.contains(&"drop.tmp".into()), pattern.starts_with('/'));
+        assert_eq!(
+            paths.contains(&fixture.repo_alias.join("drop.tmp").into_os_string()),
+            !pattern.starts_with('/')
+        );
+        assert!(paths.contains(&"literal".into()));
+        assert!(paths.contains(&fixture.repo_alias.join("literal").into_os_string()));
+    }
+}
+
+#[test]
 fn local_ignore_negation_does_not_override_gitignore() {
     let fixture = Fixture::new();
     checked(Command::new("git").args(["init", "-q"]).arg(&fixture.local));
