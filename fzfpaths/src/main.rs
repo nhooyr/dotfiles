@@ -68,6 +68,19 @@ scripts with a shebang also run when selected with their explicit ./ form.
 At command start, an absolute-path query also runs selected executable scripts,
 using the longest matching directory alias when available.
 
+Ignore rules:
+  Read $XDG_CONFIG_HOME/fzfpaths/ignore, or ~/.config/fzfpaths/ignore when
+  XDG_CONFIG_HOME is unset or empty. Use Gitignore patterns and comments.
+  A leading / selects global results, relative to <GLOBAL_ALIAS>'s directory.
+  Other patterns select local results, relative to <DIR>. A leading ! negates
+  a rule within its scope; it does not restore files excluded by Git's rules.
+  These rules do not filter CDPATH entries or --read0 input.
+
+  /leqra/*.tmp       Ignore matching global files under leqra.
+  !/leqra/keep.tmp   Keep this global file.
+  *.tmp             Ignore matching local files.
+  !keep.tmp         Keep matching local files.
+
 Options:
   -h, --help        Show this help.
   --color           Color alias prefixes cyan. Use fzf --ansi to display them
@@ -276,6 +289,11 @@ fn run(
     let scanner = Scanner {
         cwd,
         local_root: Path::new(&args[0]).canonicalize().ok(),
+        ignore_file: if read0 {
+            None
+        } else {
+            IgnoreFile::load()?.map(Arc::new)
+        },
         files_only: args[2] == "-f",
         directories_only: args[2] == "-d",
         classify,
@@ -659,14 +677,39 @@ fn config_home() -> Option<PathBuf> {
         .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
 }
 
-fn global_ignores(root: &Path) -> io::Result<Gitignore> {
+struct IgnoreFile {
+    path: PathBuf,
+    contents: String,
+}
+
+impl IgnoreFile {
+    fn load() -> io::Result<Option<Self>> {
+        let Some(path) = config_home().map(|config| config.join("fzfpaths/ignore")) else {
+            return Ok(None);
+        };
+        match fs::read_to_string(&path) {
+            Ok(contents) => Ok(Some(Self { path, contents })),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+}
+
+fn configured_ignores(
+    root: &Path,
+    file: Option<&IgnoreFile>,
+    global: bool,
+) -> io::Result<Gitignore> {
     let mut builder = GitignoreBuilder::new(root);
     builder.allow_unclosed_class(false);
-    if let Some(path) = config_home().map(|config| config.join("fzfpaths/ignore"))
-        && path.try_exists()?
-        && let Some(error) = builder.add(path)
-    {
-        return Err(io::Error::other(error));
+    if let Some(file) = file {
+        for line in file.contents.lines() {
+            if line.strip_prefix('!').unwrap_or(line).starts_with('/') == global {
+                builder
+                    .add_line(Some(file.path.clone()), line)
+                    .map_err(io::Error::other)?;
+            }
+        }
     }
     builder.build().map_err(io::Error::other)
 }
@@ -909,6 +952,7 @@ enum Candidate {
 struct Scanner {
     cwd: PathBuf,
     local_root: Option<PathBuf>,
+    ignore_file: Option<Arc<IgnoreFile>>,
     files_only: bool,
     directories_only: bool,
     classify: bool,
@@ -1178,6 +1222,7 @@ impl Scanner {
         let Ok(absolute) = path.canonicalize() else {
             return Ok(());
         };
+        let configured = configured_ignores(&absolute, self.ignore_file.as_deref(), false)?;
         let ignores = self.local_ignores(&absolute)?;
         let ancestors = vec![(metadata.dev(), metadata.ino())];
         parallel(
@@ -1206,7 +1251,11 @@ impl Scanner {
                     };
                     let metadata = info.followed();
                     let is_directory = metadata.is_dir();
-                    if ignored(&absolute, is_directory, &ignores) {
+                    if ignored(&absolute, is_directory, &ignores)
+                        || configured
+                            .matched_path_or_any_parents(&absolute, is_directory)
+                            .is_ignore()
+                    {
                         continue;
                     }
                     let identity = (metadata.dev(), metadata.ino());
@@ -1287,7 +1336,7 @@ impl Scanner {
             return Ok(());
         }
         let global_dir = global_dir.canonicalize()?;
-        let ignores = global_ignores(&global_dir)?;
+        let ignores = configured_ignores(&global_dir, self.ignore_file.as_deref(), true)?;
         let repos: Vec<_> = fs::read_dir(&global_dir)?
             .flatten()
             .filter(|entry| !entry.file_name().as_bytes().starts_with(b"."))

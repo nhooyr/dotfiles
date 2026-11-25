@@ -1126,7 +1126,7 @@ fn global_ignore_supports_file_globs_and_negations() {
     fs::create_dir_all(config.join("fzfpaths")).unwrap();
     fs::write(
         config.join("fzfpaths/ignore"),
-        "# Keep one matching file.\n*.tmp\n!/project/keep.tmp\n/project/nested/*\n!/project/nested/child\nliteral\\[\nclass[ab]\n",
+        "# Keep one matching file.\n/project/*.tmp\n!/project/keep.tmp\n/project/nested/*\n!/project/nested/child\n/project/literal\\[\n/project/class[ab]\n",
     )
     .unwrap();
     for name in ["tracked.tmp", "keep.tmp", "literal[", "classa"] {
@@ -1156,11 +1156,87 @@ fn global_ignore_supports_file_globs_and_negations() {
 }
 
 #[test]
+fn configured_ignore_rules_keep_local_and_global_scopes_separate() {
+    let fixture = Fixture::new();
+    let config = fixture.root.join("config");
+    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::write(
+        config.join("fzfpaths/ignore"),
+        "*.tmp\n!nested/keep.tmp\nlocal-only\n/project/global-only\n/project/*.bin\n!/project/keep.bin\n",
+    )
+    .unwrap();
+    for root in [&fixture.local, &fixture.repo] {
+        for name in [
+            "local-only",
+            "global-only",
+            "drop.tmp",
+            "nested/drop.tmp",
+            "nested/keep.tmp",
+            "drop.bin",
+            "keep.bin",
+        ] {
+            write(root, name);
+        }
+    }
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.local, &fixture.global_dir, "-f", &[])
+            .env("XDG_CONFIG_HOME", &config),
+    );
+    for name in ["local-only", "drop.tmp", "nested/drop.tmp"] {
+        assert!(!paths.contains(&name.into()), "local {name}");
+        assert!(
+            paths.contains(&fixture.repo_alias.join(name).into_os_string()),
+            "global {name}"
+        );
+    }
+    for name in ["global-only", "drop.bin"] {
+        assert!(paths.contains(&name.into()), "local {name}");
+        assert!(
+            !paths.contains(&fixture.repo_alias.join(name).into_os_string()),
+            "global {name}"
+        );
+    }
+    for name in ["nested/keep.tmp", "keep.bin"] {
+        assert!(paths.contains(&name.into()), "local {name}");
+        assert!(
+            paths.contains(&fixture.repo_alias.join(name).into_os_string()),
+            "global {name}"
+        );
+    }
+}
+
+#[test]
+fn local_ignore_negation_does_not_override_gitignore() {
+    let fixture = Fixture::new();
+    checked(Command::new("git").args(["init", "-q"]).arg(&fixture.local));
+    write(&fixture.local, "native.tmp");
+    write(&fixture.local, "drop.tmp");
+    write(&fixture.local, "keep.tmp");
+    fs::write(fixture.local.join(".gitignore"), "native.tmp\n").unwrap();
+    let config = fixture.root.join("config");
+    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::write(
+        config.join("fzfpaths/ignore"),
+        "*.tmp\n!native.tmp\n!keep.tmp\n",
+    )
+    .unwrap();
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.local, Path::new(""), "-f", &[])
+            .env("XDG_CONFIG_HOME", &config),
+    );
+    assert!(!paths.contains(&"native.tmp".into()));
+    assert!(!paths.contains(&"drop.tmp".into()));
+    assert!(paths.contains(&"keep.tmp".into()));
+}
+
+#[test]
 fn global_ignore_reports_unclosed_character_classes() {
     let fixture = Fixture::new();
     let config = fixture.root.join("config");
     fs::create_dir_all(config.join("fzfpaths")).unwrap();
-    fs::write(config.join("fzfpaths/ignore"), "[\n").unwrap();
+    fs::write(config.join("fzfpaths/ignore"), "/[\n").unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
         .arg("")
         .arg("$global")
