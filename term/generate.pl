@@ -1,0 +1,189 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use FindBin        qw($RealBin);
+use File::Basename qw(dirname);
+use File::Temp     qw(tempdir);
+use JSON::PP       qw(decode_json);
+use MIME::Base64   qw(encode_base64);
+
+if (@ARGV) {
+    die "usage: $0\n" unless @ARGV == 1 && $ARGV[0] eq '--help';
+    print "usage: $0\n\nGenerate editor themes and the palette table, and compact Terminal colors.\n";
+    exit;
+}
+
+my $root         = dirname($RealBin);
+my $profile_path = "$RealBin/0nhooyr.terminal";
+my $profile      = read_file($profile_path);
+my $temporary    = tempdir( CLEANUP => 1 );
+my $decoder      = <<'JAVASCRIPT';
+ObjC.import('AppKit');
+function run(argv) {
+    var profile = $.NSDictionary.dictionaryWithContentsOfFile(argv[0]);
+    var colors = {};
+    ObjC.deepUnwrap(profile.allKeys).forEach(function (key) {
+        if (!/Color$/.test(key)) return;
+        var data = profile.objectForKey(key);
+        if (!data.isKindOfClass($.NSData)) return;
+        var color = $.NSKeyedUnarchiver.unarchivedObjectOfClassFromDataError(
+            $.NSColor, data, null);
+        var rgb = color.colorUsingColorSpace($.NSColorSpace.sRGBColorSpace);
+        colors[key] = [rgb.redComponent, rgb.greenComponent, rgb.blueComponent, rgb.alphaComponent];
+    });
+    return JSON.stringify(colors);
+}
+JAVASCRIPT
+write_file( "$temporary/colors.js", $decoder );
+my $colors = decode_json( capture( 'osascript', '-l', 'JavaScript', "$temporary/colors.js", $profile_path ) );
+my ( %hex, %archives );
+
+for my $key ( sort keys %$colors ) {
+    my @rgb = map { int( 255 * ( $_ < 0 ? 0 : $_ > 1 ? 1 : $_ ) + 0.5 ) } @{ $colors->{$key} }[ 0 .. 2 ];
+    $hex{$key} = sprintf '#%02X%02X%02X', @rgb;
+    my $components = join ' ', ( map { sprintf '%.10g', $_ / 255 } @rgb ), $colors->{$key}[3];
+    $archives{$key} = color_archive($components);
+}
+$profile =~ s{(<key>([^<]*Color)</key>\s*<data>).*?(</data>)}{
+    my ($start, $key, $end) = ($1, $2, $3);
+    my $encoded = $archives{$key} // die "Cannot decode color $key\n";
+    $encoded =~ s/(.{1,64})/\t$1\n/g;
+    "$start\n$encoded\t$end";
+}gse;
+
+my @names = qw(Black Red Green Yellow Blue Magenta Cyan White);
+my %palette;
+for my $name (@names) {
+    $palette{ lcfirst $name } = $hex{"ANSI${name}Color"} // die "Missing ANSI color $name\n";
+    $palette{"bright$name"} = $hex{"ANSIBright${name}Color"} // die "Missing bright ANSI color $name\n";
+}
+my $json = read_file("$RealBin/theme.json.in");
+$json =~ s{\$\{(\w+)\}}{$palette{$1} // die "Unknown palette color $1\n"}ge;
+my $plain_json = $json;
+$plain_json =~ s{^\s*//.*$}{}mg;
+my $theme    = decode_json($plain_json);
+my $textmate = textmate($theme);
+
+my $readme = read_file("$RealBin/README.md");
+my $table  = "| Color | Regular | Bright |\n|---|---|---|\n";
+for my $name (@names) {
+    my $regular = $palette{ lcfirst $name };
+    my $bright  = $palette{"bright$name"};
+    $table .= "| $name | `$regular` | `$bright` |\n";
+}
+$table  =~ s/\n\z//;
+$readme =~ s/\| Color \| Regular \| Bright \|\n.*?(?=\n\n|\z)/$table/s
+  or die "Cannot find palette table in README.md\n";
+
+write_file( $profile_path,                       $profile );
+write_file( "$root/vscode/theme/theme.json",     $json );
+write_file( "$root/vscode/theme/nhooyr.tmTheme", $textmate );
+write_file( "$RealBin/README.md",                $readme );
+print "term: Generated themes and compacted colors.\n";
+
+sub read_file {
+    open my $file, '<:raw', $_[0] or die "$_[0]: $!\n";
+    local $/;
+    return <$file>;
+}
+
+sub write_file {
+    my ( $path, $text ) = @_;
+    return if -f $path && read_file($path) eq $text;
+    open my $file, '>:raw', $path or die "$path: $!\n";
+    print {$file} $text or die "$path: $!\n";
+    close $file         or die "$path: $!\n";
+}
+
+sub capture {
+    open my $pipe, '-|', @_ or die "Cannot run $_[0]: $!\n";
+    binmode $pipe;
+    local $/;
+    my $output = <$pipe>;
+    close $pipe or die "$_[0] failed\n";
+    return $output;
+}
+
+sub color_archive {
+    my ($components) = @_;
+    my $data = encode_base64( $components, '' );
+    write_file( "$temporary/color.plist", <<"PLIST" );
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>\$archiver</key><string>NSKeyedArchiver</string>
+<key>\$objects</key><array>
+    <string>\$null</string>
+    <dict>
+        <key>\$class</key><dict><key>CF\$UID</key><integer>4</integer></dict>
+        <key>NSColorSpace</key><integer>1</integer>
+        <key>NSComponents</key><data>$data</data>
+        <key>NSCustomColorSpace</key><dict><key>CF\$UID</key><integer>2</integer></dict>
+    </dict>
+    <dict>
+        <key>\$class</key><dict><key>CF\$UID</key><integer>3</integer></dict>
+        <key>NSID</key><integer>7</integer>
+    </dict>
+    <dict><key>\$classes</key><array><string>NSColorSpace</string><string>NSObject</string></array>
+        <key>\$classname</key><string>NSColorSpace</string></dict>
+    <dict><key>\$classes</key><array><string>NSColor</string><string>NSObject</string></array>
+        <key>\$classname</key><string>NSColor</string></dict>
+</array>
+<key>\$top</key><dict><key>root</key><dict><key>CF\$UID</key><integer>1</integer></dict></dict>
+<key>\$version</key><integer>100000</integer>
+</dict></plist>
+PLIST
+    return encode_base64( capture( 'plutil', '-convert', 'binary1', '-o', '-', "$temporary/color.plist" ),
+        '' );
+}
+
+sub xml {
+    my ($text) = @_;
+    $text =~ s/&/&amp;/g;
+    $text =~ s/</&lt;/g;
+    $text =~ s/>/&gt;/g;
+    return $text;
+}
+
+sub plist {
+    my ( $value, $depth ) = @_;
+    my $indent = "\t" x $depth;
+    if ( ref $value eq 'HASH' ) {
+        return "$indent<dict>\n"
+          . join( '',
+            map { "$indent\t<key>" . xml($_) . "</key>\n" . plist( $value->{$_}, $depth + 1 ) }
+            sort keys %$value )
+          . "$indent</dict>\n";
+    }
+    if ( ref $value eq 'ARRAY' ) {
+        return "$indent<array>\n" . join( '', map { plist( $_, $depth + 1 ) } @$value ) . "$indent</array>\n";
+    }
+    return "$indent<string>" . xml($value) . "</string>\n";
+}
+
+sub textmate {
+    my ($theme) = @_;
+    my %mapping = (
+        foreground              => 'editor.foreground',
+        background              => 'editor.background',
+        caret                   => 'editorCursor.foreground',
+        selection               => 'editor.selectionBackground',
+        selectionForeground     => 'editor.selectionForeground',
+        lineHighlight           => 'editor.lineHighlightBackground',
+        gutter                  => 'editorGutter.background',
+        gutterForeground        => 'editorLineNumber.foreground',
+        invisibles              => 'editorWhitespace.foreground',
+        findHighlight           => 'editor.findMatchBackground',
+        findHighlightForeground => 'editor.findMatchForeground',
+    );
+    my %globals = map { $_ => $theme->{colors}{ $mapping{$_} } } keys %mapping;
+    my @tokens  = map { +{ %$_, scope => join( ', ', @{ $_->{scope} } ) } } @{ $theme->{tokenColors} };
+    return
+      <<'XML' . plist( { name => $theme->{name}, settings => [ { settings => \%globals }, @tokens ] }, 0 ) . "</plist>\n";
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- Generated by term/generate.pl. Edit term/theme.json.in instead. -->
+<!-- Bright yellow is reserved for search and selection backgrounds with black text. -->
+XML
+}

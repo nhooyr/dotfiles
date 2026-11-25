@@ -4,6 +4,11 @@
 The profile stores compact archived color objects; this table records their
 six-digit hex values.
 
+After editing the profile, run `./term/generate.pl` on macOS. It compacts the
+profile's colors as sRGB, refreshes this table, and generates the VS Code and
+TextMate themes from `theme.json.in`. Edit that template to change theme rules;
+edit the Terminal profile to change the palette.
+
 | Color | Regular | Bright |
 |---|---|---|
 | Black | `#000000` | `#5C5C5C` |
