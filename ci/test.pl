@@ -7,7 +7,8 @@ use TestHelpers    qw(run_command read_file);
 use Getopt::Long   qw(GetOptions);
 use File::Basename qw(basename);
 use File::Temp     qw(tempdir);
-use Time::HiRes    qw(time);
+use Time::HiRes    qw(time sleep);
+use POSIX          qw(SIG_BLOCK SIG_SETMASK SIGHUP SIGINT SIGTERM sigprocmask);
 
 my $jobs = 8;
 GetOptions( 'jobs|j=i' => \$jobs )
@@ -37,27 +38,47 @@ my $started = time;
 my $logs    = tempdir( 'dotfiles-test-results-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 my ( %active, @failures );
 my ( $completed, $skipped, $next ) = ( 0, 0, 0 );
-$SIG{INT} = sub {
-    local $SIG{INT} = 'IGNORE';
-    kill 'TERM', keys %active;
-    waitpid( $_, 0 ) for keys %active;
-    print STDERR "\nInterrupted\n";
-    exit 130;
-};
+my %exit_codes = ( INT => 130, TERM => 143, HUP => 129 );
+my $interrupts = POSIX::SigSet->new( SIGHUP, SIGINT, SIGTERM );
+
+for my $signal ( keys %exit_codes ) {
+    $SIG{$signal} = sub {
+        local @SIG{ keys %exit_codes } = ('IGNORE') x keys %exit_codes;
+        for my $pid ( keys %active ) {
+            kill( 'TERM', -$pid ) || kill( 'TERM', $pid );
+        }
+        if (%active) {
+
+            # Let test helpers forward TERM to their own child groups first.
+            sleep 0.5;
+            kill 'KILL', -$_ for keys %active;
+            kill 'KILL', $_  for keys %active;
+            waitpid( $_, 0 ) for keys %active;
+        }
+        print STDERR "\nInterrupted\n";
+        exit $exit_codes{$signal};
+    };
+}
 while ( $next < @tests || %active ) {
     while ( $next < @tests && keys(%active) < $jobs ) {
         my ( $file, $case ) = @{ $tests[$next] };
         my $log = "$logs/$next.log";
         ++$next;
+        my $mask = POSIX::SigSet->new;
+        sigprocmask( SIG_BLOCK, $interrupts, $mask ) or die "block signals: $!\n";
         my $pid = fork();
         die "fork: $!\n" unless defined $pid;
         if ( !$pid ) {
+            setpgrp( 0, 0 ) or die "setpgrp: $!\n";
+            $SIG{$_} = 'DEFAULT' for keys %exit_codes;
+            sigprocmask( SIG_SETMASK, $mask ) or die "restore signals: $!\n";
             open STDOUT, '>',  $log     or die "$log: $!\n";
             open STDERR, '>&', \*STDOUT or die $!;
             exec {$^X} $^X, $file, $case;
             die "exec $file: $!\n";
         }
         $active{$pid} = $log;
+        sigprocmask( SIG_SETMASK, $mask ) or die "restore signals: $!\n";
     }
     my $pid    = wait();
     my $status = $?;
