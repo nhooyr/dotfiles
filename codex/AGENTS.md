@@ -3,8 +3,9 @@
   my explicit approval.
 - Group related changes and their regression tests into separate logical commits.
 - Always write `regression test` in full when referring to a test.
-- Unless I explicitly ask you to commit, provide a Fish script that stages one group at a time and opens
-  `git commit` with a suggested short title and body, so I can review and edit each message.
+- Unless I explicitly ask you to commit, provide an executable `./commit` script at the repository root
+  using POSIX Shell and Perl. It must stage one group at a time and open `git commit` with a suggested
+  short title and body, so I can review and edit each message.
 - Print each commit-script step heading in bold, such as `Step 2/2: 02-fish-prompt-aliases.patch`,
   and reset formatting immediately afterward.
 - Choose title prefixes using `nvim/lua/gitcommit.lua`: a single file's path, otherwise the deepest directory
@@ -19,6 +20,8 @@
 - Quote scalar variable expansions in shell code wherever possible.
 - Prefer single quotes. Use double quotes only when variable expansion or escaping requires them.
 - Do not add compatibility code (including shims and fallbacks) without my explicit approval.
+- Trust `pbpaste`; never suggest or add error handling or tests for clipboard-read failures.
+- Do not suggest or add filename-length caps or prefix truncation for generated temporary files.
 - Do not report or change automatic commit-push behavior unless I explicitly ask.
 - Do not report or change tracking of Alfred's machine-local preferences unless I explicitly ask.
 - Assume file paths never contain control characters, including newlines. Do not report such cases or add
