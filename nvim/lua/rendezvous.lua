@@ -9,7 +9,7 @@ local function quit_with_request(request)
 end
 
 local function quit_and_run()
-	if vim.fn.mode() == 'i' then
+	if vim.fn.mode() == 'i' and vim.fn.exists('*copilot#Accept') == 1 then
 		vim.cmd.normal({ 'i' .. vim.fn['copilot#Accept'](''), bang = true })
 	end
 	vim.cmd.wall()

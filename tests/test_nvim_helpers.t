@@ -1738,6 +1738,8 @@ sub rendezvous_routes {
 local calls, accepted = {}, 0
 vim.cmd.wall = function() calls[#calls + 1] = 'wall' end
 vim.cmd.qall = function() calls[#calls + 1] = 'qall' end
+local exists = vim.fn.exists
+vim.fn.exists = function(name) return name == '*copilot#Accept' and 1 or exists(name) end
 vim.fn['copilot#Accept'] = function(fallback)
     eq(fallback, '', 'Copilot receives the empty fallback')
     accepted = accepted + 1
@@ -1925,6 +1927,20 @@ eq(vim.g.test_copilot_calls, 2, 'completion cancellation takes priority over Cop
 LUA
 }
 
+sub rendezvous_without_copilot {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+eq(vim.fn.exists('*copilot#Accept'), 0, 'the plugin is not installed')
+local saved, quit = false, false
+vim.cmd.wall = function() saved = true end
+vim.cmd.qall = function() quit = true end
+feed('i<M-CR><Esc>')
+assert(saved and quit, 'Insert mode can save and quit without Copilot')
+eq(vim.api.nvim_get_current_line(), 'original', 'the file text is unchanged')
+eq(vim.fn.readfile(vim.env.AQSNOW_FISH_RENDEZVOUS), { 'exec' }, 'the original file requests execution')
+LUA
+}
+
 sub rendezvous_failed_quit {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -2044,6 +2060,7 @@ run_cases(
         copilot_line_mapping                    => \&copilot_line_mapping,
         rendezvous_error_order                  => \&rendezvous_error_order,
         rendezvous_failed_quit                  => \&rendezvous_failed_quit,
+        rendezvous_without_copilot              => \&rendezvous_without_copilot,
     },
     \&setup
 );
