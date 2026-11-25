@@ -4,6 +4,7 @@ cd -- "$(dirname "$0")"
 PATH="$PWD/../../bin:$PATH"
 
 report() { printf 'dotfiles: nvim/app: %s: %s\n' "${0##*/}" "$*"; }
+run() { timeout --kill-after=2 30 "$@"; }
 
 usage() {
 	printf 'Usage: %s [--set-defaults]\n' "${0##*/}"
@@ -55,7 +56,7 @@ bundle_id=ca.aqsnow.nvim
 
 exists() { [ -e "$1" ] || [ -L "$1" ]; }
 
-timeout --kill-after=2 30 mkdir -p "$cache_dir"
+run mkdir -p "$cache_dir"
 if ! mkdir -m 700 "$lock_dir" 2>/dev/null; then
 	report "another installation is running, or a previous run left this lock: $lock_dir" | hpath >&2
 	report 'If no installer is running, remove that lock directory before retrying' >&2
@@ -67,26 +68,24 @@ cleanup() {
 	trap - 0
 	trap '' HUP INT TERM
 	if [ "$installed" != true ] && exists "$backup"; then
-		if exists "$destination" || ! timeout --kill-after=2 30 mv "$backup" "$destination"; then
+		if exists "$destination" || ! run mv "$backup" "$destination"; then
 			report "previous app preserved at $backup; restore it manually" | hpath >&2
 			staging_dir=
 			cleanup_status=1
 		fi
 	fi
 	if [ -n "$staging_dir" ]; then
-		timeout --kill-after=2 30 rm -rf "$staging_dir" || cleanup_status=1
+		run rm -rf "$staging_dir" || cleanup_status=1
 	fi
-	timeout --kill-after=2 30 rmdir "$lock_dir" || cleanup_status=1
+	run rmdir "$lock_dir" || cleanup_status=1
 	exit "$cleanup_status"
 }
 trap cleanup 0
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-staging_dir=$(timeout --kill-after=2 30 mktemp -d "$cache_dir/nvim-build.XXXXXX")
+staging_dir=$(run mktemp -d "$cache_dir/nvim-build.XXXXXX")
 backup=$staging_dir/previous.app
-
-run() { timeout --kill-after=2 30 "$@"; }
 
 quiet() {
 	if run "$@" >"$staging_dir/command.log" 2>&1; then
