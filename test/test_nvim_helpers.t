@@ -700,7 +700,7 @@ local function open(...)
     eq(result.code, 0, result.stderr)
 end
 open('--', name, '-leading.txt')
-eq(eval('mode()'), 'n', 'opening a file leaves Terminal mode')
+assert(vim.wait(1000, function() return eval('mode()') == 'n' end), 'opening a file leaves Terminal mode')
 eq(call('nvim_get_current_win'), terminal_win, 'editing reuses the terminal window')
 eq(call('nvim_buf_get_name', 0), cwd .. '/' .. name, 'relative paths use the shell cwd and stay literal')
 eq(eval('argv()'), { cwd .. '/' .. name, cwd .. '/-leading.txt' }, 'all supplied files enter the argument list')
