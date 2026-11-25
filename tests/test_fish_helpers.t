@@ -35,18 +35,19 @@ SH
     chmod 0755, "$self->{root}/bin/pbcopy";
     $self->{env} = {
         %ENV,
-        PATH            => "$self->{root}/bin:$ENV{PATH}",
-        TMPDIR          => $self->{root},
-        XDG_CONFIG_HOME => "$self->{root}/config",
-        XDG_DATA_HOME   => "$self->{root}/data",
-        TEST_ROOT       => $self->{root},
-        TEST_HPATH      => "$root/bin/hpath",
-        TEST_PBC        => "$root/bin/pbc",
-        TEST_GREP       => which('grep'),
-        TEST_CD         => "$root/fish/cd.fish",
-        TEST_GIT        => "$root/fish/git.fish",
-        TEST_FUNCTIONS  => "$root/fish/functions",
-        TERM            => 'dumb',
+        PATH             => "$self->{root}/bin:$ENV{PATH}",
+        TMPDIR           => $self->{root},
+        XDG_CONFIG_HOME  => "$self->{root}/config",
+        XDG_DATA_HOME    => "$self->{root}/data",
+        TEST_ROOT        => $self->{root},
+        TEST_HPATH       => "$root/bin/hpath",
+        TEST_PBC         => "$root/bin/pbc",
+        TEST_GREP        => which('grep'),
+        TEST_CD          => "$root/fish/cd.fish",
+        TEST_GIT         => "$root/fish/git.fish",
+        TEST_FUNCTIONS   => "$root/fish/functions",
+        TEST_COMPLETIONS => "$root/fish/completions",
+        TERM             => 'dumb',
     };
 }
 
@@ -549,12 +550,13 @@ sub cdf_completes_files_while_retaining_cd_wrapping {
 function abbrali
 end
 source "$TEST_CD"; or exit 1
+set -p fish_complete_path "$TEST_COMPLETIONS"
 complete -C 'cdf alpha'
-complete -c cdf
+functions cdf
 FISH
     like( $result->{stdout}, qr/^alpha_dir\//m,      'directory completion is retained' );
     like( $result->{stdout}, qr/^alpha_file\.txt$/m, 'regular files are also offered' );
-    like( $result->{stdout}, qr/--wraps[= ]'?cd'?/,  'cdf still inherits the cd completions' );
+    like( $result->{stdout}, qr/--wraps[= ]'?cd'?/,  'cdf retains its cd wrapper metadata' );
 }
 
 sub configured_temp_directory_is_aliased {

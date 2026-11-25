@@ -27,7 +27,6 @@ end
 cdpath_add . "$dotfiles" "$notes" "$nhooyr" ~/code ~
 
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
-complete -c cdf -a '$(__fish_complete_path)'
 abbrali pd prevd
 abbrali bd prevd
 abbrali nd nextd
