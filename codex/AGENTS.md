@@ -30,6 +30,7 @@
   replaced scripts, and regenerate the fingerprint whenever updating the script.
 - Always add usage/help text and Fish completions for custom functions and commands.
   Load each command's completions only when requested.
+- All generated scripts must support both `-h` and `--help`, printing usage and exiting successfully.
 - Leave abbralis unchanged. Command wrappers should use the underlying command's help
   instead of adding their own help handlers.
 - Use `$(...)` instead of `(...)` for Fish command substitutions.
