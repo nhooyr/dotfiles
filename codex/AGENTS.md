@@ -23,6 +23,8 @@
   continue from the current state without repeating completed work.
 - After the full commit sequence succeeds, move `./commit` to the Trash using `trash` so it can be recovered.
   Also do this when a rerun finds the sequence already complete. Keep the script on failure or interruption.
+- Always add usage/help text and Fish completions for custom functions and commands.
+  Load each command's completions only when requested.
 - Use `$(...)` instead of `(...)` for Fish command substitutions.
 - Quote scalar variable expansions in shell code wherever possible.
 - Prefer single quotes. Use double quotes only when variable expansion or escaping requires them.
