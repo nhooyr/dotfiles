@@ -386,6 +386,26 @@ FISH
     }
 }
 
+sub grep_smart_case_respects_the_option_separator {
+    my ($self) = @_;
+    write_file( "$self->{root}/-FILE", "ME\n" );
+    my $result = fish( $self, <<'FISH' );
+function ggrep
+    command "$TEST_GREP" $argv
+end
+printf '%s\n' -me -ME | grep -- -me
+grep -e me -- -FILE
+for arguments in 'word' 'Word' '-n word' '-E word' '-e word -e Word'
+    printf 'case:<%s>\n' $(__grep_smart_case $(string split ' ' -- "$arguments"))
+end
+FISH
+    is(
+        $result->{stdout},
+        "1:-me\n2:-ME\n1:ME\ncase:<-i>\ncase:<>\ncase:<>\ncase:<-i>\ncase:<>\n",
+        'literal leading dashes keep smart case while unknown flags and uppercase patterns opt out'
+    );
+}
+
 sub mcd_rejects_multiple_arguments_before_creating_anything {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -619,8 +639,9 @@ run_cases(
         realpath_failure_does_not_clear_the_clipboard   => \&realpath_failure_does_not_clear_the_clipboard,
         realpath_success_preserves_spaces_and_leading_dashes =>
           \&realpath_success_preserves_spaces_and_leading_dashes,
-        grepw_uses_an_extended_whitespace_quantifier => \&grepw_uses_an_extended_whitespace_quantifier,
-        rootimg_treats_a_leading_dash_as_a_filename  => \&rootimg_treats_a_leading_dash_as_a_filename,
+        grepw_uses_an_extended_whitespace_quantifier  => \&grepw_uses_an_extended_whitespace_quantifier,
+        grep_smart_case_respects_the_option_separator => \&grep_smart_case_respects_the_option_separator,
+        rootimg_treats_a_leading_dash_as_a_filename   => \&rootimg_treats_a_leading_dash_as_a_filename,
     },
     \&setup
 );

@@ -148,8 +148,7 @@ abbr -a --command grep i -- -i
 abbr -a --command grep r -- -R
 function __grep_smart_case
     # Only -E/-F/-G/-R and -e/--regexp are understood; unknown options opt out of smart-case.
-    argparse --ignore-unknown E F G R e/regexp=+ -- $argv 2>/dev/null; or return 0
-    string match -qr '^-.+' -- $argv; and return 0
+    argparse E F G R e/regexp=+ -- $argv 2>/dev/null; or return 0
     set -l patterns $_flag_regexp
     set -q patterns[1]; or set patterns $argv[1]
     set -q patterns[1]; or return 0
