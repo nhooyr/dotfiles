@@ -17,7 +17,10 @@
 - Capitalize the first word after the commit-title prefix.
 - Validate the commit sequence in a temporary checkout first. Preserve the worktree and unrelated changes,
   and stop the script on failure.
-- Scripts must be idempotent and automatically resumable: rerunning after success must be a no-op, and rerunning after interruption must safely continue from the current state without repeating completed work.
+- Scripts must be idempotent and automatically resumable: rerunning after interruption must safely
+  continue from the current state without repeating completed work.
+- After the full commit sequence succeeds, move `./commit` to the Trash using `trash` so it can be recovered.
+  Also do this when a rerun finds the sequence already complete. Keep the script on failure or interruption.
 - Use `$(...)` instead of `(...)` for Fish command substitutions.
 - Quote scalar variable expansions in shell code wherever possible.
 - Prefer single quotes. Use double quotes only when variable expansion or escaping requires them.
