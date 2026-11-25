@@ -12,11 +12,14 @@ if [ "${GITHUB_ACTIONS-}" ]; then
 	perl "$(command -v cpanm)" --notest --local-lib-contained "$perl_lib" 'Perl::Tidy@20260826'
 fi
 
-find . -type f -name '*.fish' -exec fish_indent -w {} +
+git ls-files --cached --others --exclude-standard -z -- '*.fish' |
+	perl -0ne 'chomp; print "./$_\0" if -f && !-l' | xargs -0 fish_indent -w
 git ls-files --cached --others --exclude-standard -z -- '*.pl' '*.pm' '*.t' |
-	xargs -0 -n1 sh -c 'test ! -f "$1" || perltidy -npro -l=110 -conv -b -bext=/ "./$1"' sh
+	xargs -0 -n1 sh -c 'test ! -f "$1" || test -L "$1" || perltidy -npro -l=110 -conv -b -bext=/ "./$1"' sh
 cargo fmt --quiet --manifest-path fzfp/Cargo.toml
-shfmt -s -w .
+git ls-files --cached --others --exclude-standard -z |
+	perl -0ne 'chomp; print "./$_\0" if -f && !-l' |
+	xargs -0 shfmt -f=0 | xargs -0 shfmt -s -w
 
 if [ "${CI-}" ]; then
 	git add --intent-to-add --ignore-removal .
