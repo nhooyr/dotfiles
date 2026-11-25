@@ -1,5 +1,5 @@
 function aqsnow_prompt_pwd
-    prompt_pwd "$(aqsnow_fzf_path_alias "$PWD" | string split0)"
+    prompt_pwd "$(dirali "$PWD" | string split0)"
 end
 
 function fish_prompt

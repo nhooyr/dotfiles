@@ -1,11 +1,11 @@
-function aqsnow_fzf_path_alias --argument-names target
+function dirali --argument-names target
     set -l aliased "$target"
     set -l longest 0
     for name in $aqsnow_fzf_diralis
         set -l source "$$name"
         test -n "$source"; or continue
         if not string match -q '/*' -- "$source"
-            printf 'aqsnow_fzf_path_alias: alias %s requires an absolute path: %s\n' "$name" "$source" >&2
+            printf 'dirali: alias %s requires an absolute path: %s\n' "$name" "$source" >&2
             return 1
         end
         set -l cache __aqsnow_fzf_dirali_$name

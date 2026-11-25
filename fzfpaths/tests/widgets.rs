@@ -87,7 +87,7 @@ fn run_widget_output(
             fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
         }
     }
-    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fish/functions/fzf_accept_and_run.fish");
+    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fish/functions/_fzf.fish");
     let output = Command::new("fish")
         .args(["--no-config", "-c", HARNESS])
         .current_dir(&fixture.0)
@@ -169,7 +169,7 @@ fn path_case(script: &str, token: &str) -> Vec<u8> {
     fs::create_dir_all(fixture.0.join("external/child")).unwrap();
     fs::create_dir(fixture.0.join("external/target")).unwrap();
     symlink("external/child", fixture.0.join("link")).unwrap();
-    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fish/functions/fzf_accept_and_run.fish");
+    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fish/functions/_fzf.fish");
     let setup = r#"
 set -p fish_function_path "$(path dirname -- "$WIDGET_SOURCE")"
 source "$WIDGET_SOURCE"
@@ -553,12 +553,12 @@ fn root_directory_alias_preserves_the_path_separator() {
     let script = r#"
 set -g root /
 set -g aqsnow_fzf_diralis root
-test "$(aqsnow_fzf_path_alias /tmp/file | string split0)" = '$root/tmp/file'; or exit 1
-test "$(aqsnow_fzf_path_alias / | string split0)" = '$root'; or exit 2
-test "$(aqsnow_fzf_path_alias relative | string split0)" = relative; or exit 3
+test "$(dirali /tmp/file | string split0)" = '$root/tmp/file'; or exit 1
+test "$(dirali / | string split0)" = '$root'; or exit 2
+test "$(dirali relative | string split0)" = relative; or exit 3
 set -g project "$PWD"
 set -a aqsnow_fzf_diralis project
-test "$(aqsnow_fzf_path_alias "$PWD/file" | string split0)" = '$project/file'; or exit 4
+test "$(dirali "$PWD/file" | string split0)" = '$project/file'; or exit 4
 "#;
     assert!(path_case(script, "").is_empty());
 }

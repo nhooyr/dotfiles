@@ -248,7 +248,7 @@ sub rendezvous_routes_both_file_pickers {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
 set -gx AQSNOW_FISH_RENDEZVOUS "$TEST_ROOT/request"
-function fzf_accept_and_run
+function _fzf
     printf '%s\n' $argv
 end
 aqsnow_run_requested
@@ -475,10 +475,31 @@ sub configured_temp_directory_is_aliased {
     my $result = fish( $self, $registration . "\n" . <<'FISH' );
 set -p fish_function_path "$TEST_DOTFILES/fish/functions"
 fish --no-config -c 'contains -- TMPDIR $(string split : -- "$AQSNOW_DIRALIS"); or exit 1'; or exit
-aqsnow_fzf_path_alias "$TMPDIR/example"
+dirali "$TMPDIR/example"
 FISH
     is( $result->{returncode}, 0, 'the configured temporary-directory alias reaches child processes' );
     is( $result->{stdout}, "\$TMPDIR/example\0", 'temporary paths use the automatically registered alias' );
+}
+
+sub fzf_picker_helpers_load_lazily {
+    my ($self) = @_;
+    $self->{env}{TEST_DOTFILES} = $root;
+    my $result = fish( $self, <<'FISH' );
+set -p fish_function_path "$TEST_DOTFILES/fish/functions"
+set -g aqsnow_fzf_diralis
+functions -q __fzf_defaults; and exit 1
+dirali "$PWD" >/dev/null; or exit 2
+functions -q __fzf_defaults; and exit 3
+function aqsnow_init_rendezvous
+end
+function aqsnow_rendezvous
+end
+function test_widget
+end
+_fzf test_widget
+functions -q __fzf_defaults fzf_path_widget; or exit 4
+FISH
+    is( $result->{returncode}, 0, $result->{stderr} );
 }
 
 sub alias_registration_updates_the_exported_name_list {
@@ -565,7 +586,7 @@ FISH
 sub relative_directory_aliases_are_rejected {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
-source "$(path dirname -- "$TEST_CD")/functions/aqsnow_fzf_path_alias.fish"
+source "$(path dirname -- "$TEST_CD")/functions/dirali.fish"
 set -g aqsnow_fzf_diralis
 set -g project relative
 aqsnow_fzf_diralis_add project 2> "$TEST_ROOT/registration-error"
@@ -575,7 +596,7 @@ set -g project "$TEST_ROOT"
 aqsnow_fzf_diralis_add project
 printf '%s\n' "$status"
 set -g project relative
-aqsnow_fzf_path_alias "$TEST_ROOT/file" 2> "$TEST_ROOT/lookup-error"
+dirali "$TEST_ROOT/file" 2> "$TEST_ROOT/lookup-error"
 printf '%s\n' "$status"
 FISH
     is( $result->{stdout}, "1\n0\n1\n", 'registration and lookup reject relative aliases' );
@@ -586,7 +607,7 @@ FISH
     );
     is(
         read_file("$self->{root}/lookup-error"),
-        "aqsnow_fzf_path_alias: alias project requires an absolute path: relative\n",
+        "dirali: alias project requires an absolute path: relative\n",
         'retargeting an alias to a relative path is rejected'
     );
 }
@@ -596,17 +617,17 @@ sub alias_reregistration_refreshes_resolved_paths {
     make_path( "$self->{root}/first", "$self->{root}/second" );
     symlink 'first', "$self->{root}/logical" or die $!;
     my $result = fish( $self, <<'FISH' );
-source "$(path dirname -- "$TEST_CD")/functions/aqsnow_fzf_path_alias.fish"
+source "$(path dirname -- "$TEST_CD")/functions/dirali.fish"
 set -g aqsnow_fzf_diralis
 set -g project "$TEST_ROOT/logical"
 aqsnow_fzf_diralis_add project
-aqsnow_fzf_path_alias "$TEST_ROOT/first/file"
+dirali "$TEST_ROOT/first/file"
 command rm -- "$project"
 command ln -s second "$project"
 aqsnow_fzf_diralis_add project
-aqsnow_fzf_path_alias "$TEST_ROOT/second/file"
+dirali "$TEST_ROOT/second/file"
 set -g project "$TEST_ROOT/first"
-aqsnow_fzf_path_alias "$TEST_ROOT/first/file"
+dirali "$TEST_ROOT/first/file"
 FISH
     is(
         $result->{stdout},
@@ -628,6 +649,7 @@ run_cases(
         sshv_stops_on_missing_paths                     => \&sshv_stops_on_missing_paths,
         nvim_preserves_native_command_line_options      => \&nvim_preserves_native_command_line_options,
         configured_temp_directory_is_aliased            => \&configured_temp_directory_is_aliased,
+        fzf_picker_helpers_load_lazily                  => \&fzf_picker_helpers_load_lazily,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,
         alias_registration_appends_only_new_names            => \&alias_registration_appends_only_new_names,

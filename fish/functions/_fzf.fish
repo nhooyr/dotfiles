@@ -1,6 +1,6 @@
 source "$(status dirname)/../fzf_upstream.fish"; or return
 
-function fzf_accept_and_run --argument-names widget
+function _fzf --argument-names widget
     aqsnow_init_rendezvous; or return
     # Indices preserve fzf's empty-selection guard without copying filenames.
     set -l action "alt-enter:execute-silent(test -n '{+n}'; and printf exec > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
@@ -105,7 +105,7 @@ function fzf_path_widget --argument-names widget
                     end
                     if set -q path[1]
                         string match -q -- '/*' "$path"; or set path "$PWD/$path"
-                        set path $(aqsnow_fzf_path_alias "$path" | string split0)
+                        set path $(dirali "$path" | string split0)
                         set selected "$(aqsnow_fzf_path_quote "$path" "$parsed[3]")"
                     end
                 end
@@ -168,7 +168,7 @@ function fzf_path_widget --argument-names widget
                 if not string match -q -- '/*' "$target"
                     set target "$PWD/$(string replace --regex -- '^\./' '' "$target")"
                 end
-                set -l aliased "$(aqsnow_fzf_path_alias "$target" | string split0)"
+                set -l aliased "$(dirali "$target" | string split0)"
                 set escaped "$(aqsnow_fzf_path_quote "$aliased" "$parsed[3]")"
             end
             set -l default_command

@@ -290,12 +290,12 @@ fg+:black:regular:strip,bg+:bright-yellow,hl+:black:regular:underline:strip"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS '--with-nth 3.. --bind "alt-t:change-with-nth(2..|1,3..|3..),ctrl-x:trigger(shift-delete)"'
 for mode in default insert
-    bind -M "$mode" ctrl-r 'fzf_accept_and_run fzf-history-widget'
-    bind -M "$mode" alt-o 'fzf_accept_and_run fzf-recent-widget'
-    bind -M "$mode" ctrl-t 'fzf_accept_and_run fzf-file-widget'
-    bind -M "$mode" alt-v 'fzf_accept_and_run fzf-path-widget'
-    bind -M "$mode" alt-c 'fzf_accept_and_run fzf-cd-widget'
-    bind -M "$mode" shift-tab 'fzf_accept_and_run fzf_complete'
+    bind -M "$mode" ctrl-r '_fzf fzf-history-widget'
+    bind -M "$mode" alt-o '_fzf fzf-recent-widget'
+    bind -M "$mode" ctrl-t '_fzf fzf-file-widget'
+    bind -M "$mode" alt-v '_fzf fzf-path-widget'
+    bind -M "$mode" alt-c '_fzf fzf-cd-widget'
+    bind -M "$mode" shift-tab '_fzf fzf_complete'
 end
 function aqsnow_fzf_diralis_add
     if not set -q aqsnow_fzf_diralis
@@ -342,7 +342,7 @@ function aqsnow_run_requested
         case exec
             return 0
         case path-widget recent-widget
-            fzf_accept_and_run "fzf-$request"
+            _fzf "fzf-$request"
     end
     return 1
 end

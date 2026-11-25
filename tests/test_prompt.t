@@ -317,7 +317,7 @@ sub nested_repository_during_refresh {
     write_file( "$self->{repo}/.fish_git_prompt", ' (parent-cached)' );
     my $result = shell(
         $self,
-        "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+        "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
           . stage_completion( ' (wrong-parent-result)', '0' )
           . <<'FISH' . wait_for_refresh() . <<'FISH', $nested );
 command git init --quiet --initial-branch nested .
@@ -347,7 +347,7 @@ sub removed_repository_during_refresh {
     my ($self) = @_;
     write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+            "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
           . stage_completion( ' (obsolete)', '0' )
           . <<'FISH' );
 command rm -rf -- .git
@@ -367,7 +367,7 @@ sub replaced_repository_during_foreground_command {
     my ($self) = @_;
     write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+            "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
           . stage_completion( ' (obsolete)', '0' )
           . <<'FISH' . wait_for_refresh() . <<'FISH' );
 aqsnow_vcs_prompt_preexec
@@ -606,7 +606,7 @@ sub failed_refresh_keeps_display {
     write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
     for my $case ( [ '', '0' ], [ ' (partial)', '1' ] ) {
         my $result = shell( $self,
-                "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+                "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
               . fake_completion(@$case)
               . 'printf "%s\n%s\n" "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"'
               . "\n" );
@@ -624,7 +624,7 @@ sub successful_refresh_is_atomic {
     write_file( "$self->{repo}/.fish_git_prompt", ' (old)' );
     my $fresh  = " (\e[4mmain\e[0m +3)";
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+            "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
           . fake_completion( $fresh, '0' )
           . 'printf "%s\n%s\n" "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"'
           . "\n" );
@@ -643,7 +643,7 @@ sub unchanged_cache_is_not_rewritten {
     utime( 1700000000, 1700000000, $cache ) or die $!;
     my $before = ( stat $cache )[9];
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+            "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
           . fake_completion( ' (unchanged)', '0' )
           . 'printf "%s\\n" "$AQSNOW_FISH_GIT_PROMPT"'
           . "\n" );
@@ -674,7 +674,7 @@ SHELL
     $self->{env}{TEST_REAL_MV}  = which('mv');
     $self->{env}{PATH}          = "$self->{root}/bin:$ENV{PATH}";
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+            "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
           . fake_completion( ' (fresh)', '0' )
           . 'printf "%s\\n" "$AQSNOW_FISH_GIT_PROMPT"'
           . "\n" );
@@ -794,7 +794,7 @@ sub unwritable_cache_keeps_display {
     write_file( "$self->{repo}/.fish_git_prompt", ' (saved)' );
     chmod 0500, $self->{repo} or die $!;
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\naqsnow_vcs_prompt_update\n"
+            "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
           . fake_completion( ' (fresh)', '0' )
           . 'printf "%s\n" "$AQSNOW_FISH_GIT_PROMPT"'
           . "\n" );
