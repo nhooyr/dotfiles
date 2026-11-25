@@ -8,7 +8,6 @@ dotln ./bin ~/.local/bin/dotfiles
 dotln ./less/lesskey ~/.config/lesskey
 dotln ./bat ~/.config/bat
 dotln ./tmux/tmux.conf ~/.tmux.conf
-dotln ./vscode/settings.json ~/Library/Application\ Support/Code/User/settings.json
 ./fish/install.sh
 dotln ./ssh/config ~/.ssh/config
 dotln ./ssh/allowed_signers ~/.ssh/allowed_signers
@@ -21,5 +20,5 @@ dotln ./fzfp/ignore ~/.config/fzfp/ignore
 
 ./nvim/install.sh
 ./codex/install.sh
-./vscode/theme/install.sh
+./vscode/install.sh
 ./bat/install.sh

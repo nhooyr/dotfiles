@@ -105,11 +105,56 @@ sub forced_install_skips_listing {
     );
 }
 
+sub installs_settings_before_the_theme {
+    my ($self) = @_;
+    my $source = absolute_path($self->{directory}) . '/source';
+    make_path( "$source/vscode/theme", "$source/bin" );
+    copy_preserve( "$root/vscode/install.sh",    "$source/vscode/install.sh" );
+    copy_preserve( "$root/vscode/settings.json", "$source/vscode/settings.json" );
+    copy_preserve( "$root/bin/$_",               "$source/bin/$_" ) for qw(dotln hpath);
+    write_file( "$source/vscode/theme/install.sh", '#!' . perl_executable() . "\n" . <<'PERL' );
+use Cwd qw(getcwd);
+use JSON::PP;
+die 'settings must be linked first' unless -l "$ENV{HOME}/Library/Application Support/Code/User/settings.json";
+open my $calls, '>>', $ENV{TEST_CALLS} or die $!;
+print {$calls} encode_json(['theme', getcwd(), @ARGV]), "\n";
+exit($ENV{TEST_THEME_STATUS} // 0);
+PERL
+    chmod 0755, "$source/vscode/theme/install.sh" or die $!;
+    $self->{env}{HOME} = "$self->{directory}/home";
+
+    for my $status ( 0, 23 ) {
+        $self->{env}{TEST_THEME_STATUS} = $status;
+        unlink $self->{env}{TEST_CALLS};
+        my $result =
+          run_command( ["$source/vscode/install.sh"], { cwd => $self->{directory}, env => $self->{env} } );
+        is( $result->{returncode}, $status, 'the parent installer preserves the theme result' );
+        is_deeply(
+            calls($self),
+            [ [ 'theme', "$source/vscode" ] ],
+            'the theme runs once from the VS Code directory'
+        );
+    }
+    is(
+        readlink("$self->{env}{HOME}/Library/Application Support/Code/User/settings.json"),
+        "$source/vscode/settings.json",
+        'the settings link handles spaces in its destination'
+    );
+    like( read_file("$root/install.sh"),
+        qr{^\./vscode/install\.sh$}m, 'the root installer delegates VS Code setup' );
+    unlike(
+        read_file("$root/install.sh"),
+        qr{\./vscode/(?:theme|settings\.json)},
+        'VS Code internals remain in its own installer'
+    );
+}
+
 run_cases(
     {
         listing_failure_stops_installation => \&listing_failure_stops_installation,
         already_installed_is_unchanged     => \&already_installed_is_unchanged,
         forced_install_skips_listing       => \&forced_install_skips_listing,
+        installs_settings_before_the_theme => \&installs_settings_before_the_theme,
     },
     \&setup
 );
