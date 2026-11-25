@@ -1,6 +1,5 @@
 #!/bin/sh
 set -eu
-
 cd -- "$(dirname "$0")"
 PATH="$PWD/../bin:$PATH"
 

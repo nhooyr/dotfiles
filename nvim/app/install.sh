@@ -1,5 +1,7 @@
 #!/bin/sh
 set -eu
+cd -- "$(dirname "$0")"
+PATH="$PWD/../../bin:$PATH"
 
 report() { printf 'dotfiles: nvim/app: %s: %s\n' "${0##*/}" "$*"; }
 
@@ -37,8 +39,6 @@ if [ "$set_defaults" = true ] && ! command -v duti >/dev/null 2>&1; then
 	report 'duti is required (brew install duti)' >&2
 	exit 1
 fi
-cd -- "$(dirname "$0")"
-PATH="$PWD/../../bin:$PATH"
 if grep -qFx 'version https://git-lfs.github.com/spec/v1' ./icon.png; then
 	report 'Run git lfs pull to download icon.png' >&2
 	exit 1

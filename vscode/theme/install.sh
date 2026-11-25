@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+cd -- "$(dirname "$0")"
 
 help() {
 	printf 'Usage: %s [-f]\n' "${0##*/}"
@@ -19,7 +20,6 @@ case "$*" in
 	;;
 esac
 
-cd -- "$(dirname "$0")"
 publisher=$(jq -r .publisher ./package.json)
 name=$(jq -r .name ./package.json)
 version=$(jq -r .version ./package.json)

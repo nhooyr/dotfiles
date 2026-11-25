@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
-
 cd -- "$(dirname "$0")"
 PATH="$PWD/bin:$PATH"
+
 dotln ./bin ~/.local/bin/dotfiles
 dotln ./git/gitconfig ~/.gitconfig
 dotln ./git/gitignore ~/.config/git/ignore
