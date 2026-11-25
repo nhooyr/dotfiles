@@ -18,6 +18,7 @@ sub config_reload_refreshes_lua_modules {
     }
     write_file( "$config/lua/loader_existing.lua", "return 'old'\n" );
     write_file( "$temp/init.vim",                  <<'VIM' );
+let g:loaded_copilot = 1
 execute 'set runtimepath^=' . fnameescape($TEST_CONFIG)
 execute 'source' fnameescape($TEST_CONFIG . '/init.vim')
 lua << EOF
