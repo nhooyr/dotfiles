@@ -24,11 +24,7 @@ Examples:
     if set -q argv[1]
         set url "$(gh gist create $flags -- $argv)"; or return
     else
-        set -l clipboard $(
-            pbpaste | string collect --allow-empty --no-trim-newlines
-            test "$pipestatus[1]" -eq 0
-        ); or return
-        set url "$(printf '%s' "$clipboard" | gh gist create $flags -- -)"; or return
+        set url "$(pbpaste | gh gist create $flags -- -)"; or return
     end
     printf '%s\n' "$url" | pbc
 end

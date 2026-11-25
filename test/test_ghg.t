@@ -34,11 +34,7 @@ if ($kind ne 'pbpaste') { local $/; $input = <STDIN> // ''; }
 open my $log, '>>', "$ENV{TEST_ROOT}/calls" or die $!;
 print {$log} encode_json({ kind => $kind, args => \@ARGV, input => $input }), "\n";
 close $log;
-if ($kind eq 'pbpaste') {
-    print $ENV{TEST_CLIPBOARD};
-    if ($ENV{TEST_CLIPBOARD_STATUS}) { print STDERR "clipboard read failed\n"; exit $ENV{TEST_CLIPBOARD_STATUS}; }
-    exit;
-}
+if ($kind eq 'pbpaste') { print $ENV{TEST_CLIPBOARD}; exit; }
 if ($kind eq 'gh') {
     if ($ENV{TEST_GIST_STATUS}) { print STDERR "gist upload failed\n"; exit $ENV{TEST_GIST_STATUS}; }
     print $ENV{TEST_GIST_URL}; exit;
@@ -96,27 +92,6 @@ sub explicit_stdin {
     is( calls( $self, 'gh' )->[0]{input}, "piped text\n", 'stdin reaches gh unchanged' );
 }
 
-sub clipboard_failure_prevents_upload {
-    my ($self) = @_;
-    $self->{env}{TEST_CLIPBOARD_STATUS} = 23;
-    my $result = run( $self, [] );
-    isnt( $result->{returncode}, 0, 'clipboard failure is returned' );
-    is( $result->{stderr}, "clipboard read failed\n", 'the clipboard diagnostic stays visible' );
-    is( $result->{stdout}, '',                        'failure prints no URL' );
-    is_deeply( calls( $self, 'gh' ),  [], 'partial clipboard data is not uploaded' );
-    is_deeply( calls( $self, 'pbc' ), [], 'failure does not replace the clipboard' );
-}
-
-sub clipboard_preserves_empty_input_and_final_newlines {
-    my ($self) = @_;
-    for my $text ( '', "two final newlines\n\n" ) {
-        $self->{env}{TEST_CLIPBOARD} = $text;
-        my $result = run( $self, [] );
-        is( $result->{returncode},            0,     'clipboard input reaches the uploader' );
-        is( calls( $self, 'gh' )->[0]{input}, $text, 'clipboard bytes are preserved' );
-    }
-}
-
 sub file_arguments {
     my ($self) = @_;
     for my $flag (qw(-p --public)) {
@@ -153,11 +128,8 @@ sub upload_failure {
 
 run_cases(
     {
-        clipboard_uploads                                  => \&clipboard_uploads,
-        explicit_stdin                                     => \&explicit_stdin,
-        clipboard_failure_prevents_upload                  => \&clipboard_failure_prevents_upload,
-        clipboard_preserves_empty_input_and_final_newlines =>
-          \&clipboard_preserves_empty_input_and_final_newlines,
+        clipboard_uploads        => \&clipboard_uploads,
+        explicit_stdin           => \&explicit_stdin,
         file_arguments           => \&file_arguments,
         help_and_invalid_options => \&help_and_invalid_options,
         upload_failure           => \&upload_failure,

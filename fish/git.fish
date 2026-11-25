@@ -137,11 +137,7 @@ function scd
 end
 abbrali app git apply
 function papp --wraps 'git apply' --description 'git apply from clipboard'
-    set -l patch $(
-        pbpaste | string collect --allow-empty --no-trim-newlines
-        test "$pipestatus[1]" -eq 0
-    ); or return
-    printf '%s' "$patch" | perl -pe 's/\n?\z/\n/' | git apply $argv
+    pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
 end
 
 alias gh='NO_COLOR=1 command gh'
