@@ -206,6 +206,7 @@ fn run(
     classify: bool,
     read0: bool,
 ) -> io::Result<()> {
+    let cwd = working_directory()?;
     let mut seen_envs = HashSet::new();
     let mut env_dirs = Vec::new();
     for [name, directory] in args[3..].as_chunks::<2>().0 {
@@ -216,14 +217,8 @@ fn run(
                 format!("duplicate env: {}", name.to_string_lossy()),
             ));
         }
-        let directory = Path::new(directory);
-        let directory = if directory.is_absolute() {
-            normalize(directory)
-        } else {
-            directory.to_path_buf()
-        };
-        if directory.is_absolute()
-            && let Ok(physical) = directory.canonicalize()
+        let directory = normalize(&cwd.join(directory));
+        if let Ok(physical) = directory.canonicalize()
             && physical != directory
         {
             env_dirs.push((env.to_vec(), physical.into_os_string().into_vec()));
@@ -250,7 +245,7 @@ fn run(
     let git = Arc::new(Mutex::new(GitScans::default()));
     let cancelled = Arc::new(AtomicBool::new(false));
     let scanner = Scanner {
-        cwd: working_directory()?,
+        cwd,
         local_root: Path::new(&args[0]).canonicalize().ok(),
         files_only: args[2] == "-f",
         directories_only: args[2] == "-d",

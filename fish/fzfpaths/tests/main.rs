@@ -2227,6 +2227,33 @@ fn relative_directory_aliases_do_not_drop_parent_components() {
 }
 
 #[test]
+fn relative_directory_aliases_match_absolute_aliases() {
+    let fixture = Fixture::new();
+    let cwd = fixture.root.join("cwd-link");
+    symlink(&fixture.local, &cwd).unwrap();
+    symlink(fixture.repo.join("nested"), fixture.local.join("repo-link")).unwrap();
+    for cwd in [&fixture.local, &cwd] {
+        for directory in [
+            fixture.repo.as_path(),
+            Path::new("../global_dir/project"),
+            Path::new("repo-link/.."),
+        ] {
+            let paths = fixture.run(&mut fixture.command(
+                cwd,
+                &fixture.global_dir,
+                "-f",
+                &[("$project", directory)],
+            ));
+            assert!(
+                paths.contains(&"$project/tracked".into()),
+                "{cwd:?}: {directory:?}"
+            );
+            assert!(!paths.contains(&fixture.repo.join("tracked").into_os_string()));
+        }
+    }
+}
+
+#[test]
 fn global_symlink_parent_roots_use_the_target_and_preserve_aliases() {
     let fixture = Fixture::new();
     let child = fixture.global_dir.join("child");
