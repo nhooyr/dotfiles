@@ -3,7 +3,7 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use lscolors::{Indicator, LsColors, Style};
 use std::collections::HashSet;
 use std::env;
-use std::ffi::{OsStr, OsString, c_int, c_short};
+use std::ffi::{OsStr, OsString, c_int};
 use std::fs::{self, Metadata};
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::os::fd::AsRawFd;
@@ -244,7 +244,7 @@ fn run(
         physical_cwd: env::current_dir()?,
         env_dirs,
         shown: HashSet::new(),
-        output: BufWriter::new(io::stdout()),
+        output: BufWriter::new(CancellableStdout::new(io::stdout().as_raw_fd())?),
     };
     let (sender, receiver) = mpsc::sync_channel(256);
     let git = Arc::new(Mutex::new(GitScans::default()));
@@ -373,29 +373,91 @@ fn check_signal() -> io::Result<()> {
 
 // Check for a closed picker even when a scan has no new paths to write.
 fn output_closed() -> bool {
-    #[repr(C)]
-    struct PollFd {
-        fd: c_int,
-        events: c_short,
-        revents: c_short,
-    }
-    #[cfg(any(target_os = "linux", target_os = "android"))]
-    type Nfds = usize;
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    type Nfds = u32;
-    unsafe extern "C" {
-        fn poll(fds: *mut PollFd, nfds: Nfds, timeout: c_int) -> c_int;
-    }
-    const POLLOUT: c_short = 4;
-    const POLLERR: c_short = 8;
-    const POLLHUP: c_short = 16;
-    const POLLNVAL: c_short = 32;
-    let mut fd = PollFd {
+    let mut fd = libc::pollfd {
         fd: io::stdout().as_raw_fd(),
-        events: POLLOUT, // macOS reports pipe hangups only when writing is requested.
+        events: libc::POLLOUT, // macOS reports pipe hangups only when writing is requested.
         revents: 0,
     };
-    unsafe { poll(&mut fd, 1, 0) > 0 && fd.revents & (POLLERR | POLLHUP | POLLNVAL) != 0 }
+    unsafe {
+        libc::poll(&mut fd, 1, 0) > 0
+            && fd.revents & (libc::POLLERR | libc::POLLHUP | libc::POLLNVAL) != 0
+    }
+}
+
+struct CancellableStdout {
+    fd: c_int,
+    restore_blocking: bool,
+}
+
+impl CancellableStdout {
+    fn new(fd: c_int) -> io::Result<Self> {
+        let mut metadata = unsafe { std::mem::zeroed::<libc::stat>() };
+        if unsafe { libc::fstat(fd, &mut metadata) } < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // Leave terminal and regular-file descriptors unchanged.
+        let mut restore_blocking = false;
+        if metadata.st_mode & libc::S_IFMT == libc::S_IFIFO {
+            let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+            if flags < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            if flags & libc::O_NONBLOCK == 0 {
+                if unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
+                    return Err(io::Error::last_os_error());
+                }
+                restore_blocking = true;
+            }
+        }
+        Ok(Self {
+            fd,
+            restore_blocking,
+        })
+    }
+}
+
+impl Write for CancellableStdout {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        loop {
+            // BufWriter retries Interrupted errors, so cancellation must stop it.
+            check_signal().map_err(io::Error::other)?;
+            let written = unsafe { libc::write(self.fd, buffer.as_ptr().cast(), buffer.len()) };
+            if written >= 0 {
+                return Ok(written as usize);
+            }
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::WouldBlock {
+                let mut fd = libc::pollfd {
+                    fd: self.fd,
+                    events: libc::POLLOUT,
+                    revents: 0,
+                };
+                if unsafe { libc::poll(&mut fd, 1, 50) } < 0 {
+                    let error = io::Error::last_os_error();
+                    if error.kind() != io::ErrorKind::Interrupted {
+                        return Err(error);
+                    }
+                }
+            } else if error.kind() != io::ErrorKind::Interrupted {
+                return Err(error);
+            }
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Drop for CancellableStdout {
+    fn drop(&mut self) {
+        if self.restore_blocking {
+            let flags = unsafe { libc::fcntl(self.fd, libc::F_GETFL) };
+            if flags >= 0 {
+                unsafe { libc::fcntl(self.fd, libc::F_SETFL, flags & !libc::O_NONBLOCK) };
+            }
+        }
+    }
 }
 
 #[derive(Default)]
@@ -736,7 +798,7 @@ struct Picker {
     physical_cwd: PathBuf,
     env_dirs: Vec<(Vec<u8>, Vec<u8>)>,
     shown: HashSet<Vec<u8>>,
-    output: BufWriter<io::Stdout>,
+    output: BufWriter<CancellableStdout>,
 }
 
 impl Picker {
@@ -1304,7 +1366,7 @@ impl Scanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::fd::AsFd;
+    use std::os::fd::{AsFd, FromRawFd};
     use std::time::{Duration, Instant};
 
     #[derive(Default)]
@@ -1416,6 +1478,57 @@ mod tests {
         ] {
             assert_eq!(file_indicator(mode), expected, "mode {mode:o}");
         }
+    }
+
+    #[test]
+    fn output_restores_pipe_flags_after_success_and_error() {
+        for (close_reader, nonblocking) in [(false, false), (true, false), (false, true)] {
+            let mut fds = [0; 2];
+            assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0);
+            for fd in fds {
+                assert_eq!(
+                    unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) },
+                    0
+                );
+            }
+            let mut reader = Some(unsafe { fs::File::from_raw_fd(fds[0]) });
+            let writer = unsafe { fs::File::from_raw_fd(fds[1]) };
+            let fd = writer.as_raw_fd();
+            if nonblocking {
+                assert_eq!(
+                    unsafe { libc::fcntl(fd, libc::F_SETFL, libc::O_NONBLOCK) },
+                    0
+                );
+            }
+            let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+            let expected;
+            {
+                let mut output = CancellableStdout::new(fd).unwrap();
+                assert_eq!(
+                    unsafe { libc::fcntl(fd, libc::F_GETFL) },
+                    flags | libc::O_NONBLOCK
+                );
+                if close_reader {
+                    drop(reader.take());
+                    assert_eq!(
+                        output.write(b"x").unwrap_err().kind(),
+                        io::ErrorKind::BrokenPipe
+                    );
+                } else {
+                    assert_eq!(output.write(b"x").unwrap(), 1);
+                }
+                expected = (unsafe { libc::fcntl(fd, libc::F_GETFL) } & !libc::O_NONBLOCK)
+                    | (flags & libc::O_NONBLOCK);
+            }
+            assert_eq!(unsafe { libc::fcntl(fd, libc::F_GETFL) }, expected);
+        }
+        let file = fs::File::open(env::current_exe().unwrap()).unwrap();
+        let flags = unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETFL) };
+        let _output = CancellableStdout::new(file.as_raw_fd()).unwrap();
+        assert_eq!(
+            unsafe { libc::fcntl(file.as_raw_fd(), libc::F_GETFL) },
+            flags
+        );
     }
 
     #[test]

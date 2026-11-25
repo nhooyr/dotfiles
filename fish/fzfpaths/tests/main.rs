@@ -3,6 +3,7 @@ use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Write};
+use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::unix::net::UnixListener;
 use std::os::unix::{ffi::OsStringExt, fs::PermissionsExt, fs::symlink, process::CommandExt};
 use std::path::{Path, PathBuf};
@@ -750,6 +751,66 @@ fn closing_the_picker_cancels_stalled_git_and_its_subprocesses() {
         assert_stalled_git_stops(pending_output, None, false);
     }
     assert_stalled_git_stops(false, None, true);
+}
+
+#[test]
+fn terminating_signals_stop_a_full_output_pipe_and_restore_its_flags() {
+    for signal in [libc::SIGHUP, libc::SIGINT, libc::SIGTERM] {
+        let fixture = Fixture::new();
+        let mut fds = [0; 2];
+        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0);
+        for fd in fds {
+            assert_eq!(
+                unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) },
+                0
+            );
+        }
+        let reader = unsafe { fs::File::from_raw_fd(fds[0]) };
+        let mut writer = unsafe { fs::File::from_raw_fd(fds[1]) };
+        let fd = writer.as_raw_fd();
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        assert_eq!(
+            unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) },
+            0
+        );
+        while writer.write(&[0; 4096]).is_ok() {}
+        assert_eq!(unsafe { libc::fcntl(fd, libc::F_SETFL, flags) }, 0);
+        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+        let observer = writer.try_clone().unwrap();
+        let mut child = fixture
+            .command(&fixture.local, Path::new(""), "-f", &[])
+            .stdout(Stdio::from(writer))
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while unsafe { libc::fcntl(observer.as_raw_fd(), libc::F_GETFL) } & libc::O_NONBLOCK == 0
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(child.try_wait().unwrap().is_none());
+        assert_eq!(unsafe { libc::kill(child.id() as i32, signal) }, 0);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let stopped = loop {
+            if child.try_wait().unwrap().is_some() {
+                break true;
+            }
+            if Instant::now() >= deadline {
+                break false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        drop(reader); // Unblock the original implementation on failure.
+        let output = child.wait_with_output().unwrap();
+        assert!(stopped, "signal could not interrupt the full output pipe");
+        assert_eq!(output.status.code(), Some(128 + signal), "{output:?}");
+        assert_eq!(
+            unsafe { libc::fcntl(observer.as_raw_fd(), libc::F_GETFL) },
+            flags
+        );
+        assert!(output.stderr.is_empty(), "{output:?}");
+    }
 }
 
 #[test]
