@@ -11,7 +11,10 @@ my $helpers = join "\n", map {
     my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
     die "Missing Fish function $_\n" unless defined $function;
     $function;
-} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested realpathc __grep_smart_case grep reload);
+} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested);
+$helpers .= qq{
+set -p fish_function_path "\$TEST_FUNCTIONS"
+};
 for my $name (qw(fd fdg)) {
     my ($alias) = $config =~ /^(alias \Q$name\E=.+)$/m;
     die "Missing $name alias" unless defined $alias;
@@ -19,9 +22,6 @@ for my $name (qw(fd fdg)) {
 }
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 $helpers .= read_file("$root/fish/functions/sshv.fish");
-my $cd = read_file("$root/fish/cd.fish");
-my ($mcd) = $cd =~ /^(function mcd\b.*?^end\n)/msg;
-$helpers .= $mcd;
 
 sub setup {
     my ($self) = @_;
@@ -44,6 +44,8 @@ SH
         TEST_PBC        => "$root/bin/pbc",
         TEST_GREP       => which('grep'),
         TEST_CD         => "$root/fish/cd.fish",
+        TEST_GIT        => "$root/fish/git.fish",
+        TEST_FUNCTIONS  => "$root/fish/functions",
         TERM            => 'dumb',
     };
 }
@@ -372,15 +374,9 @@ function ggrep
 end
 printf '%s\n' -me -ME | grep -- -me
 grep -e me -- -FILE
-for arguments in 'word' 'Word' '-n word' '-E word' '-e word -e Word'
-    printf 'case:<%s>\n' $(__grep_smart_case $(string split ' ' -- "$arguments"))
-end
 FISH
-    is(
-        $result->{stdout},
-        "1:-me\n2:-ME\n1:ME\ncase:<-i>\ncase:<>\ncase:<>\ncase:<-i>\ncase:<>\n",
-        'literal leading dashes keep smart case while unknown flags and uppercase patterns opt out'
-    );
+    is( $result->{stdout}, "1:-me\n2:-ME\n1:ME\n",
+        'literal leading dashes and uppercase filenames keep smart case after the option separator' );
 }
 
 sub mcd_rejects_multiple_arguments_before_creating_anything {
@@ -398,6 +394,99 @@ FISH
         'invalid argument counts fail without changing directory' );
     ok( !-e "$self->{root}/-m 700 newdir" && !-e "$self->{root}/first second",
         'invalid arguments create no directories' );
+}
+
+sub occasional_helpers_load_lazily {
+    my ($self) = @_;
+    write_file( "$self->{root}/lines", "a\nlong\n" );
+    make_path( "$self->{root}/config/fish", "$self->{root}/repo", "$self->{root}/super" );
+    write_file( "$self->{root}/config/fish/config.fish", "set -g loaded yes\n" );
+    my $result = fish( $self, <<'FISH' );
+set -l autoload_path $fish_function_path
+set fish_function_path $(string match -v -- "$TEST_FUNCTIONS" $fish_function_path)
+function abbrali --argument-names name
+    abbr -a "$name" $argv[2..]
+    alias "$name" "$argv[2..]"
+end
+source "$TEST_GIT"; or exit 1
+source "$TEST_CD"; or exit 2
+for name in gbp gbins up mcd biglines dirt _dirt realpathc reload noti colors gcd scd papp multicd cdf
+    functions -q "$name"; and exit 3
+end
+functions -q dt tabt; or exit 4
+set fish_function_path $autoload_path
+function git
+    switch "$argv[1]"
+        case hash-object
+            echo empty-tree
+        case diff
+            printf '%s\t%s\t%s\n' - - binary.bin
+        case rev-parse
+            switch "$argv[2]"
+                case --show-toplevel
+                    echo "$TEST_ROOT/repo"
+                case --show-superproject-working-tree
+                    echo "$TEST_ROOT/super"
+            end
+        case apply
+            test "$argv[2]" = --check; or return 1
+            command cat > "$TEST_ROOT/applied"
+    end
+end
+gbp --invalid 2>/dev/null
+test "$status" -eq 2; or exit 5
+gbins; or exit 6
+up 0; or exit 7
+test "$(multicd ...)" = 'cd -- ../../'; or exit 23
+cd -- "$TEST_ROOT/lines"; or exit 24
+test "$PWD" = "$TEST_ROOT"; or exit 25
+mcd newdir; or exit 8
+test "$PWD" = "$TEST_ROOT/newdir"; or exit 9
+function set_color
+end
+function less
+    command cat
+end
+biglines "$TEST_ROOT/lines"; or exit 10
+set -lx HOME "$TEST_ROOT/home"
+mkdir -p "$HOME/code/team/dirty/.git"
+function cdc
+    echo 'main +'
+end
+function column
+    command cat
+end
+dt; or exit 11
+function history
+end
+reload; or exit 12
+test "$loaded" = yes; or exit 13
+function hpath
+    command cat
+end
+function pbc
+    command cat >/dev/null
+end
+realpathc "$TEST_ROOT/lines"; or exit 14
+noti false >/dev/null 2>&1
+test "$status" -eq 1; or exit 15
+colors >/dev/null; or exit 16
+gcd; or exit 17
+test "$PWD" = "$TEST_ROOT/repo"; or exit 18
+scd; or exit 19
+test "$PWD" = "$TEST_ROOT/super"; or exit 20
+function pbpaste
+    printf 'patch\n'
+end
+papp --check; or exit 21
+functions -q gbp gbins up mcd biglines dirt _dirt realpathc reload noti colors gcd scd papp multicd cdf; or exit 22
+FISH
+    is(
+        $result->{stdout},
+        "binary.bin\n4 long\n1 a\nteam/dirty\t+\n",
+        'startup leaves occasional helpers unloaded and their first calls retain their behavior'
+    );
+    is( read_file("$self->{root}/applied"), "patch\n", 'autoloaded papp passes clipboard input to Git' );
 }
 
 sub mcd_enters_one_literal_directory {
@@ -659,6 +748,7 @@ run_cases(
         cdf_completes_files_while_retaining_cd_wrapping => \&cdf_completes_files_while_retaining_cd_wrapping,
         mcd_rejects_multiple_arguments_before_creating_anything =>
           \&mcd_rejects_multiple_arguments_before_creating_anything,
+        occasional_helpers_load_lazily                      => \&occasional_helpers_load_lazily,
         mcd_enters_one_literal_directory                    => \&mcd_enters_one_literal_directory,
         reload_skips_history_merge_in_private_mode          => \&reload_skips_history_merge_in_private_mode,
         reload_merges_history_and_preserves_source_failures =>

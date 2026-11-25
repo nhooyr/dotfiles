@@ -1,4 +1,4 @@
-# Smart-case flag parsing and Git grep regressions.
+# Smart-case flag parsing and Git grep regression tests.
 use strict;
 use warnings;
 use utf8;
@@ -10,16 +10,7 @@ use Test::More;
 my $FISH    = which("fish");
 my $GIT     = which("git");
 my $ROOT    = join_path( ancestors( absolute_path(__FILE__) )->[1], "fish" );
-my $CONFIG  = read_file( join_path( $ROOT, "config.fish" ) );
-my $HELPERS = join(
-    "\n",
-    map {
-        my ($function) = $CONFIG =~ /^(function \Q$_\E\b.*?^end\n)/msg;
-        die "Missing Fish function $_\n" unless defined $function;
-        $function;
-    } qw(__grep_smart_case grep gg)
-);
-my $GIT_HELPER = "";
+my $HELPERS = 'set --prepend fish_function_path "$TEST_FISH_FUNCTIONS"' . "\n";
 
 sub setUp {
     my ($self) = @_;
@@ -38,6 +29,7 @@ sub setUp {
         my $updates = {
             "GIT_CONFIG_GLOBAL"   => "/dev/null",
             "GIT_CONFIG_NOSYSTEM" => "1",
+            "TEST_FISH_FUNCTIONS" => join_path( $ROOT,              "functions" ),
             "XDG_CONFIG_HOME"     => join_path( $self->{directory}, "config" ),
             "XDG_DATA_HOME"       => join_path( $self->{directory}, "data" ),
             "XDG_CACHE_HOME"      => join_path( $self->{directory}, "cache" )
@@ -65,34 +57,27 @@ error
 
 sub run_fish {
     my ( $self, $command, $args, $input, $backend ) = @_;
-    my ( $env, $script );
-    $script = (
-        (
-            (
-                (
-                    (
-                        $HELPERS . '
-'
-                    )
-                    . $GIT_HELPER
-                )
-                . '
-'
-            )
-            . $command
-        )
-        . " \$argv"
-    );
-    $env = { %{ $self->{env} } };
-    if ( ( defined($backend) ) ) {
+    my $env    = { %{ $self->{env} } };
+    my $script = $HELPERS . "\n";
+    if ( defined $backend ) {
         $env->{"GREP_BACKEND"} = $backend;
-        $script = (
-            $HELPERS . '
-set -l ignore_case $(__grep_smart_case $argv)
-command "$GREP_BACKEND" --color -nI $ignore_case $argv
-'
-        );
+        $script .= <<'FISH';
+function ggrep
+    command "$GREP_BACKEND" $argv
+end
+FISH
+        $command = 'grep';
     }
+    elsif ( $command eq 'case_flags' ) {
+        $script .= <<'FISH';
+function ggrep
+    contains -- -i $argv; and printf '%s\n' -i
+    return 0
+end
+FISH
+        $command = 'grep';
+    }
+    $script .= "$command \$argv";
     return run_command(
         [ $FISH, "--no-config", "-c", $script, "--", @{$args} ],
         {
@@ -111,6 +96,36 @@ sub fish {
     ( is_deeply( $result->{returncode}, 0, $result->{stderr} ) or die "assertion failed\n" );
     ( is_deeply( $result->{stderr}, "" ) or die "assertion failed\n" );
     return $result->{stdout};
+}
+
+sub test_autoload_wrappers_preserve_arguments {
+    my ($self) = @_;
+    for my $wrapper ( [ 'grep', 'ggrep', '--color', '-nI' ],
+        [ 'gg', 'git', 'grep', '-IE', '--recurse-submodules' ] )
+    {
+        my ( $name, $backend, @prefix ) = @$wrapper;
+        my $command = "function $backend; printf '%s\\0' \$argv; end\n$name";
+        for my $case (
+            [ [ 'error', 'CAPITAL_FILE' ], '-i' ],
+            [ [ '--',        '-me',   'CAPITAL_FILE' ], '-i' ],
+            [ [ '-e',        'error', 'CAPITAL_FILE' ], '-i' ],
+            [ [ '--regexp',  'error', '--regexp=UPPER', 'file' ] ],
+            [ [ '-ER',       'error', 'CAPITAL_FILE' ], '-i' ],
+            [ [ '-ne',       'error', 'file' ] ],
+            [ [ '--unknown', 'error', 'file' ] ],
+            [ [ 'érrör',     'CAPITAL_FILE' ], '-i' ],
+            [ [ 'Érror',     'file' ] ],
+            [ [] ],
+          )
+        {
+            my ( $args, @flags ) = @$case;
+            is(
+                fish( $self, $command, $args, undef ),
+                join( "\0", @prefix, @flags, @$args ) . "\0",
+                "$name adds only the expected case flag and preserves every argument"
+            );
+        }
+    }
 }
 
 sub test_unrecognized_options_leave_case_flags_explicit {
@@ -147,7 +162,7 @@ sub test_unrecognized_options_leave_case_flags_explicit {
             {
                 {
                     (
-                        is_deeply( fish( $self, "__grep_smart_case", $args, undef ), "" )
+                        is_deeply( fish( $self, "case_flags", $args, undef ), "" )
                           or die "assertion failed\n"
                     );
                 }
@@ -226,10 +241,7 @@ sub test_simple_searches_use_smart_case {
         $args     = ($item_79)->[0];
         $expected = ($item_79)->[1];
         {
-            (
-                is_deeply( fish( $self, "__grep_smart_case", $args, undef ), $expected )
-                  or die "assertion failed\n"
-            );
+            ( is_deeply( fish( $self, "case_flags", $args, undef ), $expected ) or die "assertion failed\n" );
         }
     }
 }
@@ -252,7 +264,7 @@ sub test_pattern_files_do_not_enable_implicit_ignore_case {
             (
                 is_deeply(
                     fish(
-                        $self, "__grep_smart_case", $args, 'ERROR
+                        $self, "case_flags", $args, 'ERROR
 '
                     ),
                     ""
@@ -550,6 +562,7 @@ error
 
 run_cases(
     {
+        "test_autoload_wrappers_preserve_arguments"           => \&test_autoload_wrappers_preserve_arguments,
         "test_unrecognized_options_leave_case_flags_explicit" =>
           \&test_unrecognized_options_leave_case_flags_explicit,
         "test_simple_searches_use_smart_case"                   => \&test_simple_searches_use_smart_case,

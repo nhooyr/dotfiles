@@ -56,10 +56,6 @@ abbrali rpc realpathc
 abbrali rpc. realpathc .
 abbrali realpc realpathc
 abbrali realpc. realpathc .
-function realpathc --argument-names path --description 'Print and copy an absolute pathname'
-    set -l resolved "$(realpath -- "$path")"; or return
-    printf '%s\n' "$resolved" | hpath | pbc
-end
 fish_hybrid_key_bindings
 set -g fish_color_error red --underline
 set -g fish_color_quote green
@@ -74,12 +70,6 @@ set -g fish_pager_color_selected_description black --italic
 set -g fish_color_autosuggestion 808080
 set -g fish_color_comment brblack --italic
 abbrali r reload
-function reload
-    source "$__fish_config_dir/config.fish"; or return
-    if not set -q fish_private_mode
-        history merge
-    end
-end
 
 set -gx LSCOLORS \
     # dir
@@ -146,27 +136,6 @@ abbr -a --command grep e -- -E
 abbr -a --command grep f -- -F
 abbr -a --command grep i -- -i
 abbr -a --command grep r -- -R
-function __grep_smart_case
-    # Only -E/-F/-G/-R and -e/--regexp are understood; unknown options opt out of smart-case.
-    argparse E F G R e/regexp=+ -- $argv 2>/dev/null; or return 0
-    set -l patterns $_flag_regexp
-    set -q patterns[1]; or set patterns $argv[1]
-    set -q patterns[1]; or return 0
-    string match -qr '\p{Uppercase}' -- $patterns; and return 0
-    printf '%s\n' -i
-end
-function grep --wraps 'grep --color -nI'
-    set -l ignore_case $(__grep_smart_case $argv); or return
-    if type -q ggrep
-        ggrep --color -nI $ignore_case $argv
-    else
-        command grep --color -nI -S $ignore_case $argv
-    end
-end
-function gg --wraps 'git grep -IE --recurse-submodules'
-    set -l ignore_case $(__grep_smart_case $argv); or return
-    git grep -IE --recurse-submodules $ignore_case $argv
-end
 abbrali ggf gg -F
 abbr -a --set-cursor grepw "grepe '^\s+%'"
 abbr -a --set-cursor ggw "gg '^[[:space:]]+%'"
@@ -219,13 +188,6 @@ abbr -a --command tmux q kill-server
 abbrali cx codex
 abbr -a --command codex a agents
 
-function colors
-    for name in black red green yellow blue magenta cyan white
-        printf '%s\t%s\n' "$(set_color "$name")$name" "$(set_color "br$name")br$name"
-    end
-    set_color reset
-end
-
 abbrali nlo nlogin
 abbrali npw npass
 abbrali nem nemail
@@ -234,12 +196,6 @@ abbrali chx chmod +x
 abbrali ymp3 yt-dlp --audio-format mp3 -x --embed-thumbnail
 abbrali num random 1 999
 
-function noti --wraps time
-    time $argv
-    set -l code "$status"
-    printf '\a'
-    return "$code"
-end
 abbrali n noti
 abbr -a --command noti e eval
 abbrali bell printf '\a'
@@ -362,11 +318,6 @@ abbrali goi 'go install'
 abbr -a --command go i install
 
 abbrali wb watchbell
-function biglines --argument-names file \
-    --description 'Print lines in a file with their lengths, sorted by length'
-    awk '{ print length, $0 }' "$file" | sort -rn \
-        | sed -E "s/^[0-9]+/$(set_color magenta)&$(set_color reset)/" | less
-end
 
 abbrali noisep 'cdc "$noise" gacmp'
 

@@ -86,23 +86,6 @@ abbrali gbm git branch -vvm
 abbrali gbu git branch -vvu
 abbrali gba git branch -vva
 abbrali gbr git branch -vvr
-function gbp
-    argparse --max-args 0 f/force -- $argv; or return
-    set -l delete_flag -d
-    set -q _flag_force; and set delete_flag -D
-    for branch in main master
-        if git show-ref --verify --quiet "refs/heads/$branch"
-            if test "$(git symbolic-ref --quiet HEAD)" != "refs/heads/$branch"
-                git switch "$branch"; or return
-            end
-            break
-        end
-    end
-    git fetch --prune --all
-    and git branch -vv |
-        awk '$3 ~ /^\[.*:$/ && $4 == "gone]" {printf "%s%c", $1, 0}' |
-        xargs -0 -r git branch "$delete_flag" --
-end
 abbrali gst git stash push -u
 abbrali gstk git stash push -u --keep-index
 abbrali gsta git stash apply
@@ -123,28 +106,12 @@ abbrali grssw git restore -SW
 abbrali gcln git clean -ndX
 abbrali gclx git clean -fdX
 
-function gcd
-    set -l git_root "$(git rev-parse --show-toplevel)"; or return 1
-    cd -- "$git_root"
-end
 abbrali .co 'gcd && ./commit'
 abbrali .fmt 'gcd && ./ci/fmt.sh'
 abbrali .lint 'gcd && ./ci/lint.sh'
 abbrali .test 'gcd && ./ci/test.sh'
 abbrali .run 'gcd && ./ci/run.sh'
-function scd
-    set -l super_root "$(git rev-parse --show-superproject-working-tree)"; or return 1
-    # Git prints nothing, and still succeeds, outside a submodule.
-    if test -z "$super_root"
-        printf '%s: not inside a submodule\n' "$(status function)" >&2
-        return 1
-    end
-    cd -- "$super_root"
-end
 abbrali app git apply
-function papp --wraps 'git apply' --description 'git apply from clipboard'
-    pbpaste | perl -pe 's/\n?\z/\n/' | git apply $argv
-end
 
 alias gh='NO_COLOR=1 command gh'
 abbrali ghgp ghg -p
@@ -156,30 +123,11 @@ abbrali ghl gh repo list --visibility public --source --no-archived --json url -
 
 abbrali tabt column -ts '\t'
 abbrali dt dirt
-alias dirt='_dirt | tabt'
-function _dirt --description 'List repos with dirt'
-    for gitdir in ~/code/*/.git ~/code/*/*/.git
-        set -l dir "$(path dirname -- "$gitdir")"
-        if contains -- "$dir" $dirt_ignore
-            continue
-        end
-        set -l prompt "$(cdc "$dir" fish_git_prompt '%s')"; or continue
-        set -l flags "$(string split --max 1 --fields 2 -- ' ' "$prompt")"
-        if test -n "$flags"
-            set -l name "$(string replace ~/code/ '' "$dir")"
-            printf '%s\t%s\n' "$name" "$flags"
-        end
-    end
-end
 
 abbrali imps "ga; and gcm -em 'imps'"
 
 abbrali glfs git lfs
 abbrali gfr git filter-repo --invert-paths --path
-function gbins --description 'Print staged or committed binary files'
-    set -l empty_tree "$(git hash-object -t tree /dev/null)"; or return
-    git diff --numstat --cached "$empty_tree" | awk -F '\t' '$1 == "-" {print $3}'
-end
 
 abbrali gsub git submodule
 abbrali gsubu git submodule update --init --recursive

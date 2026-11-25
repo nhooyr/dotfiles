@@ -26,66 +26,12 @@ function cdpath_add
 end
 cdpath_add . "$dotfiles" "$notes" "$nhooyr" ~/code ~
 
-function multicd
-    echo cd -- "$(string repeat -n "$(math "$(string length -- "$argv")" - 1)" ../)"
-end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
-function cdf --wraps cd --argument-names file
-    CDPATH=. cd -- "$(path dirname -- "$file")"
-end
 complete -c cdf -a '$(__fish_complete_path)'
-function up
-    if not set -q argv[1]
-        cd ..
-        return
-    end
-
-    string replace -rq -- "$argv" '' '' 2>/dev/null
-    if test "$status" -eq 2
-        printf '%s: invalid regex\n' "$(status function)" >&2
-        return 1
-    end
-
-    if string match -qr '^[0-9]{1,4}$' -- "$argv"
-        test "$argv" -eq 0; and return 0
-        set -l up "$(string repeat --count "$argv" ../)"; or return
-        cd -- "./$up"
-        return
-    end
-
-    set -l pattern "$argv"
-    if string match -q '*/*' -- "$pattern"
-        set pattern "(?:$pattern)\$"
-    end
-
-    set -l dir "$PWD"
-    while test "$dir" != /
-        set dir "$(path dirname -- "$dir")"
-        set -l target "$dir"
-        if not string match -q '*/*' -- "$pattern"
-            set target "$(path basename -- "$dir")"
-        end
-        if string replace -rq -- "$pattern" '' "$target"
-            cd -- "$dir"
-            return
-        end
-    end
-
-    printf '%s: no parent dir matches %s\n' "$(status function)" "$argv" >&2
-    return 1
-end
 abbrali pd prevd
 abbrali bd prevd
 abbrali nd nextd
 abbrali md mkdir -p
-function mcd --wraps 'mkdir -p'
-    if test "$(count $argv)" -ne 1
-        printf 'Usage: %s <directory>\n' "$(status function)" >&2
-        return 1
-    end
-    mkdir -p -- "$argv"; or return
-    cd -- "$argv"
-end
 abbrali mcdt 'cd -- "$(mktemp -d)"'
 
 # From embedded:functions/cd.fish @ line 5
