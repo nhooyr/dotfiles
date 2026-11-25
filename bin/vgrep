@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-exec rg --vimgrep -LS --no-heading --hidden -g '!.git' --no-require-git "$@"
+exec rg --vimgrep --field-match-separator '\t' -LS --no-heading --hidden -g '!.git' --no-require-git "$@"

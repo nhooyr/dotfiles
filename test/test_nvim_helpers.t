@@ -139,7 +139,7 @@ assert(package.loaded.grep == nil, 'startup does not load a grep module')
 local grepprg = 'vgrep'
 eq(vim.o.grepprg, grepprg, 'grep resolves vgrep through PATH')
 eq(vim.fn.exepath('vgrep'), vim.env.TEST_DOTFILES .. '/bin/vgrep', 'tests use the checkout vgrep wrapper')
-eq(vim.o.grepformat, '%f:%l:%c:%m', 'grep uses ripgrep line and column fields')
+eq(vim.o.grepformat, '%f\t%l\t%c\t%m', 'grep uses tab-separated ripgrep fields')
 eq(vim.fn.exists(':Vidir'), 0, 'Vidir is now an external command')
 eq(vim.fn.exists(':Shdo'), 0, 'the Shdo command is removed')
 for _, mode in ipairs({ 'n', 'i' }) do
@@ -182,7 +182,7 @@ eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow' }), registrations, 'reload does
 vim.cmd('cd ' .. vim.fn.fnameescape(vim.env.HOME))
 vim.cmd('doautocmd CmdlineEnter :')
 eq(vim.o.grepprg, grepprg, 'directory and command-line changes keep the same grep command')
-eq(vim.o.grepformat, '%f:%l:%c:%m', 'directory and command-line changes keep the same grep format')
+eq(vim.o.grepformat, '%f\t%l\t%c\t%m', 'directory and command-line changes keep the same grep format')
 LUA
 }
 
@@ -1281,6 +1281,7 @@ sub ripgrep_quickfix {
     make_path($directory);
     write_file( "$directory/visible.txt", "header\nprefix Needle value\nprefix needle value\n" );
     write_file( "$directory/.hidden.txt", "  needle hidden\n" );
+    write_file( "$directory/odd:3:4",     "prefix needle: value\n" );
     write_file( "$directory/ignored.txt", "needle ignored\n" );
     write_file( "$directory/.ignore",     "ignored.txt\n" );
     $self->{env}{TEST_SEARCH} = $directory;
@@ -1300,6 +1301,7 @@ table.sort(matches, function(a, b)
 end)
 eq(matches, {
     { '.hidden.txt', 1, 3, '  needle hidden' },
+    { 'odd:3:4', 1, 8, 'prefix needle: value' },
     { 'visible.txt', 2, 8, 'prefix Needle value' },
     { 'visible.txt', 3, 8, 'prefix needle value' },
 }, 'search outside Git includes hidden files, respects ignores, and preserves quickfix positions')
