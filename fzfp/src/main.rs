@@ -394,14 +394,10 @@ fn install_signal_handlers() -> io::Result<()> {
         // Cleanup runs outside the handler, which must not take locks.
         TERMINATING_SIGNAL.store(signal, Ordering::Relaxed);
     }
-    unsafe extern "C" {
-        fn signal(signal: c_int, handler: extern "C" fn(c_int)) -> usize;
-    }
-    const SIGHUP: c_int = 1;
-    const SIGINT: c_int = 2;
-    const SIGTERM: c_int = 15;
-    for signum in [SIGHUP, SIGINT, SIGTERM] {
-        if unsafe { signal(signum, record_signal) } == usize::MAX {
+    for signal in [libc::SIGHUP, libc::SIGINT, libc::SIGTERM] {
+        if unsafe { libc::signal(signal, record_signal as *const () as libc::sighandler_t) }
+            == libc::SIG_ERR
+        {
             return Err(io::Error::last_os_error());
         }
     }
@@ -822,17 +818,6 @@ struct PathStyle {
     executable: bool,
     binary_executable: bool,
     color: Option<Style>,
-}
-
-impl PathStyle {
-    fn plain(indicator: u8) -> Self {
-        Self {
-            indicator,
-            executable: indicator == b'*',
-            binary_executable: false,
-            color: None,
-        }
-    }
 }
 
 fn file_indicator(mode: u32) -> u8 {
@@ -1359,7 +1344,12 @@ impl Scanner {
                         if kind.is_symlink() && !path.is_dir() {
                             continue;
                         }
-                        PathStyle::plain(b'/')
+                        PathStyle {
+                            indicator: b'/',
+                            executable: false,
+                            binary_executable: false,
+                            color: None,
+                        }
                     };
                     let child = relative.join(name);
                     self.send(Candidate::Cdpath(child.clone(), style))?;
