@@ -138,6 +138,45 @@ FISH
     ok( !-e $self->{calls}, 'registration alone does not probe the script' );
 }
 
+sub first_completion_prefers_a_lazy_native_provider {
+    my ($self) = @_;
+    write_file( "$self->{temporary}/completions/build.sh.fish",
+        'printf x >>"$TEST_ROOT/lazy-loads"' . "\ncomplete -c build.sh -l lazy\n" );
+    my $result = fish( $self, <<'FISH' );
+set -p PATH "$PWD"
+set -p fish_complete_path "$TEST_LOCAL_COMPLETIONS"
+test -z "$(complete -c build.sh)"; or exit 10
+prime ./build.sh --
+test ! -e "$TEST_ROOT/lazy-loads"; or exit 11
+complete -C './build.sh --'
+FISH
+    is( $result->{returncode}, 0, $result->{stderr} );
+    like( $result->{stdout}, qr/^--lazy$/m, 'Fish loads native flags on the first completion' );
+    unlike( $result->{stdout}, qr/^--generated$/m,
+        'native flags suppress the generated fallback immediately' );
+    ok( !-e $self->{calls}, 'the generated helper is never called' );
+    is( read_file("$self->{temporary}/lazy-loads"), 'x', 'Fish loads the provider once' );
+}
+
+sub first_completion_prefers_an_embedded_provider {
+    my ($self) = @_;
+    write_file( "$self->{temporary}/work/fish", "#!/bin/sh\nexit 0\n" );
+    chmod 0755, "$self->{temporary}/work/fish" or die $!;
+    my $result = fish( $self, <<'FISH' );
+set -p PATH "$PWD"
+set -g fish_complete_path "$TEST_ROOT/no-completions"
+test -z "$(complete -c fish)"; or exit 10
+prime ./fish --
+test -z "$(complete -c fish)"; or exit 11
+complete -C './fish --'
+FISH
+    is( $result->{returncode}, 0, $result->{stderr} );
+    like( $result->{stdout}, qr/^--private\t/m, 'Fish loads its embedded flags on the first completion' );
+    unlike( $result->{stdout}, qr/^--generated$/m,
+        'embedded flags suppress the generated fallback immediately' );
+    ok( !-e $self->{calls}, 'the generated helper is never called for an embedded provider' );
+}
+
 sub empty_argument_includes_flags_and_files {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -237,14 +276,16 @@ FISH
 
 run_cases(
     {
-        completes_relative_absolute_and_quoted_paths => \&completes_relative_absolute_and_quoted_paths,
-        skips_existing_manual_completions            => \&skips_existing_manual_completions,
-        does_not_load_completion_files               => \&does_not_load_completion_files,
-        does_not_load_embedded_completion_files      => \&does_not_load_embedded_completion_files,
-        empty_argument_includes_flags_and_files      => \&empty_argument_includes_flags_and_files,
-        does_not_probe_commands_or_file_arguments    => \&does_not_probe_commands_or_file_arguments,
-        reload_clears_only_generated_completions     => \&reload_clears_only_generated_completions,
-        help_and_completions_are_lazy                => \&help_and_completions_are_lazy,
+        completes_relative_absolute_and_quoted_paths    => \&completes_relative_absolute_and_quoted_paths,
+        skips_existing_manual_completions               => \&skips_existing_manual_completions,
+        does_not_load_completion_files                  => \&does_not_load_completion_files,
+        does_not_load_embedded_completion_files         => \&does_not_load_embedded_completion_files,
+        first_completion_prefers_a_lazy_native_provider => \&first_completion_prefers_a_lazy_native_provider,
+        first_completion_prefers_an_embedded_provider   => \&first_completion_prefers_an_embedded_provider,
+        empty_argument_includes_flags_and_files         => \&empty_argument_includes_flags_and_files,
+        does_not_probe_commands_or_file_arguments       => \&does_not_probe_commands_or_file_arguments,
+        reload_clears_only_generated_completions        => \&reload_clears_only_generated_completions,
+        help_and_completions_are_lazy                   => \&help_and_completions_are_lazy,
     },
     \&setup
 );

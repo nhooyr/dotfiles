@@ -10,14 +10,16 @@ function compgen
     set -l path "$tokens[1]"
     string match -q '*/*' -- "$path"; or return
     test -f "$path"; and test -x "$path"; or return
-    set -l name "$(path basename -- "$path")"
     if not string match -q '/*' -- "$path"
         set path "$(path resolve -- "$path")"; or return
     end
     contains -- "$path" $compgen_paths; and return
-    test -n "$(complete --color never -c "$name" -c "$path")"; and return
+    set -l name "$(path basename -- "$tokens[1]")"
+    test -n "$(complete -c "$name" -c "$path")"; and return
     set -l arguments "$(string join ' ' -- $(string escape -- "$dotfiles/fish/compgen.pl" "$path"))"
+    # Fish autoloads native completions before evaluating this condition.
     complete -p "$path" -n 'test -z "$(commandline -ct)"; or string match -q -- "-*" "$(commandline -ct)"; and not contains -- -- $(commandline -xpc)' \
+        -n "not complete -c $(string escape -- "$name") | string length -q" \
         -a "\$(command perl $arguments)"
     set -ga compgen_paths "$path"
 end
