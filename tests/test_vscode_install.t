@@ -107,7 +107,7 @@ sub forced_install_skips_listing {
 
 sub installs_settings_before_the_theme {
     my ($self) = @_;
-    my $source = absolute_path($self->{directory}) . '/source';
+    my $source = absolute_path( $self->{directory} ) . '/source';
     make_path( "$source/vscode/theme", "$source/bin" );
     copy_preserve( "$root/vscode/install.sh",    "$source/vscode/install.sh" );
     copy_preserve( "$root/vscode/settings.json", "$source/vscode/settings.json" );
