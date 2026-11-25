@@ -1,7 +1,3 @@
-function aqsnow_prompt_pwd
-    prompt_pwd "$(dirali "$PWD" | string split0)"
-end
-
 function fish_prompt
     set -l last_status "$status"
     set -g __aqsnow_prompt_active 1
@@ -26,6 +22,9 @@ function fish_prompt
     printf '%s[%s%s]%s ' "$suffix_color" "$suffix" "$suffix_color" "$normal"
 end
 set -g fish_prompt_pwd_dir_length 0
+function aqsnow_prompt_pwd
+    prompt_pwd "$(dirali "$PWD" | string split0)"
+end
 set -g fish_color_user --reset
 if fish_is_root_user
     set -g fish_color_user brred --underline --bold
