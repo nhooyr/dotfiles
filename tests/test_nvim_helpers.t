@@ -33,6 +33,7 @@ sub setup {
     };
     write_file( "$tmp/init.vim", <<'VIM' );
 let $MYVIMRC = expand('<sfile>:p')
+let g:loaded_copilot = 1
 let g:test_config_sources = get(g:, 'test_config_sources', 0) + 1
 execute 'set runtimepath^=' . fnameescape($TEST_DOTFILES . '/nvim')
 lua << EOF

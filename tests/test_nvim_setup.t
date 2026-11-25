@@ -316,13 +316,13 @@ dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
 LUA
     my $result = run_command(
         [
-            $nvim,                                                                             '--headless',
-            '-u',                                                                              $init,
-            '-n',                                                                              '-i',
-            'NONE',                                                                            '-c',
-            "lua assert(vim.g['loaded_copilot.vim'] and not vim.g['loaded_nvim-treesitter'])", '-c',
-            "setfiletype go",                                                                  '-c',
-            "lua assert(vim.g['loaded_nvim-treesitter'])",                                     '-c',
+            $nvim,  '--headless',
+            '-u',   $init,
+            '-n',   '-i',
+            'NONE', '-c',
+            "lua assert(not vim.g['loaded_copilot.vim'] and not vim.g['loaded_nvim-treesitter'])", '-c',
+            "setfiletype go",                                                                      '-c',
+            "lua assert(vim.g['loaded_nvim-treesitter'])",                                         '-c',
             'qa'
         ],
         { cwd => $self->{temporary}, env => $self->{env} }

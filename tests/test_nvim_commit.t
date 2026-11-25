@@ -41,6 +41,7 @@ exec "$TEST_NVIM" --headless -n -i NONE -u "$TEST_INIT" "$@"
 SH
     chmod 0755, "$self->{temporary}/editor";
     write_file( $self->{env}{TEST_INIT}, <<'VIM' );
+let g:loaded_copilot = 1
 execute 'set runtimepath^=' . fnameescape($TEST_DOTFILES . '/nvim')
 lua vim.pack.add = function() end
 lua package.preload['nvim-treesitter'] = function() return { get_available = function() return {} end, setup = function() end } end
