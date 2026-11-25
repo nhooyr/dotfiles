@@ -615,6 +615,24 @@ test "$(dirali "$PWD/file" | string split0)" = '$project/file'; or exit 4
 }
 
 #[test]
+fn directory_alias_cache_follows_retargeted_symlinks() {
+    let script = r#"
+mkdir old-target new-target
+ln -s old-target alias
+set -g aliasdir "$PWD/alias"
+set -g aqsnow_fzf_diralis aliasdir
+test "$(dirali "$PWD/old-target/file" | string split0)" = '$aliasdir/file'; or exit 1
+rm alias
+ln -s new-target alias
+test "$(dirali "$PWD/old-target/file" | string split0)" = "$PWD/old-target/file"; or exit 2
+test "$(dirali "$PWD/new-target/file" | string split0)" = '$aliasdir/file'; or exit 3
+rm alias
+test "$(dirali "$PWD/new-target/file" | string split0)" = "$PWD/new-target/file"; or exit 4
+"#;
+    assert!(path_case(script, "").is_empty());
+}
+
+#[test]
 fn completion_preserves_quoted_arguments_and_caller_variables() {
     let script = r#"
 function commandline

@@ -11,7 +11,9 @@ function dirali --argument-names target
         set -l cache __aqsnow_fzf_dirali_$name
         set -l paths $$cache
         # Registration also clears the cache after an alias is retargeted.
-        if not set -q paths[1]; or test "$paths[1]" != "$source"
+        if not set -q paths[1]
+            or test "$paths[1]" != "$source"
+            or test -n "$paths[3]" -a ! "$source" -ef "$paths[3]"
             test -d "$$name"; or continue
             set -l directory $(path dirname -Z -- "$source/." | string split0)
             set -l resolved "$(path resolve -- "$directory")"; or continue
