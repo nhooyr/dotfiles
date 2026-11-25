@@ -40,8 +40,10 @@ sub lists_indexed_binary_files {
 sub outside_repository {
     my ($self) = @_;
     my $result = gbins($self);
-    isnt( $result->{returncode}, 0, 'Git failure is returned outside a repository' );
-    is( $result->{stdout}, '', 'failed Git invocation does not produce a binary-file list' );
+    is( $result->{returncode}, 128, 'Git failure is returned outside a repository' );
+    is( $result->{stdout},     '',  'failed Git invocation does not produce a binary-file list' );
+    like( $result->{stderr}, qr/not a git repository/, 'Git explains the missing repository' );
+    unlike( $result->{stderr}, qr/unknown option/, 'Git does not fall back to no-index option parsing' );
 }
 
 sub corrupt_index_failure_is_returned {

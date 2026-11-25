@@ -420,7 +420,7 @@ function git
     switch "$argv[1]"
         case hash-object
             echo empty-tree
-        case diff
+        case diff-index
             printf '%s\t%s\t%s\n' - - binary.bin
         case rev-parse
             switch "$argv[2]"
