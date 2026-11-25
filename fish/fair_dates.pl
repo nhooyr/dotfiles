@@ -61,7 +61,7 @@ for ( 1 .. $count - $bursts ) {
 
 my $extra = int( ( $span - ( $count - $bursts ) - $quiet * ( $bursts - 1 ) ) / ( 2 * $bursts ) );
 my @widths =
-  map { $_ - 1 + int( rand( min( $day - $_, $extra ) + 1 ) ) } @sizes;
+  map { $_ - 1 + int( rand( max( 0, min( $day - $_, $extra ) ) + 1 ) ) } @sizes;
 my $slack   = $span - sum(@widths) - $quiet * ( $bursts - 1 );
 my @offsets = ( 0, ( sort { $a <=> $b } map { int( rand( $slack + 1 ) ) } 1 .. $bursts - 2 ), $slack );
 my $cursor  = $start;

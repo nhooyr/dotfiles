@@ -581,12 +581,14 @@ sub test_large_count_fits_within_one_day {
 
 sub test_maximum_count {
     my ($self) = @_;
-    my $dates = dates( $self, '2024-01-01', '2024-01-03', 99999, {} );
-    is_deeply(
-        [ $dates->[0],                       $dates->[-1] ],
-        [ iso_epoch('2024-01-01T00:00:00Z'), iso_epoch('2024-01-03T00:00:00Z') ],
-        'the maximum count preserves both date boundaries'
-    );
+    for my $seed ( 42, 2037 ) {
+        my $dates = dates( $self, '2024-01-01', '2024-01-03', 99999, { seed => $seed } );
+        is_deeply(
+            [ $dates->[0],                       $dates->[-1] ],
+            [ iso_epoch('2024-01-01T00:00:00Z'), iso_epoch('2024-01-03T00:00:00Z') ],
+            'the maximum count preserves both date boundaries'
+        );
+    }
 
     my $result = run_command(
         [ $FISH, '--no-config', '-c', <<'FISH' ],
