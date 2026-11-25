@@ -272,9 +272,14 @@ quote() {
 directory="$(mktemp -d)"
 control="$directory/socket"
 master=
+setup_pid=
 proxy_pid=
 cleanup() {
 	trap '' HUP INT TERM
+	if [ -n "$setup_pid" ]; then
+		kill "$setup_pid" 2>/dev/null || :
+		wait "$setup_pid" 2>/dev/null || :
+	fi
 	if [ -n "$master" ]; then kill "$master" 2>/dev/null || :; fi
 	exec 3>&-
 	if [ -n "$proxy_pid" ]; then wait "$proxy_pid" || :; fi
@@ -298,13 +303,16 @@ fi
 [ "$ready" = ssh-authenticated ] || exit 1
 
 # One deadline covers forwarding setup and the remote readiness check.
-if ports="$(timeout 5 "$0" --setup "$control" "$direction" "$ports" "$@")"; then
-	:
-else
-	result=$?
+timeout 5 "$0" --setup "$control" "$direction" "$ports" "$@" >"$directory/ports" &
+setup_pid=$!
+result=0
+wait "$setup_pid" || result=$?
+setup_pid=
+if [ "$result" -ne 0 ]; then
 	[ "$result" -ne 124 ] || printf '%s: forwarding timed out after 5s\n' "$name" >&2
 	exit "$result"
 fi
+ports="$(cat "$directory/ports")"
 
 forward_command="$(
 	printf 'sshu -N%s %s' "${direction#-}" "$ports"
