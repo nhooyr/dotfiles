@@ -16,7 +16,6 @@ chmod 700 ~/.ssh
 chmod 600 ./ssh/config
 
 ./fzfp/install.sh
-dotln ./fzfp/ignore ~/.config/fzfp/ignore
 
 ./nvim/install.sh
 ./codex/install.sh
