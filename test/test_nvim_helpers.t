@@ -636,9 +636,12 @@ sub diff_original_missing_file {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
 local original = vim.api.nvim_get_current_buf()
+local window, buffers = vim.api.nvim_get_current_win(), vim.api.nvim_list_bufs()
 vim.fn.delete(vim.env.TEST_ORIGINAL)
 local ok, err = pcall(vim.cmd.DiffOrig)
 assert(not ok and err:find('E484', 1, true), 'DiffOrig reports an unreadable original file')
+eq(vim.api.nvim_get_current_win(), window, 'failed comparison restores the original window')
+eq(vim.api.nvim_list_bufs(), buffers, 'failed comparison leaves no scratch buffer')
 eq(vim.api.nvim_buf_get_lines(original, 0, -1, false), { 'original' }, 'the original buffer remains intact')
 eq(vim.fn.filereadable(vim.env.TEST_ORIGINAL), 0, 'the missing file is not recreated')
 LUA
