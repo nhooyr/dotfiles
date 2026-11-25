@@ -1,5 +1,13 @@
+# From `brew shellenv fish`, inlined to avoid starting Homebrew in fresh shells.
 if not set -q HOMEBREW_PREFIX
-    /opt/homebrew/bin/brew shellenv fish | source
+    set -gx HOMEBREW_PREFIX /opt/homebrew
+    set -gx HOMEBREW_CELLAR "$HOMEBREW_PREFIX/Cellar"
+    set -gx HOMEBREW_REPOSITORY "$HOMEBREW_PREFIX"
+    if test -n "$MANPATH"
+        set -gx MANPATH "$(string replace -r '^:*(.*?):*$' ':$1' -- "$MANPATH")"
+    end
+    set -q INFOPATH; or set -g INFOPATH ''
+    set -gx INFOPATH "$HOMEBREW_PREFIX/share/info" $INFOPATH
 end
 set -gx GOPATH ~/.local/share/gopath
 fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
@@ -9,7 +17,8 @@ fish_add_path --prepend --move --path ~/.local/bin/dotfiles \
     "$GOPATH/bin" \
     /opt/homebrew/share/google-cloud-sdk/bin \
     /opt/homebrew/opt/openjdk/bin \
-    /opt/homebrew/bin
+    /opt/homebrew/bin \
+    /opt/homebrew/sbin
 if not status is-interactive
     return 0
 end
@@ -18,7 +27,6 @@ set -gx dotfiles "$(path resolve -- "$(status filename)/../..")"
 set -g nhooyr ~/code/nhooyr
 set -g notes "$nhooyr/notes"
 
-tabs -4
 set -gx LESS -RXF -ix4 --use-color -DBK -DCK -DEks -DMcd -Dd- -DNK -DPks -DRKs -DSkY
 set -gx PAGER pager
 set -g fish_greeting
