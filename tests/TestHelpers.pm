@@ -28,7 +28,11 @@ sub copy_preserve {
 
 sub which {
     my ($name) = @_;
-    for my $directory ( split /:/, $ENV{PATH} ) {
+    my $search_path = $ENV{PATH};
+    return unless defined $search_path;
+    $search_path = '.' if $search_path eq '';
+    for my $directory ( split /:/, $search_path, -1 ) {
+        $directory = '.' if $directory eq '';
         my $path = "$directory/$name";
         return $path if -x $path && !-d $path;
     }

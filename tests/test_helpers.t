@@ -54,6 +54,22 @@ PERL
     is( $after, $before, 'a TERM-ignoring grandchild stops with its parent' );
 }
 
+sub which_respects_empty_path_entries {
+    my $temporary = tempdir( 'test-which-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+    write_file( "$temporary/local-tool", "#!/bin/sh\nexit 0\n" );
+    chmod 0755, "$temporary/local-tool";
+    for my $path ( '', ':/missing', '/missing:', '/missing::/also-missing' ) {
+        my $result = run_command(
+            [
+                perl_executable(), '-I', $FindBin::Bin, '-MTestHelpers',
+                '-e', 'print which("local-tool") // "missing"'
+            ],
+            { cwd => $temporary, env => { %ENV, PATH => $path }, check => 1 }
+        );
+        is( $result->{stdout}, './local-tool', "PATH '$path' includes the current directory" );
+    }
+}
+
 sub interrupts_stop_commands {
     my $temporary = tempdir( 'test-signals-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     write_file( "$temporary/child.pl", <<'PERL' );
@@ -125,5 +141,6 @@ run_cases(
         captures_setup_errors     => \&captures_setup_errors,
         timeout_stops_descendants => \&timeout_stops_descendants,
         interrupts_stop_commands  => \&interrupts_stop_commands,
+        empty_path_lookup         => \&which_respects_empty_path_entries,
     }
 );
