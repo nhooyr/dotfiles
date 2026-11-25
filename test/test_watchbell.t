@@ -59,10 +59,32 @@ FISH
     );
 }
 
+sub ignored_events_do_not_ring_or_break_deduplication {
+    my ($self) = @_;
+    my $result = run_command(
+        [ 'fish', '--no-config', '-c', <<'FISH', '--', $source ],
+source "$argv[1]"
+function fswatch
+    printf '%s\0' "$PWD/4913" '' "$PWD/file" "$PWD/file" "$PWD/4913" "$PWD/file" '' "$PWD/4913" ''
+end
+watchbell
+FISH
+    );
+    is( $result->{returncode}, 0,  'watching succeeds' );
+    is( $result->{stderr},     '', 'ignored events produce no diagnostics' );
+    like(
+        $result->{stdout},
+        qr/\A\+[^\n]+ file\n\a\z/,
+        'only the real change is displayed and rings once, even with interleaved editor probes'
+    );
+}
+
 run_cases(
     {
         watcher_errors_are_returned                     => \&watcher_errors_are_returned,
         success_and_interrupt_have_no_extra_diagnostics => \&success_and_interrupt_have_no_extra_diagnostics,
         leading_dash_filenames_are_literal              => \&leading_dash_filenames_are_literal,
+        ignored_events_do_not_ring_or_break_deduplication =>
+          \&ignored_events_do_not_ring_or_break_deduplication,
     }
 );
