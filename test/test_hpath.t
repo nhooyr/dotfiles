@@ -14,7 +14,13 @@ sub home_path_boundaries {
         [ 'Installed /Users/example/project',      'Installed ~/project' ],
         [ '"/Users/example/project"',              '"~/project"' ],
         [ "'/Users/example/project'",              "'~/project'" ],
+        [ '(/Users/example/project)',              '(~/project)' ],
+        [ '[/Users/example/project]',              '[~/project]' ],
+        [ '</Users/example/project>',              '<~/project>' ],
         [ 'path=/Users/example/project',           'path=~/project' ],
+        [ 'path:/Users/example/project',           'path:~/project' ],
+        [ 'paths,/Users/example/project',          'paths,~/project' ],
+        [ '/Users/example/a,/Users/example/b',     '~/a,~/b' ],
         [ '/Volumes/backup/Users/example/project', '/Volumes/backup/Users/example/project' ],
         [ '/Users/example-other/project',          '/Users/example-other/project' ],
       )

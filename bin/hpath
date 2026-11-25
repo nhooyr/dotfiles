@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-exec perl -pe 's/(^|[\s"\x27(=])\K\Q$ENV{HOME}\E(?=\/|$)/~/g'
+exec perl -pe 's/(^|[\s"\x27(=:,\[<])\K\Q$ENV{HOME}\E(?=\/|$)/~/g'
