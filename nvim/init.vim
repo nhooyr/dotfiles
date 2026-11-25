@@ -318,6 +318,7 @@ snoremap <expr> <M-h> v:lua.vim.snippet.active()
 inoremap <M-k> <Cmd>lua vim.snippet.stop()<CR>
 snoremap <M-k> <Cmd>lua vim.snippet.stop()<CR><Esc>i
 snoremap <C-u> <C-g>"_c<C-u>
+snoremap <C-k> <C-g>"_c<C-\><C-o>D
 
 function s:is_config_file(path) abort
 	let path = resolve(a:path)
