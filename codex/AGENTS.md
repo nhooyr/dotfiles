@@ -8,11 +8,13 @@
   short title and body, so I can review and edit each message.
 - Print each commit-script step heading in bold, such as `Step 2/2: 02-fish-prompt-aliases.patch`,
   and reset formatting immediately afterward.
+- Always use `git --no-pager` in commit scripts so review output never opens a pager.
 - Choose title prefixes using `nvim/lua/gitcommit.lua`: a single file's path, otherwise the deepest directory
   shared by all files, otherwise the deepest directory shared by more than half the files, otherwise the
   longest path chunk shared by at least two files (including extensions).
   Break length ties by the number of files sharing the chunk, then first occurrence. Use rename/copy
   destinations, and fall back to the first file's path if no shared chunk exists.
+- Capitalize the first word after the commit-title prefix.
 - Validate the commit sequence in a temporary checkout first. Preserve the worktree and unrelated changes,
   and stop the script on failure.
 - Scripts must be idempotent and automatically resumable: rerunning after success must be a no-op, and rerunning after interruption must safely continue from the current state without repeating completed work.
