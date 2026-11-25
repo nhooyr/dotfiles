@@ -14,9 +14,10 @@ sub setup {
     my $directory = absolute_path( $self->{temporary} ) . '/source tree/nvim';
     my $bin       = "$self->{temporary}/bin";
     make_path( "$directory/app", "$directory/lua", "$self->{temporary}/source tree/ci", $bin );
-    copy_preserve( "$root/nvim/install.sh",      "$directory/install.sh" );
-    copy_preserve( "$root/nvim/lua/plugins.lua", "$directory/lua/plugins.lua" );
-    copy_preserve( "$root/ci/test.sh",           "$self->{temporary}/source tree/ci/test.sh" );
+    copy_preserve( "$root/nvim/install.sh",         "$directory/install.sh" );
+    copy_preserve( "$root/nvim/lua/plugins.lua",    "$directory/lua/plugins.lua" );
+    copy_preserve( "$root/nvim/lua/treesitter.lua", "$directory/lua/treesitter.lua" );
+    copy_preserve( "$root/ci/test.sh",              "$self->{temporary}/source tree/ci/test.sh" );
     $self->{directory} = $directory;
     $self->{bin}       = $bin;
     $self->{env}       = {

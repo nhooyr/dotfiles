@@ -361,6 +361,7 @@ augroup aqsnow
 augroup END
 if v:vim_did_enter
 	silent doautocmd <nomodeline> aqsnow FileType
+	silent doautocmd <nomodeline> aqsnow_treesitter FileType
 	lua require('gitstatus').setup()
 else
 	autocmd aqsnow VimEnter * ++once lua require('gitstatus').setup()

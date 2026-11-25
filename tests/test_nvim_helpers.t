@@ -41,6 +41,14 @@ vim.pack.add = function(specs, options)
     _G.test_plugin_options = _G.test_plugin_options or {}
     table.insert(_G.test_plugin_options, options)
 end
+package.preload['nvim-treesitter'] = function()
+    return {
+        install = function(parsers)
+            assert(vim.deep_equal(parsers, { 'go' }))
+            return { wait = function(_, timeout) assert(timeout == 300000); return true end }
+        end,
+    }
+end
 EOF
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
@@ -511,6 +519,14 @@ for _, case in ipairs({ { 'markdown', 'tabstop', 3 }, { 'gitcommit', 'textwidth'
     vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
     eq(vim.bo[case[2]], case[3], 'reloading preserves ' .. case[1] .. ' options')
     eq(external_events, before, 'reloading does not replay third-party FileType handlers')
+end
+vim.treesitter.start = function() end
+vim.bo.filetype = 'go'
+for _ = 1, 2 do
+    vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+    eq(vim.wo.foldmethod, 'expr', 'reloading preserves Go syntax folds')
+    eq(vim.wo.foldexpr, 'v:lua.vim.treesitter.foldexpr()', 'Go keeps its fold expression')
+    eq(vim.bo.indentexpr, "v:lua.require'nvim-treesitter'.indentexpr()", 'Go keeps Tree-sitter indentation')
 end
 for _, filetype in ipairs({ 'help', 'man' }) do
     vim.wo.number = false
