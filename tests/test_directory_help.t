@@ -61,9 +61,32 @@ FISH
     is( $result->{stderr}, '', 'literal paths have no diagnostics' );
 }
 
+sub cdf_without_a_file_shows_usage {
+    my $temporary = tempdir( 'cdf-usage-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+    my $result    = run_command(
+        [ 'fish', '--no-config', '-c', <<'FISH', '--', "$root/fish/functions/cdf.fish" ],
+source "$argv[1]"
+function cd
+    printf 'unexpected cd\n'
+    return 99
+end
+set -l before "$PWD"
+cdf
+set -l code "$status"
+test "$PWD" = "$before"; or exit 98
+exit "$code"
+FISH
+        { cwd => $temporary }
+    );
+    is( $result->{returncode}, 1,                     'cdf without a file fails without changing directory' );
+    is( $result->{stderr},     "Usage: cdf <file>\n", 'cdf prints usage for the missing filename' );
+    is( $result->{stdout},     '',                    'cdf does not call cd when no file is given' );
+}
+
 run_cases(
     {
         help_reaches_the_wrapped_command   => \&help_reaches_the_wrapped_command,
         help_named_paths_are_still_literal => \&help_named_paths_are_still_literal,
+        cdf_without_a_file_shows_usage     => \&cdf_without_a_file_shows_usage,
     }
 );
