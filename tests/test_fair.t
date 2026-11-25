@@ -572,6 +572,48 @@ sub test_sort_rejects_merge_history {
         $head, 'merge rejection leaves HEAD unchanged' );
 }
 
+sub assert_crowded_sort_repaired {
+    my ( $self, $out_of_order ) = @_;
+    write_file( "$self->{repo}/preserved.txt", "keep this tree\n" );
+    git( $self, [ 'add', 'preserved.txt' ], undef );
+    git( $self, [ 'commit', '--quiet', '--amend', '--no-edit' ], undef );
+    seed_commits( $self, iso_epoch('2035-07-04T12:00:00Z'), $out_of_order ? 300 : 384 );
+    commit_at( $self, iso_epoch('2024-01-01T12:00:00Z'), 'Older commit' ) if $out_of_order;
+    my @before = split /\0\n?/, git( $self, [ 'log', '--reverse', '--format=%B%x00' ], undef )->{stdout};
+    my $tree   = trim( git( $self, [ 'rev-parse', 'HEAD^{tree}' ], undef )->{stdout} );
+    assert_success( $self, fair( $self, ['--sort'], undef, '' ) );
+    my @after = split /\0\n?/, git( $self, [ 'log', '--reverse', '--format=%B%x00' ], undef )->{stdout};
+    my @dates = split /\n/,    git( $self, [ 'log', '--reverse', '--format=%at' ],    undef )->{stdout};
+    is( scalar(@after), scalar(@before) + 1, 'sorting preserves every commit and appends one marker' );
+    assert_daily_limit( \@dates );
+    is( pop(@after), "count: 40\n", 'the redistributed history retains the highest counter' );
+    my $marker_date = pop @dates;
+
+    if ( !$out_of_order ) {
+        is( $marker_date, iso_epoch('2035-07-06T00:00:00Z'), 'the marker moves beyond the full latest day' );
+        my $counts = count_values( [ map { int( $_ / 86400 ) } @dates ] );
+        is_deeply(
+            [ map { $counts->{ int( iso_epoch("2035-07-0${_}T00:00:00Z") / 86400 ) } } 3 .. 5 ],
+            [ 128, 128, 128 ],
+            'the original and both neighboring days each contain 128 commits'
+        );
+    }
+    is_deeply( [ sort @after ], [ sort @before ], 'redistribution preserves every commit message' );
+    ok( !grep( { $dates[ $_ - 1 ] > $dates[$_] } 1 .. $#dates ), 'redistributed commits stay chronological' );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD^{tree}' ], undef )->{stdout} ),
+        $tree, 'redistribution preserves the final tree' );
+}
+
+sub test_sort_rebalances_crowded_ordered_history {
+    my ($self) = @_;
+    assert_crowded_sort_repaired( $self, 0 );
+}
+
+sub test_sort_rebalances_crowded_unordered_history {
+    my ($self) = @_;
+    assert_crowded_sort_repaired( $self, 1 );
+}
+
 sub generate {
     my ( $self, $start, $end, $count, $seed, $tz ) = @_;
     my ($env);
@@ -869,6 +911,8 @@ run_cases(
         'test_sort_initializes_counter_and_preserves_index' =>
           \&test_sort_initializes_counter_and_preserves_index,
         'test_sort_rejects_merge_history'              => \&test_sort_rejects_merge_history,
+        test_sort_rebalances_crowded_ordered_history   => \&test_sort_rebalances_crowded_ordered_history,
+        test_sort_rebalances_crowded_unordered_history => \&test_sort_rebalances_crowded_unordered_history,
         "test_busy_days_and_two_week_gaps"             => \&test_busy_days_and_two_week_gaps,
         "test_schedule_changes_with_random_seed"       => \&test_schedule_changes_with_random_seed,
         test_range_capacity_rejects_without_output     => \&test_range_capacity_rejects_without_output,
