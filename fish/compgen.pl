@@ -55,9 +55,13 @@ sub help_output {
     }
     close $writer;
     setpgrp( $pid, $pid );
+    my $interrupted;
     my $text     = '';
     my $finished = eval {
-        local @SIG{qw(ALRM HUP INT TERM)} = ( sub { die } ) x 4;
+        local $SIG{ALRM} = sub { die };
+        local $SIG{HUP}  = sub { $interrupted = 129; die };
+        local $SIG{INT}  = sub { $interrupted = 130; die };
+        local $SIG{TERM} = sub { $interrupted = 143; die };
         alarm 1;
         while ( sysread( $reader, my $chunk, 16384 ) ) {
             $text .= $chunk;
@@ -71,6 +75,7 @@ sub help_output {
     kill 'KILL', $pid;
     close $reader;
     waitpid( $pid, 0 );
+    exit $interrupted if $interrupted;
     return $finished ? $text : '';
 }
 

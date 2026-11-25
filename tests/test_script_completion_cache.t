@@ -123,6 +123,53 @@ sub ignores_files_outside_executable_script_scope {
     }
 }
 
+sub interruptions_allow_retry {
+    my ($self) = @_;
+    for my $case ( [ HUP => 129 ], [ INT => 130 ], [ TERM => 143 ] ) {
+        my ( $signal, $status ) = @$case;
+        my $path = "$self->{temporary}/$signal";
+        $self->{env}{HEARTBEAT} = "$path.heartbeat";
+        $self->{env}{FINISH}    = "$path.finish";
+        script( $path, <<'PERL' );
+use Time::HiRes qw(sleep);
+open my $count, '>>', $ENV{PROBE_COUNT} or die $!; print {$count} 'x'; close $count;
+if (!-e $ENV{FINISH}) {
+    my $child = fork(); die $! unless defined $child;
+    if (!$child) {
+        my $count = 0;
+        while (1) {
+            open my $heartbeat, '>', $ENV{HEARTBEAT} or die $!;
+            print {$heartbeat} ++$count; close $heartbeat; sleep .02;
+        }
+    }
+    sleep 100;
+}
+print "--ready\n";
+PERL
+        my $pid = fork();
+        die $! unless defined $pid;
+        if ( !$pid ) {
+            %ENV = %{ $self->{env} };
+            open STDOUT, '>', "$path.out" or die $!;
+            open STDERR, '>', "$path.err" or die $!;
+            exec perl_executable(), "$root/fish/compgen.pl", $path;
+            die $!;
+        }
+        my $deadline = time + 2;
+        sleep .005 until -s $self->{env}{HEARTBEAT} || time >= $deadline;
+        ok( -s $self->{env}{HEARTBEAT}, "$signal probe spawned a child" );
+        kill $signal, $pid;
+        waitpid( $pid, 0 );
+        is( $? >> 8, $status, "$signal keeps its conventional exit status" );
+        my $before = read_file( $self->{env}{HEARTBEAT} );
+        sleep .1;
+        is( read_file( $self->{env}{HEARTBEAT} ), $before, "$signal stops the child" );
+        write_file( $self->{env}{FINISH}, '' );
+        is( complete( $self, $path )->{stdout}, "--ready\n", "$signal does not cache an incomplete probe" );
+    }
+    is( read_file( $self->{env}{PROBE_COUNT} ), 'xxxxxx', 'each interrupted script is probed again' );
+}
+
 sub times_out_and_stops_descendants {
     my ($self) = @_;
     $self->{env}{HEARTBEAT} = "$self->{temporary}/heartbeat";
@@ -158,6 +205,7 @@ run_cases(
         separates_paths_with_the_same_basename        => \&separates_paths_with_the_same_basename,
         caches_negative_results                       => \&caches_negative_results,
         ignores_files_outside_executable_script_scope => \&ignores_files_outside_executable_script_scope,
+        interruptions_allow_retry                     => \&interruptions_allow_retry,
         times_out_and_stops_descendants               => \&times_out_and_stops_descendants,
     },
     \&setup
