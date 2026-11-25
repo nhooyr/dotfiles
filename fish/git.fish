@@ -66,6 +66,7 @@ abbrali grmcr git rm --cached -r
 abbrali grmcrf git rm --cached -rf
 abbrali gl git log
 abbrali glp git log -p
+abbrali glo git log --oneline
 abbrali glss git log --show-signature
 abbrali gls git ls-files
 abbrali gcl git clone
