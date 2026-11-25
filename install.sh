@@ -5,7 +5,6 @@ PATH="$PWD/bin:$PATH"
 
 dotln ./bin ~/.local/bin/dotfiles
 dotln ./less/lesskey ~/.config/lesskey
-dotln ./bat ~/.config/bat
 dotln ./tmux/tmux.conf ~/.tmux.conf
 
 ./ssh/install.sh

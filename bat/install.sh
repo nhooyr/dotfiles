@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 cd -- "$(dirname "$0")"
+PATH="$PWD/../bin:$PATH"
 
+dotln . ~/.config/bat
 bat cache --build >/dev/null
 printf 'dotfiles: bat: %s: Built theme cache.\n' "${0##*/}"
