@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use utf8;
 use Exporter 'import';
-use Cwd            qw(abs_path getcwd);
+use Cwd            qw(abs_path);
 use File::Basename qw(dirname basename);
 use File::Spec;
 use File::Path  qw(make_path remove_tree);
@@ -16,7 +16,7 @@ use Time::HiRes qw(time sleep);
 use Time::Local qw(timegm_modern timelocal_modern);
 use Test::More;
 our @EXPORT =
-  qw(which perl_executable run_command read_file write_file join_path absolute_path ancestors file_uri same_file directory_entries shell_quote trim replace_literal split_literal partition_last array_slice string_slice zip_lists enumerate_list unique_values equal_values contains_value count_values read_calls run_cases iso_epoch epoch_iso dirname basename make_path remove_tree copy_preserve tempdir encode_json decode_json min max);
+  qw(which perl_executable run_command read_file write_file join_path absolute_path ancestors file_uri same_file directory_entries shell_quote trim replace_literal split_literal partition_last array_slice string_slice zip_lists enumerate_list unique_values equal_values contains_value count_values read_calls run_cases iso_epoch dirname basename make_path remove_tree copy_preserve tempdir encode_json decode_json min max);
 
 sub perl_executable { return $^X =~ m{/} ? absolute_path($^X) : which($^X); }
 
@@ -310,10 +310,4 @@ sub iso_epoch {
     return $epoch;
 }
 
-sub epoch_iso {
-    my @time = gmtime $_[0];
-    return sprintf '%04d-%02d-%02dT%02d:%02d:%02dZ', $time[5] + 1900,
-      $time[4] + 1, $time[3], $time[2], $time[1],
-      $time[0];
-}
 1;
