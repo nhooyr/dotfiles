@@ -7,12 +7,8 @@ dotln ./bin ~/.local/bin/dotfiles
 dotln ./less/lesskey ~/.config/lesskey
 dotln ./bat ~/.config/bat
 dotln ./tmux/tmux.conf ~/.tmux.conf
-dotln ./ssh/config ~/.ssh/config
-dotln ./ssh/allowed_signers ~/.ssh/allowed_signers
-mkdir -p ~/.ssh/sockets
-chmod 700 ~/.ssh
-chmod 600 ./ssh/config
 
+./ssh/install.sh
 ./git/install.sh
 ./fzfp/install.sh
 ./fish/install.sh
