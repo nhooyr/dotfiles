@@ -1,4 +1,14 @@
-alias dirtb='_dirtb | tabt'
+function dirtb --description 'List repos with indexed binary files'
+    argparse --max-args 0 h/help -- $argv; or return
+    if set -q _flag_help
+        printf '%s\n' 'Usage: dirtb [-h|--help]
+List committed and staged binary files in repositories under $nhooyr.
+Skip repositories listed in $dirt_ignore.'
+        return
+    end
+    _dirtb | tabt
+end
+
 function _dirtb --description 'List repos with indexed binary files'
     for gitdir in "$nhooyr"/*/.git
         set -l dir "$(path dirname -- "$gitdir")"

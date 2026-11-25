@@ -15,6 +15,7 @@ sub setup {
     $self->{env} = {
         ( map { $_ => $ENV{$_} } grep { !/^GIT_/ } keys %ENV ),
         HOME                => $self->{home},
+        nhooyr              => "$self->{home}/code/team",
         GIT_CONFIG_GLOBAL   => '/dev/null',
         GIT_CONFIG_NOSYSTEM => 1,
         TEST_FUNCTIONS      => "$root/fish/functions",
@@ -55,7 +56,8 @@ FISH
 
 sub lists_indexed_binaries_and_restores_cwd {
     my ($self) = @_;
-    my $solo = repository( $self, 'solo', 'committed.bin', "committed\0binary" );
+    repository( $self, 'solo', 'outside.bin', "outside\0binary" );
+    my $solo = repository( $self, 'team/primary', 'committed.bin', "committed\0binary" );
     write_file( "$solo/staged.bin", "staged\0binary" );
     git( $self, $solo, 'add', '--', 'staged.bin' );
     write_file( "$solo/untracked.bin", "untracked\0binary" );
@@ -75,7 +77,7 @@ FISH
     is( $result->{stderr}, '', 'scanning has no diagnostics' );
     is(
         $result->{stdout},
-        "solo\tcommitted.bin\nsolo\tstaged.bin\nteam/repo with spaces\tbinary file\n",
+        "team/primary\tcommitted.bin\nteam/primary\tstaged.bin\nteam/repo with spaces\tbinary file\n",
         'lists committed and staged binaries in matching repos, excluding ignored, clean, and deeper repos'
     );
 }
@@ -90,10 +92,34 @@ FISH
     is( $result->{stderr}, '', 'an empty repository set is valid' );
 }
 
+sub help_does_not_scan_or_format {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+function tabt
+    echo 'unexpected formatting' >&2
+    return 1
+end
+function gbins
+    echo 'unexpected scan' >&2
+    return 1
+end
+for command in dirt dirtb
+    $command --help; or exit 1
+    $command -h; or exit 2
+    complete -C "$command --he"
+end
+FISH
+    is( $result->{stderr}, '', 'help does not scan repositories or invoke the formatter' );
+    like( $result->{stdout}, qr/^Usage: dirtb/m, 'dirtb documents its usage' );
+    like( $result->{stdout}, qr/^Usage: dirt /m, 'dirt documents its usage' );
+    is( scalar( () = $result->{stdout} =~ /^--help\t/gm ), 2, 'both commands complete the help option' );
+}
+
 run_cases(
     {
         lists_indexed_binaries_and_restores_cwd => \&lists_indexed_binaries_and_restores_cwd,
         empty_scan_and_completions              => \&empty_scan_and_completions,
+        help_does_not_scan_or_format            => \&help_does_not_scan_or_format,
     },
     \&setup
 );
