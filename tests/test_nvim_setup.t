@@ -41,6 +41,7 @@ $| = 1;
 open my $log, '>>', $ENV{TEST_CALLS} or die $!;
 print {$log} encode_json(['nvim', @ARGV]), "\n";
 system('fzf', '--version') == 0 or die "fzf is unavailable\n" if $ENV{GITHUB_ACTIONS};
+system('shfmt', '--version') == 0 or die "shfmt is unavailable\n" if $ENV{GITHUB_ACTIONS};
 print "plugin progress\n";
 if ($ENV{TEST_PLUGIN_FAIL}) {
     print STDERR "plugin failed\n";
@@ -154,7 +155,15 @@ sub ci_installs_neovim_before_plugin_setup {
     write_file( "$bundle/fzf", "#!/bin/sh\nexit 0\n" );
     chmod 0755, "$bundle/fzf";
     run_command( [ 'tar', '-czf', "$runner/fzf-download.tar.gz", '-C', $bundle, 'fzf' ], { check => 1 } );
-    write_file( "$self->{bin}/sudo", "#!/bin/sh\nexit 0\n" );
+    write_file( "$self->{bin}/sudo", '#!' . perl_executable() . "\n" . <<'PERL' );
+use FindBin;
+if ($ARGV[0] eq 'apt-get' && grep { $_ eq 'shfmt' } @ARGV) {
+    open my $tool, '>', "$FindBin::Bin/shfmt" or die $!;
+    print {$tool} "#!/bin/sh\nexit 0\n";
+    close $tool or die $!;
+    chmod 0755, "$FindBin::Bin/shfmt" or die $!;
+}
+PERL
     write_file( "$self->{bin}/curl", '#!' . perl_executable() . "\n" . <<'PERL' );
 use File::Copy qw(copy);
 my %archives = (
@@ -173,7 +182,8 @@ PERL
     my $result = run_command( ["$self->{temporary}/source tree/ci/test.sh"], { env => $self->{env} } );
     is( $result->{returncode}, 7,                 'CI reaches Neovim and preserves plugin setup failures' );
     is( $result->{stderr},     "plugin failed\n", 'the provisioned Neovim ran' );
-    ok( -x "$runner/fzf", 'the fzf archive was installed before plugin setup' );
+    ok( -x "$runner/fzf",        'the fzf archive was installed before plugin setup' );
+    ok( -x "$self->{bin}/shfmt", 'shfmt was installed before running regression tests' );
     is_deeply(
         calls($self),
         [ [ 'nvim', '--headless', '-u', 'NONE', '-n', '-i', 'NONE', '-l', './nvim/lua/plugins.lua' ] ],
