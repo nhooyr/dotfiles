@@ -1,6 +1,7 @@
 - Do not prefix Git branch names with `codex/` unless I explicitly request it.
 - Never automatically create a PR. You can create the branch and even the commits but never even push without
   my explicit approval.
+- In general, show me commands to run and write scripts I can run myself, so I remain in control.
 - Group related changes and their regression tests into separate logical commits.
 - Always write `regression test` in full when referring to a test.
 - Unless I explicitly ask you to commit, provide an executable `./commit` script at the repository root
