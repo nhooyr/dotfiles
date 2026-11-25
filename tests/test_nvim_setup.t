@@ -14,10 +14,9 @@ sub setup {
     my $directory = absolute_path( $self->{temporary} ) . '/source tree/nvim';
     my $bin       = "$self->{temporary}/bin";
     make_path( "$directory/app", "$directory/lua", "$self->{temporary}/source tree/ci", $bin );
-    copy_preserve( "$root/nvim/install.sh",         "$directory/install.sh" );
-    copy_preserve( "$root/nvim/lua/plugins.lua",    "$directory/lua/plugins.lua" );
-    copy_preserve( "$root/nvim/lua/treesitter.lua", "$directory/lua/treesitter.lua" );
-    copy_preserve( "$root/ci/test.sh",              "$self->{temporary}/source tree/ci/test.sh" );
+    copy_preserve( "$root/nvim/install.sh",      "$directory/install.sh" );
+    copy_preserve( "$root/nvim/lua/plugins.lua", "$directory/lua/plugins.lua" );
+    copy_preserve( "$root/ci/test.sh",           "$self->{temporary}/source tree/ci/test.sh" );
     $self->{directory} = $directory;
     $self->{bin}       = $bin;
     $self->{env}       = {
@@ -172,8 +171,7 @@ sub package_file_sets_its_own_lock_path {
     my ($self) = @_;
     die 'Neovim is required' unless $nvim;
     my $check = <<'LUA';
-lua package.loaded['nvim-treesitter'] = { setup = function() end }
-vim.pack.add = function(specs, opts)
+lua vim.pack.add = function(specs, opts)
     assert(vim.o.packlockfile == vim.env.TEST_DIRECTORY .. '/nvim-pack-lock.json')
     assert(opts.confirm == false)
     assert(#specs == 2)
@@ -202,7 +200,6 @@ sub bundled_undotree_is_registered_lazily {
     my $script = "$self->{temporary}/undotree.lua";
     write_file( $script, <<'LUA' );
 vim.pack.add = function() end
-package.loaded['nvim-treesitter'] = { setup = function() end }
 for _ = 1, 2 do
     dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
     assert(vim.fn.exists(':Undotree') == 2, 'the bundled command is registered')

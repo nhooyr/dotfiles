@@ -41,9 +41,6 @@ vim.pack.add = function(specs, options)
     _G.test_plugin_options = _G.test_plugin_options or {}
     table.insert(_G.test_plugin_options, options)
 end
-package.preload['nvim-treesitter'] = function()
-    return { get_available = function() return {} end, setup = function() end }
-end
 EOF
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
