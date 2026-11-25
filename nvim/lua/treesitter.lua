@@ -14,6 +14,8 @@ vim.api.nvim_create_autocmd('FileType', {
 		if not require('nvim-treesitter').install({ event.match }):wait(300000) then return end
 		if vim.api.nvim_get_current_buf() ~= event.buf
 			or vim.bo[event.buf].filetype ~= event.match then return end
+		-- A first install can create a runtime directory that was cached as absent.
+		vim.o.runtimepath = vim.o.runtimepath
 		parsers[event.match](event)
 	end,
 })

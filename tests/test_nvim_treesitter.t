@@ -126,6 +126,19 @@ eq(vim.wo.foldmethod, 'manual')
 LUA
 }
 
+sub first_install_refreshes_runtime_lookup {
+    run_script(<<'LUA');
+local parser = vim.fn.stdpath('data') .. '/site/parser/go.so'
+eq(vim.api.nvim_get_runtime_file('parser/go.so', false), {})
+on_wait = function()
+    vim.fn.mkdir(vim.fs.dirname(parser), 'p')
+    vim.fn.writefile({}, parser)
+end
+buffer('go')
+eq(vim.api.nvim_get_runtime_file('parser/go.so', false), { parser })
+LUA
+}
+
 run_cases(
     {
         install_whitelisted_filetype_on_open    => \&install_whitelisted_filetype_on_open,
@@ -133,5 +146,6 @@ run_cases(
         reload_keeps_one_handler                => \&reload_keeps_one_handler,
         changed_buffers_do_not_receive_features => \&changed_buffers_do_not_receive_features,
         failed_install_does_not_start_features  => \&failed_install_does_not_start_features,
+        first_install_refreshes_runtime_lookup  => \&first_install_refreshes_runtime_lookup,
     }
 );
