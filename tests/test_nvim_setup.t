@@ -14,17 +14,22 @@ sub setup {
     my $directory = absolute_path( $self->{temporary} ) . '/source tree/nvim';
     my $bin       = "$self->{temporary}/bin";
     make_path( "$directory/app", "$directory/lua", "$self->{temporary}/source tree/ci", $bin );
-    copy_preserve( "$root/nvim/install.sh",      "$directory/install.sh" );
-    copy_preserve( "$root/nvim/lua/plugins.lua", "$directory/lua/plugins.lua" );
-    copy_preserve( "$root/ci/test.sh",           "$self->{temporary}/source tree/ci/test.sh" );
+    copy_preserve( "$root/nvim/install.sh",         "$directory/install.sh" );
+    copy_preserve( "$root/nvim/lua/plugins.lua",    "$directory/lua/plugins.lua" );
+    copy_preserve( "$root/nvim/lua/treesitter.lua", "$directory/lua/treesitter.lua" );
+    copy_preserve( "$root/ci/test.sh",              "$self->{temporary}/source tree/ci/test.sh" );
     $self->{directory} = $directory;
     $self->{bin}       = $bin;
     $self->{env}       = {
         %ENV,
-        PATH           => "$bin:/usr/bin:/bin",
-        GITHUB_ACTIONS => '',
-        TEST_CALLS     => "$self->{temporary}/calls",
-        TEST_DIRECTORY => $directory,
+        PATH            => "$bin:/usr/bin:/bin",
+        GITHUB_ACTIONS  => '',
+        TEST_CALLS      => "$self->{temporary}/calls",
+        TEST_DIRECTORY  => $directory,
+        XDG_CONFIG_HOME => "$self->{temporary}/config",
+        XDG_DATA_HOME   => "$self->{temporary}/data",
+        XDG_STATE_HOME  => "$self->{temporary}/state",
+        XDG_CACHE_HOME  => "$self->{temporary}/cache",
     };
     write_file( "$bin/nvim", '#!' . perl_executable() . "\n" . <<'PERL' );
 use JSON::PP;
@@ -167,12 +172,15 @@ sub package_file_sets_its_own_lock_path {
     my ($self) = @_;
     die 'Neovim is required' unless $nvim;
     my $check = <<'LUA';
-lua vim.pack.add = function(specs, opts)
+lua package.loaded['nvim-treesitter'] = { setup = function() end }
+vim.pack.add = function(specs, opts)
     assert(vim.o.packlockfile == vim.env.TEST_DIRECTORY .. '/nvim-pack-lock.json')
     assert(opts.confirm == false)
-    assert(#specs == 1)
+    assert(#specs == 2)
     assert(specs[1].src == 'https://github.com/nhooyr/copilot.vim.git')
     assert(specs[1].version == 'refresh-partial-accept-preview')
+    assert(specs[2].src == 'https://github.com/nvim-treesitter/nvim-treesitter')
+    assert(specs[2].version == 'main')
 end
 LUA
     my $result = run_command(
@@ -194,6 +202,7 @@ sub bundled_undotree_is_registered_lazily {
     my $script = "$self->{temporary}/undotree.lua";
     write_file( $script, <<'LUA' );
 vim.pack.add = function() end
+package.loaded['nvim-treesitter'] = { setup = function() end }
 for _ = 1, 2 do
     dofile(vim.env.TEST_DIRECTORY .. '/lua/plugins.lua')
     assert(vim.fn.exists(':Undotree') == 2, 'the bundled command is registered')
