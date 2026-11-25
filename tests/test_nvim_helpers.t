@@ -545,16 +545,28 @@ for _, filetype in ipairs({ 'help', 'man', 'python' }) do
     end
 end
 vim.cmd.enew()
-vim.wo.number, vim.wo.list, vim.wo.foldmethod, vim.wo.foldlevel = false, false, 'manual', 2
+vim.wo.number, vim.wo.list, vim.wo.foldmethod, vim.wo.foldlevel = false, true, 'manual', 2
 vim.bo.tabstop, vim.bo.shiftwidth, vim.bo.textwidth, vim.bo.formatoptions = 7, 3, 65, 'tcq'
 vim.go.tabstop, vim.go.textwidth = 9, 71
 vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
 eq({ vim.wo.number, vim.wo.list, vim.wo.foldmethod, vim.wo.foldlevel,
     vim.bo.tabstop, vim.bo.shiftwidth, vim.bo.textwidth, vim.bo.formatoptions },
-    { false, false, 'manual', 2, 7, 3, 65, 'tcq' }, 'reloading preserves explicit local overrides')
+    { false, true, 'manual', 2, 7, 3, 65, 'tcq' }, 'reloading preserves explicit local overrides')
 eq({ vim.go.number, vim.go.list, vim.go.foldmethod, vim.go.foldlevel,
     vim.go.tabstop, vim.go.shiftwidth, vim.go.textwidth },
-    { true, true, 'indent', 999, 4, 0, 110 }, 'reloading still updates defaults for new buffers and windows')
+    { true, false, 'indent', 999, 4, 0, 110 }, 'reloading still updates defaults for new buffers and windows')
+LUA
+}
+
+sub list_toggle {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+eq(vim.wo.list, false, 'list starts disabled')
+feed('<Leader>.')
+eq(vim.wo.list, true, 'the mapping enables list in this window')
+eq(vim.go.list, false, 'the mapping keeps the default disabled')
+feed('<Leader>.')
+eq(vim.wo.list, false, 'the mapping disables list again')
 LUA
 }
 
@@ -1995,6 +2007,7 @@ run_cases(
         file_locations                          => \&file_locations,
         coalesced_config_reload                 => \&coalesced_config_reload,
         config_reload_preserves_options         => \&config_reload_preserves_options,
+        list_toggle                             => \&list_toggle,
         nested_module_reload                    => \&nested_module_reload,
         man_highlights_survive_reload           => \&man_highlights_survive_reload,
         config_reload_via_symlink               => \&config_reload_via_symlink,

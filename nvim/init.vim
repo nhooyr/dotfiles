@@ -23,7 +23,7 @@ if v:vim_did_enter
 	setglobal textwidth=110
 	setglobal foldmethod=indent
 	setglobal foldlevel=999
-	setglobal list
+	setglobal nolist
 	setglobal formatoptions-=t
 else
 	set number
@@ -32,7 +32,7 @@ else
 	set textwidth=110
 	set foldmethod=indent
 	set foldlevel=999
-	set list
+	set nolist
 	set formatoptions-=t
 	colorscheme default
 endif
@@ -107,6 +107,7 @@ endfunction
 call s:set_mode_highlight(v:true)
 
 set listchars+=extends:>,precedes:<
+nnoremap <Leader>. <Cmd>setlocal list!<CR>
 highlight! link NonText Comment
 highlight! link Folded Comment
 
