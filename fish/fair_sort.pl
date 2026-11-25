@@ -1,11 +1,14 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Cwd        qw(abs_path);
-use File::Copy qw(copy);
-use File::Temp qw(tempfile);
-use List::Util qw(max);
-use POSIX      qw(floor);
+use Cwd            qw(abs_path);
+use File::Basename qw(dirname);
+use lib dirname(__FILE__);
+use FairSchedule qw(schedule window_days);
+use File::Copy   qw(copy);
+use File::Temp   qw(tempfile);
+use List::Util   qw(max);
+use POSIX        qw(floor);
 
 if ( @ARGV && $ARGV[0] eq '--todo' ) {
     @ARGV == 3                 or die "Usage: fair_sort.pl --todo ORDER TODO\n";
@@ -69,22 +72,25 @@ for my $line ( split /\n/,
 }
 my %daily_counts = map { $_ => scalar @{ $days{$_} } } keys %days;
 my $moved        = 0;
-for my $calendar_day ( sort { $a <=> $b } keys %days ) {
-    my @commits = sort { $a->{date} <=> $b->{date} || $a->{order} <=> $b->{order} } @{ $days{$calendar_day} };
-    for my $commit ( @commits[ 128 .. $#commits ] ) {
-        my $destination;
-        for ( my $distance = 1 ; !defined($destination) ; ++$distance ) {
-            for my $candidate ( $calendar_day - $distance, $calendar_day + $distance ) {
-                next if ( $daily_counts{$candidate} // 0 ) >= 128;
-                next if $commit->{date} + ( $candidate - $calendar_day ) * $day < 0;
-                $destination = $candidate;
-                last;
-            }
-        }
-        --$daily_counts{$calendar_day};
-        ++$daily_counts{$destination};
-        $commit->{date} += ( $destination - $calendar_day ) * $day;
-        ++$moved;
+my @crowded      = sort { $a <=> $b } grep { $daily_counts{$_} >= 64 } keys %days;
+while (@crowded) {
+    my $last    = shift @crowded;
+    my @cluster = @{ $days{$last} };
+    $daily_counts{$last} = 0;
+    while ( @crowded && $crowded[0] == $last + 1 ) {
+        $last = shift @crowded;
+        push @cluster, @{ $days{$last} };
+        $daily_counts{$last} = 0;
+    }
+    @cluster = sort { $a->{date} <=> $b->{date} || $a->{order} <=> $b->{order} } @cluster;
+    my $end   = $cluster[-1]{date};
+    my $start = max( 0, $cluster[0]{date} - window_days( scalar @cluster ) * $day );
+    my @dates = schedule( $start, $end, scalar @cluster, \%daily_counts, 0, 1 );
+    for my $i ( 0 .. $#cluster ) {
+        $cluster[$i]{date} = $dates[$i];
+        $cluster[$i]{zone} = '+0000';
+        ++$daily_counts{ int( $dates[$i] / $day ) };
+        ++$moved if $dates[$i] != $cluster[$i]{original_date};
     }
 }
 my @sorted = sort { $a->{date} <=> $b->{date} || $a->{order} <=> $b->{order} } @commits;

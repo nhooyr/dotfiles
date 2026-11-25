@@ -28,20 +28,15 @@ function fair --description 'fair [n] [--date1 YYYY-MM-DD --date2 YYYY-MM-DD] | 
         end
         set dates $(perl "$dotfiles/fish/fair_dates.pl" "$_flag_date1" "$_flag_date2" "$n"); or return
     else
-        perl "$dotfiles/fish/fair_dates.pl" --check-day "$n" >/dev/null; or return
+        set dates $(perl "$dotfiles/fish/fair_dates.pl" --recent "$n"); or return
     end
     set -l msg "$(git show -s --format=%s)"
     set -l msgn "$(string match -rg '^count: ([0-9]+)$' -- "$msg")"; or set msgn 0
     for i in $(seq 1 "$n")
         set msgn "$(math "$msgn" + 1)"
-        set -l date_args
-        if set -q dates[$i]
-            set -fx GIT_AUTHOR_DATE "@$dates[$i] +0000"
-            set -fx GIT_COMMITTER_DATE "$GIT_AUTHOR_DATE"
-        else
-            set date_args --date "$(perl "$dotfiles/fish/fair_dates.pl" --check-day 1)"; or return
-        end
-        git commit --allow-empty --only -m "count: $msgn" $date_args; or return
+        set -fx GIT_AUTHOR_DATE "@$dates[$i] +0000"
+        set -fx GIT_COMMITTER_DATE "$GIT_AUTHOR_DATE"
+        git commit --allow-empty --only -m "count: $msgn"; or return
     end
     git push
 end

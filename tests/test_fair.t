@@ -130,78 +130,28 @@ sub assert_success {
 
 sub test_dated_commits_stay_ordered_in_range_and_set_both_dates {
     my ($self) = @_;
-    my ( $ignored, $author, $commit, $commits, $committer, $dates, $end, $left, $n, $right, $start );
     assert_success( $self,
-        fair( $self, [ "6", "--date1", "2024-01-01", "--date2", "2024-01-06" ], undef, "" ) );
-    $commits = commits($self);
-    (
-        is_deeply(
-            [ map { my $commit = $_; $commit->[0] } @{$commits} ],
-            [ map { my $n      = $_; ( "count: " . $n ) } @{ [ 41 .. ( 47 - 1 ) ] } ]
-          )
-          or die "assertion failed\n"
-    );
-    $start = int( iso_epoch("2024-01-01T00:00:00+00:00") );
-    $end   = int( iso_epoch("2024-01-06T00:00:00+00:00") );
-    $dates = [
-        map {
-            my $unused_1 = ($_)->[0];
-            my $author   = ($_)->[1];
-            my $unused_2 = ($_)->[2];
-            $author
-        } @{$commits}
-    ];
-    ( is_deeply( $dates->[0],      $start ) or die "assertion failed\n" );
-    ( is_deeply( $dates->[ -(1) ], $end )   or die "assertion failed\n" );
-    (
-        ok(
-            (
-                0 + !(
-                    grep { !$_ } @{
-                        [
-                            map {
-                                my $left  = ($_)->[0];
-                                my $right = ($_)->[1];
-                                ( ( $left < $right ) )
-                            } @{ zip_lists( $dates, array_slice( $dates, 1, undef ) ) }
-                        ]
-                    }
-                )
-            )
-          )
-          or die "assertion failed\n"
-    );
-
-    for my $item_95 ( @{$commits} ) {
-        $ignored   = ($item_95)->[0];
-        $author    = ($item_95)->[1];
-        $committer = ($item_95)->[2];
-        ( is_deeply( $author, $committer ) or die "assertion failed\n" );
-        ( cmp_ok( $start,  "<=", $author ) or die "assertion failed\n" );
-        ( cmp_ok( $author, "<=", $end )    or die "assertion failed\n" );
+        fair( $self, [ '6', '--date1', '2024-01-01', '--date2', '2024-01-06' ], undef, '' ) );
+    my $commits = commits($self);
+    is_deeply( [ map { $_->[0] } @$commits ], [ map { "count: $_" } 41 .. 46 ], 'the counter continues' );
+    my $previous = 0;
+    for my $commit (@$commits) {
+        cmp_ok( $commit->[1], '>',  $previous, 'commit dates are strictly increasing' );
+        cmp_ok( $commit->[1], '>=', iso_epoch('2024-01-01T00:00:00Z'), 'date is within the lower bound' );
+        cmp_ok( $commit->[1], '<=', iso_epoch('2024-01-06T00:00:00Z'), 'date is within the upper bound' );
+        is( $commit->[1], $commit->[2], 'both dates match' );
+        $previous = $commit->[1];
     }
 }
 
 sub test_date_flags_before_count {
     my ($self) = @_;
-    my ( $ignored, $author, $end, $start, $value );
-    $start = "2024-01-02";
-    $end   = "2024-01-03";
-    assert_success( $self, fair( $self, [ "--date1", $start, "--date2", $end, "2" ], undef, "" ) );
-    (
-        is_deeply(
-            [
-                map {
-                    my $unused_3 = ($_)->[0];
-                    my $author   = ($_)->[1];
-                    my $unused_4 = ($_)->[2];
-                    $author
-                } @{ commits($self) }
-            ],
-            [ map { my $value = $_; int( iso_epoch("${value}T00:00:00Z") ) } @{ [ $start, $end ] } ]
-          )
-          or die "assertion failed\n"
-    );
+    assert_success( $self,
+        fair( $self, [ '--date1', '2024-01-02', '--date2', '2024-01-03', '2' ], undef, '' ) );
+    my $commits = commits($self);
+    is( scalar @$commits, 2, 'flags before the count are parsed' );
+    cmp_ok( $commits->[0][1],  '>=', iso_epoch('2024-01-02T00:00:00Z'), 'lower bound is respected' );
+    cmp_ok( $commits->[-1][1], '<=', iso_epoch('2024-01-03T00:00:00Z'), 'upper bound is respected' );
 }
 
 sub test_only_exact_counter_subjects_are_continued {
@@ -216,49 +166,47 @@ sub test_only_exact_counter_subjects_are_continued {
 
 sub test_date_only_values_use_local_timezone_and_forward_arguments {
     my ($self) = @_;
-    my ( $ignored, $author, $value );
-    $self->{env}->{"TZ"} = "America/Vancouver";
+    $self->{env}{TZ} = 'America/Vancouver';
     assert_success( $self,
-        fair( $self, [ "--date1=2024-01-01", "2", "--date2=2024-01-02" ], $self->{root}, "" ) );
-    (
-        is_deeply(
-            [
-                map {
-                    my $unused_5 = ($_)->[0];
-                    my $author   = ($_)->[1];
-                    my $unused_6 = ($_)->[2];
-                    $author
-                } @{ commits($self) }
-            ],
-            [
-                map { my $value = $_; int( iso_epoch($value) ) }
-                  @{ [ "2024-01-01T00:00:00-08:00", "2024-01-02T00:00:00-08:00" ] }
-            ]
-          )
-          or die "assertion failed\n"
+        fair( $self, [ '--date1=2024-01-01', '2', '--date2=2024-01-02' ], $self->{root}, '' ) );
+    my $commits = commits($self);
+    cmp_ok( $commits->[0][1], '>=', iso_epoch('2024-01-01T00:00:00-08:00'),
+        'local lower bound is respected' );
+    cmp_ok(
+        $commits->[-1][1],
+        '<=',
+        iso_epoch('2024-01-02T00:00:00-08:00'),
+        'local upper bound is respected'
     );
 }
 
-sub test_single_commit_defaults_to_midpoint {
+sub test_single_dated_commit_stays_in_range {
     my ($self) = @_;
-    my ($midpoint);
-    assert_success( $self, fair( $self, [ "--date1", "2024-01-01", "--date2", "2024-01-02" ], undef, "" ) );
-    $midpoint = int( iso_epoch("2024-01-01T12:00:00+00:00") );
-    ( is_deeply( commits($self), [ [ "count: 41", $midpoint, $midpoint ] ] ) or die "assertion failed\n" );
+    assert_success( $self, fair( $self, [ '--date1', '2024-01-01', '--date2', '2024-01-02' ], undef, '' ) );
+    my $commit = commits($self)->[0];
+    cmp_ok( $commit->[1], '>=', iso_epoch('2024-01-01T00:00:00Z'), 'one commit respects the lower bound' );
+    cmp_ok( $commit->[1], '<=', iso_epoch('2024-01-02T00:00:00Z'), 'one commit respects the upper bound' );
+    is( $commit->[1], $commit->[2], 'both dates match' );
 }
 
 sub test_local_midnight_bounds_follow_daylight_saving_time {
     my ($self) = @_;
     $self->{env}{TZ} = 'America/Vancouver';
     assert_success( $self,
-        fair( $self, [ "2", "--date1", "2024-03-10", "--date2", "2024-03-11" ], undef, "" ) );
-    my @dates = map { $_->[1] } @{ commits($self) };
-    is_deeply(
-        \@dates,
-        [ iso_epoch('2024-03-10T00:00:00-08:00'), iso_epoch('2024-03-11T00:00:00-07:00') ],
-        'each date means midnight in the local timezone'
+        fair( $self, [ '2', '--date1', '2024-03-10', '--date2', '2024-03-11' ], undef, '' ) );
+    my $commits = commits($self);
+    cmp_ok(
+        $commits->[0][1],
+        '>=',
+        iso_epoch('2024-03-10T00:00:00-08:00'),
+        'spring lower bound uses standard time'
     );
-    is( $dates[1] - $dates[0], 23 * 3600, 'the spring transition spans 23 hours' );
+    cmp_ok(
+        $commits->[-1][1],
+        '<=',
+        iso_epoch('2024-03-11T00:00:00-07:00'),
+        'spring upper bound uses daylight time'
+    );
 }
 
 sub test_missing_invalid_or_reversed_dates_do_not_make_commits {
@@ -313,41 +261,28 @@ fair
     );
     assert_success( $self, $result );
     $commits = commits($self);
-    ( is_deeply( scalar( @{$commits} ), 3 )                                    or die "assertion failed\n" );
-    ( is_deeply( $commits->[ -(1) ], [ "count: 43", 1700000000, 1700000010 ] ) or die "assertion failed\n" );
+    ( is_deeply( scalar( @{$commits} ), 3 ) or die "assertion failed\n" );
+    is( $commits->[-1][0], 'count: 43', 'the next call continues the counter' );
+    cmp_ok( $commits->[-1][1], '>', 1700000000, 'the next call uses the recent schedule' );
 }
 
 sub test_without_dates_keeps_default_and_explicit_counts {
     my ($self) = @_;
-    my ( $ignored, $after, $author, $before, $commits, $committer, $subject );
-    $before = int( time() );
-    assert_success( $self, fair( $self, [],    undef, "" ) );
-    assert_success( $self, fair( $self, ["2"], undef, "" ) );
-    $after   = int( time() );
-    $commits = commits($self);
-    (
-        is_deeply(
-            [
-                map {
-                    my $subject   = ($_)->[0];
-                    my $unused_9  = ($_)->[1];
-                    my $unused_10 = ($_)->[2];
-                    $subject
-                } @{$commits}
-            ],
-            [ "count: 41", "count: 42", "count: 43" ]
-          )
-          or die "assertion failed\n"
+    my $before = time;
+    assert_success( $self, fair( $self, [],    undef, '' ) );
+    assert_success( $self, fair( $self, ['2'], undef, '' ) );
+    my $commits = commits($self);
+    is_deeply(
+        [ map { $_->[0] } @$commits ],
+        [ 'count: 41', 'count: 42', 'count: 43' ],
+        'default and explicit counts continue the counter'
     );
-
-    for my $item_174 ( @{$commits} ) {
-        $ignored   = ($item_174)->[0];
-        $author    = ($item_174)->[1];
-        $committer = ($item_174)->[2];
-        ( cmp_ok( $before, "<=", $author ) or die "assertion failed\n" );
-        ( cmp_ok( $author, "<=", $after )  or die "assertion failed\n" );
-        ( is_deeply( $author, $committer ) or die "assertion failed\n" );
+    for my $commit (@$commits) {
+        cmp_ok( $commit->[1], '>=', $before - 14 * 86400, 'default dates remain in the recent past' );
+        cmp_ok( $commit->[1], '<=', time,                 'default dates are not in the future' );
+        is( $commit->[1], $commit->[2], 'author and committer dates match' );
     }
+    cmp_ok( $commits->[-1][1], '<=', time, 'the final commit stays in the past' );
 }
 
 sub test_sort_rejects_count_and_date_flags {
@@ -411,64 +346,41 @@ sub assert_daily_limit {
 sub test_ordinary_calls_enforce_remaining_daily_capacity {
     my ($self) = @_;
     seed_commits( $self, time, 126 );
-    my $head   = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
-    my $result = fair( $self, ['2'], undef, '' );
-    isnt( $result->{returncode}, 0, 'an ordinary batch cannot cross the daily limit' );
-    like( $result->{stderr}, qr/128 commits per day/, 'the rejection explains the hard limit' );
-    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
-        $head, 'an oversized batch creates no partial commits' );
-    assert_success( $self, fair( $self, [], undef, '' ) );
-    $head   = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
-    $result = fair( $self, [], undef, '' );
-    isnt( $result->{returncode}, 0, 'a repeated default call cannot add the 129th commit' );
-    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
-        $head, 'the full day remains unchanged' );
+    assert_success( $self, fair( $self, ['2'], undef, '' ) );
+    assert_success( $self, fair( $self, [],    undef, '' ) );
+    my @dates = split /\n/, git( $self, [ 'log', '--format=%at' ], undef )->{stdout};
+    assert_daily_limit( \@dates );
+    my $today = int( time / 86400 );
+    cmp_ok( scalar( grep { int( $_ / 86400 ) < $today } @dates ),
+        '>=', 2, 'a crowded current day sends new activity into the recent past' );
 }
 
-sub test_inherited_author_date_uses_its_recorded_day {
+sub test_default_schedule_preserves_inherited_dates {
     my ($self) = @_;
     my $timestamp = iso_epoch('2024-01-02T01:00:00+14:00');
     seed_commits( $self, $timestamp, 128, '+1400' );
     $self->{env}{GIT_AUTHOR_DATE} = "\@$timestamp +1400";
-    my $head   = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
-    my $result = fair( $self, [], undef, '' );
-    isnt( $result->{returncode}, 0, 'an inherited author date cannot exceed its calendar day limit' );
-    like( $result->{stderr}, qr/128 commits per day/, 'the rejection explains the hard limit' );
-    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
-        $head, 'the inherited-date rejection creates no commit' );
+    my $before = time;
+    assert_success( $self,
+        fair( $self, [], undef, 'test "$GIT_AUTHOR_DATE" = \'@1704106800 +1400\'; or exit 91' ) );
+    cmp_ok( commits($self)->[-1][1],
+        '>=', $before, 'the default schedule ends now rather than using an inherited date' );
 }
 
-sub test_ordinary_call_keeps_the_day_checked_before_midnight {
-    my ($self)  = @_;
-    my $checked = iso_epoch('2024-01-01T23:59:59Z');
-    my $full    = iso_epoch('2024-01-02T00:00:00Z');
-    seed_commits( $self, $full, 128 );
-    my $bin = "$self->{root}/bin";
-    make_path($bin);
-    write_file( "$bin/git", <<'PERL' );
-#!/usr/bin/env perl
-use strict;
-use warnings;
-if (@ARGV == 2 && $ARGV[0] eq 'var' && $ARGV[1] eq 'GIT_AUTHOR_IDENT') {
-    print "Regression Test <test\@example.invalid> $ENV{TEST_FAIR_CHECKED} +0000\n";
-    exit;
-}
-$ENV{GIT_AUTHOR_DATE} = "\@$ENV{TEST_FAIR_FULL} +0000" if $ARGV[0] eq 'commit';
-exec {$ENV{TEST_REAL_GIT}} $ENV{TEST_REAL_GIT}, @ARGV;
-die "Cannot run git: $!\n";
-PERL
-    chmod 0755, "$bin/git" or die "Cannot make git wrapper executable: $!\n";
-    $self->{env}{PATH}              = "$bin:$self->{env}{PATH}";
-    $self->{env}{TEST_REAL_GIT}     = $GIT;
-    $self->{env}{TEST_FAIR_CHECKED} = $checked;
-    $self->{env}{TEST_FAIR_FULL}    = $full;
-    assert_success( $self, fair( $self, [], undef, '' ) );
-    is( trim( git( $self, [ 'show', '-s', '--format=%at' ], undef )->{stdout} ),
-        $checked, 'the commit uses the author date checked before midnight' );
-    my $counts = count_values(
-        [ map { substr( $_, 0, 10 ) } split /\n/, git( $self, [ 'log', '--format=%aI' ], undef )->{stdout} ]
-    );
-    is( $counts->{'2024-01-02'}, 128, 'crossing midnight does not add a 129th commit to the full day' );
+sub test_default_schedule_has_varied_activity {
+    my ($self) = @_;
+    my $before = time;
+    my $result = run_command( [ $PERL, $DATES, '--recent', '1000' ],
+        { cwd => $self->{repo}, env => $self->{env}, check => 1, timeout => 10 } );
+    my @dates = split /\n/, $result->{stdout};
+    is( scalar @dates, 1000, 'the recent schedule contains the requested count' );
+    cmp_ok( $dates[-1], '<=', time, 'the schedule stays within its captured current time' );
+    cmp_ok( $dates[-1], '<=', time, 'the schedule does not enter the future' );
+    my $counts = count_values( [ map { int( $_ / 86400 ) } @dates ] );
+    cmp_ok( max( values %$counts ),  '<', 64,  'default activity does not manufacture crowded days' );
+    cmp_ok( scalar( keys %$counts ), '<', 100, 'the recent schedule leaves quiet days' );
+    cmp_ok( scalar( keys %{ count_values( [ values %$counts ] ) } ), '>', 3,
+        'active days have varied loads' );
 }
 
 sub test_repeated_dated_batches_enforce_remaining_capacity {
@@ -591,15 +503,10 @@ sub assert_crowded_sort_repaired {
     is( pop(@after), "count: 40\n", 'the redistributed history retains the highest counter' );
     my $marker_date = pop @dates;
 
-    if ( !$out_of_order ) {
-        is( $marker_date, iso_epoch('2035-07-06T00:00:00Z'), 'the marker moves beyond the full latest day' );
-        my $counts = count_values( [ map { int( $_ / 86400 ) } @dates ] );
-        is_deeply(
-            [ map { $counts->{ int( iso_epoch("2035-07-0${_}T00:00:00Z") / 86400 ) } } 3 .. 5 ],
-            [ 128, 128, 128 ],
-            'the original and both neighboring days each contain 128 commits'
-        );
-    }
+    my $counts = count_values( [ map { int( $_ / 86400 ) } @dates ] );
+    cmp_ok( max( values %$counts ),  '<', 64, 'redistributed days stay below the crowded threshold' );
+    cmp_ok( scalar( keys %$counts ), '>', 5,  'activity is spread over multiple days' );
+    cmp_ok( $dates[-1], '<=', iso_epoch('2035-07-04T12:00:00Z'), 'redistribution adds no later dates' );
     is_deeply( [ sort @after ], [ sort @before ], 'redistribution preserves every commit message' );
     ok( !grep( { $dates[ $_ - 1 ] > $dates[$_] } 1 .. $#dates ), 'redistributed commits stay chronological' );
     is( trim( git( $self, [ 'rev-parse', 'HEAD^{tree}' ], undef )->{stdout} ),
@@ -658,40 +565,16 @@ sub dates {
     return $dates;
 }
 
-sub test_busy_days_and_two_week_gaps {
+sub test_dated_schedule_varies_activity {
     my ($self) = @_;
-    my ( $daily_counts, $dates, $end, $first, $last, $left, $right, $seed, $start, $timestamp );
-    $start = "2024-01-01";
-    $end   = "2024-04-01";
-    $first = int( iso_epoch("${start}T00:00:00Z") );
-    $last  = int( iso_epoch("${end}T00:00:00Z") );
-    for $seed ( @{ [ 1, 2, 42, 1234 ] } ) {
-        {
-            $dates = dates( $self, $start, $end, 1000, { "seed" => $seed } );
-            ( is_deeply( [ $dates->[0], $dates->[ -(1) ] ], [ $first, $last ] ) or die "assertion failed\n" );
-            $daily_counts =
-              count_values( [ map { my $timestamp = $_; int( ( $timestamp / 86400 ) ) } @{$dates} ] );
-            cmp_ok( max( values %$daily_counts ), '<=', 128, 'bursting never exceeds 128 commits per day' );
-            ( cmp_ok( max( @{ [ values %{$daily_counts} ] } ), ">=", 100 ) or die "assertion failed\n" );
-            (
-                cmp_ok(
-                    max(
-                        @{
-                            [
-                                map {
-                                    my $left  = ($_)->[0];
-                                    my $right = ($_)->[1];
-                                    ( $right - $left )
-                                } @{ zip_lists( $dates, array_slice( $dates, 1, undef ) ) }
-                            ]
-                        }
-                    ),
-                    ">=",
-                    ( 14 * 86400 )
-                  )
-                  or die "assertion failed\n"
-            );
-        }
+    for my $seed ( 1, 2, 42, 1234 ) {
+        my $dates  = dates( $self, '2024-01-01', '2024-04-01', 1000, { seed => $seed } );
+        my $counts = count_values( [ map { int( $_ / 86400 ) } @$dates ] );
+        cmp_ok( max( values %$counts ),  '<', 64, 'roomy ranges avoid crowded days' );
+        cmp_ok( scalar( keys %$counts ), '<', 70, 'roomy ranges retain quiet days' );
+        cmp_ok( scalar( keys %{ count_values( [ values %$counts ] ) } ), '>', 3, 'daily loads vary' );
+        cmp_ok( $dates->[0],  '>=', iso_epoch('2024-01-01T00:00:00Z'),           'lower bound is respected' );
+        cmp_ok( $dates->[-1], '<=', iso_epoch('2024-04-01T00:00:00Z'),           'upper bound is respected' );
     }
 }
 
@@ -699,6 +582,11 @@ sub test_schedule_changes_with_random_seed {
     my ($self) = @_;
     my ($args);
     $args = [ "2024-01-01", "2024-04-01", 400 ];
+    is_deeply(
+        dates( $self, @$args, { seed => 42 } ),
+        dates( $self, @$args, { seed => 42 } ),
+        'seeded schedules repeat'
+    );
     (
         ok(
             !equal_values(
@@ -724,21 +612,11 @@ sub test_schedule_changes_with_random_seed {
 
 sub test_range_capacity_rejects_without_output {
     my ($self) = @_;
-    my ( $dates, $end, $first, $start );
-    $start = "2024-01-01";
-    $end   = "2024-01-02";
-    $dates = dates( $self, $start, $end, 129, {} );
+    my $dates = dates( $self, '2024-01-01', '2024-01-02', 129, {} );
     assert_daily_limit($dates);
-    $first = int( iso_epoch("${start}T00:00:00Z") );
-    is_deeply(
-        [ $dates->[0], $dates->[-1] ],
-        [ $first,      $first + 86400 ],
-        'a full day plus the midnight endpoint preserves both date boundaries'
-    );
-
     for my $count ( 130, 9999 ) {
-        my $result = generate( $self, $start, $end, $count, 42, 'UTC' );
-        isnt( $result->{returncode}, 0, 'a date range cannot exceed its daily capacity' );
+        my $result = generate( $self, '2024-01-01', '2024-01-02', $count, 42, 'UTC' );
+        isnt( $result->{returncode}, 0, 'fixed date bounds reject impossible counts' );
         like( $result->{stderr}, qr/128 commits per day/, 'the error explains the hard limit' );
         is( $result->{stdout}, '', 'an impossible range emits no partial schedule' );
     }
@@ -749,11 +627,8 @@ sub test_maximum_count {
     for my $seed ( 42, 2037 ) {
         my $dates = dates( $self, '2024-01-01', '2027-01-01', 99999, { seed => $seed } );
         assert_daily_limit($dates);
-        is_deeply(
-            [ $dates->[0],                       $dates->[-1] ],
-            [ iso_epoch('2024-01-01T00:00:00Z'), iso_epoch('2027-01-01T00:00:00Z') ],
-            'the maximum count preserves both date boundaries'
-        );
+        cmp_ok( $dates->[0],  '>=', iso_epoch('2024-01-01T00:00:00Z'), 'maximum count respects lower bound' );
+        cmp_ok( $dates->[-1], '<=', iso_epoch('2027-01-01T00:00:00Z'), 'maximum count respects upper bound' );
     }
 
     my $result = run_command(
@@ -772,28 +647,21 @@ fair 99999
 FISH
         { cwd => $self->{repo}, env => $self->{env}, timeout => 10 }
     );
-    isnt( $result->{returncode}, 0,  'an undated maximum count exceeds daily capacity' );
-    isnt( $result->{returncode}, 73, 'the daily limit is checked before the first commit' );
-    like( $result->{stderr}, qr/128 commits per day/,
-        'the maximum-count rejection explains the daily limit' );
-    is( $result->{stdout}, '', 'the maximum-count rejection never reaches the commit stub' );
+    is( $result->{returncode}, 73, 'the maximum count reaches the first commit with a recent schedule' );
+    like( $result->{stdout}, qr/commit/, 'the default range expands to fit a large count' );
     is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
         $self->{initial}, 'the maximum-count check leaves HEAD unchanged' );
     $result = generate( $self, '2024-01-01', '2024-01-03', 100000, 42, 'UTC' );
     isnt( $result->{returncode}, 0, 'the date generator rejects a count above the limit' );
 }
 
-sub test_one_day_ranges_keep_count_and_endpoints {
+sub test_one_day_ranges_keep_count_and_bounds {
     my ($self) = @_;
-    my $first = int( iso_epoch("2024-01-01T00:00:00+00:00") );
     for my $count ( 2, 3, 50, 128, 129 ) {
-        my $dates = dates( $self, "2024-01-01", "2024-01-02", $count, {} );
+        my $dates = dates( $self, '2024-01-01', '2024-01-02', $count, {} );
         assert_daily_limit($dates);
-        is_deeply(
-            [ $dates->[0], $dates->[-1] ],
-            [ $first,      $first + 86400 ],
-            'short date ranges preserve their endpoints'
-        );
+        cmp_ok( $dates->[0],  '>=', iso_epoch('2024-01-01T00:00:00Z'), 'lower bound is respected' );
+        cmp_ok( $dates->[-1], '<=', iso_epoch('2024-01-02T00:00:00Z'), 'upper bound is respected' );
     }
 }
 
@@ -832,13 +700,11 @@ sub test_existing_author_dates_use_the_recorded_offset {
 
 sub test_epoch_and_leap_day_are_valid {
     my ($self) = @_;
-    my ($dates);
-    (
-        is_deeply( dates( $self, "1970-01-01", "1970-01-02", 2, {} ), [ 0, 86400 ] )
-          or die "assertion failed\n"
-    );
-    $dates = dates( $self, "2024-02-29", "2024-03-01", 2, {} );
-    ( is_deeply( ( $dates->[1] - $dates->[0] ), 86400 ) or die "assertion failed\n" );
+    for my $bounds ( [ '1970-01-01', '1970-01-02' ], [ '2024-02-29', '2024-03-01' ] ) {
+        my $dates = dates( $self, @$bounds, 2, {} );
+        cmp_ok( $dates->[0],  '>=', iso_epoch("$bounds->[0]T00:00:00Z"), 'lower bound is valid' );
+        cmp_ok( $dates->[-1], '<=', iso_epoch("$bounds->[1]T00:00:00Z"), 'upper bound is valid' );
+    }
 }
 
 sub test_invalid_calendar_dates_fail_without_output {
@@ -882,6 +748,30 @@ sub test_only_yyyy_mm_dd_dates_are_accepted {
     }
 }
 
+sub test_flexible_schedules_avoid_existing_busy_days {
+    my ($self) = @_;
+    my $result = run_command(
+        [ $PERL, '-I', "$DOTFILES/fish", '-MFairSchedule=schedule', '-e', <<'SCRIPT' ],
+use strict;
+use warnings;
+srand 42;
+$SIG{__WARN__} = sub { die @_ };
+for my $load (50, 128) {
+    my %occupied = map { $_ => $load } 100 .. 5100;
+    my @dates = schedule(5086 * 86400, 5100 * 86400 + 40000, 300, \%occupied, 0, 1);
+    die 'wrong count' unless @dates == 300;
+    my %days;
+    for my $date (@dates) {
+        die 'busy day reused' if $date >= 100 * 86400;
+        die 'crowded result' if ++$days{int($date / 86400)} >= 64;
+    }
+}
+SCRIPT
+        { cwd => $self->{repo}, env => $self->{env}, timeout => 10 }
+    );
+    assert_success( $self, $result );
+}
+
 run_cases(
     {
         "test_dated_commits_stay_ordered_in_range_and_set_both_dates" =>
@@ -890,7 +780,7 @@ run_cases(
         test_only_exact_counter_subjects_are_continued => \&test_only_exact_counter_subjects_are_continued,
         "test_date_only_values_use_local_timezone_and_forward_arguments" =>
           \&test_date_only_values_use_local_timezone_and_forward_arguments,
-        "test_single_commit_defaults_to_midpoint"                => \&test_single_commit_defaults_to_midpoint,
+        "test_single_dated_commit_stays_in_range"                => \&test_single_dated_commit_stays_in_range,
         "test_local_midnight_bounds_follow_daylight_saving_time" =>
           \&test_local_midnight_bounds_follow_daylight_saving_time,
         "test_missing_invalid_or_reversed_dates_do_not_make_commits" =>
@@ -901,10 +791,8 @@ run_cases(
           \&test_without_dates_keeps_default_and_explicit_counts,
         test_ordinary_calls_enforce_remaining_daily_capacity =>
           \&test_ordinary_calls_enforce_remaining_daily_capacity,
-        test_inherited_author_date_uses_its_recorded_day =>
-          \&test_inherited_author_date_uses_its_recorded_day,
-        test_ordinary_call_keeps_the_day_checked_before_midnight =>
-          \&test_ordinary_call_keeps_the_day_checked_before_midnight,
+        test_default_schedule_preserves_inherited_dates => \&test_default_schedule_preserves_inherited_dates,
+        test_default_schedule_has_varied_activity       => \&test_default_schedule_has_varied_activity,
         test_repeated_dated_batches_enforce_remaining_capacity =>
           \&test_repeated_dated_batches_enforce_remaining_capacity,
         'test_sort_rejects_count_and_date_flags'            => \&test_sort_rejects_count_and_date_flags,
@@ -915,11 +803,11 @@ run_cases(
         'test_sort_rejects_merge_history'              => \&test_sort_rejects_merge_history,
         test_sort_rebalances_crowded_ordered_history   => \&test_sort_rebalances_crowded_ordered_history,
         test_sort_rebalances_crowded_unordered_history => \&test_sort_rebalances_crowded_unordered_history,
-        "test_busy_days_and_two_week_gaps"             => \&test_busy_days_and_two_week_gaps,
+        "test_dated_schedule_varies_activity"          => \&test_dated_schedule_varies_activity,
         "test_schedule_changes_with_random_seed"       => \&test_schedule_changes_with_random_seed,
         test_range_capacity_rejects_without_output     => \&test_range_capacity_rejects_without_output,
         'test_maximum_count'                           => \&test_maximum_count,
-        "test_one_day_ranges_keep_count_and_endpoints" => \&test_one_day_ranges_keep_count_and_endpoints,
+        "test_one_day_ranges_keep_count_and_bounds"    => \&test_one_day_ranges_keep_count_and_bounds,
         test_non_utc_and_dst_ranges_enforce_the_utc_daily_limit =>
           \&test_non_utc_and_dst_ranges_enforce_the_utc_daily_limit,
         test_existing_author_dates_use_the_recorded_offset =>
@@ -927,7 +815,9 @@ run_cases(
         "test_epoch_and_leap_day_are_valid"               => \&test_epoch_and_leap_day_are_valid,
         "test_invalid_calendar_dates_fail_without_output" =>
           \&test_invalid_calendar_dates_fail_without_output,
-        test_only_yyyy_mm_dd_dates_are_accepted => \&test_only_yyyy_mm_dd_dates_are_accepted,
+        test_only_yyyy_mm_dd_dates_are_accepted          => \&test_only_yyyy_mm_dd_dates_are_accepted,
+        test_flexible_schedules_avoid_existing_busy_days =>
+          \&test_flexible_schedules_avoid_existing_busy_days,
     },
     \&setUp
 );
