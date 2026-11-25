@@ -74,9 +74,10 @@ sub stage_completion {
       . 'printf %s '
       . shell_quote($value)
       . ' > "$__aqsnow_vcs_file"' . "\n"
-      . 'printf %s '
+      . 'printf "%s %s\n" '
       . shell_quote($status)
-      . ' > "$__aqsnow_vcs_file.status"' . "\n";
+      . q{ "$(command perl -e 'my @s = stat "$ARGV[0]/.git"; print "$s[0]:$s[1]" if @s' "$__aqsnow_vcs_request_root")" > "$__aqsnow_vcs_file.status"}
+      . "\n";
 }
 
 sub fake_completion {
@@ -262,7 +263,7 @@ cd -- "$TEST_OTHER"
 vcs_update
 printf '%s\n' "$__aqsnow_vcs_prompt"
 printf %s ' (main-refreshed)' > "$__aqsnow_vcs_file"
-printf 0 > "$__aqsnow_vcs_file.status"
+printf '0 %s\n' "$(command perl -e 'my @s = stat "$ARGV[0]/.git"; print "$s[0]:$s[1]" if @s' "$__aqsnow_vcs_request_root")" > "$__aqsnow_vcs_file.status"
 aqsnow_vcs_prompt_done
 printf '%s\n%s\n' "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"
 cd -- "$TEST_PLAIN"
@@ -423,11 +424,11 @@ sub result_requires_ready_status {
             "aqsnow_vcs_prompt_restore\nset -g __aqsnow_vcs_pending 1\n"
           . stage_completion( ' (complete-result)', '0' )
           . <<'FISH' );
-command rm -- "$__aqsnow_vcs_file.status"
+command mv -- "$__aqsnow_vcs_file.status" "$__aqsnow_vcs_file.delayed"
 aqsnow_vcs_prompt_done
 set -q __aqsnow_vcs_pending
 printf 'pending=%s\n%s\n' "$status" "$AQSNOW_FISH_GIT_PROMPT"
-printf '0\n' > "$__aqsnow_vcs_file.status"
+command mv -- "$__aqsnow_vcs_file.delayed" "$__aqsnow_vcs_file.status"
 aqsnow_vcs_prompt_done
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
 FISH
@@ -596,6 +597,40 @@ FISH
         read_file("$self->{repo}/.fish_git_prompt"),
         ' (replacement)',
         'only the replacement result is cached'
+    );
+}
+
+sub completed_worker_rejects_replacement_before_delivery {
+    my ($self) = @_;
+    write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
+    fake_dotfiles( $self, <<'FISH' );
+function aqsnow_vcs_prompt
+    printf ' (%s)' "$(command git symbolic-ref --short HEAD)"
+end
+FISH
+    my $result = shell( $self, <<'FISH' . wait_for_refresh() . <<'FISH' );
+function hold_completion
+    block --local
+    vcs_update
+    for i in $(seq 1 100)
+        test -f "$__aqsnow_vcs_file.status"; and break
+        command sleep 0.01
+    end
+    test -f "$__aqsnow_vcs_file.status"; or exit 3
+    command mv .git "$TEST_ROOT/original.git"
+    command git init --quiet --initial-branch replacement .
+end
+hold_completion
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
+vcs_update
+FISH
+printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
+exit 0
+FISH
+    is(
+        output($result),
+        " (last-known)\n (last-known)\n (replacement)\n (replacement)\n",
+        'delayed completion preserves the old cache until the replacement receives a fresh result'
     );
 }
 
@@ -902,14 +937,16 @@ run_cases(
         missing_control_is_recovered                  => \&missing_control_is_recovered,
         obsolete_worker_does_not_block_new_directory  => \&obsolete_worker_does_not_block_new_directory,
         external_repository_replacement_is_rejected   => \&external_repository_replacement_is_rejected,
-        failed_refresh_keeps_display                  => \&failed_refresh_keeps_display,
-        successful_refresh_is_atomic                  => \&successful_refresh_is_atomic,
-        unchanged_cache_is_not_rewritten              => \&unchanged_cache_is_not_rewritten,
-        staging_file_uses_cache_ignore_pattern        => \&staging_file_uses_cache_ignore_pattern,
-        real_async_refresh                            => \&real_async_refresh,
-        cancellation_immediately_stops_worker_group   => \&cancellation_immediately_stops_worker_group,
-        real_git_refresh                              => \&real_git_refresh,
-        unwritable_cache_keeps_display                => \&unwritable_cache_keeps_display,
+        completed_worker_rejects_replacement_before_delivery =>
+          \&completed_worker_rejects_replacement_before_delivery,
+        failed_refresh_keeps_display                => \&failed_refresh_keeps_display,
+        successful_refresh_is_atomic                => \&successful_refresh_is_atomic,
+        unchanged_cache_is_not_rewritten            => \&unchanged_cache_is_not_rewritten,
+        staging_file_uses_cache_ignore_pattern      => \&staging_file_uses_cache_ignore_pattern,
+        real_async_refresh                          => \&real_async_refresh,
+        cancellation_immediately_stops_worker_group => \&cancellation_immediately_stops_worker_group,
+        real_git_refresh                            => \&real_git_refresh,
+        unwritable_cache_keeps_display              => \&unwritable_cache_keeps_display,
     },
     \&setup
 );

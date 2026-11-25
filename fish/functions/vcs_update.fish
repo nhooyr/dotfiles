@@ -123,19 +123,22 @@ function aqsnow_vcs_prompt_done --on-signal USR1
     set -l previous "$__aqsnow_vcs_prompt"
     set -e __aqsnow_vcs_pending __aqsnow_vcs_process
     set -l code
+    set -l identity
     if test -r "$__aqsnow_vcs_file.status"
-        read code <"$__aqsnow_vcs_file.status"
+        read code identity <"$__aqsnow_vcs_file.status"
     end
     set -l value "$(string collect < "$__aqsnow_vcs_file")"
     set -l current_root "$(aqsnow_vcs_prompt_root "$__aqsnow_vcs_request_directory")"
+    set -l current_identity "$(command perl -e 'my @s = stat "$ARGV[0]/.git"; print "$s[0]:$s[1]" if @s' "$current_root")"
     if test "$__aqsnow_vcs_request_generation" != "$__aqsnow_vcs_generation"
         or test "$current_root" != "$__aqsnow_vcs_request_root"
+        or test "$identity" != "$current_identity"
         or test "$code" = 75
         # A foreground command or new repository can invalidate even the cache destination.
         set -g __aqsnow_vcs_dirty 1
         set -e __aqsnow_vcs_checked_generation
     else if test "$code" = 0; and test -n "$value"
-        vcs_cache "$__aqsnow_vcs_request_root" "$value" 2>/dev/null
+        vcs_cache "$__aqsnow_vcs_request_root" "$value" "$identity" 2>/dev/null
         if test "$__aqsnow_vcs_request_root" = "$__aqsnow_vcs_root"; and test "$__aqsnow_vcs_request_directory" = "$PWD"
             aqsnow_vcs_prompt_display "$value"
         end

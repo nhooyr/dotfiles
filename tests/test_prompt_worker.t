@@ -104,7 +104,11 @@ sub finished_status {
       or die "helper did not exit\n";
     is( $job->{status} & 127,                     9,  'private process group finishes with SIGKILL' );
     is( read_file("$self->{root}/helper.stderr"), '', 'helper has no diagnostics' );
-    return trim( read_file("$self->{result}.status") );
+    my ( $status, $identity ) = split /\s+/, read_file("$self->{result}.status");
+    my @entry = stat "$self->{work}/.git";
+    is( $identity, "$entry[0]:$entry[1]", 'status retains the original Git directory identity' )
+      if $status != 75;
+    return $status;
 }
 
 sub immediate_completion_and_optional_locks {
