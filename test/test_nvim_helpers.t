@@ -1594,6 +1594,11 @@ for _, case in ipairs({
         eq(vim.api.nvim_win_get_cursor(0), { 1, 2 }, case[1] .. ' preserves the original cursor')
     end
 end
+vim.fn.setreg('+', 'Z', 'v')
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'abc' })
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+feed('A<M-p>x<Esc>')
+eq(vim.api.nvim_get_current_line(), 'abcZx', 'Insert Alt-p preserves the insertion point at end of line')
 LUA
 }
 

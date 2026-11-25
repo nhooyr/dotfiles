@@ -211,7 +211,7 @@ xnoremap <BS> "_d
 nnoremap gp `[v`]
 nnoremap <Leader>p "+p
 nnoremap <Leader>P "+P
-inoremap <M-p> <C-o>"+P
+inoremap <M-p> <C-\><C-o>"+P
 nnoremap Y "+y
 nnoremap YY "+yy
 xnoremap Y "+y
