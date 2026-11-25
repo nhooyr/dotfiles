@@ -131,6 +131,7 @@ abbrali .co 'gcd && ./commit'
 abbrali .fmt 'gcd && ./ci/fmt.sh'
 abbrali .lint 'gcd && ./ci/lint.sh'
 abbrali .test 'gcd && ./ci/test.sh'
+abbrali .run 'gcd && ./ci/run.sh'
 function scd
     set -l super_root "$(git rev-parse --show-superproject-working-tree)"; or return 1
     # Git prints nothing, and still succeeds, outside a submodule.
