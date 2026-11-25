@@ -5,11 +5,11 @@ function note --description '$EDITOR $notes/YYYY/MM/DD.md'
     end
     set -l note "$notes/$(date '+%Y/%m/%d').md"
     if test -e "$note"
-        $EDITOR "$note"
+        eval "$EDITOR" "$(string escape -- "$note")"
         return
     end
-    printf '# %s\n* %s *\n\n\n' "$(date '+%B %d, %Y')" "$(date '+%A')" | note="$note" $EDITOR - \
+    printf '# %s\n* %s *\n\n\n' "$(date '+%B %d, %Y')" "$(date '+%A')" | note="$note" eval "$EDITOR" $(string escape -- - \
         '+execute "file " . fnameescape($note)' \
         '+filetype detect' \
-        '+normal! G'
+        '+normal! G')
 end
