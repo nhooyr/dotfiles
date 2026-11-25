@@ -2409,6 +2409,25 @@ fn unclosed_gitignore_classes_do_not_hide_literal_filenames() {
 }
 
 #[test]
+fn bare_negations_and_posix_classes_follow_git() {
+    for (pattern, ignored, visible) in [
+        ("ignored/\n!\n", "ignored/file", "visible"),
+        ("[[:digit:]]\n", "1", "d]"),
+    ] {
+        let fixture = Fixture::new();
+        fs::write(fixture.repo.join(".gitignore"), pattern).unwrap();
+        write(&fixture.repo, ignored);
+        write(&fixture.repo, visible);
+        let paths = fixture.run(&mut fixture.command(&fixture.repo, Path::new(""), "-f", &[]));
+        assert!(
+            !paths.contains(&ignored.into()),
+            "{pattern:?} showed {ignored}"
+        );
+        assert!(paths.contains(&visible.into()), "{pattern:?} hid {visible}");
+    }
+}
+
+#[test]
 fn local_ignore_sources_respect_core_ignorecase() {
     let fixture = Fixture::new();
     let global = fixture.root.join("global-ignore");
