@@ -41,6 +41,9 @@ vim.pack.add = function(specs, options)
     _G.test_plugin_options = _G.test_plugin_options or {}
     table.insert(_G.test_plugin_options, options)
 end
+package.preload['nvim-treesitter'] = function()
+    return { get_available = function() return {} end, setup = function() end }
+end
 EOF
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
@@ -117,7 +120,8 @@ sub startup_and_config_paths {
 eq(vim.g.aqsnow_orig_file, vim.fn.resolve(vim.env.TEST_ORIGINAL), 'startup records the original file')
 eq(vim.g.test_plugin_specs, {
     { src = 'https://github.com/nhooyr/copilot.vim.git', version = 'refresh-partial-accept-preview' },
-}, 'only the patched Copilot fork is managed externally')
+    { src = 'https://github.com/nvim-treesitter/nvim-treesitter', version = 'main' },
+}, 'external plugins are managed with vim.pack')
 eq(_G.test_plugin_options[1], { confirm = false }, 'package setup installs without an interactive prompt')
 eq(vim.o.packlockfile, vim.env.TEST_DOTFILES .. '/nvim/nvim-pack-lock.json', 'package revisions use the tracked lockfile')
 eq(vim.fn.exists(':Ls'), 0, 'the custom viewer command is removed')

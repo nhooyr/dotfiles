@@ -43,6 +43,7 @@ SH
     write_file( $self->{env}{TEST_INIT}, <<'VIM' );
 execute 'set runtimepath^=' . fnameescape($TEST_DOTFILES . '/nvim')
 lua vim.pack.add = function() end
+lua package.preload['nvim-treesitter'] = function() return { get_available = function() return {} end, setup = function() end } end
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
 vim.api.nvim_create_autocmd('VimEnter', { callback = function()
