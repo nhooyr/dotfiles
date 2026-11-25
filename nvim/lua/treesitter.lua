@@ -3,9 +3,7 @@ local parsers = {
 		vim.treesitter.start(event.buf)
 		vim.wo[0][0].foldexpr = 'v:lua.vim.treesitter.foldexpr()'
 		vim.wo[0][0].foldmethod = 'expr'
-		if pcall(require, 'nvim-treesitter') then
-			vim.bo[event.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-		end
+		vim.bo[event.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
 	end,
 }
 
