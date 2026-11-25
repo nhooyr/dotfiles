@@ -1,0 +1,1 @@
+complete -c dirt -f
