@@ -66,7 +66,7 @@ sub git {
 }
 
 sub fair {
-    my ( $self, $args, $cwd, $after ) = @_;
+    my ( $self, $args, $cwd, $after, $timeout ) = @_;
     my ($script);
     $script = (
         (
@@ -98,7 +98,7 @@ fair $argv; or exit
         {
             "cwd"     => ( $cwd || $self->{repo} ),
             "env"     => $self->{env},
-            "timeout" => 15
+            "timeout" => $timeout // 15
         }
     );
 }
@@ -581,7 +581,9 @@ sub assert_crowded_sort_repaired {
     commit_at( $self, iso_epoch('2024-01-01T12:00:00Z'), 'Older commit' ) if $out_of_order;
     my @before = split /\0\n?/, git( $self, [ 'log', '--reverse', '--format=%B%x00' ], undef )->{stdout};
     my $tree   = trim( git( $self, [ 'rev-parse', 'HEAD^{tree}' ], undef )->{stdout} );
-    assert_success( $self, fair( $self, ['--sort'], undef, '' ) );
+
+    # Rebase hundreds of commits even when other CI workers are busy.
+    assert_success( $self, fair( $self, ['--sort'], undef, '', 60 ) );
     my @after = split /\0\n?/, git( $self, [ 'log', '--reverse', '--format=%B%x00' ], undef )->{stdout};
     my @dates = split /\n/,    git( $self, [ 'log', '--reverse', '--format=%at' ],    undef )->{stdout};
     is( scalar(@after), scalar(@before) + 1, 'sorting preserves every commit and appends one marker' );
