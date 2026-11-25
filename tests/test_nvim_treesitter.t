@@ -122,6 +122,21 @@ eq(starts, { buf })
 LUA
 }
 
+sub parser_without_plugin_keeps_native_features {
+    run_script(<<'LUA');
+package.loaded['nvim-treesitter'] = nil
+vim.o.runtimepath = vim.env.VIMRUNTIME
+existing.go = true
+local buf = buffer('go')
+eq(starts, { buf })
+eq(vim.wo.foldexpr, 'v:lua.vim.treesitter.foldexpr()')
+eq(vim.wo.foldmethod, 'expr')
+eq(vim.bo.indentexpr, '')
+eq(installs, {})
+eq(updates, {})
+LUA
+}
+
 sub explicit_install_and_update {
     run_script(<<'LUA');
 install()
@@ -170,12 +185,13 @@ LUA
 
 run_cases(
     {
-        missing_parser_does_not_install        => \&missing_parser_does_not_install,
-        go_features_only                       => \&go_features_only,
-        reload_keeps_one_handler               => \&reload_keeps_one_handler,
-        explicit_install_and_update            => \&explicit_install_and_update,
-        failed_install_is_reported             => \&failed_install_is_reported,
-        failed_update_is_reported              => \&failed_update_is_reported,
-        first_install_refreshes_runtime_lookup => \&first_install_refreshes_runtime_lookup,
+        missing_parser_does_not_install             => \&missing_parser_does_not_install,
+        go_features_only                            => \&go_features_only,
+        reload_keeps_one_handler                    => \&reload_keeps_one_handler,
+        parser_without_plugin_keeps_native_features => \&parser_without_plugin_keeps_native_features,
+        explicit_install_and_update                 => \&explicit_install_and_update,
+        failed_install_is_reported                  => \&failed_install_is_reported,
+        failed_update_is_reported                   => \&failed_update_is_reported,
+        first_install_refreshes_runtime_lookup      => \&first_install_refreshes_runtime_lookup,
     }
 );
