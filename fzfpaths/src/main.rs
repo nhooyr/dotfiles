@@ -1446,6 +1446,9 @@ mod tests {
     use std::os::fd::{AsFd, FromRawFd};
     use std::time::{Duration, Instant};
 
+    // Serialize raw pipe setup with tests that could inherit its descriptors.
+    static SUBPROCESS_TEST_LOCK: Mutex<()> = Mutex::new(());
+
     #[derive(Default)]
     struct TestScans(GitScans);
 
@@ -1480,6 +1483,7 @@ mod tests {
 
     #[test]
     fn completed_git_children_are_reaped_while_scans_continue() {
+        let _process_lock = SUBPROCESS_TEST_LOCK.lock().unwrap();
         let mut scans = TestScans::default();
         let mut previous = None;
         for _ in 0..32 {
@@ -1506,6 +1510,7 @@ mod tests {
 
     #[test]
     fn reaped_git_failures_are_reported_after_other_scans_finish() {
+        let _process_lock = SUBPROCESS_TEST_LOCK.lock().unwrap();
         let mut scans = TestScans::default();
         drop(scans.0.register(exited_git("exit 7")).unwrap());
         drop(scans.0.register(exited_git("exit 0")).unwrap());
@@ -1518,6 +1523,7 @@ mod tests {
 
     #[test]
     fn git_failure_cancels_waiting_children_after_readers_finish() {
+        let _process_lock = SUBPROCESS_TEST_LOCK.lock().unwrap();
         let mut scans = TestScans::default();
         let mut child = Command::new("/bin/sh")
             .args(["-c", "exec 1>&-; read line"])
@@ -1545,6 +1551,7 @@ mod tests {
 
     #[test]
     fn exited_git_leaders_preserve_output_and_cleanup_their_descendants() {
+        let _process_lock = SUBPROCESS_TEST_LOCK.lock().unwrap();
         for cancel in [false, true] {
             let mut scans = TestScans::default();
             let output = scans.0.register(exited_git("sleep 30 & exit 0")).unwrap();
@@ -1586,6 +1593,7 @@ mod tests {
 
     #[test]
     fn output_restores_pipe_flags_after_success_and_error() {
+        let _process_lock = SUBPROCESS_TEST_LOCK.lock().unwrap();
         for (close_reader, nonblocking) in [(false, false), (true, false), (false, true)] {
             let mut fds = [0; 2];
             assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0);
