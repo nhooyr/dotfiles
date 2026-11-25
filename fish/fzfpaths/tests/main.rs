@@ -20,6 +20,7 @@ struct Fixture {
     root: PathBuf,
     global_dir: PathBuf,
     repo: PathBuf,
+    repo_alias: PathBuf,
     local: PathBuf,
 }
 
@@ -98,6 +99,7 @@ impl Fixture {
         let fixture = Self {
             global_dir: root.join("global_dir"),
             repo: root.join("global_dir/project"),
+            repo_alias: PathBuf::from("$global/project"),
             local: root.join("local"),
             root,
         };
@@ -183,7 +185,19 @@ impl Fixture {
         if let Some(cdpath) = cdpath {
             command.arg("--cdpath").arg(cdpath);
         }
-        command.arg(".").arg(global_dir).arg(kind);
+        if global_dir.as_os_str().is_empty() {
+            command.args([".", "", kind]);
+        } else {
+            let directory = cwd.join(global_dir);
+            let alias = env_dirs
+                .iter()
+                .find(|(_, path)| *path == directory)
+                .map(|(name, _)| *name);
+            command.args([".", alias.unwrap_or("$global"), kind]);
+            if alias.is_none() {
+                command.args(["--dirali", "$global"]).arg(directory);
+            }
+        }
         for (env, path) in env_dirs {
             command.arg("--dirali").arg(env).arg(path);
         }
@@ -205,6 +219,14 @@ impl Fixture {
     fn pick(&self) -> Vec<OsString> {
         self.run(&mut self.command(&self.local, &self.global_dir, "-fd", &[]))
     }
+
+    fn filesystem_path(&self, candidate: impl AsRef<Path>) -> PathBuf {
+        let candidate = candidate.as_ref();
+        match candidate.strip_prefix("$global") {
+            Ok(relative) => self.global_dir.join(relative),
+            Err(_) => self.local.join(candidate),
+        }
+    }
 }
 
 impl Drop for Fixture {
@@ -218,7 +240,7 @@ fn local_and_global_paths_are_unique() {
     let fixture = Fixture::new();
     let paths = fixture.pick();
     assert!(paths.contains(&"file".into()));
-    assert!(paths.contains(&fixture.repo.clone().into_os_string()));
+    assert!(paths.contains(&OsString::from("$global/project")));
     assert_eq!(paths.len(), paths.iter().collect::<HashSet<_>>().len());
 }
 
@@ -247,7 +269,7 @@ fn local_paths_replace_global_aliases_in_every_mode() {
                 .strip_prefix(".")
                 .unwrap_or(Path::new(&path));
             assert!(!paths.contains(&Path::new("$project").join(path).into_os_string()));
-            assert!(!paths.contains(&fixture.repo.join(path).into_os_string()));
+            assert!(!paths.contains(&fixture.repo_alias.join(path).into_os_string()));
         }
     }
 }
@@ -296,6 +318,8 @@ fn absolute_local_paths_do_not_add_an_alias_copy() {
         Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
             .current_dir(&fixture.local)
             .arg(&fixture.repo)
+            .arg("$global")
+            .args(["--dirali", "$global"])
             .arg(&fixture.global_dir)
             .args(["-f", "--dirali", "$project"])
             .arg(&fixture.repo),
@@ -340,13 +364,13 @@ fn unrelated_globals_stream_while_the_local_scan_is_blocked() {
     fs::write(release, "continue").unwrap();
     assert!(child.wait().unwrap().success());
     let output = reader.join().unwrap();
-    let mut expected = fixture.repo.join("tracked").into_os_string().into_vec();
+    let mut expected = b"$global/project/tracked".to_vec();
     expected.push(0);
     assert_eq!(first.unwrap(), expected);
     let paths: Vec<_> = output.split(|byte| *byte == 0).collect();
     assert!(paths.contains(&b"child".as_slice()));
     for name in ["nested/child", "nested/ignored"] {
-        assert!(!paths.contains(&fixture.repo.join(name).as_os_str().as_encoded_bytes()));
+        assert!(!paths.contains(&fixture.repo_alias.join(name).as_os_str().as_encoded_bytes()));
     }
 }
 
@@ -373,15 +397,18 @@ fn global_files_follow_git_order() {
     let files: Vec<_> = paths
         .iter()
         .map(Path::new)
-        .filter(|path| path.starts_with(&fixture.global_dir) && path.is_file())
+        .filter(|path| {
+            path.strip_prefix("$global")
+                .is_ok_and(|relative| fixture.global_dir.join(relative).is_file())
+        })
         .collect();
     let expected: Vec<_> = [
-        fixture.repo.join(".hidden"),
-        fixture.repo.join("line break/end"),
-        fixture.repo.join("nested/child"),
-        fixture.repo.join("node_modules/tracked"),
-        fixture.repo.join("tracked"),
-        fixture.repo.join("untracked"),
+        fixture.repo_alias.join(".hidden"),
+        fixture.repo_alias.join("line break/end"),
+        fixture.repo_alias.join("nested/child"),
+        fixture.repo_alias.join("node_modules/tracked"),
+        fixture.repo_alias.join("tracked"),
+        fixture.repo_alias.join("untracked"),
     ]
     .into();
     assert_eq!(files, expected);
@@ -421,8 +448,8 @@ fn global_scan_keeps_sparse_indexes_sparse() {
             .any(|path| path == b"line break/")
     );
     let paths = fixture.run(&mut fixture.command(&fixture.local, &fixture.global_dir, "-f", &[]));
-    assert!(paths.contains(&fixture.repo.join("nested/child").into_os_string()));
-    assert!(!paths.contains(&fixture.repo.join("line break/end").into_os_string()));
+    assert!(paths.contains(&fixture.repo_alias.join("nested/child").into_os_string()));
+    assert!(!paths.contains(&fixture.repo_alias.join("line break/end").into_os_string()));
 }
 
 #[test]
@@ -599,11 +626,7 @@ fn global_results_arrive_before_git_finishes() {
             sender.send(path.unwrap()).unwrap();
         }
     });
-    let wanted = fixture
-        .repo
-        .join("nested/child")
-        .into_os_string()
-        .into_vec();
+    let wanted = b"$global/project/nested/child".to_vec();
     let streamed = loop {
         match receiver.recv_timeout(Duration::from_secs(5)) {
             Ok(path) if path == wanted => break true,
@@ -663,7 +686,11 @@ fn a_slow_repository_does_not_hold_back_other_repositories() {
             sender.send(path.unwrap()).unwrap();
         }
     });
-    let wanted = other.join("tracked").into_os_string().into_vec();
+    let wanted = Path::new("$global")
+        .join(other.strip_prefix(&fixture.global_dir).unwrap())
+        .join("tracked")
+        .into_os_string()
+        .into_vec();
     let streamed = loop {
         match receiver.recv_timeout(Duration::from_secs(5)) {
             Ok(path) if path == wanted => break true,
@@ -693,10 +720,10 @@ fn parallel_searches_keep_all_local_paths() {
             "-fd",
             &[],
         ));
-        assert!(paths.contains(&fixture.repo.clone().into_os_string()));
+        assert!(paths.contains(&OsString::from("$global/project")));
         let local_paths: HashSet<_> = paths
             .iter()
-            .filter(|path| !Path::new(path).is_absolute())
+            .filter(|path| !Path::new(path).starts_with("$global"))
             .collect();
         let forms = if flags.is_empty() { 1 } else { 2 };
         assert_eq!(local_paths.len(), 1 + 1005 * forms);
@@ -946,6 +973,8 @@ fn failed_git_scan_reports_failure() {
         .current_dir(&fixture.local)
         .env("PATH", path)
         .arg("")
+        .arg("$global")
+        .args(["--dirali", "$global"])
         .arg(&fixture.global_dir)
         .arg("-f")
         .output()
@@ -970,9 +999,9 @@ fn global_files_and_parents() {
         "node_modules/tracked",
         "untracked",
     ] {
-        assert!(paths.contains(&fixture.repo.join(name).into_os_string()));
+        assert!(paths.contains(&fixture.repo_alias.join(name).into_os_string()));
     }
-    assert!(!paths.contains(&fixture.repo.join("removed").into_os_string()));
+    assert!(!paths.contains(&fixture.repo_alias.join("removed").into_os_string()));
 }
 
 #[test]
@@ -1004,21 +1033,21 @@ fn global_untracked_paths_respect_git_ignores_and_file_types() {
             "new-broken",
         ] {
             assert_eq!(
-                paths.contains(&fixture.repo.join(name).into_os_string()),
+                paths.contains(&fixture.repo_alias.join(name).into_os_string()),
                 kind != "-d",
                 "{kind}: {name:?}"
             );
         }
         for name in ["new dir", "new dir/deep", "new-link"] {
             assert_eq!(
-                paths.contains(&fixture.repo.join(name).into_os_string()),
+                paths.contains(&fixture.repo_alias.join(name).into_os_string()),
                 kind != "-f",
                 "{kind}: {name:?}"
             );
         }
         for name in ["ignored", "ignored/skip", "nested/skip.tmp", "info-secret"] {
             assert!(
-                !paths.contains(&fixture.repo.join(name).into_os_string()),
+                !paths.contains(&fixture.repo_alias.join(name).into_os_string()),
                 "{kind}: {name}"
             );
         }
@@ -1050,7 +1079,7 @@ fn global_ignore_hides_subtrees_without_filtering_local_paths() {
     for kind in ["-f", "-d", "-fd"] {
         for aliases in [vec![], vec![("$project", fixture.repo.as_path())]] {
             let prefix = if aliases.is_empty() {
-                fixture.repo.clone()
+                PathBuf::from("$global/project")
             } else {
                 PathBuf::from("$project")
             };
@@ -1085,7 +1114,7 @@ fn global_ignore_hides_subtrees_without_filtering_local_paths() {
             assert!(!paths.contains(&prefix.join("tracked").into_os_string()));
             assert!(!paths.contains(&prefix.join("nested").into_os_string()));
             let other_path = if kind == "-d" { "src" } else { "src/visible" };
-            assert!(paths.contains(&other.join(other_path).into_os_string()));
+            assert!(paths.contains(&Path::new("$global/other").join(other_path).into_os_string()));
         }
     }
 }
@@ -1119,10 +1148,10 @@ fn global_ignore_supports_file_globs_and_negations() {
         "literal[",
         "classa",
     ] {
-        assert!(!paths.contains(&fixture.repo.join(name).into_os_string()));
+        assert!(!paths.contains(&fixture.repo_alias.join(name).into_os_string()));
     }
     for name in ["keep.tmp", "nested/child"] {
-        assert!(paths.contains(&fixture.repo.join(name).into_os_string()));
+        assert!(paths.contains(&fixture.repo_alias.join(name).into_os_string()));
     }
 }
 
@@ -1134,6 +1163,8 @@ fn global_ignore_reports_unclosed_character_classes() {
     fs::write(config.join("fzfpaths/ignore"), "[\n").unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
         .arg("")
+        .arg("$global")
+        .args(["--dirali", "$global"])
         .arg(&fixture.global_dir)
         .arg("-f")
         .env("XDG_CONFIG_HOME", config)
@@ -1165,11 +1196,11 @@ fn global_ignore_uses_home_default_and_xdg_override() {
         let paths = fixture.run(&mut command);
         let overridden = xdg.is_some_and(|value| !value.is_empty());
         assert_eq!(
-            paths.contains(&fixture.repo.join("tracked").into_os_string()),
+            paths.contains(&fixture.repo_alias.join("tracked").into_os_string()),
             overridden
         );
         assert_eq!(
-            paths.contains(&fixture.repo.join("untracked").into_os_string()),
+            paths.contains(&fixture.repo_alias.join("untracked").into_os_string()),
             !overridden
         );
     }
@@ -1184,6 +1215,8 @@ fn ignored_global_repository_is_not_scanned_or_filtered_from_cdpath() {
     let output = checked(
         Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
             .arg("")
+            .arg("$global")
+            .args(["--dirali", "$global"])
             .arg(&fixture.global_dir)
             .arg("-fd")
             .env("XDG_CONFIG_HOME", &config)
@@ -1205,7 +1238,7 @@ fn ignored_global_repository_is_not_scanned_or_filtered_from_cdpath() {
             .env("XDG_CONFIG_HOME", &config),
     );
     assert!(paths.contains(&"$CDPATH/project".into()));
-    assert!(!paths.contains(&fixture.repo.clone().into_os_string()));
+    assert!(!paths.contains(&OsString::from("$global/project")));
 }
 
 #[test]
@@ -1218,7 +1251,7 @@ fn global_untracked_paths_use_directory_aliases() {
         &[("$project", &fixture.repo)],
     ));
     assert!(paths.contains(&OsString::from("$project/untracked")));
-    assert!(!paths.contains(&fixture.repo.join("untracked").into_os_string()));
+    assert!(!paths.contains(&fixture.repo_alias.join("untracked").into_os_string()));
 }
 
 #[test]
@@ -1318,11 +1351,11 @@ fn color_wraps_only_the_alias_and_preserves_candidates() {
 #[test]
 fn color_leaves_unaliased_paths_plain() {
     let fixture = Fixture::new();
-    let raw = fixture.pick();
+    let raw = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), "-fd", &[]));
     let colored = fixture.run(&mut fixture.command_with_flags(
         &["--color"],
         &fixture.local,
-        &fixture.global_dir,
+        Path::new(""),
         "-fd",
         &[],
     ));
@@ -1401,7 +1434,7 @@ fn classify_preserves_names_and_marks_file_types() {
             let mut name = path.into_vec();
             let marker = name.pop().unwrap();
             let name = OsString::from_vec(name);
-            let metadata = fixture.local.join(&name).symlink_metadata().unwrap();
+            let metadata = fixture.filesystem_path(&name).symlink_metadata().unwrap();
             let expected = if metadata.is_symlink() {
                 b'@'
             } else if metadata.is_dir() {
@@ -1729,10 +1762,10 @@ fn files_only_excludes_directories_and_keeps_symlink_files() {
             "nested/child",
             "node_modules/tracked",
         ] {
-            assert!(paths.contains(&fixture.repo.join(name).into_os_string()));
+            assert!(paths.contains(&fixture.repo_alias.join(name).into_os_string()));
         }
         assert!(paths.iter().all(|path| {
-            let path = fixture.local.join(path);
+            let path = fixture.filesystem_path(path);
             path.symlink_metadata().is_ok() && !path.is_dir()
         }));
         assert_eq!(paths.contains(&"./executable".into()), !flags.is_empty());
@@ -1853,7 +1886,7 @@ fn files_only_ignores_cdpath() {
         &[],
     ));
     assert!(paths.contains(&"file".into()));
-    assert!(paths.contains(&fixture.repo.join("tracked").into_os_string()));
+    assert!(paths.contains(&fixture.repo_alias.join("tracked").into_os_string()));
     assert!(
         !paths
             .iter()
@@ -1865,7 +1898,7 @@ fn files_only_ignores_cdpath() {
             .any(|path| Path::new(path).starts_with("$CDPATH"))
     );
     assert!(paths.iter().all(|path| {
-        let path = fixture.local.join(path);
+        let path = fixture.filesystem_path(path);
         path.symlink_metadata().is_ok() && !path.is_dir()
     }));
 }
@@ -1892,7 +1925,7 @@ fn many_cdpath_directories_are_unique() {
             .count(),
         1005
     );
-    assert!(paths.contains(&fixture.repo.clone().into_os_string()));
+    assert!(paths.contains(&OsString::from("$global/project")));
 }
 
 #[test]
@@ -1930,7 +1963,9 @@ fn cdpath_and_keep_dot_flags_work_in_both_orders() {
         if !keep_dot_first {
             command.arg("--keep-dot");
         }
-        command.arg(".").arg(&fixture.global_dir).arg("-fd");
+        command
+            .args([".", "$global", "-fd", "--dirali", "$global"])
+            .arg(&fixture.global_dir);
         let paths = fixture.run(&mut command);
         assert!(paths.contains(&"$CDPATH/child".into()));
         assert!(paths.contains(&"./executable".into()));
@@ -1962,8 +1997,12 @@ fn directories_only() {
     let paths = fixture.run(&mut fixture.command(&fixture.local, &fixture.global_dir, "-d", &[]));
     assert!(paths.contains(&"dir".into()));
     assert!(paths.contains(&"linked".into()));
-    assert!(paths.contains(&fixture.repo.join("nested").into_os_string()));
-    assert!(paths.iter().all(|path| fixture.local.join(path).is_dir()));
+    assert!(paths.contains(&fixture.repo_alias.join("nested").into_os_string()));
+    assert!(
+        paths
+            .iter()
+            .all(|path| fixture.filesystem_path(path).is_dir())
+    );
 }
 
 #[test]
@@ -1995,7 +2034,7 @@ fn global_directories_include_symlinks_and_submodules() {
     let global: HashSet<_> = paths
         .into_iter()
         .map(PathBuf::from)
-        .filter(|path| Path::new(path).starts_with(&fixture.repo))
+        .filter(|path| Path::new(path).starts_with("$global/project"))
         .collect();
     let expected = [
         "",
@@ -2005,7 +2044,7 @@ fn global_directories_include_symlinks_and_submodules() {
         "directory link\tname",
         "module",
     ]
-    .map(|path| fixture.repo.join(path));
+    .map(|path| fixture.repo_alias.join(path));
     assert_eq!(global, HashSet::from(expected));
 }
 
@@ -2105,7 +2144,7 @@ fn global_executables_do_not_add_relative_variants() {
             &env_dirs,
         ));
         let edit = if env_dirs.is_empty() {
-            executable.clone().into_os_string()
+            "$global/project/tracked".into()
         } else {
             "$project/tracked".into()
         };
@@ -2142,7 +2181,7 @@ fn repositories_within_the_local_root_are_not_scanned_globally() {
             .env("PATH", path),
     );
     assert!(paths.contains(&"tracked".into()));
-    assert!(!paths.contains(&fixture.repo.join("tracked").into_os_string()));
+    assert!(!paths.contains(&fixture.repo_alias.join("tracked").into_os_string()));
 }
 
 #[test]
@@ -2188,7 +2227,7 @@ fn ignored_directories_and_cycles_preserve_broken_links() {
 }
 
 #[test]
-fn empty_or_missing_global_dir() {
+fn empty_or_missing_global_alias() {
     let fixture = Fixture::new();
     let empty = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), "-fd", &[]));
     let missing =
@@ -2197,6 +2236,42 @@ fn empty_or_missing_global_dir() {
         HashSet::<_>::from_iter(empty),
         HashSet::<_>::from_iter(missing)
     );
+}
+
+#[test]
+fn global_scan_requires_a_registered_alias_name() {
+    let fixture = Fixture::new();
+    for global in [OsStr::new("$missing"), fixture.global_dir.as_os_str()] {
+        let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+            .current_dir(&fixture.local)
+            .arg(".")
+            .arg(global)
+            .args(["-fd", "--dirali", "$global"])
+            .arg(&fixture.global_dir)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert!(output.stdout.is_empty());
+        assert_eq!(
+            String::from_utf8(output.stderr).unwrap(),
+            format!(
+                "fzfpaths: unknown global directory alias: {}\n",
+                global.to_string_lossy()
+            )
+        );
+    }
+}
+
+#[test]
+fn global_alias_uses_its_registered_directory() {
+    let fixture = Fixture::new();
+    let paths = fixture.run(
+        fixture
+            .command(&fixture.local, &fixture.global_dir, "-f", &[])
+            .env("global", fixture.root.join("absent")),
+    );
+    assert!(paths.contains(&"$global/project/tracked".into()));
+    assert!(!paths.iter().any(|path| Path::new(path).is_absolute()));
 }
 
 #[test]
@@ -2261,7 +2336,7 @@ fn global_symlink_parent_roots_use_the_target_and_preserve_aliases() {
         for aliases in [vec![], vec![("$project", fixture.repo.as_path())]] {
             let paths = fixture.run(&mut fixture.command(&fixture.local, &root, "-f", &aliases));
             let expected = if aliases.is_empty() {
-                fixture.repo.join("tracked").into_os_string()
+                OsString::from("$global/project/tracked")
             } else {
                 OsString::from("$project/tracked")
             };
@@ -2271,12 +2346,12 @@ fn global_symlink_parent_roots_use_the_target_and_preserve_aliases() {
         fs::remove_file(&link).unwrap();
     }
 
-    // Without .., preserve the caller's symlink spelling and matching alias.
+    // Canonical roots keep the registered alias rather than exposing the physical path.
     let root = fixture.root.join("logical-global");
     symlink(&fixture.global_dir, &root).unwrap();
     let alias = root.join("project");
     let paths = fixture.run(&mut fixture.command(&fixture.local, &root, "-f", &[]));
-    assert!(paths.contains(&alias.join("tracked").into_os_string()));
+    assert!(paths.contains(&"$global/project/tracked".into()));
     let paths =
         fixture.run(&mut fixture.command(&fixture.local, &root, "-f", &[("$project", &alias)]));
     assert!(paths.contains(&"$project/tracked".into()));
@@ -2766,7 +2841,7 @@ fn gitignore_does_not_hide_globally_tracked_paths() {
     assert!(
         fixture
             .pick()
-            .contains(&fixture.repo.join("nested/child").into_os_string())
+            .contains(&OsString::from("$global/project/nested/child"))
     );
 }
 
@@ -3133,8 +3208,7 @@ fn dirali_options_work_before_and_after_positions() {
             .arg("--dirali")
             .arg("$global_dir")
             .arg(&fixture.global_dir)
-            .arg(".")
-            .arg(&fixture.global_dir)
+            .args([".", "$global_dir"])
             .arg("--keep-dot")
             .arg("--dirali")
             .arg("$project")
@@ -3183,7 +3257,7 @@ fn invalid_arguments() {
         assert!(output.stdout.is_empty());
         assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_ALIAS> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
     }
 }
@@ -3211,7 +3285,7 @@ fn help_uses_invoked_basename() {
         assert!(output.stderr.is_empty());
         let help = String::from_utf8(output.stdout).unwrap();
         assert!(help.contains(
-            "usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+            "usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_ALIAS> <TYPE> [--dirali <ENV> <DIR>]..."
         ));
         assert!(help.contains("Generate path candidates"));
         assert!(help.contains(".gitignore"));
@@ -3219,7 +3293,7 @@ fn help_uses_invoked_basename() {
         assert!(help.contains("NUL-separated absolute filenames"));
         assert!(help.contains("Relative filenames are rejected."));
         assert!(help.contains("Examples (Fish):"));
-        assert!(help.contains("GLOBAL_DIR"));
+        assert!(help.contains("GLOBAL_ALIAS"));
         assert!(help.contains("Each --dirali"));
         assert!(help.contains("colon-separated roots"));
         assert!(help.contains("Fish bindings keep directory aliases in the command line"));
@@ -3243,7 +3317,7 @@ fn incomplete_dirali_is_a_usage_error() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         output.stderr,
-        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...\n"
+        b"usage: renamed-picker [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_ALIAS> <TYPE> [--dirali <ENV> <DIR>]...\n"
     );
 }
 
@@ -3290,13 +3364,13 @@ fn local_binary_executables_only_offer_dot_paths() {
 }
 
 #[test]
-fn global_binary_executables_keep_absolute_and_alias_paths() {
+fn global_binary_executables_use_directory_aliases() {
     let fixture = Fixture::new();
     fs::write(fixture.repo.join("binary"), b"\x7fELF\0content").unwrap();
     make_executable(fixture.repo.join("binary"));
     fixture.git(&["add", "binary"]);
     let paths = fixture.run(&mut fixture.command(&fixture.local, &fixture.global_dir, "-f", &[]));
-    assert!(paths.contains(&fixture.repo.join("binary").into_os_string()));
+    assert!(paths.contains(&fixture.repo_alias.join("binary").into_os_string()));
     let paths = fixture.run(&mut fixture.command(
         &fixture.local,
         &fixture.global_dir,

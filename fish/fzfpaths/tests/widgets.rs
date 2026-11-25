@@ -354,7 +354,7 @@ fn absolute_command_search_runs_scripts_using_directory_aliases() {
     let script = r#"
 set -g nhooyr "$PWD/global"
 set -g secrets "$nhooyr/secrets"
-set -g aqsnow_fzf_diralis secrets
+set -g aqsnow_fzf_diralis nhooyr secrets
 set -g CDPATH "$PWD/cdroot"
 mkdir -p "$secrets" "$CDPATH/only-cd"
 git init --quiet "$secrets"
@@ -379,7 +379,7 @@ function fzfpaths
             printf 'slash search tried to scan %s\n' "$directory" >&2
             return 1
         end
-        test "$argv[$(math "$separator + 2")]" = "$nhooyr"; or return 2
+        test "$argv[$(math "$separator + 2")]" = '$nhooyr'; or return 2
         if test "$current_widget" = fzf-file-widget
             not contains -- --cdpath $argv; or return 3
         else

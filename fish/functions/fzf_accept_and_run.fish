@@ -28,7 +28,7 @@ function fzf_path_widget --argument-names widget
     else if test "$dir" -ef ~; and not string match -q -- './*' "$token"
         set dir ''
     end
-    set -l global_dir "$nhooyr"
+    set -l global_alias ''
     set -l tokens $(commandline --cut-at-cursor --current-process --tokens-expanded)
     set -l modifier
     while contains -- "$tokens[1]" and or not '!' command builtin exec time if while else --; or string match -qr '^[[:alnum:]_]+=' -- "$tokens[1]"
@@ -57,6 +57,7 @@ function fzf_path_widget --argument-names widget
         set -l direnv '$'$name
         test "$name" = HOME; and set direnv '~'
         set -a dirs --dirali "$direnv" "$$name"
+        test "$name" = nhooyr; and set global_alias "$direnv"
     end
 
     set -l shell $(string join ' ' -- $(string escape -- $(status fish-path) -c))
@@ -69,7 +70,7 @@ function fzf_path_widget --argument-names widget
     # ./ selects local search; only Alt-V keeps it in the query.
     if test "$widget" != fzf-recent-widget; and string match -q -- './*' "$token"
         test "$widget" = fzf-path-widget; and set query "$token"
-        set global_dir ''
+        set global_alias ''
     else if not contains -- "$widget" fzf-file-widget fzf-recent-widget
         set -a flags --cdpath "$CDPATH"
     end
@@ -80,7 +81,7 @@ function fzf_path_widget --argument-names widget
             | fzfpaths --read0 --color --classify $flags $dirs -- . '' -f \
             | fzf --query="$query" | string split0)
     else
-        set result $(fzfpaths --color --classify $flags $dirs -- "$dir" "$global_dir" "$type" | fzf --query="$query" | string split0)
+        set result $(fzfpaths --color --classify $flags $dirs -- "$dir" "$global_alias" "$type" | fzf --query="$query" | string split0)
     end
     if set -q result[1]
         set -l resolve_cdpath 1

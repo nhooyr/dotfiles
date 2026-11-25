@@ -8,7 +8,7 @@ use std::fs::{self, Metadata};
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt, process::CommandExt};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::process::{self, Child, ChildStdout, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
@@ -21,11 +21,11 @@ fn print_help(name: &str) {
         "\
 Generate path candidates for fzf from local files and Git repositories.
 
-usage: {name} [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]...
+usage: {name} [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_ALIAS> <TYPE> [--dirali <ENV> <DIR>]...
 
-Scan <DIR>, Git repositories directly under <GLOBAL_DIR>, and optional CDPATH
-roots concurrently. Stream results as they are found; paths from the three
-searches may interleave, with no guaranteed order between them.
+Scan <DIR>, Git repositories directly under <GLOBAL_ALIAS>'s directory, and
+optional CDPATH roots concurrently. Stream results as they are found; paths
+from the three searches may interleave, with no guaranteed order between them.
 
 Local directories and global Git repositories are each scanned by a bounded
 pool of workers. Local paths have no guaranteed traversal order. Within each
@@ -87,12 +87,13 @@ Options:
   --dirali ENV DIR  Abbreviate paths using ENV for DIR. May be repeated.
 
 Arguments:
-  <DIR>         Directory to search locally. Use . for the current directory.
-  <GLOBAL_DIR>  Dir containing additional Git repositories.
-                Use an empty string to skip global Git repositories.
-  <TYPE>        -fd   Files and directories.
-                -f    Files only, including special files and broken symlinks.
-                -d    Directories only.
+  <DIR>           Directory to search locally. Use . for the current directory.
+  <GLOBAL_ALIAS>  Exact alias name registered with --dirali, such as '$nhooyr'.
+                  Scan Git repositories directly under its directory.
+                  Use an empty string to skip global Git repositories.
+  <TYPE>          -fd   Files and directories.
+                  -f    Files only, including special files and broken symlinks.
+                  -d    Directories only.
 
 Each --dirali maps a directory to an alias, such as '$dotfiles' /path/to/dotfiles.
 Each env must be unique. The longest matching directory wins.
@@ -112,9 +113,9 @@ Output:
   unreadable files. The Fish widgets use the same check for selected executables.
   Other local paths omit a leading ./. With --keep-dot, scripts also get
   a ./ form. The Fish bindings enable this only when completing a command name.
-  Global binary executables keep their normal absolute or directory-alias forms.
+  Global binary executables keep their normal directory-alias forms.
   Global scans do not read executable contents.
-  Global paths use a matching env when available; otherwise they are absolute.
+  Global paths use the most specific matching directory alias.
   For tracked paths, global directory scans (-d, used by Alt-C) use Git's
   indexed file types. If you replace a tracked regular file with a symlink
   to a directory, that symlink is omitted until you stage the change with
@@ -129,7 +130,7 @@ Output:
   The shell expands them when the command is executed.
 
 Examples (Fish):
-  {name} --cdpath \"$CDPATH\" . \"$nhooyr\" -fd --dirali '$dotfiles' \"$dotfiles\" | fzf --read0
+  {name} --cdpath \"$CDPATH\" . '$nhooyr' -fd --dirali '$nhooyr' \"$nhooyr\" --dirali '$dotfiles' \"$dotfiles\" | fzf --read0
   {name} --cdpath \"$CDPATH\" . '' -d | fzf --read0
   {name} --keep-dot . '' -f | fzf --read0"
     );
@@ -137,7 +138,7 @@ Examples (Fish):
 
 fn usage_error(name: &str) -> ! {
     eprintln!(
-        "usage: {name} [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_DIR> <TYPE> [--dirali <ENV> <DIR>]..."
+        "usage: {name} [--color] [--classify] [--keep-dot] [--read0] [--cdpath CDPATH] <DIR> <GLOBAL_ALIAS> <TYPE> [--dirali <ENV> <DIR>]..."
     );
     process::exit(1);
 }
@@ -209,6 +210,7 @@ fn run(
     let cwd = working_directory()?;
     let mut seen_envs = HashSet::new();
     let mut env_dirs = Vec::new();
+    let mut global_dir = None;
     for [name, directory] in args[3..].as_chunks::<2>().0 {
         let env = name.as_bytes();
         if !seen_envs.insert(env) {
@@ -233,12 +235,24 @@ fn run(
             directory = &directory[..directory.len() - 1];
         }
         let directory = PathBuf::from(OsStr::from_bytes(directory));
+        if !args[1].is_empty() && name == &args[1] {
+            global_dir = Some(directory.clone());
+        }
         if let Ok(physical) = directory.canonicalize()
             && physical.as_os_str() != directory.as_os_str()
         {
             env_dirs.push((env.to_vec(), physical.into_os_string().into_vec()));
         }
         env_dirs.push((env.to_vec(), directory.into_os_string().into_vec()));
+    }
+    if !args[1].is_empty() && global_dir.is_none() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "unknown global directory alias: {}",
+                args[1].to_string_lossy()
+            ),
+        ));
     }
     env_dirs.sort_by_key(|(_, dir)| std::cmp::Reverse(dir.len()));
     let colors = (color && classify).then(|| {
@@ -279,9 +293,9 @@ fn run(
                 local.walk(PathBuf::from(&args[0]))
             }
         })];
-        if !read0 && !args[1].is_empty() {
+        if let Some(global_dir) = global_dir.filter(|_| !read0) {
             let global = scanner.clone();
-            scans.push(scope.spawn(move || global.global_paths(PathBuf::from(&args[1]))));
+            scans.push(scope.spawn(move || global.global_paths(global_dir)));
         }
         if let Some(cdpath) =
             cdpath.filter(|value| !read0 && !value.is_empty() && !scanner.files_only)
@@ -667,28 +681,6 @@ fn working_directory() -> io::Result<PathBuf> {
         return Ok(pwd);
     }
     Ok(cwd)
-}
-
-fn normalize(path: &Path) -> PathBuf {
-    let has_parent = path.components().any(|part| part == Component::ParentDir);
-    if has_parent && !path.is_dir() {
-        return path.to_path_buf();
-    }
-    let mut result = PathBuf::new();
-    for part in path.components() {
-        if part == Component::ParentDir {
-            // Resolve only links crossed by ..; keep other spellings for aliases.
-            while let Ok(target) = result.read_link() {
-                result.pop();
-                result.push(target);
-                result = normalize(&result);
-            }
-            result.pop();
-        } else {
-            result.push(part);
-        }
-    }
-    result
 }
 
 fn parallelism() -> usize {
@@ -1241,7 +1233,9 @@ impl Scanner {
         let mut roots = HashSet::new();
         for root in env::split_paths(&cdpath) {
             self.check_cancelled()?;
-            let root = normalize(&self.cwd.join(root));
+            let Ok(root) = self.cwd.join(root).canonicalize() else {
+                continue;
+            };
             if !roots.insert(root.clone()) {
                 continue;
             }
@@ -1292,7 +1286,7 @@ impl Scanner {
         if !global_dir.is_dir() {
             return Ok(());
         }
-        let global_dir = normalize(&self.cwd.join(global_dir));
+        let global_dir = global_dir.canonicalize()?;
         let ignores = global_ignores(&global_dir)?;
         let repos: Vec<_> = fs::read_dir(&global_dir)?
             .flatten()
