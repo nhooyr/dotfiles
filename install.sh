@@ -4,8 +4,7 @@ cd -- "$(dirname "$0")"
 PATH="$PWD/bin:$PATH"
 
 dotln ./bin ~/.local/bin/dotfiles
-dotln ./git/gitconfig ~/.gitconfig
-dotln ./git/gitignore ~/.config/git/ignore
+./git/install.sh
 dotln ./less/lesskey ~/.config/lesskey
 dotln ./bat ~/.config/bat
 dotln ./tmux/tmux.conf ~/.tmux.conf
