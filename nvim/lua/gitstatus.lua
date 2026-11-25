@@ -100,24 +100,22 @@ local function update(root, cached)
 		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
 	}, { text = true, detach = true, cwd = directory, env = { GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
 		if job ~= request then return end
-		if request.obsolete then
+		if request.obsolete or not same_file(identity, uv.fs_stat(vim.fs.joinpath(directory, '.git'))) then
 			cached.pending = true
 		elseif result.code == 0 and result.stdout and result.stdout ~= '' then
 			local text = plain(result.stdout)
 			if text ~= '' then
 				cached.prompt, cached.live = text, true
-				if same_file(identity, uv.fs_stat(vim.fs.joinpath(directory, '.git'))) then
-					local saved, writer = pcall(vim.system, {
-						'fish', '--no-config', '-c',
-						'source "$argv[1]"; and vcs_cache "$argv[2]" "$argv[3]" "$argv[4]"',
-						vim.env.dotfiles .. '/fish/functions/vcs_cache.fish',
-						directory, result.stdout:gsub('[\r\n]+$', ''), identity.dev .. ':' .. identity.ino,
-					}, { detach = true }, vim.schedule_wrap(finish))
-					if saved then
-						request.process = writer
-						refresh()
-						return
-					end
+				local saved, writer = pcall(vim.system, {
+					'fish', '--no-config', '-c',
+					'source "$argv[1]"; and vcs_cache "$argv[2]" "$argv[3]" "$argv[4]"',
+					vim.env.dotfiles .. '/fish/functions/vcs_cache.fish',
+					directory, result.stdout:gsub('[\r\n]+$', ''), identity.dev .. ':' .. identity.ino,
+				}, { detach = true }, vim.schedule_wrap(finish))
+				if saved then
+					request.process = writer
+					refresh()
+					return
 				end
 			end
 		end
