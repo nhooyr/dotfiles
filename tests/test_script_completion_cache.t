@@ -26,8 +26,10 @@ sub script {
 
 sub complete {
     my ( $self, $path ) = @_;
-    return run_command( [ perl_executable(), "$root/fish/compgen.pl", $path // $self->{script} ],
-        { env => $self->{env}, input => 'not passed to the script' } );
+    return run_command(
+        [ perl_executable(), "$root/fish/compgen.pl", $path // $self->{script} ],
+        { env => $self->{env}, input => 'not passed to the script' }
+    );
 }
 
 sub caches_flags_and_uses_no_stdin {
@@ -53,8 +55,7 @@ PERL
         'symlink uses the same flags'
     );
     is( read_file( $self->{env}{PROBE_COUNT} ), 'x', 'physical path shares the cache' );
-    my $cache = JSON::PP->new->decode(
-        read_file("$self->{env}{HOME}/.local/share/fish/compgen/cache.json") );
+    my $cache = JSON::PP->new->decode( read_file("$self->{env}{HOME}/.local/share/fish/compgen/cache.json") );
     ok(
         exists $cache->{ absolute_path( $self->{script} ) },
         'the cache key is the readable full source path'
@@ -85,8 +86,7 @@ sub separates_paths_with_the_same_basename {
         utf8::decode($physical);
         push @paths, $physical;
     }
-    my $cache = JSON::PP->new->decode(
-        read_file("$self->{env}{HOME}/.local/share/fish/compgen/cache.json") );
+    my $cache = JSON::PP->new->decode( read_file("$self->{env}{HOME}/.local/share/fish/compgen/cache.json") );
     is_deeply(
         [ sort keys %$cache ],
         [ sort @paths ],
