@@ -87,7 +87,11 @@ else
 end
 prime ./build.sh --
 prime ./build.sh --
-not set -q compgen_paths[1]; or exit 10
+if test "$argv[1]" = basename
+    test "$(count $compgen_paths)" -eq 1; or exit 10
+else
+    not set -q compgen_paths[1]; or exit 11
+end
 complete -C './build.sh --'
 FISH
         is( $result->{returncode}, 0, $result->{stderr} );
