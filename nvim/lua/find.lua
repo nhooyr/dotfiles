@@ -1,6 +1,16 @@
 local state = package.loaded['find.state'] or { generation = 0 }
 package.loaded['find.state'] = state
 
+if not state.exit_handler then
+	state.exit_handler = vim.api.nvim_create_autocmd('VimLeavePre', {
+		callback = function()
+			state.generation = state.generation + 1
+			if state.pending then state.pending:kill(15) state.pending = nil end
+			if state.show then vim.api.nvim_del_autocmd(state.show) state.show = nil end
+		end,
+	})
+end
+
 local function run(pattern, mode)
 	local cwd = vim.fn.getcwd()
 	if state.pending then state.pending:kill(15) end

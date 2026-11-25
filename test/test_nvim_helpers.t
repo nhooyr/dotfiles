@@ -1771,8 +1771,30 @@ assert(quit, 'without a rendezvous path the helper still quits')
 LUA
 }
 
+sub find_files_stop_on_exit {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+local complete, signal
+vim.system = function(_, _, callback)
+    complete = callback
+    return { kill = function(_, value) signal = value end }
+end
+require('find').run('pending')
+local id = vim.fn.getqflist({ id = 0 }).id
+vim.api.nvim_exec_autocmds('VimLeavePre')
+eq(signal, 15, 'leaving Neovim explicitly stops the pending search')
+complete({ code = 0, stdout = 'late.lua\n', stderr = '' })
+local done = false
+vim.schedule(function() done = true end)
+assert(vim.wait(1000, function() return done end))
+eq(vim.fn.getqflist({ id = 0 }).id, id, 'a late result cannot open a list while exiting')
+LUA
+}
+
 run_cases(
     {
+        find_files_stop_on_exit                 => \&find_files_stop_on_exit,
         startup_clears_git_environment          => \&startup_clears_git_environment,
         startup_and_config_paths                => \&startup_and_config_paths,
         filename_display                        => \&filename_display,
