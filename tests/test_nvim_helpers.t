@@ -43,6 +43,7 @@ vim.pack.add = function(specs, options)
 end
 package.preload['nvim-treesitter'] = function()
     return {
+        get_installed = function() return { 'go' } end,
         install = function(parsers)
             assert(vim.deep_equal(parsers, { 'go' }))
             return { wait = function(_, timeout) assert(timeout == 300000); return true end }

@@ -16,14 +16,27 @@ sub run_script {
 local plugins = vim.env.TEST_DOTFILES .. '/nvim/lua/plugins.lua'
 local installs, waits, starts, package_added, on_wait = {}, {}, {}, false
 local installed = true
+local existing, runtimepath_sets = {}, 0
+local set_option = vim.api.nvim_set_option_value
+vim.api.nvim_set_option_value = function(name, ...)
+    if name == 'runtimepath' then runtimepath_sets = runtimepath_sets + 1 end
+    return set_option(name, ...)
+end
 vim.pack.add = function() package_added = true end
 package.loaded['nvim-treesitter'] = {
+    get_installed = function(kind)
+        assert(kind == 'parsers')
+        return vim.tbl_keys(existing)
+    end,
     install = function(parsers)
         assert(package_added, 'the parser plugin loads before installation')
         installs[#installs + 1] = vim.deepcopy(parsers)
         return { wait = function(_, timeout)
             waits[#waits + 1] = timeout
             if on_wait then on_wait() end
+            if installed then
+                for _, parser in ipairs(parsers) do existing[parser] = true end
+            end
             return installed
         end }
     end,
@@ -110,6 +123,7 @@ sub changed_buffers_do_not_receive_features {
 on_wait = function() vim.bo.filetype = 'lua' end
 buffer('go')
 eq(starts, {})
+existing.go = nil
 on_wait = function() vim.cmd.enew() end
 buffer('go')
 eq(starts, {})
@@ -123,6 +137,7 @@ buffer('go')
 eq(starts, {})
 eq(vim.bo.indentexpr, '')
 eq(vim.wo.foldmethod, 'manual')
+eq(runtimepath_sets, 0)
 LUA
 }
 
@@ -133,19 +148,40 @@ eq(vim.api.nvim_get_runtime_file('parser/go.so', false), {})
 on_wait = function()
     vim.fn.mkdir(vim.fs.dirname(parser), 'p')
     vim.fn.writefile({}, parser)
+    vim.cmd.enew()
 end
 buffer('go')
 eq(vim.api.nvim_get_runtime_file('parser/go.so', false), { parser })
+eq(starts, {})
+eq(runtimepath_sets, 1)
+on_wait = nil
+buffer('go')
+dofile(plugins)
+buffer('go')
+eq(runtimepath_sets, 1)
+eq(#installs, 1)
+eq(#starts, 2)
+LUA
+}
+
+sub installed_parser_skips_install_and_refresh {
+    run_script(<<'LUA');
+existing.go = true
+local buf = buffer('go')
+eq(installs, {})
+eq(runtimepath_sets, 0)
+eq(starts, { buf })
 LUA
 }
 
 run_cases(
     {
-        install_whitelisted_filetype_on_open    => \&install_whitelisted_filetype_on_open,
-        go_features_only                        => \&go_features_only,
-        reload_keeps_one_handler                => \&reload_keeps_one_handler,
-        changed_buffers_do_not_receive_features => \&changed_buffers_do_not_receive_features,
-        failed_install_does_not_start_features  => \&failed_install_does_not_start_features,
-        first_install_refreshes_runtime_lookup  => \&first_install_refreshes_runtime_lookup,
+        install_whitelisted_filetype_on_open       => \&install_whitelisted_filetype_on_open,
+        go_features_only                           => \&go_features_only,
+        reload_keeps_one_handler                   => \&reload_keeps_one_handler,
+        changed_buffers_do_not_receive_features    => \&changed_buffers_do_not_receive_features,
+        failed_install_does_not_start_features     => \&failed_install_does_not_start_features,
+        first_install_refreshes_runtime_lookup     => \&first_install_refreshes_runtime_lookup,
+        installed_parser_skips_install_and_refresh => \&installed_parser_skips_install_and_refresh,
     }
 );
