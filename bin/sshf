@@ -113,6 +113,7 @@ function run(argv) {
             updated.setObjectForKey($(1), $('SOCKSEnable'));
             updated.setObjectForKey($('localhost'), $('SOCKSProxy'));
             updated.setObjectForKey($(1080), $('SOCKSPort'));
+            check($.SCPreferencesPathSetValue(preferences, path, updated), 'Could not configure SOCKS proxy');
         } else if (action === 'restore') {
             var saved = $.NSDictionary.dictionaryWithContentsOfFile($(argv[2]));
             check(!saved.isNil(), 'Could not read saved SOCKS settings');
@@ -128,9 +129,6 @@ function run(argv) {
             }
         } else {
             throw new Error('Unknown proxy settings action');
-        }
-        if (action === 'enable') {
-            check($.SCPreferencesPathSetValue(preferences, path, updated), 'Could not configure SOCKS proxy');
         }
         check($.SCPreferencesCommitChanges(preferences), 'Could not commit SOCKS settings');
         check($.SCPreferencesApplyChanges(preferences), 'Could not apply SOCKS settings');
@@ -151,7 +149,7 @@ proxy() {
 		result=$?
 		trap '' HUP INT TERM
 		if [ -f "$proxy_snapshot" ]; then
-			if proxy_settings restore "$service_id" "$proxy_snapshot"; then :; else
+			if ! proxy_settings restore "$service_id" "$proxy_snapshot"; then
 				printf '%s: could not restore the saved SOCKS proxy settings for %s\n' "$name" "$service" >&2
 				: >"$proxy_snapshot.failed"
 				printf '%s: private settings snapshot retained at %s\n' "$name" "$proxy_snapshot" >&2
@@ -221,7 +219,7 @@ case "$direction" in
 			exit 1
 			;;
 		esac
-		if [ "${#port}" -gt 5 ] || [ "$port" -lt 0 ] || [ "$port" -gt 65535 ]; then
+		if [ "${#port}" -gt 5 ] || [ "$port" -gt 65535 ]; then
 			printf '%s: invalid port: %s\n' "$name" "$port" >&2
 			exit 1
 		fi
