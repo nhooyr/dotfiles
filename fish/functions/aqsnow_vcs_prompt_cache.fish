@@ -1,4 +1,4 @@
-function aqsnow_vcs_prompt_cache --argument-names root value
+function aqsnow_vcs_prompt_cache --argument-names root value identity
     if test -z "$root"; or not test -w "$root"
         return
     end
@@ -14,7 +14,10 @@ function aqsnow_vcs_prompt_cache --argument-names root value
     set -l temporary "$(command mktemp -d "$root/.fish-prompt-XXXXXX")"
     if test -n "$temporary"
         if printf '%s' "$value" >"$temporary/.fish_git_prompt"
-            command mv -f -- "$temporary/.fish_git_prompt" "$cache"
+            if test -z "$identity"
+                or test "$identity" = "$(command perl -e 'my @s = stat "$ARGV[0]/.git"; print "$s[0]:$s[1]" if @s' "$root")"
+                command mv -f -- "$temporary/.fish_git_prompt" "$cache"
+            end
         end
         command rm -f -- "$temporary/.fish_git_prompt"
         command rmdir -- "$temporary"
