@@ -51,6 +51,7 @@ alias sudo='sudo --preserve-env=SSH_TTY'
 abbr -a --position anywhere '$pbp' '"$(pbpaste)"'
 abbrali pbp pbpaste
 abbrali pbn 'pbp | pbc'
+abbr -a pwd 'pwd | hpath'
 abbrali pwdc 'pwd | hpath | pbc'
 abbrali rpc realpathc
 abbrali rpc. realpathc .
