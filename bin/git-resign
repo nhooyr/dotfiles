@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+case "$#:$*" in
+0:) ;;
+1:-h | 1:--help)
+	printf 'Usage: git resign\nRe-sign commits and annotated tags on all local branches and tags.\n'
+	exit 0
+	;;
+*)
+	printf 'Usage: git resign\n' >&2
+	exit 2
+	;;
+esac
+
+resign_dir=$(mktemp -d)
+trap 'rm -rf -- "$resign_dir"' 0
+trap 'exit 1' HUP INT TERM
+
+git for-each-ref --shell \
+	--format='ref=%(refname) type=%(objecttype) object=%(objectname) name=%(taggername) email=%(taggeremail:trim) date=%(taggerdate:raw)' \
+	refs/tags >"$resign_dir/refs"
+FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch \
+	--original "refs/original/resign-$$" \
+	--commit-filter 'git commit-tree -S "$@"' \
+	--tag-name-filter cat -- --branches --tags
+
+while IFS= read -r tag; do
+	eval "$tag"
+	[ "$type" = tag ] || continue
+	git update-ref "refs/original/resign-$$/$ref" "$object"
+	git cat-file tag "$object" >"$resign_dir/tag"
+	sed '1,/^$/d; /^-----BEGIN PGP SIGNATURE-----/,$d; /^-----BEGIN SSH SIGNATURE-----/,$d' \
+		"$resign_dir/tag" >"$resign_dir/message"
+	GIT_COMMITTER_NAME="$name" GIT_COMMITTER_EMAIL="$email" GIT_COMMITTER_DATE="@$date" \
+		git tag --force --sign --cleanup=verbatim --file "$resign_dir/message" \
+		-- "${ref#refs/tags/}" "$ref^{}"
+done <"$resign_dir/refs"
