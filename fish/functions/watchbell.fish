@@ -13,7 +13,7 @@ function watchbell --argument-names pattern
                 continue
             end
             set last_path "$path"
-            if test "$(path basename "$path")" = 4913
+            if test "$(path basename -- "$path")" = 4913
                 continue
             end
             printf '+%s %s\n' "$(date '+%X')" "$path"

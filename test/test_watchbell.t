@@ -39,9 +39,30 @@ sub success_and_interrupt_have_no_extra_diagnostics {
     }
 }
 
+sub leading_dash_filenames_are_literal {
+    my ($self) = @_;
+    my $result = run_command(
+        [ 'fish', '--no-config', '-c', <<'FISH', '--', $source ],
+source "$argv[1]"
+function fswatch
+    printf '%s\0' "$PWD/-tracked" "$PWD/4913" ''
+end
+watchbell
+FISH
+    );
+    is( $result->{returncode}, 0,  'watching succeeds' );
+    is( $result->{stderr},     '', 'leading dashes do not become path options' );
+    like(
+        $result->{stdout},
+        qr/\A\+[^\n]+ -tracked\n\a\z/,
+        'the real file is displayed and the editor temporary file is skipped'
+    );
+}
+
 run_cases(
     {
         watcher_errors_are_returned                     => \&watcher_errors_are_returned,
-        success_and_interrupt_have_no_extra_diagnostics => \&success_and_interrupt_have_no_extra_diagnostics
+        success_and_interrupt_have_no_extra_diagnostics => \&success_and_interrupt_have_no_extra_diagnostics,
+        leading_dash_filenames_are_literal              => \&leading_dash_filenames_are_literal,
     }
 );
