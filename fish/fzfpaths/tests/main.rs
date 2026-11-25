@@ -2866,6 +2866,46 @@ fn input_waiting_for_data_stops_when_output_is_closed() {
 }
 
 #[test]
+fn repeated_input_stops_when_output_is_closed() {
+    let fixture = Fixture::new();
+    let mut child = fixture
+        .command_with_flags(&["--read0"], &fixture.local, Path::new(""), "-f", &[])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut input = child.stdin.take().unwrap();
+    let mut path = fixture.local.join("file").into_os_string().into_vec();
+    path.push(0);
+    let producer = std::thread::spawn(move || {
+        let batch = path.repeat(1024);
+        while input.write_all(&batch).is_ok() {}
+    });
+    let mut output = BufReader::new(child.stdout.take().unwrap());
+    let mut first = Vec::new();
+    output.read_until(0, &mut first).unwrap();
+    assert_eq!(first, b"file\0");
+    drop(output);
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let stopped = loop {
+        if child.try_wait().unwrap().is_some() {
+            break true;
+        }
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            break false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let output = child.wait_with_output().unwrap();
+    producer.join().unwrap();
+    assert!(stopped, "duplicate input hid the closed output pipe");
+    assert!(output.status.success(), "{output:?}");
+    assert!(output.stderr.is_empty(), "{output:?}");
+}
+
+#[test]
 fn dirali_options_work_before_and_after_positions() {
     let fixture = Fixture::new();
     let paths = fixture.run(

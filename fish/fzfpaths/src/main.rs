@@ -288,6 +288,9 @@ fn run(
                 // this periodic sweep handles idle readers without locking for
                 // every small output batch.
                 if last_reap.elapsed() >= Duration::from_millis(50) {
+                    if output_closed() {
+                        return Err(io::ErrorKind::BrokenPipe.into());
+                    }
                     git.lock().unwrap().reap_finished()?;
                     last_reap = Instant::now();
                 }
@@ -299,7 +302,10 @@ fn run(
                     }
                     Err(RecvTimeoutError::Timeout) => continue,
                 };
-                for candidate in std::iter::once(candidate).chain(receiver.try_iter()) {
+                for candidate in std::iter::once(candidate)
+                    .chain(receiver.try_iter())
+                    .take(256)
+                {
                     check_signal()?;
                     match candidate {
                         Candidate::Path { path, local, style } => {
