@@ -368,6 +368,34 @@ vim.go.ruler, vim.go.rulerformat = ruler, rulerformat
 LUA
 }
 
+sub quickfix_long_title {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
+local title = ':vgrep ' .. ('long-pattern-'):rep(12)
+local list = { title = title, context = { cwd = vim.env.HOME }, items = {
+    { filename = vim.env.TEST_ORIGINAL, lnum = 1, text = 'match' },
+} }
+local ruler = ('%-14s All'):format('1,1')
+for _, location in ipairs({ false, true }) do
+    if location then
+        vim.fn.setloclist(0, {}, ' ', list)
+        vim.cmd.lopen()
+    else
+        vim.fn.setqflist({}, ' ', list)
+        vim.cmd.copen()
+    end
+    vim.b.vcs_prompt = ' (main *)'
+    for _, width in ipairs({ 80, 120 }) do
+        local display = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = width }).str
+        eq(display:sub(-#ruler), ruler, 'long list titles preserve the right-aligned ruler')
+        assert(display:find(' (main *) ', 1, true), 'long list titles preserve Git status')
+    end
+    if location then vim.cmd.lclose() else vim.cmd.cclose() end
+end
+LUA
+}
+
 sub new_files_are_modified {
     my ($self) = @_;
     my $file = "$self->{temporary}/new parent/empty file.txt";
@@ -1834,6 +1862,7 @@ run_cases(
         quickfix_relative_paths                 => \&quickfix_relative_paths,
         quickfix_title_directory_aliases        => \&quickfix_title_directory_aliases,
         quickfix_search_directory               => \&quickfix_search_directory,
+        quickfix_long_title                     => \&quickfix_long_title,
         new_files_are_modified                  => \&new_files_are_modified,
         readonly_autosave                       => \&readonly_autosave,
         file_locations                          => \&file_locations,
