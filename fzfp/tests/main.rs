@@ -2017,7 +2017,7 @@ fn cdpath_adds_two_directory_levels_from_all_roots() {
             assert!(paths.contains(&format!("$CDPATH/{directory}").into()));
         }
         assert!(paths.contains(&"$CDPATH/three".into()));
-        assert!(paths.contains(&"$CDPATH/dir".into()));
+        assert!(!paths.contains(&"$CDPATH/dir".into()));
         for omitted in [
             "one/inside/deeper",
             "linked/inside/deeper",
@@ -2041,8 +2041,8 @@ fn current_directory_cdpath_entries_use_only_the_local_scan() {
     let fixture = Fixture::new();
     let other = fixture.root.join("other");
     fs::create_dir_all(other.join("outside")).unwrap();
-    for current in [".", "./", "./.", "././."] {
-        let cdpath = env::join_paths([Path::new(current), &other]).unwrap();
+    for current in ["", ".", "./", "./.", "././."] {
+        let cdpath = env::join_paths([Path::new(current), &other, Path::new(current)]).unwrap();
         for kind in ["-d", "-fd"] {
             let paths = fixture.run(&mut fixture.command_with_cdpath(
                 &[],
@@ -2194,20 +2194,22 @@ fn cdpath_and_keep_dot_flags_work_in_both_orders() {
 #[test]
 fn empty_cdpath_disables_cdpath_choices() {
     let fixture = Fixture::new();
-    let paths = fixture.run(&mut fixture.command_with_cdpath(
-        &[],
-        &fixture.local,
-        &fixture.global_dir,
-        Some(OsStr::new("")),
-        "-d",
-        &[],
-    ));
-    assert!(paths.contains(&"dir".into()));
-    assert!(
-        !paths
-            .iter()
-            .any(|path| Path::new(path).starts_with("$CDPATH"))
-    );
+    for cdpath in ["", ":", "::"] {
+        let paths = fixture.run(&mut fixture.command_with_cdpath(
+            &[],
+            &fixture.local,
+            &fixture.global_dir,
+            Some(OsStr::new(cdpath)),
+            "-d",
+            &[],
+        ));
+        assert!(paths.contains(&"dir".into()));
+        assert!(
+            !paths
+                .iter()
+                .any(|path| Path::new(path).starts_with("$CDPATH"))
+        );
+    }
 }
 
 #[test]

@@ -1320,7 +1320,7 @@ impl Scanner {
         let mut roots = HashSet::new();
         for root in env::split_paths(&cdpath) {
             self.check_cancelled()?;
-            if root == Path::new(".") {
+            if root.as_os_str().is_empty() || root == Path::new(".") {
                 continue;
             }
             let Ok(root) = self.cwd.join(root).canonicalize() else {
