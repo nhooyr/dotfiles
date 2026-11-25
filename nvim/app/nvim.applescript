@@ -3,15 +3,17 @@ on run
 end run
 
 on open theFiles
-    set fishPath to do shell script "PATH=/opt/homebrew/bin:/usr/local/bin:$PATH command -v fish"
-    set commandText to "nvim --"
-    repeat with theFile in theFiles
-        set filePath to POSIX path of theFile
-        set escapedPath to do shell script (quoted form of fishPath & " --no-config -c 'string escape -- $argv' -- " & quoted form of filePath)
-        set commandText to commandText & " " & escapedPath
-    end repeat
-    my launchEditor(commandText)
+    my launchEditor(my commandForFiles(theFiles))
 end open
+
+on commandForFiles(theFiles)
+    set fishPath to do shell script "PATH=/opt/homebrew/bin:/usr/local/bin:$PATH command -v fish"
+    set argumentsText to ""
+    repeat with theFile in theFiles
+        set argumentsText to argumentsText & " " & quoted form of (POSIX path of theFile)
+    end repeat
+    return do shell script (quoted form of fishPath & " --no-config -c 'printf \"nvim --\"; for file in $argv; printf \" %s\" $(string escape -- \"$file\"); end' --" & argumentsText)
+end commandForFiles
 
 on launchEditor(commandText)
     tell application "/System/Applications/Utilities/Terminal.app"
