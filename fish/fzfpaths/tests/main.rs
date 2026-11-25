@@ -2791,6 +2791,33 @@ fn directory_aliases_match_logical_and_physical_input_paths() {
 }
 
 #[test]
+fn root_directory_alias_preserves_the_path_separator() {
+    let fixture = Fixture::new();
+    for specific in [false, true] {
+        let mut aliases = vec![("$root", Path::new("/"))];
+        if specific {
+            aliases.push(("$project", fixture.repo.as_path()));
+        }
+        let paths = from_input(
+            &mut fixture.command_with_flags(
+                &["--read0"],
+                &fixture.local,
+                Path::new(""),
+                "-f",
+                &aliases,
+            ),
+            &[&fixture.repo.join("tracked")],
+        );
+        let expected = if specific {
+            "$project/tracked".into()
+        } else {
+            format!("$root{}", fixture.repo.join("tracked").display())
+        };
+        assert_eq!(paths, [OsString::from(expected)]);
+    }
+}
+
+#[test]
 fn input_paths_use_local_rules_for_physical_and_logical_cwd() {
     let fixture = Fixture::new();
     let alias = fixture.root.join("alias");

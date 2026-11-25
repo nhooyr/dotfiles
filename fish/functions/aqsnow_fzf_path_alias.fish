@@ -18,10 +18,15 @@ function aqsnow_fzf_path_alias --argument-names target
         for directory in $paths[2..]
             set -l length $(string length -- "$directory")
             test "$length" -gt "$longest"; or continue
-            if string match -qr -- '^'$(string escape --style=regex -- "$directory")'(/|$)' "$target"
+            set -l pattern '^'$(string escape --style=regex -- "$directory")
+            test "$directory" = /; or set pattern "$pattern"'(/|$)'
+            if string match -qr -- "$pattern" "$target"
                 set -l direnv '$'$name
                 test "$name" = HOME; and set direnv '~'
                 set -l suffix $(string split --max 1 -- "$directory" "$target")[2]
+                if test "$directory" = /; and test -n "$suffix"
+                    set suffix "/$suffix"
+                end
                 set aliased "$direnv$suffix"
                 set longest "$length"
             end

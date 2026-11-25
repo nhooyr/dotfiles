@@ -814,9 +814,15 @@ impl Picker {
             return self.emit(path, true, &style);
         }
         if let Some((env, dir)) = self.env_dirs.iter().find(|(_, dir)| {
-            path.starts_with(dir) && (path.len() == dir.len() || path.get(dir.len()) == Some(&b'/'))
+            path.starts_with(dir)
+                && (dir == b"/" || path.len() == dir.len() || path.get(dir.len()) == Some(&b'/'))
         }) {
-            path.splice(..dir.len(), env.iter().copied());
+            let prefix = if dir == b"/" && path.len() > 1 {
+                0
+            } else {
+                dir.len()
+            };
+            path.splice(..prefix, env.iter().copied());
             self.emit(path, false, &style)
         } else {
             self.emit(path, true, &style)

@@ -549,6 +549,21 @@ test -d "$paths[-1]"; or exit 1
 }
 
 #[test]
+fn root_directory_alias_preserves_the_path_separator() {
+    let script = r#"
+set -g root /
+set -g aqsnow_fzf_diralis root
+test "$(aqsnow_fzf_path_alias /tmp/file | string split0)" = '$root/tmp/file'; or exit 1
+test "$(aqsnow_fzf_path_alias / | string split0)" = '$root'; or exit 2
+test "$(aqsnow_fzf_path_alias relative | string split0)" = relative; or exit 3
+set -g project "$PWD"
+set -a aqsnow_fzf_diralis project
+test "$(aqsnow_fzf_path_alias "$PWD/file" | string split0)" = '$project/file'; or exit 4
+"#;
+    assert!(path_case(script, "").is_empty());
+}
+
+#[test]
 fn completion_preserves_quoted_arguments_and_caller_variables() {
     let script = r#"
 function commandline
