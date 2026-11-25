@@ -118,7 +118,7 @@ impl Fixture {
     fn new() -> Self {
         let root = loop {
             let id = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
-            let path = env::temp_dir().join(format!("fzfpaths-{}-{id}", std::process::id()));
+            let path = env::temp_dir().join(format!("fzfp-{}-{id}", std::process::id()));
             match fs::create_dir(&path) {
                 Ok(()) => break path,
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
@@ -205,7 +205,7 @@ impl Fixture {
         kind: &str,
         env_dirs: &[(&str, &Path)],
     ) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_fzfpaths"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_fzfp"));
         command
             .current_dir(cwd)
             .env("PWD", cwd)
@@ -344,7 +344,7 @@ fn local_and_global_overlap_uses_physical_directory_roots() {
 fn absolute_local_paths_do_not_add_an_alias_copy() {
     let fixture = Fixture::new();
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .current_dir(&fixture.local)
             .arg(&fixture.repo)
             .arg("$global")
@@ -998,7 +998,7 @@ fn failed_git_scan_reports_failure() {
         std::iter::once(bin).chain(env::split_paths(&env::var_os("PATH").unwrap())),
     )
     .unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+    let output = Command::new(env!("CARGO_BIN_EXE_fzfp"))
         .current_dir(&fixture.local)
         .env("PATH", path)
         .arg("")
@@ -1119,9 +1119,9 @@ fn global_untracked_paths_respect_git_ignores_and_file_types() {
 fn global_ignore_hides_subtrees_without_filtering_local_paths() {
     let fixture = Fixture::new();
     let config = fixture.root.join("config");
-    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::create_dir_all(config.join("fzfp")).unwrap();
     fs::write(
-        config.join("fzfpaths/ignore"),
+        config.join("fzfp/ignore"),
         "/project/src/\n/project/android/\n/project/ios/\n",
     )
     .unwrap();
@@ -1184,9 +1184,9 @@ fn global_ignore_hides_subtrees_without_filtering_local_paths() {
 fn global_ignore_supports_file_globs_and_negations() {
     let fixture = Fixture::new();
     let config = fixture.root.join("config");
-    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::create_dir_all(config.join("fzfp")).unwrap();
     fs::write(
-        config.join("fzfpaths/ignore"),
+        config.join("fzfp/ignore"),
         "# Keep one matching file.\n/project/*.tmp\n!/project/keep.tmp\n/project/nested/*\n!/project/nested/child\n/project/literal\\[\n/project/class[ab]\n",
     )
     .unwrap();
@@ -1220,9 +1220,9 @@ fn global_ignore_supports_file_globs_and_negations() {
 fn configured_ignore_rules_keep_local_and_global_scopes_separate() {
     let fixture = Fixture::new();
     let config = fixture.root.join("config");
-    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::create_dir_all(config.join("fzfp")).unwrap();
     fs::write(
-        config.join("fzfpaths/ignore"),
+        config.join("fzfp/ignore"),
         "*.tmp\n!nested/keep.tmp\nlocal-only\n/project/global-only\n/project/*.bin\n!/project/keep.bin\n",
     )
     .unwrap();
@@ -1276,9 +1276,9 @@ fn configured_ignore_skips_only_the_initial_utf8_bom() {
             write(root, "literal");
         }
         let config = fixture.root.join("config");
-        fs::create_dir_all(config.join("fzfpaths")).unwrap();
+        fs::create_dir_all(config.join("fzfp")).unwrap();
         fs::write(
-            config.join("fzfpaths/ignore"),
+            config.join("fzfp/ignore"),
             format!("\u{feff}{pattern}\n\u{feff}literal\n\u{feff}/project/literal\n"),
         )
         .unwrap();
@@ -1306,9 +1306,9 @@ fn local_ignore_negation_does_not_override_gitignore() {
     write(&fixture.local, "keep.tmp");
     fs::write(fixture.local.join(".gitignore"), "native.tmp\n").unwrap();
     let config = fixture.root.join("config");
-    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::create_dir_all(config.join("fzfp")).unwrap();
     fs::write(
-        config.join("fzfpaths/ignore"),
+        config.join("fzfp/ignore"),
         "*.tmp\n!native.tmp\n!keep.tmp\n",
     )
     .unwrap();
@@ -1326,9 +1326,9 @@ fn local_ignore_negation_does_not_override_gitignore() {
 fn global_ignore_reports_unclosed_character_classes() {
     let fixture = Fixture::new();
     let config = fixture.root.join("config");
-    fs::create_dir_all(config.join("fzfpaths")).unwrap();
-    fs::write(config.join("fzfpaths/ignore"), "/[\n").unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+    fs::create_dir_all(config.join("fzfp")).unwrap();
+    fs::write(config.join("fzfp/ignore"), "/[\n").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_fzfp"))
         .arg("")
         .arg("$global")
         .args(["--dirali", "$global"])
@@ -1346,8 +1346,8 @@ fn global_ignore_reports_unclosed_character_classes() {
 fn failed_scan_cancels_other_sources() {
     let fixture = Fixture::new();
     let config = fixture.root.join("config");
-    fs::create_dir_all(config.join("fzfpaths")).unwrap();
-    fs::write(config.join("fzfpaths/ignore"), "[\n").unwrap();
+    fs::create_dir_all(config.join("fzfp")).unwrap();
+    fs::write(config.join("fzfp/ignore"), "[\n").unwrap();
     let bin = fixture.root.join("bin");
     fs::create_dir(&bin).unwrap();
     let git = bin.join("git");
@@ -1377,8 +1377,8 @@ fn global_ignore_uses_home_default_and_xdg_override() {
     let home = fixture.root.join("home");
     let config = fixture.root.join("config");
     for (directory, pattern) in [
-        (home.join(".config/fzfpaths"), "/project/tracked\n"),
-        (config.join("fzfpaths"), "/project/untracked\n"),
+        (home.join(".config/fzfp"), "/project/tracked\n"),
+        (config.join("fzfp"), "/project/untracked\n"),
     ] {
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("ignore"), pattern).unwrap();
@@ -1406,10 +1406,10 @@ fn global_ignore_uses_home_default_and_xdg_override() {
 fn ignored_global_repository_is_not_scanned_or_filtered_from_cdpath() {
     let fixture = Fixture::new();
     let config = fixture.root.join("config");
-    fs::create_dir_all(config.join("fzfpaths")).unwrap();
-    fs::write(config.join("fzfpaths/ignore"), "/project/\n").unwrap();
+    fs::create_dir_all(config.join("fzfp")).unwrap();
+    fs::write(config.join("fzfp/ignore"), "/project/\n").unwrap();
     let output = checked(
-        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .arg("")
             .arg("$global")
             .args(["--dirali", "$global"])
@@ -2171,7 +2171,7 @@ fn cdpath_and_keep_dot_flags_work_in_both_orders() {
     let directory = fixture.root.join("cdpath");
     fs::create_dir_all(directory.join("child")).unwrap();
     for keep_dot_first in [false, true] {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_fzfpaths"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_fzfp"));
         command
             .current_dir(&fixture.local)
             .env("PWD", &fixture.local);
@@ -2298,7 +2298,7 @@ fn executable_paths_work_with_dot_roots_and_symlinks() {
     .unwrap();
     for directory in [".", "./"] {
         let paths = fixture.run(
-            Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+            Command::new(env!("CARGO_BIN_EXE_fzfp"))
                 .current_dir(&fixture.local)
                 .env("PWD", &fixture.local)
                 .args(["--keep-dot", directory, "", "-fd"]),
@@ -2316,16 +2316,16 @@ fn executable_paths_work_with_dot_roots_and_symlinks() {
 #[test]
 fn executable_subdirectory_paths_get_both_forms() {
     let fixture = Fixture::new();
-    write_script(&fixture.local, "fzfpaths/install.sh");
-    for directory in [".", "fzfpaths"] {
+    write_script(&fixture.local, "fzfp/install.sh");
+    for directory in [".", "fzfp"] {
         let paths = fixture.run(
-            Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+            Command::new(env!("CARGO_BIN_EXE_fzfp"))
                 .current_dir(&fixture.local)
                 .env("PWD", &fixture.local)
                 .args(["--keep-dot", directory, "", "-fd"]),
         );
-        assert!(paths.contains(&"fzfpaths/install.sh".into()));
-        assert!(paths.contains(&"./fzfpaths/install.sh".into()));
+        assert!(paths.contains(&"fzfp/install.sh".into()));
+        assert!(paths.contains(&"./fzfp/install.sh".into()));
     }
 }
 
@@ -2461,7 +2461,7 @@ fn empty_or_missing_global_alias() {
 fn global_scan_requires_a_registered_alias_name() {
     let fixture = Fixture::new();
     for global in [OsStr::new("$missing"), fixture.global_dir.as_os_str()] {
-        let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        let output = Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .current_dir(&fixture.local)
             .arg(".")
             .arg(global)
@@ -2474,7 +2474,7 @@ fn global_scan_requires_a_registered_alias_name() {
         assert_eq!(
             String::from_utf8(output.stderr).unwrap(),
             format!(
-                "fzfpaths: unknown global directory alias: {}\n",
+                "fzfp: unknown global directory alias: {}\n",
                 global.to_string_lossy()
             )
         );
@@ -2526,9 +2526,7 @@ fn relative_directory_aliases_are_rejected() {
             assert!(output.stdout.is_empty());
             assert_eq!(
                 String::from_utf8(output.stderr).unwrap(),
-                format!(
-                    "fzfpaths: directory alias $project requires an absolute path: {directory}\n"
-                )
+                format!("fzfp: directory alias $project requires an absolute path: {directory}\n")
             );
         }
     }
@@ -2951,7 +2949,7 @@ fn symlink_parent_search_uses_the_target_gitignore_rules() {
 
     let scan = |directory: &str| {
         fixture.run(
-            Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+            Command::new(env!("CARGO_BIN_EXE_fzfp"))
                 .current_dir(&fixture.local)
                 .env("PWD", &fixture.local)
                 .args([directory, "", "-f"]),
@@ -2998,7 +2996,7 @@ fn explicitly_selected_ignored_directory_can_be_searched() {
     fs::write(fixture.repo.join(".gitignore"), "/target/\n").unwrap();
     write(&fixture.repo, "target/deep/application");
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .current_dir(&fixture.repo)
             .env("PWD", &fixture.repo)
             .args(["target/deep", "", "-fd"]),
@@ -3033,7 +3031,7 @@ fn explicit_search_can_cross_normally_skipped_ancestors() {
     fs::write(fixture.repo.join(".gitignore"), "/target/\n").unwrap();
     write(&fixture.repo, "target/node_modules/package/application");
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .current_dir(&fixture.repo)
             .env("PWD", &fixture.repo)
             .args(["./target/node_modules/package", "", "-fd"]),
@@ -3183,7 +3181,7 @@ fn input_paths_reject_relative_filenames() {
         assert!(output.stdout.is_empty());
         assert_eq!(
             output.stderr,
-            format!("fzfpaths: --read0 requires absolute paths: {path}\n").as_bytes()
+            format!("fzfp: --read0 requires absolute paths: {path}\n").as_bytes()
         );
     }
 }
@@ -3421,7 +3419,7 @@ fn repeated_input_stops_when_output_is_closed() {
 fn dirali_options_work_before_and_after_positions() {
     let fixture = Fixture::new();
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .current_dir(&fixture.local)
             .env("PWD", &fixture.local)
             .arg("--dirali")
@@ -3467,7 +3465,7 @@ fn invalid_arguments() {
         vec!["", "", ""],
         vec!["", "", "-df"],
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        let output = Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .arg0("/some/path/renamed-picker")
             .args(args)
             .output()
@@ -3495,7 +3493,7 @@ fn help_uses_invoked_basename() {
         vec!["--cdpath", "", "--help"],
         vec!["--keep-dot", "--cdpath", "", "--help"],
     ] {
-        let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        let output = Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .arg0("/some/path/renamed-picker")
             .args(flags)
             .output()
@@ -3521,13 +3519,13 @@ fn help_uses_invoked_basename() {
         assert!(help.contains("--read0"));
         assert!(!help.contains("LABEL"));
         assert!(!help.contains("OWNER"));
-        assert!(!help.contains("usage: fzfpaths"));
+        assert!(!help.contains("usage: fzfp"));
     }
 }
 
 #[test]
 fn incomplete_dirali_is_a_usage_error() {
-    let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+    let output = Command::new(env!("CARGO_BIN_EXE_fzfp"))
         .arg0("/some/path/renamed-picker")
         .args([".", "", "-fd", "--dirali", "unpaired"])
         .output()
@@ -3645,7 +3643,7 @@ fn absolute_local_binary_paths_are_relative_to_the_physical_cwd() {
     fs::create_dir_all(logical.parent().unwrap()).unwrap();
     symlink(&fixture.local, &logical).unwrap();
     let paths = fixture.run(
-        Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        Command::new(env!("CARGO_BIN_EXE_fzfp"))
             .current_dir(&fixture.local)
             .env("PWD", &logical)
             .arg(&external)

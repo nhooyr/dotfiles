@@ -15,7 +15,7 @@ fi
 find . -type f -name '*.fish' -exec fish_indent -w {} +
 git ls-files --cached --others --exclude-standard -z -- '*.pl' '*.pm' '*.t' |
 	xargs -0 -n1 sh -c 'test ! -f "$1" || perltidy -npro -l=110 -conv -b -bext=/ "./$1"' sh
-cargo fmt --quiet --manifest-path fzfpaths/Cargo.toml
+cargo fmt --quiet --manifest-path fzfp/Cargo.toml
 shfmt -s -w .
 
 if [ "${CI-}" ]; then

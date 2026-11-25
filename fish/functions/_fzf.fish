@@ -94,10 +94,10 @@ function fzf_path_widget --argument-names widget
     if test "$widget" = fzf-recent-widget
         set result $(command nvim --headless -u NONE -n \
             -c 'lua for _, path in ipairs(vim.v.oldfiles) do if path:sub(1, 1) == "/" then io.write(path, "\0") end end; vim.o.shadafile = "NONE"' -c 'qa!' \
-            | fzfpaths --read0 --color --classify $flags $dirs -- . '' -f \
+            | fzfp --read0 --color --classify $flags $dirs -- . '' -f \
             | _fzf_select "$widget" "$query" | string split0)
     else
-        set result $(fzfpaths --color --classify $flags $dirs -- "$dir" "$global_alias" "$type" | _fzf_select "$widget" "$query" | string split0)
+        set result $(fzfp --color --classify $flags $dirs -- "$dir" "$global_alias" "$type" | _fzf_select "$widget" "$query" | string split0)
     end
     if set -q result[1]
         set -l resolve_cdpath 1

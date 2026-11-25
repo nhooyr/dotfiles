@@ -32,7 +32,7 @@ function commandline
             set -g inserted "$argv[3]"
     end
 end
-function fzfpaths
+function fzfp
     contains -- --keep-dot $argv; and printf yes > "$TEST_FLAGS"
     contains -- --read0 $argv; and cat >/dev/null
     printf '\0'
@@ -214,7 +214,7 @@ end
         .current_dir(&fixture.0)
         .env("WIDGET_SOURCE", widget)
         .env("TEST_TOKEN", token)
-        .env("FZFPATHS", env!("CARGO_BIN_EXE_fzfpaths"))
+        .env("FZFP", env!("CARGO_BIN_EXE_fzfp"))
         .env("TERM", "xterm-256color")
         .env("XDG_DATA_HOME", fixture.0.join("data"))
         .stdout(Stdio::piped())
@@ -252,8 +252,8 @@ function commandline
             set -g inserted "$argv[3]"
     end
 end
-function fzfpaths
-    command "$FZFPATHS" $argv
+function fzfp
+    command "$FZFP" $argv
 end
 _fzf fzf-path-first-widget
 test ! -e was-executed; or exit 1
@@ -286,8 +286,8 @@ fn directory_names_are_not_parsed_as_scanner_options() {
 mkdir -- --help --color
 printf text > --help/file
 printf text > --color/file
-function fzfpaths
-    command "$FZFPATHS" $argv
+function fzfp
+    command "$FZFP" $argv
 end
 function fzf
     while read --null --local path
@@ -313,7 +313,7 @@ fn dot_paths_in_option_values_keep_searches_local() {
     let script = r#"
 set -g HOME "$PWD"
 set -g nhooyr /global
-function fzfpaths
+function fzfp
     printf '%s\0' $argv > scan
 end
 function fzf
@@ -366,7 +366,7 @@ mkdir bin
 printf '#!/bin/sh\nexit 0\n' > bin/nvim
 chmod +x bin/nvim
 set -lx PATH "$PWD/bin" $PATH
-function fzfpaths
+function fzfp
     cat >/dev/null
 end
 function fzf
@@ -388,7 +388,7 @@ mkdir bin
 printf '%s\n' '#!/bin/sh' 'exec "$TEST_NVIM" -i NONE --cmd "lua vim.v.oldfiles = vim.json.decode(vim.env.TEST_OLDFILES)" "$@"' > bin/nvim
 chmod +x bin/nvim
 set -lx PATH "$PWD/bin" $PATH
-function fzfpaths
+function fzfp
     cat > input
 end
 function fzf
@@ -422,7 +422,7 @@ function commandline
             set -g inserted "$argv[3]"
     end
 end
-function fzfpaths
+function fzfp
     set -l separator $(contains -i -- -- $argv)
     set -l directory "$argv[$(math "$separator + 1")]"
     if test "$TEST_TOKEN" = /
@@ -442,7 +442,7 @@ function fzfpaths
             return 5
         end
     end
-    command "$FZFPATHS" $argv
+    command "$FZFP" $argv
 end
 function fzf
     set -l paths
@@ -533,8 +533,8 @@ function commandline
             set -g inserted "$argv[3]"
     end
 end
-function fzfpaths
-    command "$FZFPATHS" $argv
+function fzfp
+    command "$FZFP" $argv
 end
 function fzf
     set -l paths
@@ -577,7 +577,7 @@ test "$inserted" = '$project/binary '; or exit 5
 #[test]
 fn cdpath_insertion_preserves_symlink_parents_and_aliases() {
     let script = r#"
-function fzfpaths
+function fzfp
     printf '\0'
 end
 function fzf

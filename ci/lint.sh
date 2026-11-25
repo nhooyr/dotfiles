@@ -12,4 +12,4 @@ git ls-files --cached --others --exclude-standard -z -- '*.pl' '*.pm' '*.t' |
 	xargs -0 -n1 sh -c 'test ! -f "$1" || perl -c "./$1"' sh
 
 shfmt -f=0 . | xargs -0 -n1 sh -n
-cargo clippy --quiet --manifest-path fzfpaths/Cargo.toml --locked --all-targets -- -D warnings
+cargo clippy --quiet --manifest-path fzfp/Cargo.toml --locked --all-targets -- -D warnings

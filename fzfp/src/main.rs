@@ -69,7 +69,7 @@ At command start, an absolute-path query also runs selected executable scripts,
 using the longest matching directory alias when available.
 
 Ignore rules:
-  Read $XDG_CONFIG_HOME/fzfpaths/ignore, or ~/.config/fzfpaths/ignore when
+  Read $XDG_CONFIG_HOME/fzfp/ignore, or ~/.config/fzfp/ignore when
   XDG_CONFIG_HOME is unset or empty. Use Gitignore patterns and comments.
   A leading / selects global results, relative to <GLOBAL_ALIAS>'s directory.
   Other patterns select local results, relative to <DIR>. A leading ! negates
@@ -699,7 +699,7 @@ struct IgnoreFile {
 
 impl IgnoreFile {
     fn load() -> io::Result<Option<Self>> {
-        let Some(path) = config_home().map(|config| config.join("fzfpaths/ignore")) else {
+        let Some(path) = config_home().map(|config| config.join("fzfp/ignore")) else {
             return Ok(None);
         };
         match fs::read_to_string(&path) {
