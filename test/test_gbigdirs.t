@@ -66,5 +66,30 @@ sub outside_repository {
     ok( !-e $self->{env}{GBIGDIRS_INPUT}, 'does not run du outside a repository' );
 }
 
-run_cases( { tracked_files_only => \&tracked_files_only, outside_repository => \&outside_repository },
-    \&setup );
+sub git_listing_errors_are_returned {
+    my ($self) = @_;
+    write_file( "$self->{directory}/repo/.git/index", 'invalid index' );
+    my $result = run_command( [ $fish, '--no-config', '-c', 'source "$argv[1]"; gbigdirs', '--', $helper ],
+        { cwd => "$self->{directory}/repo", env => $self->{env} } );
+    is( $result->{returncode}, 128, 'Git listing failure is returned through the pipeline' );
+    like( $result->{stderr}, qr/index/, 'Git keeps its diagnostic' );
+}
+
+sub size_errors_are_returned {
+    my ($self) = @_;
+    write_file( "$self->{directory}/bin/gdu", "#!/bin/sh\nprintf 'du failed\\n' >&2\nexit 23\n" );
+    my $result = run_command( [ $fish, '--no-config', '-c', 'source "$argv[1]"; gbigdirs', '--', $helper ],
+        { cwd => "$self->{directory}/repo", env => $self->{env} } );
+    is( $result->{returncode}, 23, 'size calculation failure is returned through the pipeline' );
+    like( $result->{stderr}, qr/du failed/, 'the size diagnostic is preserved' );
+}
+
+run_cases(
+    {
+        tracked_files_only              => \&tracked_files_only,
+        outside_repository              => \&outside_repository,
+        git_listing_errors_are_returned => \&git_listing_errors_are_returned,
+        size_errors_are_returned        => \&size_errors_are_returned,
+    },
+    \&setup
+);

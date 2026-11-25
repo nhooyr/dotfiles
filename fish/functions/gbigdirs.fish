@@ -20,4 +20,7 @@ function gbigdirs --description 'Show the largest directories using Git-tracked 
         sort -k1,1nr -k2 |
         head -n 16 |
         gnumfmt --delimiter=\t --field=1 --to=iec
+    for code in $pipestatus
+        contains -- "$code" 0 141; or return "$code"
+    end
 end
