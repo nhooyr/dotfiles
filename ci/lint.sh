@@ -3,8 +3,9 @@ set -eu
 cd -- "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
-	sudo add-apt-repository --yes ppa:fish-shell/release-4
-	sudo apt-get install --yes fish shfmt cargo rust-clippy
+	./ci/install-fish.sh
+	sudo apt-get update
+	sudo apt-get install --yes shfmt cargo rust-clippy
 fi
 
 git ls-files --cached --others --exclude-standard -z -- '*.fish' |

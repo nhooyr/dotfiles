@@ -21,6 +21,8 @@ sub setup {
     copy_preserve( "$root/nvim/lua/plugins.lua",    "$directory/lua/plugins.lua" );
     copy_preserve( "$root/nvim/lua/treesitter.lua", "$directory/lua/treesitter.lua" );
     copy_preserve( "$root/ci/test.sh",              "$self->{temporary}/source tree/ci/test.sh" );
+    write_file( "$self->{temporary}/source tree/ci/install-fish.sh", "#!/bin/sh\nexit 0\n" );
+    chmod 0755, "$self->{temporary}/source tree/ci/install-fish.sh";
     $self->{directory} = $directory;
     $self->{bin}       = $bin;
     $self->{env}       = {

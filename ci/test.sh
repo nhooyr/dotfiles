@@ -3,8 +3,9 @@ set -eu
 cd -- "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
-	sudo add-apt-repository --yes ppa:fish-shell/release-4
-	sudo apt-get install --yes fish cargo zsh fd-find ripgrep shfmt
+	./ci/install-fish.sh
+	sudo apt-get update
+	sudo apt-get install --yes cargo zsh fd-find ripgrep shfmt perltidy
 	sudo install "$(command -v fdfind)" /usr/local/bin/fd
 	sudo install "$(command -v ls)" /usr/local/bin/gls
 	# packlockfile and the native directory browser require Neovim 0.13.

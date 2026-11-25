@@ -3,8 +3,9 @@ set -eu
 cd -- "$(dirname "$0")/.."
 
 if [ "${GITHUB_ACTIONS-}" ]; then
-	sudo add-apt-repository --yes ppa:fish-shell/release-4
-	sudo apt-get install --yes fish shfmt cargo rustfmt cpanminus
+	./ci/install-fish.sh
+	sudo apt-get update
+	sudo apt-get install --yes shfmt cargo rustfmt cpanminus
 	perl_lib="$PWD/.build/perltidy-20260826-$(perl -e 'print $^V')"
 	export PERL_CPANM_HOME="$PWD/.build/cpanm"
 	export PERL5LIB="$perl_lib/lib/perl5"
