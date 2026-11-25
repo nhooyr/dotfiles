@@ -5,8 +5,10 @@ function watchbell --argument-names pattern
     set -l last_path
     fswatch -r0 --batch-marker='' -e '.*' -i "$pattern" . | while read -zl path
         if test -z "$path"
-            test -n "$last_path"; and printf '\a'
-            set -e last_path
+            if test -n "$last_path"
+                printf '\a'
+                set -e last_path
+            end
         else
             set path "$(string replace "$PWD/" '' "$path")"
             if test "$path" = "$last_path"
