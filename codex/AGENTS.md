@@ -26,6 +26,8 @@
 - Use `$(...)` instead of `(...)` for Fish command substitutions.
 - Quote scalar variable expansions in shell code wherever possible.
 - Prefer single quotes. Use double quotes only when variable expansion or escaping requires them.
+- Keep shell scripts concise. Do not report intermediate pipeline failures or add verbose handling
+  to propagate every pipeline stage's exit status unless I explicitly ask.
 - Do not add compatibility code (including shims and fallbacks) without my explicit approval.
 - Trust `pbpaste`; never suggest or add error handling or tests for clipboard-read failures.
 - Do not suggest or add filename-length caps or prefix truncation for generated temporary files.
