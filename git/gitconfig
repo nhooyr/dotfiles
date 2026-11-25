@@ -80,7 +80,7 @@
 	filename = cyan
 	lineNumber = magenta
 	column = magenta
-	match = black yellow
+	match = black brightyellow
 	separator = normal
 [blame]
 	date = relative

@@ -19,7 +19,7 @@ set -g nhooyr ~/code/nhooyr
 set -g notes "$nhooyr/notes"
 
 tabs -4
-set -gx LESS -RXF -ix4 --use-color -DBK -DCK -DEks -DMcd -Dd- -DNK -DPks -DRKs -DSky
+set -gx LESS -RXF -ix4 --use-color -DBK -DCK -DEks -DMcd -Dd- -DNK -DPks -DRKs -DSkY
 set -gx PAGER pager
 set -g fish_greeting
 set -gx MANPAGER nvim +Man!
@@ -63,13 +63,13 @@ end
 fish_hybrid_key_bindings
 set -g fish_color_error red --underline
 set -g fish_color_quote green
-set -g fish_color_search_match black --background=yellow
-set -g fish_color_selection black --background=yellow
+set -g fish_color_search_match black --background=bryellow
+set -g fish_color_selection black --background=bryellow
 set -g fish_pager_color_progress --italic
 set -g fish_pager_color_description cyan --italic
 set -g fish_pager_color_prefix --underline
 set -g fish_pager_color_selected_completion black
-set -g fish_pager_color_selected_background --background=yellow
+set -g fish_pager_color_selected_background --background=bryellow
 set -g fish_pager_color_selected_description black --italic
 set -g fish_color_autosuggestion 808080
 set -g fish_color_comment brblack --italic
@@ -130,13 +130,13 @@ alias rg="rg -LSn --search-zip --no-heading --hidden -g '!.git' --no-require-git
     --colors=line:fg:magenta \
     --colors=match:none \
     --colors=match:fg:black \
-    --colors=match:bg:yellow \
+    --colors=match:bg:11 \
 "
 alias fdg='fd --glob'
 alias bigdirs='du -hd 1 | sort -hr | head -n 16'
 abbr -a --set-cursor fdg "fdg '*%*'"
-set -gx GREP_COLORS 'mt=30;43:fn=36:ln=35:bn=35:se=00'
-set -gx GREP_COLOR '30;43'
+set -gx GREP_COLORS 'mt=30;103:fn=36:ln=35:bn=35:se=00'
+set -gx GREP_COLOR '30;103'
 abbr -a gr grep
 abbrali grepe grep -E
 abbrali grepf grep -F
@@ -286,7 +286,7 @@ set -gx FZF_DEFAULT_OPTS "--style=minimal --layout=reverse --height=~50% --min-h
     --bind=ctrl-/:toggle-preview --bind=ctrl-s:toggle-sort --no-mouse --scroll-off=0 --info=inline-right \
     --color=bw --color \
     --color=query:regular,info:italic,pointer:black,\
-fg+:black:regular:strip,bg+:yellow,hl+:black:regular:underline:strip"
+fg+:black:regular:strip,bg+:bright-yellow,hl+:black:regular:underline:strip"
 # Display no prefix by default in history view.
 set -gx FZF_CTRL_R_OPTS '--with-nth 3.. --bind "alt-t:change-with-nth(2..|1,3..|3..),ctrl-x:trigger(shift-delete)"'
 for mode in default insert

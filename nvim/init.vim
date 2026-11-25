@@ -64,7 +64,7 @@ set notermguicolors
 colorscheme default
 nnoremap <Leader>i <Cmd>Inspect<CR>
 highlight Comment ctermfg=8 cterm=italic
-highlight Search ctermfg=0 ctermbg=3
+highlight Search ctermfg=0 ctermbg=11
 highlight! link CurSearch Search
 highlight! link Visual Search
 highlight LineNr ctermfg=8
@@ -254,7 +254,7 @@ inoremap <silent><expr> <C-e> pumvisible() ? "\<C-e>" :
 inoremap <silent><expr> <M-f> exists('*copilot#AcceptWord')
 		\ ? copilot#AcceptWord("\<C-]>\<Esc>f") : "\<C-]>\<Esc>f"
 highlight PmenuMatch cterm=underline
-highlight PmenuSel ctermfg=3 ctermbg=0 cterm=none
+highlight PmenuSel ctermfg=0 ctermbg=11 cterm=none
 highlight PmenuMatchSel cterm=none
 highlight PmenuThumb ctermbg=8
 highlight! link NormalFloat LineNr
@@ -295,7 +295,7 @@ nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
 nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
 let &quickfixtextfunc = "v:lua.require'quickfix'.fmt"
 highlight link qfLineNr Type
-highlight QuickFixLine ctermfg=0 ctermbg=3
+highlight QuickFixLine ctermfg=0 ctermbg=11
 
 silent doautocmd <nomodeline> User AqsnowGitStatusStop
 for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)

@@ -9,11 +9,11 @@ six-digit hex values.
 | Black | `#000000` | `#5C5C5C` |
 | Red | `#B60000` | `#B60000` |
 | Green | `#0A5C07` | `#0A5C07` |
-| Yellow | `#FFFF00` | `#FFFF00` |
+| Yellow | `#CC0077` | `#FFFF00` |
 | Blue | `#0000B3` | `#0000B3` |
 | Magenta | `#6E066E` | `#6E066E` |
 | Cyan | `#0A4045` | `#0A4045` |
 | White | `#FFFFFF` | `#FFFFFF` |
 
-Regular and bright yellow are reserved for match highlighting and autocomplete
-selection, always as a background with black text.
+Bright yellow is reserved for match highlighting and selection, always as a
+background with black text. Regular yellow is available for foreground text.

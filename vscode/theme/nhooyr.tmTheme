@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<!-- Reserve the Terminal palette's yellow (#FFFF00) for match highlighting and autocomplete
-     selection: yellow backgrounds with black text. Never use it as a foreground color. -->
+<!-- Reserve the Terminal palette's bright yellow (#FFFF00) for search and selection
+     backgrounds with black text. Regular yellow (#CC0077) remains available for text. -->
 <dict>
 	<key>name</key>
 	<string>nhooyr</string>
@@ -18,7 +18,9 @@
 				<key>caret</key>
 				<string>#000000</string>
 				<key>selection</key>
-				<string>#0000B326</string>
+				<string>#FFFF00</string>
+				<key>selectionForeground</key>
+				<string>#000000</string>
 				<key>lineHighlight</key>
 				<string>#00000005</string>
 				<key>gutter</key>

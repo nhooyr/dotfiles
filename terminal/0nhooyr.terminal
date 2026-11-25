@@ -176,14 +176,14 @@
 	</data>
 	<key>ANSIYellowColor</key>
 	<data>
-	YnBsaXN0MDDUAQIDBAUGBwpYJHZlcnNpb25ZJGFyY2hpdmVyVCR0b3BYJG9iamVjdHMS
-	AAGGoF8QD05TS2V5ZWRBcmNoaXZlctEICVRyb290gAGlCwwVGR9VJG51bGzUDQ4PEBES
-	ExRWJGNsYXNzXE5TQ29tcG9uZW50c18QEk5TQ3VzdG9tQ29sb3JTcGFjZV8QEE5TTGlu
-	ZWFyRXhwb3N1cmWABEcxIDEgMCAxgAJBMdIWDRcYVE5TSUQQB4AD0hobHB1aJGNsYXNz
-	bmFtZVgkY2xhc3Nlc1xOU0NvbG9yU3BhY2WiHB5YTlNPYmplY3TSGhsgIVdOU0NvbG9y
-	oiAeAAgAEQAaACQAKQAyADcASQBMAFEAUwBZAF8AaABvAHwAkQCkAKYArgCwALIAtwC8
-	AL4AwADFANAA2QDmAOkA8gD3AP8AAAAAAAACAQAAAAAAAAAiAAAAAAAAAAAAAAAAAAAB
-	Ag==
+	YnBsaXN0MDDUAQIDBAUGHh9YJHZlcnNpb25YJG9iamVjdHNZJGFyY2hpdmVyVCR0b3AS
+	AAGGoKUHCBEVG1UkbnVsbNQJCgsMDQ4PEF8QEE5TTGluZWFyRXhwb3N1cmVcTlNDb21w
+	b25lbnRzXxASTlNDdXN0b21Db2xvclNwYWNlViRjbGFzc0ExTxAaMC44IDAgMC40NjY2
+	NjY2NjY2NjY2NjY3IDGAAoAE0hIMExRUTlNJRBAHgAPSFhcYGVokY2xhc3NuYW1lWCRj
+	bGFzc2VzXE5TQ29sb3JTcGFjZaIYGlhOU09iamVjdNIWFxwdV05TQ29sb3KiHBpfEA9O
+	U0tleWVkQXJjaGl2ZXLRICFUcm9vdIABAAgAEQAaACMALQAyADcAPQBDAEwAXwBsAIEA
+	iACKAKcAqQCrALAAtQC3ALkAvgDJANIA3wDiAOsA8AD4APsBDQEQARUAAAAAAAACAQAA
+	AAAAAAAiAAAAAAAAAAAAAAAAAAABFw==
 	</data>
 	<key>BellBounceCritical</key>
 	<false/>
@@ -232,6 +232,53 @@
 	<integer>120</integer>
 	<key>name</key>
 	<string>0nhooyr</string>
+	<key>noWarnProcesses</key>
+	<array>
+		<dict>
+			<key>ProcessName</key>
+			<string>screen</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>tmux</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>less</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>more</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>view</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>mandoc</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>tail</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>log</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>top</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>htop</string>
+		</dict>
+		<dict>
+			<key>ProcessName</key>
+			<string>-fish</string>
+		</dict>
+	</array>
 	<key>rowCount</key>
 	<integer>30</integer>
 	<key>shiftReturnSendsMetaReturn</key>
