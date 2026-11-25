@@ -297,14 +297,6 @@ let &quickfixtextfunc = "v:lua.require'quickfix'.fmt"
 highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=11
 
-silent doautocmd <nomodeline> User AqsnowGitStatusStop
-for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
-	let s:module = substitute(strpart(s:lua_file, strlen(s:config_dir) + 5)[:-5], '/', '.', 'g')
-	call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module)
-	if s:module =~# '\.init$'
-		call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
-	endif
-endfor
 set grepprg=vgrep
 let &grepformat = "%f\t%l\t%c\t%m"
 inoremap <M-j> <Cmd>lua require('snippets').expand()<CR>
@@ -362,6 +354,14 @@ augroup aqsnow
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 if v:vim_did_enter
+	silent doautocmd <nomodeline> User AqsnowGitStatusStop
+	for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
+		let s:module = substitute(strpart(s:lua_file, strlen(s:config_dir) + 5)[:-5], '/', '.', 'g')
+		call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module)
+		if s:module =~# '\.init$'
+			call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
+		endif
+	endfor
 	silent doautocmd <nomodeline> aqsnow FileType
 	silent doautocmd <nomodeline> aqsnow_treesitter FileType
 	lua require('gitstatus').setup()

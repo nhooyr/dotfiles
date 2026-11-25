@@ -546,8 +546,11 @@ sub nested_module_reload {
     }
     write_file( "$copy/nvim/lua/nested/helper.lua", 'return {}' );
     write_file( "$copy/nvim/lua/nested/init.lua",   'return {}' );
+    my $init = "$self->{temporary}/init.vim";
+    write_file( $init, "lua package.loaded['nested.helper'] = 'startup sentinel'\n" . read_file($init) );
     local $self->{env}{TEST_DOTFILES} = $copy;
     run_script( $self, <<'LUA' );
+eq(package.loaded['nested.helper'], 'startup sentinel', 'startup preserves preloaded config modules')
 for _, name in ipairs({ 'nested', 'nested.init', 'nested.helper' }) do package.loaded[name] = {} end
 local unrelated = {}
 package.loaded.unrelated = unrelated
