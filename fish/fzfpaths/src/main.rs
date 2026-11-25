@@ -217,7 +217,18 @@ fn run(
                 format!("duplicate env: {}", name.to_string_lossy()),
             ));
         }
-        let directory = normalize(&cwd.join(directory));
+        let directory = Path::new(directory);
+        if !directory.is_absolute() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "directory alias {} requires an absolute path: {}",
+                    name.to_string_lossy(),
+                    directory.display()
+                ),
+            ));
+        }
+        let directory = normalize(directory);
         if let Ok(physical) = directory.canonicalize()
             && physical != directory
         {

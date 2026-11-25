@@ -562,6 +562,35 @@ FISH
     is( $result->{stdout}, "0\n", 'registration and initialization do not rewrite exported names or values' );
 }
 
+sub relative_directory_aliases_are_rejected {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+source "$(path dirname -- "$TEST_CD")/functions/aqsnow_fzf_path_alias.fish"
+set -g aqsnow_fzf_diralis
+set -g project relative
+aqsnow_fzf_diralis_add project 2> "$TEST_ROOT/registration-error"
+printf '%s\n' "$status"
+contains -- project $aqsnow_fzf_diralis; and exit 1
+set -g project "$TEST_ROOT"
+aqsnow_fzf_diralis_add project
+printf '%s\n' "$status"
+set -g project relative
+aqsnow_fzf_path_alias "$TEST_ROOT/file" 2> "$TEST_ROOT/lookup-error"
+printf '%s\n' "$status"
+FISH
+    is( $result->{stdout}, "1\n0\n1\n", 'registration and lookup reject relative aliases' );
+    is(
+        read_file("$self->{root}/registration-error"),
+        "aqsnow_fzf_diralis_add: alias project requires an absolute path: relative\n",
+        'registration explains the error'
+    );
+    is(
+        read_file("$self->{root}/lookup-error"),
+        "aqsnow_fzf_path_alias: alias project requires an absolute path: relative\n",
+        'retargeting an alias to a relative path is rejected'
+    );
+}
+
 sub alias_reregistration_refreshes_resolved_paths {
     my ($self) = @_;
     make_path( "$self->{root}/first", "$self->{root}/second" );
@@ -588,6 +617,7 @@ FISH
 
 run_cases(
     {
+        relative_directory_aliases_are_rejected         => \&relative_directory_aliases_are_rejected,
         alias_reregistration_refreshes_resolved_paths   => \&alias_reregistration_refreshes_resolved_paths,
         fd_defaults_respect_ignores_and_follow_symlinks => \&fd_defaults_respect_ignores_and_follow_symlinks,
         find_names_respect_ignores                      => \&find_names_respect_ignores,

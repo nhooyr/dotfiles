@@ -303,6 +303,10 @@ function aqsnow_fzf_diralis_add
         set -gx AQSNOW_DIRALIS ''
     end
     for name in $argv
+        if test -n "$$name"; and not string match -q '/*' -- "$$name"
+            printf 'aqsnow_fzf_diralis_add: alias %s requires an absolute path: %s\n' "$name" "$$name" >&2
+            return 1
+        end
         set -e "__aqsnow_fzf_dirali_$name"
         if not set -qx "$name"
             set -gx "$name" "$$name"

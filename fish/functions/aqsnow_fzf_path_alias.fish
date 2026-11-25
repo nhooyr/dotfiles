@@ -3,7 +3,11 @@ function aqsnow_fzf_path_alias --argument-names target
     set -l longest 0
     for name in $aqsnow_fzf_diralis
         set -l source "$$name"
-        string match -q '/*' -- "$source"; or set source "$PWD/$source"
+        test -n "$source"; or continue
+        if not string match -q '/*' -- "$source"
+            printf 'aqsnow_fzf_path_alias: alias %s requires an absolute path: %s\n' "$name" "$source" >&2
+            return 1
+        end
         set -l cache __aqsnow_fzf_dirali_$name
         set -l paths $$cache
         # Registration also clears the cache after an alias is retargeted.

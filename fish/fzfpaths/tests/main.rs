@@ -2213,42 +2213,29 @@ fn logical_working_directory() {
 }
 
 #[test]
-fn relative_directory_aliases_do_not_drop_parent_components() {
+fn relative_directory_aliases_are_rejected() {
     let fixture = Fixture::new();
-    write(&fixture.local, "global_dir/file");
-    let paths = fixture.run(&mut fixture.command(
-        &fixture.local,
-        Path::new(""),
-        "-f",
-        &[("$external", Path::new("../global_dir"))],
-    ));
-    assert!(paths.contains(&"global_dir/file".into()));
-    assert!(!paths.contains(&"$external/file".into()));
-}
-
-#[test]
-fn relative_directory_aliases_match_absolute_aliases() {
-    let fixture = Fixture::new();
-    let cwd = fixture.root.join("cwd-link");
-    symlink(&fixture.local, &cwd).unwrap();
-    symlink(fixture.repo.join("nested"), fixture.local.join("repo-link")).unwrap();
-    for cwd in [&fixture.local, &cwd] {
-        for directory in [
-            fixture.repo.as_path(),
-            Path::new("../global_dir/project"),
-            Path::new("repo-link/.."),
-        ] {
-            let paths = fixture.run(&mut fixture.command(
-                cwd,
-                &fixture.global_dir,
-                "-f",
-                &[("$project", directory)],
-            ));
-            assert!(
-                paths.contains(&"$project/tracked".into()),
-                "{cwd:?}: {directory:?}"
+    let logical = fixture.root.join("cwd-link");
+    symlink(&fixture.local, &logical).unwrap();
+    for cwd in [&fixture.local, &logical] {
+        for directory in ["", ".", "relative", "../global_dir", "repo-link/.."] {
+            let output = fixture
+                .command(
+                    cwd,
+                    &fixture.global_dir,
+                    "-f",
+                    &[("$project", Path::new(directory))],
+                )
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(1));
+            assert!(output.stdout.is_empty());
+            assert_eq!(
+                String::from_utf8(output.stderr).unwrap(),
+                format!(
+                    "fzfpaths: directory alias $project requires an absolute path: {directory}\n"
+                )
             );
-            assert!(!paths.contains(&fixture.repo.join("tracked").into_os_string()));
         }
     }
 }
