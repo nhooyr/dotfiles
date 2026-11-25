@@ -1681,6 +1681,47 @@ eq(modes, { 'no', 'niI' }, 'the test reaches operator-pending and temporary Norm
 LUA
 }
 
+sub find_files_terminal_mode {
+    my ($self) = @_;
+    plan skip_all => 'fd is needed to test filename search' unless which('fd');
+    run_script( $self, <<'LUA' );
+local directory = vim.fn.getcwd()
+local init, socket = directory .. '/terminal.lua', directory .. '/terminal-server'
+vim.fn.writefile({
+    "vim.opt.runtimepath:prepend(vim.env.TEST_DOTFILES .. '/nvim')",
+    "vim.cmd.terminal('cat'); vim.cmd.startinsert()",
+}, init)
+local server = vim.system({ vim.v.progpath, '--headless', '-n', '-i', 'NONE', '-u', init, '--listen', socket })
+vim.api.nvim_create_autocmd('VimLeavePre', { once = true, callback = function() server:kill(15) end })
+local channel
+assert(vim.wait(3000, function()
+    if not vim.uv.fs_stat(socket) then return false end
+    local ok, connected = pcall(vim.fn.sockconnect, 'pipe', socket, { rpc = true })
+    if ok and connected > 0 then channel = connected; return true end
+end), 'server accepts RPC connections')
+local function call(method, ...) return vim.rpcrequest(channel, method, ...) end
+local function mode() return call('nvim_eval', 'mode(1)') end
+assert(vim.wait(3000, function() return mode() == 't' end), 'server enters Terminal mode')
+call('nvim_exec_lua', "require('find').run('^original.txt$')", {})
+assert(vim.wait(3000, function() return #call('nvim_call_function', 'getqflist', {}) == 1 end),
+    'filename search finishes in Terminal mode')
+eq(mode(), 't', 'completed results leave Terminal input active')
+call('nvim_input', vim.api.nvim_replace_termcodes('<C-\\><C-n>', true, false, true))
+assert(vim.wait(3000, function() return call('nvim_eval', '&buftype') == 'quickfix' end),
+    'deferred results open after leaving Terminal input')
+call('nvim_command', 'cclose')
+eq(mode(), 'nt', 'closing quickfix returns to Terminal-Normal mode')
+local id = call('nvim_call_function', 'getqflist', { { id = 0 } }).id
+call('nvim_exec_lua', "require('find').run('^original.txt$')", {})
+assert(vim.wait(3000, function()
+    return call('nvim_call_function', 'getqflist', { { id = 0 } }).id ~= id
+end), 'another filename search finishes in Terminal-Normal mode')
+eq(call('nvim_eval', '&buftype'), 'quickfix', 'results immediately open in Terminal-Normal mode')
+pcall(call, 'nvim_command', 'qa!')
+server:wait(3000)
+LUA
+}
+
 sub rendezvous_routes {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1985,6 +2026,7 @@ run_cases(
         find_files_async_results                => \&find_files_async_results,
         find_files_config_reload                => \&find_files_config_reload,
         find_files_preserve_insert_mode         => \&find_files_preserve_insert_mode,
+        find_files_terminal_mode                => \&find_files_terminal_mode,
         rendezvous_routes                       => \&rendezvous_routes,
         clipboard_mappings                      => \&clipboard_mappings,
         copilot_word_mapping                    => \&copilot_word_mapping,

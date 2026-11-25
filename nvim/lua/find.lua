@@ -39,12 +39,12 @@ local function run(pattern, mode)
 		end
 		local title = 'Find' .. (mode and mode:lower() or '') .. ' ' .. pattern
 		vim.fn.setqflist({}, ' ', { title = title, items = items, context = { cwd = cwd } })
-		if vim.fn.mode(1) == 'n' then
+		if vim.fn.mode(1):match('^nt?$') then
 			vim.cmd.copen()
 		else
 			state.show = vim.api.nvim_create_autocmd('SafeState', {
 				callback = function()
-					if vim.fn.mode(1) ~= 'n' then return end
+					if not vim.fn.mode(1):match('^nt?$') then return end
 					state.show = nil
 					vim.cmd.copen()
 					return true
