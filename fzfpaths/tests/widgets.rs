@@ -87,7 +87,7 @@ fn run_widget_output(
             fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
         }
     }
-    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../functions/fzf_accept_and_run.fish");
+    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fish/functions/fzf_accept_and_run.fish");
     let output = Command::new("fish")
         .args(["--no-config", "-c", HARNESS])
         .current_dir(&fixture.0)
@@ -169,7 +169,7 @@ fn path_case(script: &str, token: &str) -> Vec<u8> {
     fs::create_dir_all(fixture.0.join("external/child")).unwrap();
     fs::create_dir(fixture.0.join("external/target")).unwrap();
     symlink("external/child", fixture.0.join("link")).unwrap();
-    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../functions/fzf_accept_and_run.fish");
+    let widget = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fish/functions/fzf_accept_and_run.fish");
     let setup = r#"
 set -p fish_function_path "$(path dirname -- "$WIDGET_SOURCE")"
 source "$WIDGET_SOURCE"

@@ -16,5 +16,5 @@ fi
 
 nvim --headless -u NONE -n -i NONE -l ./nvim/lua/plugins.lua
 
-cargo test --manifest-path fish/fzfpaths/Cargo.toml --locked
+cargo test --manifest-path fzfpaths/Cargo.toml --locked
 perl ci/test.pl "$@"

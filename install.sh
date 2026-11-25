@@ -21,8 +21,8 @@ mkdir -p ~/.ssh/sockets
 chmod 700 ~/.ssh
 chmod 600 ./ssh/config
 
-./fish/fzfpaths/install.sh
-dotln ./fish/fzfpaths_ignore ~/.config/fzfpaths/ignore
+./fzfpaths/install.sh
+dotln ./fzfpaths/ignore ~/.config/fzfpaths/ignore
 
 ./nvim/install.sh
 ./codex/install.sh
