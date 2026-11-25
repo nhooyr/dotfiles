@@ -618,6 +618,7 @@ fn add_ignore_file(directory: &Path, ignores: &mut LocalIgnores) {
 
 fn add_excludes(root: &Path, path: &Path, ignores: &mut LocalIgnores) {
     let mut builder = GitignoreBuilder::new(root);
+    builder.allow_unclosed_class(false);
     builder.case_insensitive(ignores.case_insensitive).unwrap();
     builder.add(path);
     if let Ok(matcher) = builder.build()
@@ -636,6 +637,7 @@ fn config_home() -> Option<PathBuf> {
 
 fn global_ignores(root: &Path) -> io::Result<Gitignore> {
     let mut builder = GitignoreBuilder::new(root);
+    builder.allow_unclosed_class(false);
     if let Some(path) = config_home().map(|config| config.join("fzfpaths/ignore"))
         && path.try_exists()?
         && let Some(error) = builder.add(path)

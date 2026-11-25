@@ -1097,13 +1097,13 @@ fn global_ignore_supports_file_globs_and_negations() {
     fs::create_dir_all(config.join("fzfpaths")).unwrap();
     fs::write(
         config.join("fzfpaths/ignore"),
-        "# Keep one matching file.\n*.tmp\n!/project/keep.tmp\n/project/nested/*\n!/project/nested/child\n",
+        "# Keep one matching file.\n*.tmp\n!/project/keep.tmp\n/project/nested/*\n!/project/nested/child\nliteral\\[\nclass[ab]\n",
     )
     .unwrap();
-    for name in ["tracked.tmp", "keep.tmp"] {
+    for name in ["tracked.tmp", "keep.tmp", "literal[", "classa"] {
         write(&fixture.repo, name);
     }
-    fixture.git(&["add", "--", "tracked.tmp", "keep.tmp"]);
+    fixture.git(&["add", "--", "tracked.tmp", "keep.tmp", "literal[", "classa"]);
     for name in ["untracked.tmp", "nested/hidden"] {
         write(&fixture.repo, name);
     }
@@ -1112,12 +1112,36 @@ fn global_ignore_supports_file_globs_and_negations() {
             .command(&fixture.local, &fixture.global_dir, "-f", &[])
             .env("XDG_CONFIG_HOME", &config),
     );
-    for name in ["tracked.tmp", "untracked.tmp", "nested/hidden"] {
+    for name in [
+        "tracked.tmp",
+        "untracked.tmp",
+        "nested/hidden",
+        "literal[",
+        "classa",
+    ] {
         assert!(!paths.contains(&fixture.repo.join(name).into_os_string()));
     }
     for name in ["keep.tmp", "nested/child"] {
         assert!(paths.contains(&fixture.repo.join(name).into_os_string()));
     }
+}
+
+#[test]
+fn global_ignore_reports_unclosed_character_classes() {
+    let fixture = Fixture::new();
+    let config = fixture.root.join("config");
+    fs::create_dir_all(config.join("fzfpaths")).unwrap();
+    fs::write(config.join("fzfpaths/ignore"), "[\n").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_fzfpaths"))
+        .arg("")
+        .arg(&fixture.global_dir)
+        .arg("-f")
+        .env("XDG_CONFIG_HOME", config)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unclosed character class"));
 }
 
 #[test]
@@ -2349,6 +2373,38 @@ fn local_exclusions_follow_git_precedence() {
         "root-hidden/file",
     ] {
         assert!(!paths.contains(&name.into()), "ignored {name} was shown");
+    }
+}
+
+#[test]
+fn unclosed_gitignore_classes_do_not_hide_literal_filenames() {
+    for source in [
+        ".gitignore",
+        ".git/info/exclude",
+        "global-ignore",
+        "nested/.gitignore",
+    ] {
+        let fixture = Fixture::new();
+        for name in ["[", "name[abc", "literal[", "classa"] {
+            write(&fixture.repo.join("nested"), name);
+        }
+        let file = fixture.repo.join(source);
+        fs::write(&file, "[\nname[abc\nliteral\\[\nclass[ab]\n").unwrap();
+        if source == "global-ignore" {
+            fixture.git(&["config", "core.excludesFile", file.to_str().unwrap()]);
+        }
+        let paths = fixture.run(&mut fixture.command(
+            &fixture.repo.join("nested"),
+            Path::new(""),
+            "-f",
+            &[],
+        ));
+        for name in ["[", "name[abc"] {
+            assert!(paths.contains(&name.into()), "{source} hid {name}");
+        }
+        for name in ["literal[", "classa"] {
+            assert!(!paths.contains(&name.into()), "{source} showed {name}");
+        }
     }
 }
 
