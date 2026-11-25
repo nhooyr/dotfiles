@@ -73,20 +73,25 @@ sub run_command {
     die "fork: $!\n" unless defined $pid;
 
     if ( !$pid ) {
-        @SIG{@signals} = @handlers{@signals};
-        setpgrp( 0, 0 ) or die "setpgrp: $!\n";
-        chdir $options->{cwd}
-          or die "chdir $options->{cwd}: $!\n"
-          if defined $options->{cwd};
-        %ENV = %{ $options->{env} } if $options->{env};
-        utf8::encode($_) for grep { utf8::is_utf8($_) } values %ENV;
-        open STDIN,  '<&', $in  or die $!;
-        open STDOUT, '>&', $out or die $!;
-        open STDERR, '>&', $err or die $!;
-        my @arguments = @$command;
-        utf8::encode($_) for @arguments;
-        exec { $arguments[0] } @arguments;
-        die "exec $command->[0]: $!\n";
+        eval {
+            @SIG{@signals} = @handlers{@signals};
+            setpgrp( 0, 0 ) or die "setpgrp: $!\n";
+            open STDIN,  '<&', $in  or die $!;
+            open STDOUT, '>&', $out or die $!;
+            open STDERR, '>&', $err or die $!;
+            chdir $options->{cwd}
+              or die "chdir $options->{cwd}: $!\n"
+              if defined $options->{cwd};
+            %ENV = %{ $options->{env} } if $options->{env};
+            utf8::encode($_) for grep { utf8::is_utf8($_) } values %ENV;
+            my @arguments = @$command;
+            utf8::encode($_) for @arguments;
+            exec { $arguments[0] } @arguments;
+            die "exec $command->[0]: $!\n";
+        };
+        print STDERR $@;
+        close STDERR;
+        POSIX::_exit(127);
     }
     my $deadline = time + ( $options->{timeout} // 30 );
     while ( waitpid( $pid, WNOHANG ) == 0 ) {

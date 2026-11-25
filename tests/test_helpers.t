@@ -7,6 +7,19 @@ use Test::More;
 use POSIX       qw(WNOHANG);
 use Time::HiRes qw(time sleep);
 
+sub captures_setup_errors {
+    my $temporary = tempdir( 'test-chdir-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+    my $missing   = "$temporary/missing";
+    my $result    = run_command( [ perl_executable(), '-e', 'print "not reached"' ], { cwd => $missing } );
+    isnt( $result->{returncode}, 0, 'a missing working directory fails the command' );
+    is( $result->{stdout}, '', 'the command never ran' );
+    like( $result->{stderr}, qr/\Qchdir $missing:\E/, 'child setup errors are captured in stderr' );
+    $result = run_command( ["$temporary/missing-program"] );
+    is( $result->{returncode}, 127, 'a missing executable returns the shell convention' );
+    like( $result->{stderr}, qr/\Qexec $temporary\/missing-program:\E/,
+        'exec errors are captured in stderr' );
+}
+
 sub timeout_stops_descendants {
     my $temporary = tempdir( 'test-timeout-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     write_file( "$temporary/child.pl", <<'PERL' );
@@ -109,6 +122,7 @@ PERL
 
 run_cases(
     {
+        captures_setup_errors     => \&captures_setup_errors,
         timeout_stops_descendants => \&timeout_stops_descendants,
         interrupts_stop_commands  => \&interrupts_stop_commands,
     }
