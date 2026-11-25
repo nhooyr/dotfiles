@@ -131,15 +131,28 @@ sub native_wrapper_completions {
 }
 
 sub installer_wiring {
-    my ($self)    = @_;
-    my ($command) = read_file("$root/install.sh") =~ /^(dotln .*fish\/completions.*)$/m;
-    ok( defined $command, 'the installer links the completion directory' );
-    return unless defined $command;
-    my %env    = ( %{ $self->{env} }, PATH => "$root/bin:$ENV{PATH}", NO_OVERWRITE => '' );
-    my $result = run_command( [ '/bin/sh', '-c', $command ], { cwd => $root, env => \%env } );
-    is( $result->{returncode}, 0, $result->{stderr} );
-    is( readlink("$self->{env}{HOME}/.config/fish/completions"),
-        "$root/fish/completions", 'Fish discovers completions through its standard directory' );
+    my ($self) = @_;
+    like( read_file("$root/install.sh"),
+        qr{^\./fish/install\.sh$}m, 'the root installer delegates Fish setup' );
+    my %env = ( %{ $self->{env} }, NO_OVERWRITE => '' );
+    my $run = sub {
+        run_command( ["$root/fish/install.sh"], { cwd => $self->{temporary}, env => \%env } );
+    };
+    my $result = $run->();
+    is( $result->{returncode}, 0, "the Fish installer works from another directory: $result->{stderr}" );
+    my $config = "$self->{env}{HOME}/.config/fish";
+    is( readlink("$config/$_"), "$root/fish/$_", "links $_" ) for qw(config.fish functions completions);
+
+    write_file( "$self->{temporary}/custom.fish", '' );
+    unlink "$config/config.fish" or die $!;
+    symlink "$self->{temporary}/custom.fish", "$config/config.fish" or die $!;
+    $result = $run->();
+    is( $result->{returncode}, 0, "reinstallation succeeds: $result->{stderr}" );
+    is(
+        readlink("$config/config.fish"),
+        "$self->{temporary}/custom.fish",
+        'preserves an existing config symlink'
+    );
     unlike(
         read_file("$root/fish/cd.fish"),
         qr/^\s*complete\b[^\n]*\bcdf\b/m,

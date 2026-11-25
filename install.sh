@@ -10,9 +10,7 @@ dotln ./less/lesskey ~/.config/lesskey
 dotln ./bat ~/.config/bat
 dotln ./tmux/tmux.conf ~/.tmux.conf
 dotln ./vscode/settings.json ~/Library/Application\ Support/Code/User/settings.json
-NO_OVERWRITE=1 dotln ./fish/config.fish ~/.config/fish/config.fish
-dotln ./fish/functions ~/.config/fish/functions
-dotln ./fish/completions ~/.config/fish/completions
+./fish/install.sh
 dotln ./ssh/config ~/.ssh/config
 dotln ./ssh/allowed_signers ~/.ssh/allowed_signers
 mkdir -p ~/.ssh/sockets
