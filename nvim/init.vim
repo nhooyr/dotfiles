@@ -14,9 +14,28 @@ endif
 let s:config_dir = fnamemodify(s:config_file, ':h')
 execute 'luafile' fnameescape(s:config_dir . '/lua/plugins.lua')
 
-set number
-set tabstop=4
-set shiftwidth=0
+set notermguicolors
+" Reload defaults without resetting existing filetype and window settings.
+if v:vim_did_enter
+	setglobal number
+	setglobal tabstop=4
+	setglobal shiftwidth=0
+	setglobal textwidth=110
+	setglobal foldmethod=indent
+	setglobal foldlevel=999
+	setglobal list
+	setglobal formatoptions-=t
+else
+	set number
+	set tabstop=4
+	set shiftwidth=0
+	set textwidth=110
+	set foldmethod=indent
+	set foldlevel=999
+	set list
+	set formatoptions-=t
+	colorscheme default
+endif
 set ignorecase
 set smartcase
 set laststatus=3
@@ -31,15 +50,11 @@ if exists('s:vcs_statusline')
 endif
 let s:vcs_statusline = "%{get(b:,'vcs_prompt','')} "
 let &g:statusline = substitute(&g:statusline, '%=', '%=' . s:vcs_statusline, '')
-set textwidth=110
 let g:gitcommit_summary_length = 80
-set foldmethod=indent
-set foldlevel=999
 set foldlevelstart=999
 set shortmess+=I
 set splitbelow
 set splitright
-set formatoptions-=t
 nnoremap j gj
 nnoremap k gk
 xnoremap j gj
@@ -60,8 +75,6 @@ set undoreload=99999
 nnoremap <Leader>u <Cmd>Undotree<CR>
 nnoremap <M-u> <Cmd>execute 'earlier' v:count1.'f'<CR>
 
-set notermguicolors
-colorscheme default
 nnoremap <Leader>i <Cmd>Inspect<CR>
 highlight Comment ctermfg=8 cterm=italic
 highlight Search ctermfg=0 ctermbg=11
@@ -93,7 +106,6 @@ function s:set_mode_highlight(check_record) abort
 endfunction
 call s:set_mode_highlight(v:true)
 
-set list
 set listchars+=extends:>,precedes:<
 highlight! link NonText Comment
 highlight! link Folded Comment

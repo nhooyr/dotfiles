@@ -528,11 +528,33 @@ for _ = 1, 2 do
     eq(vim.wo.foldexpr, 'v:lua.vim.treesitter.foldexpr()', 'Go keeps its fold expression')
     eq(vim.bo.indentexpr, "v:lua.require'nvim-treesitter'.indentexpr()", 'Go keeps Tree-sitter indentation')
 end
-for _, filetype in ipairs({ 'help', 'man' }) do
-    vim.wo.number = false
+for _, filetype in ipairs({ 'help', 'man', 'python' }) do
+    vim.cmd.enew()
     vim.bo.filetype = filetype
-    eq(vim.wo.number, true, filetype .. ' buffers show line numbers')
+    if filetype ~= 'python' then
+        eq(vim.wo.number, filetype == 'help', filetype .. ' uses its intended line-number setting')
+    end
+    local function options()
+        return { vim.wo.number, vim.wo.list, vim.bo.tabstop, vim.bo.shiftwidth, vim.bo.textwidth,
+            vim.bo.formatoptions, vim.wo.foldmethod, vim.wo.foldlevel }
+    end
+    local before = options()
+    for _ = 1, 2 do
+        vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+        eq(options(), before, 'reloading preserves native ' .. filetype .. ' settings')
+    end
 end
+vim.cmd.enew()
+vim.wo.number, vim.wo.list, vim.wo.foldmethod, vim.wo.foldlevel = false, false, 'manual', 2
+vim.bo.tabstop, vim.bo.shiftwidth, vim.bo.textwidth, vim.bo.formatoptions = 7, 3, 65, 'tcq'
+vim.go.tabstop, vim.go.textwidth = 9, 71
+vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+eq({ vim.wo.number, vim.wo.list, vim.wo.foldmethod, vim.wo.foldlevel,
+    vim.bo.tabstop, vim.bo.shiftwidth, vim.bo.textwidth, vim.bo.formatoptions },
+    { false, false, 'manual', 2, 7, 3, 65, 'tcq' }, 'reloading preserves explicit local overrides')
+eq({ vim.go.number, vim.go.list, vim.go.foldmethod, vim.go.foldlevel,
+    vim.go.tabstop, vim.go.shiftwidth, vim.go.textwidth },
+    { true, true, 'indent', 999, 4, 0, 110 }, 'reloading still updates defaults for new buffers and windows')
 LUA
 }
 
@@ -559,6 +581,33 @@ for _, name in ipairs({ 'nested', 'nested.init', 'nested.helper' }) do
     assert(package.loaded[name] == nil, 'reload invalidates ' .. name)
 end
 assert(package.loaded.unrelated == unrelated, 'reload preserves unrelated Lua modules')
+LUA
+}
+
+sub man_highlights_survive_reload {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.cmd.enew()
+vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'TEST(1)', '', 'B\bBold and _\bunderlined' })
+vim.cmd('Man!')
+eq(vim.bo.filetype, 'man', 'the native man pager renders the buffer')
+local marks = vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true })
+assert(#marks > 0, 'the native man pager creates formatting extmarks')
+local function highlights()
+    local groups = {}
+    for _, name in ipairs({ 'manBold', 'manUnderline', 'manItalic' }) do
+        groups[name] = vim.api.nvim_get_hl(0, { name = name })
+    end
+    return groups
+end
+local before = highlights()
+assert(before.manBold.bold and before.manBold.cterm.bold, 'man bold uses bold terminal attributes')
+for _ = 1, 2 do
+    vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
+    eq(highlights(), before, 'reloading preserves man formatting attributes')
+    eq(vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, { details = true }), marks,
+        'reloading preserves the man formatting extmarks')
+end
 LUA
 }
 
@@ -1906,6 +1955,7 @@ run_cases(
         coalesced_config_reload                 => \&coalesced_config_reload,
         config_reload_preserves_options         => \&config_reload_preserves_options,
         nested_module_reload                    => \&nested_module_reload,
+        man_highlights_survive_reload           => \&man_highlights_survive_reload,
         config_reload_via_symlink               => \&config_reload_via_symlink,
         first_commit_summary_width              => \&first_commit_summary_width,
         commit_title_prefix                     => \&commit_title_prefix,
