@@ -254,7 +254,7 @@ inoremap <silent><expr> <C-e> pumvisible() ? "\<C-e>" :
 inoremap <silent><expr> <M-f> exists('*copilot#AcceptWord')
 		\ ? copilot#AcceptWord("\<C-]>\<Esc>f") : "\<C-]>\<Esc>f"
 highlight PmenuMatch cterm=underline
-highlight PmenuSel ctermfg=0 ctermbg=11 cterm=none
+highlight PmenuSel ctermfg=11 ctermbg=0 cterm=none
 highlight PmenuMatchSel cterm=none
 highlight PmenuThumb ctermbg=8
 highlight! link NormalFloat LineNr
