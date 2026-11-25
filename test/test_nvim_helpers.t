@@ -518,6 +518,19 @@ assert(package.loaded.unrelated == unrelated, 'reload preserves unrelated Lua mo
 LUA
 }
 
+sub config_reload_via_symlink {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local alias = vim.env.TEST_ORIGINAL .. '.vim'
+assert(vim.uv.fs_symlink(vim.env.TEST_DOTFILES .. '/nvim/init.vim', alias))
+local statusline = vim.go.statusline
+local commands = vim.api.nvim_get_commands({})
+vim.cmd.source(alias)
+eq(vim.go.statusline, statusline, 'sourcing an alias keeps one Git status field')
+eq(vim.api.nvim_get_commands({}), commands, 'sourcing an alias keeps the existing commands')
+LUA
+}
+
 sub first_commit_summary_width {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1808,6 +1821,7 @@ run_cases(
         coalesced_config_reload                 => \&coalesced_config_reload,
         config_reload_preserves_options         => \&config_reload_preserves_options,
         nested_module_reload                    => \&nested_module_reload,
+        config_reload_via_symlink               => \&config_reload_via_symlink,
         first_commit_summary_width              => \&first_commit_summary_width,
         commit_title_prefix                     => \&commit_title_prefix,
         reverse_visual_selection                => \&reverse_visual_selection,

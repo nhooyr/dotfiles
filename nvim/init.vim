@@ -1,3 +1,9 @@
+let s:config_file = resolve(expand('<sfile>:p'))
+if s:config_file !=# expand('<sfile>:p')
+	execute 'source' fnameescape(s:config_file)
+	finish
+endif
+
 " Git's editor inherits repository-local settings that should not follow us between buffers.
 if !empty(filter(keys(environ()), {_, name -> name =~# '^GIT_'}))
 	for s:name in systemlist(['git', 'rev-parse', '--local-env-vars'])
@@ -5,7 +11,7 @@ if !empty(filter(keys(environ()), {_, name -> name =~# '^GIT_'}))
 	endfor
 endif
 
-let s:config_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h')
+let s:config_dir = fnamemodify(s:config_file, ':h')
 execute 'luafile' fnameescape(s:config_dir . '/lua/plugins.lua')
 
 set number
