@@ -10,7 +10,7 @@ function _complete_script
         set path "$(path resolve -- "$path")"; or return
     end
     contains -- "$path" $__aqsnow_script_completion_paths; and return
-    set -l arguments "$(string join ' ' -- $(string escape -- "$dotfiles/fish/complete_script.pl" "$path"))"
+    set -l arguments "$(string join ' ' -- $(string escape -- "$dotfiles/fish/compgen.pl" "$path"))"
     complete -p "$path" -n 'test -z "$(commandline -ct)"; or string match -q -- "-*" "$(commandline -ct)"; and not contains -- -- $(commandline -xpc)' \
         -a "\$(command perl $arguments)"
     set -ga __aqsnow_script_completion_paths "$path"

@@ -16,7 +16,7 @@ sub setup {
         chmod 0755, "$temporary/$name" or die $!;
     }
     write_file( "$temporary/work/file.txt",           'data' );
-    write_file( "$temporary/fish/complete_script.pl", <<'PERL' );
+    write_file( "$temporary/fish/compgen.pl", <<'PERL' );
 use strict; use warnings;
 open my $calls, '>>', $ENV{TEST_CALLS} or die $!;
 print {$calls} "$ARGV[0]\n";

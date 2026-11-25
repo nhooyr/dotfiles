@@ -26,7 +26,7 @@ sub script {
 
 sub complete {
     my ( $self, $path ) = @_;
-    return run_command( [ perl_executable(), "$root/fish/complete_script.pl", $path // $self->{script} ],
+    return run_command( [ perl_executable(), "$root/fish/compgen.pl", $path // $self->{script} ],
         { env => $self->{env}, input => 'not passed to the script' } );
 }
 
@@ -54,7 +54,7 @@ PERL
     );
     is( read_file( $self->{env}{PROBE_COUNT} ), 'x', 'physical path shares the cache' );
     my $cache = JSON::PP->new->decode(
-        read_file("$self->{env}{HOME}/.local/share/fish/aqsnow_completion_cache/cache.json") );
+        read_file("$self->{env}{HOME}/.local/share/fish/compgen/cache.json") );
     ok(
         exists $cache->{ absolute_path( $self->{script} ) },
         'the cache key is the readable full source path'
@@ -86,7 +86,7 @@ sub separates_paths_with_the_same_basename {
         push @paths, $physical;
     }
     my $cache = JSON::PP->new->decode(
-        read_file("$self->{env}{HOME}/.local/share/fish/aqsnow_completion_cache/cache.json") );
+        read_file("$self->{env}{HOME}/.local/share/fish/compgen/cache.json") );
     is_deeply(
         [ sort keys %$cache ],
         [ sort @paths ],

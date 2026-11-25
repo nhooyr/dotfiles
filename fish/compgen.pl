@@ -6,7 +6,7 @@ use JSON::PP    ();
 use Time::HiRes qw(alarm stat);
 
 if ( @ARGV == 1 && ( $ARGV[0] eq '-h' || $ARGV[0] eq '--help' ) ) {
-    print "Usage: complete_script.pl SCRIPT\nPrint cached flags from an executable script's --help.\n";
+    print "Usage: compgen.pl SCRIPT\nPrint cached flags from an executable script's --help.\n";
     exit;
 }
 exit 2 unless @ARGV == 1;
@@ -20,7 +20,7 @@ exit unless $shebang eq '#!';
 my @stat = stat $script;
 exit unless @stat;
 my $signature = join ':', @stat[ 0, 1, 7 ], map { sprintf '%.9f', $_ } @stat[ 9, 10 ];
-my $directory = "$ENV{HOME}/.local/share/fish/aqsnow_completion_cache";
+my $directory = "$ENV{HOME}/.local/share/fish/compgen";
 my $cache     = "$directory/cache.json";
 my $key       = $script;
 utf8::decode($key);
