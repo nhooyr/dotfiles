@@ -30,18 +30,6 @@ function multicd
     echo cd -- "$(string repeat -n "$(math "$(string length -- "$argv")" - 1)" ../)"
 end
 abbr --add dotdot --regex '^\.\.\.+$' --function multicd
-function cdc --wraps cd --argument-names dir
-    set -l prevd "$PWD"
-    if cd -- "$dir"
-        test "$(count $argv)" -lt 2; and return 0
-        $argv[2..]
-        set -l code "$status"
-        cd -- "$prevd"; or return
-        return "$code"
-    else
-        return 1
-    end
-end
 function cdf --wraps cd --argument-names file
     CDPATH=. cd -- "$(path dirname -- "$file")"
 end
