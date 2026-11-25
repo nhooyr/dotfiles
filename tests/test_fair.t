@@ -1,4 +1,4 @@
-# Burst scheduling and argument validation regressions for fair.
+# Burst scheduling and argument validation regression tests for fair.
 use strict;
 use warnings;
 use utf8;
@@ -382,6 +382,108 @@ sub commit_at {
         undef );
 }
 
+sub seed_commits {
+    my ( $self, $timestamp, $count, $offset ) = @_;
+    $offset //= '+0000';
+    my $parent = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
+    my $input  = '';
+    for my $i ( 1 .. $count ) {
+        my $message = "Seed commit $i\n";
+        $input .=
+            "commit refs/heads/main\nmark :$i\n"
+          . "author Regression Test <test\@example.invalid> $timestamp $offset\n"
+          . "committer Regression Test <test\@example.invalid> $timestamp $offset\n" . 'data '
+          . length($message)
+          . "\n$message"
+          . "from $parent\n\n";
+        $parent = ":$i";
+    }
+    run_command( [ $GIT, 'fast-import', '--quiet' ],
+        { cwd => $self->{repo}, env => $self->{env}, input => $input, check => 1, timeout => 10 } );
+}
+
+sub assert_daily_limit {
+    my ($timestamps) = @_;
+    my $counts = count_values( [ map { int( $_ / 86400 ) } @$timestamps ] );
+    cmp_ok( max( values %$counts ), '<=', 128, 'every UTC calendar day stays within 128 commits' );
+}
+
+sub test_ordinary_calls_enforce_remaining_daily_capacity {
+    my ($self) = @_;
+    seed_commits( $self, time, 126 );
+    my $head   = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
+    my $result = fair( $self, ['2'], undef, '' );
+    isnt( $result->{returncode}, 0, 'an ordinary batch cannot cross the daily limit' );
+    like( $result->{stderr}, qr/128 commits per day/, 'the rejection explains the hard limit' );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
+        $head, 'an oversized batch creates no partial commits' );
+    assert_success( $self, fair( $self, [], undef, '' ) );
+    $head   = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
+    $result = fair( $self, [], undef, '' );
+    isnt( $result->{returncode}, 0, 'a repeated default call cannot add the 129th commit' );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
+        $head, 'the full day remains unchanged' );
+}
+
+sub test_inherited_author_date_uses_its_recorded_day {
+    my ($self) = @_;
+    my $timestamp = iso_epoch('2024-01-02T01:00:00+14:00');
+    seed_commits( $self, $timestamp, 128, '+1400' );
+    $self->{env}{GIT_AUTHOR_DATE} = "\@$timestamp +1400";
+    my $head   = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
+    my $result = fair( $self, [], undef, '' );
+    isnt( $result->{returncode}, 0, 'an inherited author date cannot exceed its calendar day limit' );
+    like( $result->{stderr}, qr/128 commits per day/, 'the rejection explains the hard limit' );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
+        $head, 'the inherited-date rejection creates no commit' );
+}
+
+sub test_ordinary_call_keeps_the_day_checked_before_midnight {
+    my ($self)  = @_;
+    my $checked = iso_epoch('2024-01-01T23:59:59Z');
+    my $full    = iso_epoch('2024-01-02T00:00:00Z');
+    seed_commits( $self, $full, 128 );
+    my $bin = "$self->{root}/bin";
+    make_path($bin);
+    write_file( "$bin/git", <<'PERL' );
+#!/usr/bin/env perl
+use strict;
+use warnings;
+if (@ARGV == 2 && $ARGV[0] eq 'var' && $ARGV[1] eq 'GIT_AUTHOR_IDENT') {
+    print "Regression Test <test\@example.invalid> $ENV{TEST_FAIR_CHECKED} +0000\n";
+    exit;
+}
+$ENV{GIT_AUTHOR_DATE} = "\@$ENV{TEST_FAIR_FULL} +0000" if $ARGV[0] eq 'commit';
+exec {$ENV{TEST_REAL_GIT}} $ENV{TEST_REAL_GIT}, @ARGV;
+die "Cannot run git: $!\n";
+PERL
+    chmod 0755, "$bin/git" or die "Cannot make git wrapper executable: $!\n";
+    $self->{env}{PATH}              = "$bin:$self->{env}{PATH}";
+    $self->{env}{TEST_REAL_GIT}     = $GIT;
+    $self->{env}{TEST_FAIR_CHECKED} = $checked;
+    $self->{env}{TEST_FAIR_FULL}    = $full;
+    assert_success( $self, fair( $self, [], undef, '' ) );
+    is( trim( git( $self, [ 'show', '-s', '--format=%at' ], undef )->{stdout} ),
+        $checked, 'the commit uses the author date checked before midnight' );
+    my $counts = count_values(
+        [ map { substr( $_, 0, 10 ) } split /\n/, git( $self, [ 'log', '--format=%aI' ], undef )->{stdout} ]
+    );
+    is( $counts->{'2024-01-02'}, 128, 'crossing midnight does not add a 129th commit to the full day' );
+}
+
+sub test_repeated_dated_batches_enforce_remaining_capacity {
+    my ($self) = @_;
+    my $args = [ '128', '--date1', '2024-01-01', '--date2', '2024-01-02' ];
+    assert_success( $self, fair( $self, $args, undef, '' ) );
+    assert_daily_limit( [ map { $_->[1] } @{ commits($self) } ] );
+    my $head   = trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} );
+    my $result = fair( $self, $args, undef, '' );
+    isnt( $result->{returncode}, 0, 'an overlapping batch accounts for the previous call' );
+    like( $result->{stderr}, qr/128 commits per day/, 'the range rejection explains the hard limit' );
+    is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
+        $head, 'an impossible dated batch creates no partial commits' );
+}
+
 sub all_commit_metadata {
     my ($self) = @_;
     return [
@@ -473,10 +575,10 @@ sub test_sort_rejects_merge_history {
 sub generate {
     my ( $self, $start, $end, $count, $seed, $tz ) = @_;
     my ($env);
-    $env = { %{ ( \%ENV ) }, "TZ" => $tz };
+    $env = { %{ $self->{env} }, "TZ" => $tz };
     return run_command(
         [ $PERL, "-e", "srand(shift); do shift; die \$\@ if \$\@;", $seed, $DATES, $start, $end, $count ],
-        { "env" => $env, "timeout" => 10 } );
+        { "cwd" => $self->{repo}, "env" => $env, "timeout" => 10 } );
 }
 
 sub dates {
@@ -525,6 +627,7 @@ sub test_busy_days_and_two_week_gaps {
             ( is_deeply( [ $dates->[0], $dates->[ -(1) ] ], [ $first, $last ] ) or die "assertion failed\n" );
             $daily_counts =
               count_values( [ map { my $timestamp = $_; int( ( $timestamp / 86400 ) ) } @{$dates} ] );
+            cmp_ok( max( values %$daily_counts ), '<=', 128, 'bursting never exceeds 128 commits per day' );
             ( cmp_ok( max( @{ [ values %{$daily_counts} ] } ), ">=", 100 ) or die "assertion failed\n" );
             (
                 cmp_ok(
@@ -575,27 +678,36 @@ sub test_schedule_changes_with_random_seed {
     );
 }
 
-sub test_large_count_fits_within_one_day {
+sub test_range_capacity_rejects_without_output {
     my ($self) = @_;
     my ( $dates, $end, $first, $start );
     $start = "2024-01-01";
     $end   = "2024-01-02";
-    $dates = dates( $self, $start, $end, 9999, {} );
+    $dates = dates( $self, $start, $end, 129, {} );
+    assert_daily_limit($dates);
     $first = int( iso_epoch("${start}T00:00:00Z") );
     is_deeply(
         [ $dates->[0], $dates->[-1] ],
         [ $first,      $first + 86400 ],
-        'a large count preserves both date boundaries'
+        'a full day plus the midnight endpoint preserves both date boundaries'
     );
+
+    for my $count ( 130, 9999 ) {
+        my $result = generate( $self, $start, $end, $count, 42, 'UTC' );
+        isnt( $result->{returncode}, 0, 'a date range cannot exceed its daily capacity' );
+        like( $result->{stderr}, qr/128 commits per day/, 'the error explains the hard limit' );
+        is( $result->{stdout}, '', 'an impossible range emits no partial schedule' );
+    }
 }
 
 sub test_maximum_count {
     my ($self) = @_;
     for my $seed ( 42, 2037 ) {
-        my $dates = dates( $self, '2024-01-01', '2024-01-03', 99999, { seed => $seed } );
+        my $dates = dates( $self, '2024-01-01', '2027-01-01', 99999, { seed => $seed } );
+        assert_daily_limit($dates);
         is_deeply(
             [ $dates->[0],                       $dates->[-1] ],
-            [ iso_epoch('2024-01-01T00:00:00Z'), iso_epoch('2024-01-03T00:00:00Z') ],
+            [ iso_epoch('2024-01-01T00:00:00Z'), iso_epoch('2027-01-01T00:00:00Z') ],
             'the maximum count preserves both date boundaries'
         );
     }
@@ -604,6 +716,7 @@ sub test_maximum_count {
         [ $FISH, '--no-config', '-c', <<'FISH' ],
 set -p fish_function_path "$TEST_DOTFILES/fish/functions"
 set -g fair "$TEST_FAIR_REPO"
+set -g dotfiles "$TEST_DOTFILES"
 function git
     if test "$argv[1]" = commit
         printf '%s\n' $argv
@@ -615,12 +728,11 @@ fair 99999
 FISH
         { cwd => $self->{repo}, env => $self->{env}, timeout => 10 }
     );
-    is( $result->{returncode}, 73, 'the maximum count reaches the first commit' );
-    is(
-        $result->{stdout},
-        "commit\n--allow-empty\n--only\n-m\ncount: 41\n",
-        'the stub stops before creating any commits'
-    );
+    isnt( $result->{returncode}, 0,  'an undated maximum count exceeds daily capacity' );
+    isnt( $result->{returncode}, 73, 'the daily limit is checked before the first commit' );
+    like( $result->{stderr}, qr/128 commits per day/,
+        'the maximum-count rejection explains the daily limit' );
+    is( $result->{stdout}, '', 'the maximum-count rejection never reaches the commit stub' );
     is( trim( git( $self, [ 'rev-parse', 'HEAD' ], undef )->{stdout} ),
         $self->{initial}, 'the maximum-count check leaves HEAD unchanged' );
     $result = generate( $self, '2024-01-01', '2024-01-03', 100000, 42, 'UTC' );
@@ -630,14 +742,48 @@ FISH
 sub test_one_day_ranges_keep_count_and_endpoints {
     my ($self) = @_;
     my $first = int( iso_epoch("2024-01-01T00:00:00+00:00") );
-    for my $count ( 2, 3, 50, 500 ) {
+    for my $count ( 2, 3, 50, 128, 129 ) {
         my $dates = dates( $self, "2024-01-01", "2024-01-02", $count, {} );
+        assert_daily_limit($dates);
         is_deeply(
             [ $dates->[0], $dates->[-1] ],
             [ $first,      $first + 86400 ],
             'short date ranges preserve their endpoints'
         );
     }
+}
+
+sub test_non_utc_and_dst_ranges_enforce_the_utc_daily_limit {
+    my ($self) = @_;
+    for my $case (
+        [ '2024-01-01', '2024-01-02', 'Pacific/Kiritimati' ],
+        [ '2024-03-10', '2024-03-11', 'America/Vancouver' ],
+        [ '2024-11-03', '2024-11-04', 'America/Vancouver' ],
+      )
+    {
+        for my $seed ( 1, 42 ) {
+            my $dates = dates( $self, $case->[0], $case->[1], 256, { seed => $seed, tz => $case->[2] } );
+            assert_daily_limit($dates);
+        }
+        my $result = generate( $self, @$case[ 0, 1 ], 257, 42, $case->[2] );
+        isnt( $result->{returncode}, 0, 'two UTC days cannot hold a 257th commit' );
+        like( $result->{stderr}, qr/128 commits per day/, 'non-UTC range rejection explains the limit' );
+        is( $result->{stdout}, '', 'non-UTC overflow emits no partial schedule' );
+    }
+}
+
+sub test_existing_author_dates_use_the_recorded_offset {
+    my ($self) = @_;
+    seed_commits( $self, iso_epoch('2024-01-01T23:00:00-08:00'), 128, '-0800' );
+    my $result = generate( $self, '2024-01-01', '2024-01-02', 2, 42, 'UTC' );
+    isnt( $result->{returncode}, 0, 'the recorded January 1 day is already full' );
+    like( $result->{stderr}, qr/128 commits per day/, 'existing-day rejection explains the limit' );
+    is( $result->{stdout}, '', 'existing-day overflow emits no partial schedule' );
+    is_deeply(
+        dates( $self, '2024-01-01', '2024-01-02', 1, {} ),
+        [ iso_epoch('2024-01-02T00:00:00Z') ],
+        'the remaining endpoint belongs to January 2 in the generated UTC dates'
+    );
 }
 
 sub test_epoch_and_leap_day_are_valid {
@@ -709,17 +855,29 @@ run_cases(
           \&test_dated_commits_restore_inherited_dates_for_next_call,
         "test_without_dates_keeps_default_and_explicit_counts" =>
           \&test_without_dates_keeps_default_and_explicit_counts,
+        test_ordinary_calls_enforce_remaining_daily_capacity =>
+          \&test_ordinary_calls_enforce_remaining_daily_capacity,
+        test_inherited_author_date_uses_its_recorded_day =>
+          \&test_inherited_author_date_uses_its_recorded_day,
+        test_ordinary_call_keeps_the_day_checked_before_midnight =>
+          \&test_ordinary_call_keeps_the_day_checked_before_midnight,
+        test_repeated_dated_batches_enforce_remaining_capacity =>
+          \&test_repeated_dated_batches_enforce_remaining_capacity,
         'test_sort_rejects_count_and_date_flags'            => \&test_sort_rejects_count_and_date_flags,
         'test_sort_stays_in_repository'                     => \&test_sort_stays_in_repository,
         'test_sort_orders_entire_branch'                    => \&test_sort_orders_entire_branch,
         'test_sort_initializes_counter_and_preserves_index' =>
           \&test_sort_initializes_counter_and_preserves_index,
-        'test_sort_rejects_merge_history'                 => \&test_sort_rejects_merge_history,
-        "test_busy_days_and_two_week_gaps"                => \&test_busy_days_and_two_week_gaps,
-        "test_schedule_changes_with_random_seed"          => \&test_schedule_changes_with_random_seed,
-        "test_large_count_fits_within_one_day"            => \&test_large_count_fits_within_one_day,
-        'test_maximum_count'                              => \&test_maximum_count,
-        "test_one_day_ranges_keep_count_and_endpoints"    => \&test_one_day_ranges_keep_count_and_endpoints,
+        'test_sort_rejects_merge_history'              => \&test_sort_rejects_merge_history,
+        "test_busy_days_and_two_week_gaps"             => \&test_busy_days_and_two_week_gaps,
+        "test_schedule_changes_with_random_seed"       => \&test_schedule_changes_with_random_seed,
+        test_range_capacity_rejects_without_output     => \&test_range_capacity_rejects_without_output,
+        'test_maximum_count'                           => \&test_maximum_count,
+        "test_one_day_ranges_keep_count_and_endpoints" => \&test_one_day_ranges_keep_count_and_endpoints,
+        test_non_utc_and_dst_ranges_enforce_the_utc_daily_limit =>
+          \&test_non_utc_and_dst_ranges_enforce_the_utc_daily_limit,
+        test_existing_author_dates_use_the_recorded_offset =>
+          \&test_existing_author_dates_use_the_recorded_offset,
         "test_epoch_and_leap_day_are_valid"               => \&test_epoch_and_leap_day_are_valid,
         "test_invalid_calendar_dates_fail_without_output" =>
           \&test_invalid_calendar_dates_fail_without_output,

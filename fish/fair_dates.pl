@@ -2,8 +2,41 @@
 use strict;
 use warnings;
 use List::Util  qw(min max sum);
+use POSIX       qw(strftime);
 use Time::Local qw(timelocal_modern);
 use Time::Piece;
+
+sub git_output {
+    open my $pipe, '-|', 'git', @_ or die "fair: cannot run git: $!\n";
+    local $/;
+    my $output = <$pipe> // '';
+    close $pipe or die "fair: git @_ failed\n";
+    return $output;
+}
+
+sub daily_counts {
+    my %counts;
+    ++$counts{ substr( $_, 0, 10 ) } for split /\n/, git_output( 'log', '--format=%aI', 'HEAD' );
+    return \%counts;
+}
+
+sub day_key {
+    return strftime( '%Y-%m-%d', gmtime( $_[0] ) );
+}
+
+if ( @ARGV && $ARGV[0] eq '--check-day' ) {
+    @ARGV == 2 && $ARGV[1] =~ /\A[0-9]{1,5}\z/ && $ARGV[1] >= 1
+      or die "Usage: fair_dates.pl --check-day COUNT (1..99999)\n";
+    my $ident = git_output( 'var', 'GIT_AUTHOR_IDENT' );
+    $ident =~ / (\d+) ([+-])(\d{2})(\d{2})\s*\z/ or die "fair: invalid author date\n";
+    my ( $timestamp, $sign, $hours, $minutes ) = ( $1, $2, $3, $4 );
+    my $date   = day_key( $timestamp + ( $sign eq '+' ? 1 : -1 ) * ( $hours * 3600 + $minutes * 60 ) );
+    my $counts = daily_counts();
+    die "fair: $date cannot exceed 128 commits per day\n"
+      if ( $counts->{$date} // 0 ) + $ARGV[1] > 128;
+    print "\@$timestamp $sign$hours$minutes\n";
+    exit;
+}
 
 sub parse_date {
     my ($value) = @_;
@@ -35,12 +68,56 @@ die "fair: --date1 must be on or after the Unix epoch\n" if $start < 0;
 die "fair: --date2 must be after --date1\n"              if $end <= $start;
 die "fair: date range must allow at least one second between commits\n"
   if $end - $start < $count - 1;
+
+# Work backward to reserve enough daily capacity for every remaining commit.
+my $day    = 24 * 60 * 60;
+my $counts = daily_counts();
+my ( @latest, %capacity, %remaining );
+
+sub day_capacity {
+    my ($date) = @_;
+    return $capacity{$date} //= max( 0, 128 - ( $counts->{ day_key( $date * $day ) } // 0 ) );
+}
+
+my $last = $end;
+for ( 1 .. $count ) {
+    while (1) {
+        die "fair: date range cannot fit $count commits with a limit of 128 commits per day\n"
+          if $last < $start;
+        my $date = int( $last / $day );
+        $remaining{$date} //= day_capacity($date);
+        if ( $remaining{$date} ) {
+            --$remaining{$date};
+            push @latest, $last--;
+            last;
+        }
+        $last = int( $last / $day ) * $day - 1;
+    }
+}
+@latest = reverse @latest;
+
+sub print_capped_dates {
+    my (@preferred) = @_;
+    my ( @dates, %added );
+    my $next = $start;
+    for my $i ( 0 .. $#preferred ) {
+        my $date     = max( $next, min( $preferred[$i], $latest[$i] ) );
+        my $date_day = int( $date / $day );
+        while ( ( $added{$date_day} // 0 ) >= day_capacity($date_day) ) {
+            $date = ++$date_day * $day;
+        }
+        ++$added{$date_day};
+        push @dates, $date;
+        $next = $date + 1;
+    }
+    print "$_\n" for @dates;
+}
+
 if ( $count == 1 ) {
-    print int( ( $start + $end ) / 2 ), "\n";
+    print_capped_dates( int( ( $start + $end ) / 2 ) );
     exit;
 }
 
-my $day   = 24 * 60 * 60;
 my $quiet = 14 * $day;
 my $span  = $end - $start;
 
@@ -65,6 +142,7 @@ my @widths =
 my $slack   = $span - sum(@widths) - $quiet * ( $bursts - 1 );
 my @offsets = ( 0, ( sort { $a <=> $b } map { int( rand( $slack + 1 ) ) } 1 .. $bursts - 2 ), $slack );
 my $cursor  = $start;
+my @preferred;
 for my $i ( 0 .. $#sizes ) {
     my $size = $sizes[$i];
     my ( $lo, $hi ) =
@@ -84,5 +162,6 @@ for my $i ( 0 .. $#sizes ) {
     push @fixed, $lo if $i == 0;
     push @fixed, $hi if $i == $#sizes;
     my @dates = sample_seconds( $lo + ( $i == 0 ), $hi - ( $i == $#sizes ), $size - @fixed );
-    print "$_\n" for sort { $a <=> $b } ( @fixed, @dates );
+    push @preferred, sort { $a <=> $b } ( @fixed, @dates );
 }
+print_capped_dates(@preferred);
