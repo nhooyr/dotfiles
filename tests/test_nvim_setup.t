@@ -182,7 +182,7 @@ sub package_file_sets_its_own_lock_path {
     die 'Neovim is required' unless $nvim;
     my $check = <<'LUA';
 lua vim.pack.add = function(specs, opts)
-    assert(vim.o.packlockfile == vim.env.TEST_DIRECTORY .. '/nvim-pack-lock.json')
+    assert(vim.o.packlockfile == vim.env.TEST_DIRECTORY .. '/pack-lock.json')
     assert(opts.confirm == false)
     assert(#specs == 2)
     assert(specs[1].src == 'https://github.com/nhooyr/copilot.vim.git')

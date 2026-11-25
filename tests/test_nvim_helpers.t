@@ -129,7 +129,7 @@ eq(vim.g.test_plugin_specs, {
     { src = 'https://github.com/nvim-treesitter/nvim-treesitter', version = 'main' },
 }, 'external plugins are managed with vim.pack')
 eq(_G.test_plugin_options[1], { confirm = false }, 'package setup installs without an interactive prompt')
-eq(vim.o.packlockfile, vim.env.TEST_DOTFILES .. '/nvim/nvim-pack-lock.json', 'package revisions use the tracked lockfile')
+eq(vim.o.packlockfile, vim.env.TEST_DOTFILES .. '/nvim/pack-lock.json', 'package revisions use the tracked lockfile')
 eq(vim.fn.exists(':Ls'), 0, 'the custom viewer command is removed')
 eq(vim.g.loaded_nvim_dir_plugin, true, 'the native directory browser is loaded')
 assert(not vim.o.autochdir, 'directories change only when explicitly requested')
@@ -576,7 +576,7 @@ sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
     make_path("$copy/nvim/lua/nested");
-    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim nvim-pack-lock.json);
+    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim pack-lock.json);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
         copy_preserve( $source, "$copy/nvim/lua/" . basename($source) );
     }
