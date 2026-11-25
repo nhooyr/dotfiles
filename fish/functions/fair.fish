@@ -1,6 +1,14 @@
 function fair --description 'fair [n] [--date1 YYYY-MM-DD --date2 YYYY-MM-DD] | fair --sort'
     set -l arguments $argv
-    argparse --max-args 1 --exclusive sort,date1 --exclusive sort,date2 sort date1= date2= -- $argv; or return
+    argparse --max-args 1 --exclusive sort,date1 --exclusive sort,date2 h/help sort date1= date2= -- $argv; or return
+    if set -q _flag_help
+        printf '%s\n' 'Usage: fair [COUNT] [--date1 YYYY-MM-DD --date2 YYYY-MM-DD]
+       fair --sort
+Create and push COUNT empty commits in $fair (default: 1; maximum: 99999).
+Use natural-looking dates in the recent past, or within the supplied range.
+With --sort, redistribute the dates of existing commits.'
+        return
+    end
     if set -q _flag_sort
         if set -q argv[1]
             printf '%s: --sort does not accept a count\n' "$(status function)" >&2

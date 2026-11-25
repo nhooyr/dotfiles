@@ -1,4 +1,9 @@
 function gbigdirs --description 'Show the largest directories using Git-tracked files'
+    if contains -- "$argv" -h --help
+        printf '%s\n' 'Usage: gbigdirs
+Show the largest top-level directories using files tracked by Git.'
+        return
+    end
     git rev-parse --show-toplevel >/dev/null; or return
     git ls-files --recurse-submodules --deduplicate -z |
         perl -0ne 'print "./$_" if -f $_ || -l $_' |
