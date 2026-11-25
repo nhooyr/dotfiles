@@ -12,9 +12,8 @@ use Time::HiRes qw(time sleep);
 use POSIX       qw(SIG_BLOCK SIG_SETMASK SIGHUP SIGINT SIGTERM sigprocmask);
 
 my $jobs = 8;
-my $rust;
-GetOptions( 'jobs|j=i' => \$jobs, 'rust' => \$rust )
-  or die "Usage: test.pl [--rust] [-j JOBS] [test_module[.test_case] ...]\n";
+GetOptions( 'jobs|j=i' => \$jobs )
+  or die "Usage: test.pl [-j JOBS] [test_selector ...]\n";
 die "--jobs must be positive\n" if $jobs < 1;
 my @selectors     = @ARGV;
 my $home          = tempdir( 'dotfiles-test-home-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
@@ -35,12 +34,15 @@ my $original_home = $ENV{HOME} // $home;
     CARGO_HOME  => $ENV{CARGO_HOME}  // "$original_home/.cargo",
     RUSTUP_HOME => $ENV{RUSTUP_HOME} // "$original_home/.rustup",
 );
-if ($rust) {
-    my $status = system( 'cargo', 'test', '--manifest-path', "$FindBin::Bin/../fzfp/Cargo.toml", '--locked' );
+my @cargo = ( 'cargo', 'test', '--manifest-path', "$FindBin::Bin/../fzfp/Cargo.toml", '--locked' );
+
+sub run_cargo {
+    my $status = system( @cargo, @_ );
     exit 127                        if $status == -1;
     exit( 128 + ( $status & 127 ) ) if $status & 127;
     exit( $status >> 8 )            if $status;
 }
+run_cargo() unless @selectors;
 my @tests;
 my %matched;
 
@@ -57,8 +59,22 @@ for my $file ( sort glob "$FindBin::Bin/../tests/test_*.t" ) {
         push @tests, [ $file, $case ];
     }
 }
+my @rust;
+if ( grep { !$matched{$_} } @selectors ) {
+    open my $list, '-|', @cargo, '--', '--list' or die "cargo: $!\n";
+    while (<$list>) {
+        next unless /^(.+): test$/;
+        my $name    = $1;
+        my @matches = grep { $_ eq $name || index( $name, $_ . '::' ) == 0 } @selectors;
+        next unless @matches;
+        $matched{$_} = 1 for @matches;
+        push @rust, $name;
+    }
+    close $list or die "Cargo test discovery failed\n";
+}
 die "Unknown test selector: $_\n" for grep { !$matched{$_} } @selectors;
-die "No tests selected\n" unless @tests;
+run_cargo( '--', '--exact', @rust ) if @rust;
+exit 0 unless @tests;
 $jobs = @tests if $jobs > @tests;
 printf STDERR "Running %d tests with %d workers\n", scalar(@tests), $jobs;
 my $started = time;

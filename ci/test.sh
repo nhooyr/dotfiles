@@ -20,4 +20,4 @@ fi
 
 nvim --headless -u NONE -n -i NONE -l ./nvim/lua/plugins.lua
 
-exec perl ci/test.pl --rust "$@"
+exec perl ci/test.pl "$@"

@@ -70,9 +70,16 @@ sub test_script_fixture {
     write_file( "$temporary/bin/cargo", '#!' . perl_executable() . "\n" . <<'PERL_CARGO' );
 use strict; use warnings; use FindBin; use JSON::PP;
 my @keys = qw(PATH HOME XDG_CONFIG_HOME LC_ALL CARGO_HOME RUSTUP_HOME AQSNOW_DIRALIS GIT_DIR EDITOR);
-open my $out, '>', "$FindBin::Bin/../cargo.json" or die $!;
+my $listing = grep { $_ eq '--list' } @ARGV;
+my $phase = $listing ? 'cargo-list' : 'cargo';
+die "duplicate Cargo invocation\n" if -e "$FindBin::Bin/../$phase.json";
+open my $out, '>', "$FindBin::Bin/../$phase.json" or die $!;
 print {$out} encode_json({ args => \@ARGV, env => { map { $_ => $ENV{$_} } grep { exists $ENV{$_} } @keys } });
 close $out or die $!;
+if ($listing) {
+    print "tests::one: test\ntests::two: test\nother::three: test\n\n3 tests, 0 benchmarks\n";
+    exit;
+}
 if (-e "$FindBin::Bin/../signal-cargo") {
     $SIG{INT} = 'DEFAULT';
     kill 'INT', $$;
@@ -83,11 +90,11 @@ PERL_CARGO
     write_file( "$temporary/tests/test_environment.t", <<'PERL_TEST' );
 use strict; use warnings; use FindBin; use lib $FindBin::Bin; use TestHelpers;
 my @keys = qw(PATH HOME XDG_CONFIG_HOME LC_ALL CARGO_HOME RUSTUP_HOME AQSNOW_DIRALIS GIT_DIR EDITOR);
-my $phase = ($ARGV[0] // '') eq '--list' ? 'discovery' : 'worker';
+my $phase = ($ARGV[0] // '') eq '--list' ? 'discovery' : 'worker-' . $ARGV[0];
 write_file("$FindBin::Bin/../$phase.json", encode_json({ args => \@ARGV,
     env => { map { $_ => $ENV{$_} } grep { exists $ENV{$_} } @keys } }));
 if ($phase eq 'discovery') { print "selected\nunselected\n"; exit; }
-die "wrong test selected\n" unless @ARGV == 1 && $ARGV[0] eq 'selected';
+die "wrong test selected\n" unless @ARGV == 1 && ($ARGV[0] eq 'selected' || $ARGV[0] eq 'unselected');
 print "1..1\nok 1 - clean environment\n";
 PERL_TEST
     chmod 0755, "$temporary/bin/nvim", "$temporary/bin/cargo";
@@ -106,23 +113,27 @@ PERL_TEST
 }
 
 sub test_script_cleans_rust_and_perl_environments {
-    my ( $temporary, $env ) = test_script_fixture();
-    for my $explicit ( 0, 1 ) {
-        if ($explicit) {
+    for my $direct ( 0, 1 ) {
+        my ( $temporary, $env ) = test_script_fixture();
+        if ($direct) {
             $env->{CARGO_HOME}  = "$temporary/custom-cargo";
             $env->{RUSTUP_HOME} = "$temporary/custom-rustup";
         }
-        my $result = run_command( [ "$temporary/ci/test.sh", 'test_environment.selected' ], { env => $env } );
+        my @command = $direct ? ( perl_executable(), "$temporary/ci/test.pl" ) : ("$temporary/ci/test.sh");
+        my $result  = run_command( \@command, { env => $env } );
         is( $result->{returncode}, 0, $result->{stderr} );
-        my %phases = map { $_ => decode_json( read_file("$temporary/$_.json") ) } qw(cargo discovery worker);
+        my %phases =
+          map { $_ => decode_json( read_file("$temporary/$_.json") ) } qw(cargo discovery worker-selected);
         is_deeply(
             $phases{cargo}{args},
             [ 'test', '--manifest-path', "$temporary/ci/../fzfp/Cargo.toml", '--locked' ],
             'runs Cargo tests'
         );
-        is_deeply( $phases{discovery}{args}, ['--list'],   'discovers the selected test module' );
-        is_deeply( $phases{worker}{args},    ['selected'], 'forwards the requested test selector' );
-        for my $phase (qw(cargo discovery worker)) {
+        is_deeply( $phases{discovery}{args},         ['--list'],   'discovers the selected test module' );
+        is_deeply( $phases{'worker-selected'}{args}, ['selected'], 'runs the discovered Perl test' );
+        ok( -f "$temporary/worker-unselected.json", 'no arguments runs every Perl test' );
+
+        for my $phase (qw(cargo discovery worker-selected)) {
             my $child = $phases{$phase}{env};
             ok( !exists $child->{$_}, "$phase does not inherit $_" ) for qw(AQSNOW_DIRALIS GIT_DIR EDITOR);
             isnt( $child->{HOME}, $env->{HOME}, "$phase gets an isolated home" );
@@ -149,13 +160,74 @@ sub cargo_failure_stops_before_perl_tests {
     for my $case ( [ 'fail-cargo', 7 ], [ 'signal-cargo', 130 ] ) {
         my ( $temporary, $env ) = test_script_fixture();
         write_file( "$temporary/$case->[0]", '' );
-        my $result = run_command( [ "$temporary/ci/test.sh", 'test_environment.selected' ], { env => $env } );
+        my $result = run_command( ["$temporary/ci/test.sh"], { env => $env } );
         is( $result->{returncode}, $case->[1], 'Cargo failure status is preserved' );
-        ok( !-e "$temporary/discovery.json", 'Perl test discovery does not run after Cargo fails' );
-        ok( !-e "$temporary/worker.json",    'Perl test cases do not run after Cargo fails' );
+        ok( !-e "$temporary/discovery.json",       'Perl test discovery does not run after Cargo fails' );
+        ok( !-e "$temporary/worker-selected.json", 'Perl test cases do not run after Cargo fails' );
         my $cargo = decode_json( read_file("$temporary/cargo.json") );
         ok( !-d $cargo->{env}{HOME}, 'Cargo failure still removes the temporary home' );
     }
+}
+
+sub explicit_selectors_skip_cargo {
+    for my $direct ( 0, 1 ) {
+        my ( $temporary, $env ) = test_script_fixture();
+        write_file( "$temporary/fail-cargo", '' );
+        my @command = $direct ? ( perl_executable(), "$temporary/ci/test.pl" ) : ("$temporary/ci/test.sh");
+        my $result  = run_command( [ @command, 'test_environment.selected' ], { env => $env } );
+        is( $result->{returncode}, 0, $result->{stderr} );
+        ok( !-e "$temporary/cargo.json",             'a targeted Perl test does not run Cargo' );
+        ok( !-e "$temporary/worker-unselected.json", 'unselected Perl tests do not run' );
+        my $selected = decode_json( read_file("$temporary/worker-selected.json") );
+        is_deeply( $selected->{args}, ['selected'], 'the requested test selector is forwarded' );
+    }
+}
+
+sub rust_selectors_run_only_matching_tests {
+    for my $case (
+        [ ['tests::one'],                                ['tests::one'] ],
+        [ [ 'tests', 'tests::one', 'other::three' ],     [ 'tests::one', 'tests::two', 'other::three' ] ],
+        [ [ 'tests::two', 'test_environment.selected' ], ['tests::two'] ],
+      )
+    {
+        my ( $temporary, $env ) = test_script_fixture();
+        my $result =
+          run_command( [ perl_executable(), "$temporary/ci/test.pl", @{ $case->[0] } ], { env => $env } );
+        is( $result->{returncode}, 0, $result->{stderr} );
+        my $listing = decode_json( read_file("$temporary/cargo-list.json") );
+        is_deeply(
+            $listing->{args},
+            [ 'test', '--manifest-path', "$temporary/ci/../fzfp/Cargo.toml", '--locked', '--', '--list' ],
+            'discovers native Rust test names'
+        );
+        my $cargo = decode_json( read_file("$temporary/cargo.json") );
+        is_deeply(
+            $cargo->{args},
+            [
+                'test',     '--manifest-path', "$temporary/ci/../fzfp/Cargo.toml",
+                '--locked', '--', '--exact', @{ $case->[1] }
+            ],
+            'runs only matching Rust tests, without duplicate names'
+        );
+        my $perl_selected = grep { $_ eq 'test_environment.selected' } @{ $case->[0] };
+        is(
+            -e "$temporary/worker-selected.json" ? 1 : 0,
+            $perl_selected                       ? 1 : 0,
+            'runs Perl only when selected'
+        );
+        ok( !-e "$temporary/worker-unselected.json", 'unselected Perl tests do not run' );
+    }
+}
+
+sub unknown_selector_does_not_run_tests {
+    my ( $temporary, $env ) = test_script_fixture();
+    my $result =
+      run_command( [ perl_executable(), "$temporary/ci/test.pl", 'missing_test' ], { env => $env } );
+    isnt( $result->{returncode}, 0, 'an unknown selector fails' );
+    like( $result->{stderr}, qr/Unknown test selector: missing_test/, 'reports the unknown selector' );
+    ok( -e "$temporary/cargo-list.json",       'checks Rust names before rejecting the selector' );
+    ok( !-e "$temporary/cargo.json",           'does not execute Rust tests' );
+    ok( !-e "$temporary/worker-selected.json", 'does not execute Perl tests' );
 }
 
 run_cases(
@@ -163,5 +235,8 @@ run_cases(
         ignored_files_are_not_formatted_or_linted     => \&ignored_files_are_not_formatted_or_linted,
         test_script_cleans_rust_and_perl_environments => \&test_script_cleans_rust_and_perl_environments,
         cargo_failure_stops_before_perl_tests         => \&cargo_failure_stops_before_perl_tests,
+        explicit_selectors_skip_cargo                 => \&explicit_selectors_skip_cargo,
+        rust_selectors_run_only_matching_tests        => \&rust_selectors_run_only_matching_tests,
+        unknown_selector_does_not_run_tests           => \&unknown_selector_does_not_run_tests,
     }
 );

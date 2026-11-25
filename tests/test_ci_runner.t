@@ -62,7 +62,7 @@ PERL
     if ( !$runner ) {
         open STDOUT, '>',  "$temporary/log" or die $!;
         open STDERR, '>&', \*STDOUT         or die $!;
-        exec perl_executable(), "$temporary/ci/test.pl";
+        exec perl_executable(), "$temporary/ci/test.pl", 'test_slow';
         die $!;
     }
     my $deadline = time + 3;
@@ -140,7 +140,8 @@ PERL
         LC_ALL               => 'POSIX',
         TERM                 => 'unexpected-terminal',
     );
-    my $result = run_command( [ perl_executable(), "$temporary/ci/test.pl" ], { env => \%env } );
+    my $result =
+      run_command( [ perl_executable(), "$temporary/ci/test.pl", 'test_environment' ], { env => \%env } );
     is( $result->{returncode}, 0, "the runner supplies a clean environment: $result->{stderr}" );
     ok( -s "$temporary/tests/discovery", 'test discovery uses the clean environment' );
     ok( -s "$temporary/tests/worker",    'test execution uses the clean environment' );
