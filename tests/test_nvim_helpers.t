@@ -549,13 +549,14 @@ vim.cmd.enew()
 vim.wo.number, vim.wo.list, vim.wo.foldmethod, vim.wo.foldlevel = false, true, 'manual', 2
 vim.bo.tabstop, vim.bo.shiftwidth, vim.bo.textwidth, vim.bo.formatoptions = 7, 3, 65, 'tcq'
 vim.go.tabstop, vim.go.textwidth = 9, 71
+local list_default = vim.go.list
 vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
 eq({ vim.wo.number, vim.wo.list, vim.wo.foldmethod, vim.wo.foldlevel,
     vim.bo.tabstop, vim.bo.shiftwidth, vim.bo.textwidth, vim.bo.formatoptions },
     { false, true, 'manual', 2, 7, 3, 65, 'tcq' }, 'reloading preserves explicit local overrides')
 eq({ vim.go.number, vim.go.list, vim.go.foldmethod, vim.go.foldlevel,
     vim.go.tabstop, vim.go.shiftwidth, vim.go.textwidth },
-    { true, false, 'indent', 999, 4, 0, 110 }, 'reloading still updates defaults for new buffers and windows')
+    { true, list_default, 'indent', 999, 4, 0, 110 }, 'reloading still updates defaults for new buffers and windows')
 LUA
 }
 

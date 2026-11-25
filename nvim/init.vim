@@ -23,7 +23,6 @@ if v:vim_did_enter
 	setglobal textwidth=110
 	setglobal foldmethod=indent
 	setglobal foldlevel=999
-	setglobal nolist
 	setglobal formatoptions-=t
 else
 	set number
@@ -32,7 +31,6 @@ else
 	set textwidth=110
 	set foldmethod=indent
 	set foldlevel=999
-	set nolist
 	set formatoptions-=t
 	colorscheme default
 endif
