@@ -347,9 +347,7 @@ sub removed_repository_during_refresh {
     my ($self) = @_;
     write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\nvcs_update\n"
-          . stage_completion( ' (obsolete)', '0' )
-          . <<'FISH' );
+        "set -g __aqsnow_vcs_pending 1\nvcs_update\n" . stage_completion( ' (obsolete)', '0' ) . <<'FISH' );
 command rm -rf -- .git
 aqsnow_vcs_prompt_invalidate
 aqsnow_vcs_prompt_done
