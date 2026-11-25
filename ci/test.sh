@@ -20,5 +20,13 @@ fi
 
 nvim --headless -u NONE -n -i NONE -l ./nvim/lua/plugins.lua
 
-cargo test --manifest-path fzfp/Cargo.toml --locked
-perl ci/test.pl "$@"
+test_home=$(mktemp -d)
+trap 'rm -rf -- "$test_home"' 0
+perl -I./tests -MTestHelpers=test_environment -e '
+    %ENV = %{test_environment(shift)};
+    exec {$ARGV[0]} @ARGV;
+    die "$ARGV[0]: $!\n";
+' "$test_home" sh -eu -c '
+    cargo test --manifest-path fzfp/Cargo.toml --locked
+    perl ci/test.pl "$@"
+' sh "$@"

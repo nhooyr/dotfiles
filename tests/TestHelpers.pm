@@ -16,9 +16,30 @@ use Time::HiRes qw(time sleep);
 use Time::Local qw(timegm_modern timelocal_modern);
 use Test::More;
 our @EXPORT =
-  qw(which perl_executable run_command read_file write_file join_path absolute_path ancestors file_uri same_file directory_entries shell_quote trim replace_literal split_literal partition_last array_slice string_slice zip_lists enumerate_list unique_values equal_values contains_value count_values read_calls run_cases iso_epoch epoch_iso dirname basename make_path remove_tree copy_preserve tempdir encode_json decode_json min max);
+  qw(which perl_executable test_environment run_command read_file write_file join_path absolute_path ancestors file_uri same_file directory_entries shell_quote trim replace_literal split_literal partition_last array_slice string_slice zip_lists enumerate_list unique_values equal_values contains_value count_values read_calls run_cases iso_epoch epoch_iso dirname basename make_path remove_tree copy_preserve tempdir encode_json decode_json min max);
 
 sub perl_executable { return $^X =~ m{/} ? absolute_path($^X) : which($^X); }
+
+sub test_environment {
+    my ($home) = @_;
+    my $original_home = $ENV{HOME} // $home;
+    return {
+        PATH            => $ENV{PATH},
+        HOME            => $home,
+        TMPDIR          => $ENV{TMPDIR} // File::Spec->tmpdir(),
+        XDG_CONFIG_HOME => "$home/.config",
+        XDG_DATA_HOME   => "$home/.local/share",
+        XDG_CACHE_HOME  => "$home/.cache",
+        XDG_STATE_HOME  => "$home/.local/state",
+        LANG            => 'C',
+        LC_ALL          => 'C',
+        TERM            => 'dumb',
+
+        # Keep compiler downloads and installed Rustup toolchains available.
+        CARGO_HOME  => $ENV{CARGO_HOME}  // "$original_home/.cargo",
+        RUSTUP_HOME => $ENV{RUSTUP_HOME} // "$original_home/.rustup",
+    };
+}
 
 sub copy_preserve {
     my ( $source, $target ) = @_;

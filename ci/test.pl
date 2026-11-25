@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../tests";
-use TestHelpers    qw(run_command read_file);
+use TestHelpers    qw(run_command read_file test_environment);
 use Getopt::Long   qw(GetOptions);
 use File::Basename qw(basename);
 use File::Temp     qw(tempdir);
@@ -15,8 +15,11 @@ GetOptions( 'jobs|j=i' => \$jobs )
   or die "Usage: test.pl [-j JOBS] [test_module[.test_case] ...]\n";
 die "--jobs must be positive\n" if $jobs < 1;
 my @selectors = @ARGV;
+my $home      = tempdir( 'dotfiles-test-home-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
+%ENV = %{ test_environment($home) };
 my @tests;
 my %matched;
+
 for my $file ( sort glob "$FindBin::Bin/../tests/test_*.t" ) {
     my $module = basename( $file, '.t' );
     next
