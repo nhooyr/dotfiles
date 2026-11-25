@@ -64,11 +64,42 @@ PERL
         GIT_CONFIG_GLOBAL   => '/dev/null',
         GIT_CONFIG_NOSYSTEM => 1,
     };
+    write_file( "$root/terminal.lua", <<'LUA' );
+local command = vim.json.decode(vim.env.TEST_VIDIR_COMMAND)
+local job = vim.fn.jobstart(command, { pty = true })
+assert(job > 0, 'could not open a terminal')
+local status = vim.fn.jobwait({ job }, 20000)[1]
+assert(status >= 0, 'vidir did not exit')
+os.exit(status)
+LUA
 }
 
 sub invoke {
     my ( $self, @args ) = @_;
-    return run_command( [ $program, @args ], { cwd => $self->{directory}, env => $self->{env} } );
+    my $root   = $self->{root};
+    my $result = run_command(
+        [ 'nvim', '--headless', '-u', 'NONE', '-i', 'NONE', '-l', "$root/terminal.lua" ],
+        {
+            cwd => $self->{directory},
+            env => {
+                %{ $self->{env} },
+                TEST_VIDIR_COMMAND => encode_json(
+                    [ 'sh', '-c', 'exec "$@" >"$TEST_VIDIR_OUT" 2>"$TEST_VIDIR_ERR"', 'sh', $program, @args ]
+                ),
+                TEST_VIDIR_OUT => "$root/stdout",
+                TEST_VIDIR_ERR => "$root/stderr",
+            },
+        }
+    );
+    $result->{stdout} = read_file("$root/stdout");
+    $result->{stderr} .= read_file("$root/stderr");
+    return $result;
+}
+
+sub invoke_with_paths {
+    my ( $self, $input, @args ) = @_;
+    return run_command( [ $program, @args ],
+        { cwd => $self->{directory}, env => $self->{env}, input => $input } );
 }
 
 sub script_path {
@@ -208,6 +239,43 @@ sub directory_markers_keep_move_commands_usable {
     ok( -d "$self->{directory}/renamed directory", 'the marked directory can be renamed' );
     ok( !-e "$self->{directory}/directory space",  'the original directory moved' );
     ok( -l "$self->{directory}/link",              'the symlink remains a symlink' );
+}
+
+sub piped_paths_preserve_selection_and_order {
+    my ($self) = @_;
+    my @paths =
+      ( 'original', 'nested', "$self->{directory}/.hidden", q{literal ' $HOME;[x]}, 'link', 'broken' );
+    my $path = script_path( $self, invoke_with_paths( $self, join( "\n", @paths ) ) );
+    $paths[1] .= '/';
+    is_deeply( listed_paths($path), \@paths,
+        'piped paths retain order, relative and absolute spelling, quotes, and symlink identity' );
+    like( read_file($path), qr/^cd -- "\$TEST_PROJECT"$/m, 'relative operands use the invocation directory' );
+    ok(
+        !grep( $_ eq 'nested/child', @{ listed_paths($path) } ),
+        'a supplied directory is listed itself without scanning its contents'
+    );
+}
+
+sub piped_paths_do_not_scan_or_filter {
+    my ($self) = @_;
+    run_command( [ 'git', '-C', $self->{directory}, 'init', '--quiet' ],
+        { env => $self->{env}, check => 1 } );
+    write_file( "$self->{directory}/.gitignore", "original\n" );
+    my $path = script_path( $self, invoke_with_paths( $self, "original\nnested\n", '-r' ) );
+    is_deeply(
+        listed_paths($path),
+        [ 'original', 'nested/' ],
+        'stdin is the complete selection even with recursive mode and ignored paths'
+    );
+    $path = script_path( $self, invoke_with_paths( $self, '' ) );
+    is_deeply( listed_paths($path), [], 'empty stdin generates no move commands' );
+    my $result = invoke_with_paths( $self, "original\n", $self->{directory} );
+    isnt( $result->{returncode}, 0, 'a directory argument cannot change the meaning of piped paths' );
+    like(
+        $result->{stderr},
+        qr/cannot combine DIR with piped paths/,
+        'conflicting directory input is explained'
+    );
 }
 
 sub ordering_matches_ls {
@@ -449,9 +517,10 @@ sub usage_and_missing_editor {
     my ($self) = @_;
     my $result = invoke( $self, '--help' );
     is( $result->{returncode}, 0, 'help succeeds' );
-    like( $result->{stdout}, qr/--recursive/,     'help describes recursive mode' );
-    like( $result->{stdout}, qr/--no-ignore/,     'help describes overriding Git ignore rules' );
-    like( $result->{stdout}, qr/GNU ls ordering/, 'help describes the configured ordering' );
+    like( $result->{stdout}, qr/--recursive/,             'help describes recursive mode' );
+    like( $result->{stdout}, qr/--no-ignore/,             'help describes overriding Git ignore rules' );
+    like( $result->{stdout}, qr/GNU ls ordering/,         'help describes the configured ordering' );
+    like( $result->{stdout}, qr/newline-separated paths/, 'help describes piped input' );
     ok( !-e $self->{env}{TEST_EDITOR_LOG}, 'help does not open the editor' );
     $result = invoke( $self, 'missing' );
     isnt( $result->{returncode}, 0, 'a nonexistent directory is rejected' );
@@ -482,6 +551,8 @@ run_cases(
         usage_and_missing_editor                     => \&usage_and_missing_editor,
         ordering_matches_ls                          => \&ordering_matches_ls,
         directory_markers_keep_move_commands_usable  => \&directory_markers_keep_move_commands_usable,
+        piped_paths_preserve_selection_and_order     => \&piped_paths_preserve_selection_and_order,
+        piped_paths_do_not_scan_or_filter            => \&piped_paths_do_not_scan_or_filter,
         git_ignore_and_override                      => \&git_ignore_and_override,
         persistent_ignore_batches_preserve_rules     => \&persistent_ignore_batches_preserve_rules,
         invalid_ignore_replies_stop_before_editor    => \&invalid_ignore_replies_stop_before_editor,
