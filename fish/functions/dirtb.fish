@@ -1,6 +1,6 @@
 alias dirtb='_dirtb | tabt'
 function _dirtb --description 'List repos with indexed binary files'
-    for gitdir in ~/code/*/.git ~/code/*/*/.git
+    for gitdir in "$nhooyr"/*/.git
         set -l dir "$(path dirname -- "$gitdir")"
         contains -- "$dir" $dirt_ignore; and continue
         set -l files $(cdc "$dir" gbins); or continue
