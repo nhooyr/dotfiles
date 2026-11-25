@@ -4,7 +4,6 @@ use FindBin;
 use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
-use Encode           qw(decode_utf8 encode_utf8 FB_CROAK);
 use File::Basename   qw(basename dirname);
 use Text::ParseWords qw(shellwords);
 
@@ -47,7 +46,6 @@ local $/;
 my $script = <$input>;
 close $input;
 $script =~ s/^# mv -v -- original original$/mv -v -- original renamed/m if $ENV{TEST_RENAME};
-exit if $ENV{TEST_NO_REWRITE};
 open my $output, '>', "$ARGV[-1].new" or die $!;
 print {$output} $script;
 close $output;
@@ -543,23 +541,6 @@ sub clipboard_failures_are_reported {
     like( $result->{stderr}, qr/pbc failed/, 'the failing clipboard command is identified' );
 }
 
-sub long_directory_names_fit_the_script_filename {
-    my ($self) = @_;
-    $self->{env}{TEST_NO_REWRITE} = 1;
-    for my $name ( 'd' x 250, ( 'd' x 244 ) . "\xc3\xa9" . 'xxxx' ) {
-        my $directory = "$self->{root}/$name";
-        make_path($directory);
-        $self->{directory} = $directory;
-        $self->{env}{TEST_PROJECT} = $directory;
-        my $path     = script_path( $self, invoke($self) );
-        my $filename = encode_utf8( basename($path) );
-        cmp_ok( length($filename), '<=', 255, 'the script name fits the filesystem component limit' );
-        ok( eval { decode_utf8( $filename, FB_CROAK ); 1 }, 'the shortened prefix remains valid UTF-8' );
-        like( read_file($path), qr/^cd -- "\$TEST_PROJECT"$/m,
-            'the script keeps the full working directory' );
-    }
-}
-
 sub editor_without_options {
     my ($self) = @_;
     $self->{env}{EDITOR} = shell_quote("$self->{root}/editor bin/editor");
@@ -618,7 +599,6 @@ run_cases(
         script_command_is_copied_before_and_after_editor =>
           \&script_command_is_copied_before_and_after_editor,
         clipboard_failures_are_reported              => \&clipboard_failures_are_reported,
-        long_directory_names_fit_the_script_filename => \&long_directory_names_fit_the_script_filename,
         empty_alias_does_not_change_script_directory => \&empty_alias_does_not_change_script_directory,
         usage_and_missing_editor                     => \&usage_and_missing_editor,
         ordering_matches_ls                          => \&ordering_matches_ls,

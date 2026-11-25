@@ -2,7 +2,6 @@
 use strict;
 use warnings;
 use Cwd                   qw(abs_path);
-use Encode                qw(decode_utf8 encode_utf8 FB_QUIET);
 use File::Basename        qw(basename);
 use File::Path            qw(make_path);
 use File::Spec::Functions qw(tmpdir);
@@ -154,10 +153,7 @@ sub write_paths {
     }
 }
 
-my $prefix = $directory eq '/' ? 'root' : basename($directory);
-
-# Leave room for .XXXXXX.sh without splitting a UTF-8 character.
-$prefix = encode_utf8( decode_utf8( substr( $prefix, 0, 245 ), FB_QUIET ) ) if length($prefix) > 245;
+my $prefix    = $directory eq '/' ? 'root' : basename($directory);
 my $temporary = tmpdir() . '/vidir';
 make_path( $temporary, { mode => 0700 } );
 my ( $file, $script ) = tempfile( "$prefix.XXXXXX", SUFFIX => '.sh', DIR => $temporary, UNLINK => 0 );
