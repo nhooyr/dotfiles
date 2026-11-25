@@ -4,6 +4,10 @@ local snippets = {
 		chat = 'chat: ${1:Improvements}$0',
 		todo = 'TODO: ${1:desc}$0',
 
+		fmt = 'format$0',
+		Fmt = 'Format$0',
+		fmts = 'formatting$0',
+		Fmts = 'Formatting$0',
 		imp = 'improve$0',
 		Imp = 'Improve$0',
 		imps = 'improvements$0',
