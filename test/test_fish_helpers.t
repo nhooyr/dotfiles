@@ -183,40 +183,15 @@ printf '%s\n' "$status"
 set -gx NVIM "$TEST_ROOT/socket"
 nvim -u NONE 'inside file'
 printf '%s\n' "$status"
-nvim -
-printf '%s\n' "$status"
 nvim +42 'inside file'
 printf '%s\n' "$status"
 FISH
     is_deeply(
         [ map { decode_json($_) } split /\n/, read_file("$self->{root}/nvim-calls") ],
-        [ [ '--', 'outside file' ], [ '-u', 'NONE', 'inside file' ], ['-'], [ '+42', 'inside file' ] ],
+        [ [ '--', 'outside file' ], [ '-u', 'NONE', 'inside file' ], [ '+42', 'inside file' ] ],
         'ordinary launches and native options reach Neovim unchanged'
     );
-    is( $result->{stdout}, "23\n23\n23\n23\n", 'native exit statuses are preserved' );
-}
-
-sub nvim_preserves_piped_standard_input {
-    my ($self) = @_;
-    $self->{env}{TEST_NVIM_WRAPPER} = "$root/fish/functions/nvim.fish";
-    write_file( "$self->{root}/bin/nvim", '#!' . perl_executable() . "\n" . <<'PERL' );
-use JSON::PP;
-open my $log, '>', "$ENV{TEST_ROOT}/nvim-calls" or die $!;
-print {$log} encode_json(\@ARGV);
-local $/;
-print <STDIN>;
-exit 23;
-PERL
-    chmod 0755, "$self->{root}/bin/nvim";
-    my $result = fish( $self, <<'FISH' );
-source "$TEST_NVIM_WRAPPER"
-set -gx NVIM "$TEST_ROOT/socket"
-printf 'piped text\n' | nvim
-printf '%s\n' "$status"
-FISH
-    is( $result->{stdout}, "piped text\n23\n", 'piped input and the native exit status are preserved' );
-    is_deeply( decode_json( read_file("$self->{root}/nvim-calls") ),
-        [], 'piped input launches Neovim without an RPC request' );
+    is( $result->{stdout}, "23\n23\n23\n", 'native exit statuses are preserved' );
 }
 
 sub fd_defaults_respect_ignores_and_follow_symlinks {
@@ -620,7 +595,6 @@ run_cases(
         sshv_expands_only_remote_home_prefixes          => \&sshv_expands_only_remote_home_prefixes,
         sshv_stops_on_missing_paths                     => \&sshv_stops_on_missing_paths,
         nvim_preserves_native_command_line_options      => \&nvim_preserves_native_command_line_options,
-        nvim_preserves_piped_standard_input             => \&nvim_preserves_piped_standard_input,
         configured_temp_directory_is_aliased            => \&configured_temp_directory_is_aliased,
         alias_registration_updates_the_exported_name_list =>
           \&alias_registration_updates_the_exported_name_list,

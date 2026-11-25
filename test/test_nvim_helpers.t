@@ -774,11 +774,28 @@ for _, option in ipairs({ '-o', '-O' }) do
         option .. ' without filenames opens an empty editing buffer')
     eq(eval('jobwait([' .. job .. '], 0)'), { -1 }, option .. ' keeps the original terminal alive')
 end
+for _, case in ipairs({
+    { 'first\nsecond\n\n', {}, { 'first', 'second', '' }, true, true },
+    { 'no final newline', { '-' }, { 'no final newline' }, false, true },
+    { '', { '-o', '-' }, { '' }, true, false },
+    { 'windows\r\n', { '-O', '-' }, { 'windows' }, true, true },
+}) do
+    call('nvim_set_current_buf', terminal)
+    local command = { 'fish', '--no-config', '-c',
+        'source "$TEST_DOTFILES/fish/functions/nvim.fish"; nvim $argv', '--' }
+    vim.list_extend(command, case[2])
+    local result = vim.system(command, { cwd = cwd, stdin = case[1], env = { NVIM = socket } }):wait(3000)
+    eq(result.code, 0, result.stderr)
+    eq(call('nvim_buf_get_name', 0), '', 'stdin opens an unnamed buffer through RPC')
+    eq(call('nvim_buf_get_lines', 0, 0, -1, false), case[3], 'stdin preserves all lines')
+    eq(eval('&endofline') == 1, case[4], 'stdin preserves the final newline')
+    eq(eval('&modified') == 1, case[5], 'only nonempty input is marked modified')
+end
 pcall(call, 'nvim_command', 'qa!')
 server:wait(1000)
 local command, nvim_cmd = nil, vim.api.nvim_cmd
 vim.api.nvim_cmd = function(request) command = request end
-require('terminal').open({ 'edit', cwd, 'scp://server/path' })
+require('terminal').open({ 'edit', cwd, '', 'scp://server/path' })
 vim.api.nvim_cmd = nvim_cmd
 eq(command.args, { 'scp://server/path' }, 'remote URLs are not prefixed with the local cwd')
 LUA
