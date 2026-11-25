@@ -85,7 +85,7 @@ function cdc
     cd -- "$previous_dir"; or return
     return "$code"
 end
-set -g fair_repo "$TEST_FAIR_REPO"
+set -g fair "$TEST_FAIR_REPO"
 set -g dotfiles "$TEST_DOTFILES"
 set -l starting_dir "$PWD"
 fair $argv; or exit
@@ -591,7 +591,7 @@ sub test_maximum_count {
     my $result = run_command(
         [ $FISH, '--no-config', '-c', <<'FISH' ],
 set -p fish_function_path "$TEST_DOTFILES/fish/functions"
-set -g fair_repo "$TEST_FAIR_REPO"
+set -g fair "$TEST_FAIR_REPO"
 function git
     if test "$argv[1]" = commit
         printf '%s\n' $argv
