@@ -117,6 +117,24 @@ fn run_widget_output(
 }
 
 #[test]
+fn first_path_result_uses_the_same_insertion_rules() {
+    for (commandline, selection, expected) in [
+        ("", "script\nREADME.md", "./script "),
+        ("", "./script\nREADME.md", "./script "),
+        ("", "./binary\nREADME.md", "./binary "),
+        ("", "directory\nscript", "cd -- directory "),
+        ("", "README.md\nscript", "nvim -- README.md "),
+        ("nvim ", "script\nREADME.md", "-- script "),
+    ] {
+        assert_eq!(
+            run_widget("fzf-path-first-widget", commandline, selection).0,
+            expected,
+            "{commandline:?}, {selection:?}"
+        );
+    }
+}
+
+#[test]
 fn recent_files_use_the_same_insertion_rules() {
     for (commandline, selection) in [
         ("", "./script"),
@@ -197,6 +215,8 @@ end
         .env("WIDGET_SOURCE", widget)
         .env("TEST_TOKEN", token)
         .env("FZFPATHS", env!("CARGO_BIN_EXE_fzfpaths"))
+        .env("TERM", "xterm-256color")
+        .env("XDG_DATA_HOME", fixture.0.join("data"))
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -214,6 +234,37 @@ end
     assert!(output.status.success(), "{output:?}");
     assert!(output.stderr.is_empty(), "{output:?}");
     output.stdout
+}
+
+#[test]
+fn first_path_result_uses_fzf_ranking_without_a_terminal() {
+    let script = r#"
+mkdir deploy
+printf '#!/bin/sh\ntouch was-executed\n' > deploy/server.sh
+printf '#!/bin/sh\n' > deploy/some-other-server.sh
+printf '#!/bin/sh\n' > 'deploy/server script.sh'
+chmod +x deploy/*.sh
+function commandline
+    switch "$argv[1]"
+        case --current-token
+            printf '%s' "$TEST_TOKEN"
+        case -rt
+            set -g inserted "$argv[3]"
+    end
+end
+function fzfpaths
+    command "$FZFPATHS" $argv
+end
+_fzf fzf-path-first-widget
+test ! -e was-executed; or exit 1
+printf '%s' "$inserted"
+"#;
+    assert_eq!(path_case(script, "deployserver"), b"./deploy/server.sh ");
+    assert_eq!(
+        path_case(script, "deployserverscript"),
+        b"./deploy/server\\ script.sh "
+    );
+    assert_eq!(path_case(script, "no-matching-path"), b"");
 }
 
 #[test]
@@ -765,4 +816,47 @@ end
         path_case(script, ""),
         b"selected\nmiddle\nafter\0before\nselected\nafter\0before\nmiddle\nselected\0"
     );
+}
+
+#[test]
+fn first_history_result_preserves_multiline_input_without_a_terminal() {
+    for (input, line, expected) in [
+        ("", 1, "./deploy/server.sh\nprintf done"),
+        ("deployserver", 1, "./deploy/server.sh\nprintf done"),
+        ("server done", 1, "./deploy/server.sh\nprintf done"),
+        ("quoted'", 1, "printf 'quoted'"),
+        (
+            "before\ndeployserver\nafter",
+            2,
+            "before\n./deploy/server.sh\nprintf done\nafter",
+        ),
+        ("no-matching-command", 1, "no-matching-command"),
+    ] {
+        let script = format!(
+            r#"
+set -g fish_history __fzf_first_history
+set -g fish_private_mode 1
+set -gx FZF_DEFAULT_OPTS --no-color
+history append -- 'printf deploy-some-other-server' "printf 'quoted'" './deploy/server.sh
+printf done'
+set -g test_buffer "$TEST_TOKEN"
+function commandline
+    switch "$argv[1]"
+        case -L
+            printf '%s\n' {line}
+        case -f
+        case --
+            set -g test_buffer "$(string join \n -- $argv[2..])"
+        case -a
+            set -g test_buffer "$test_buffer$(string join \n -- $argv[3..])"
+        case '*'
+            printf '%s\n' "$test_buffer"
+    end
+end
+_fzf fzf-history-first-widget
+printf '%s' "$test_buffer"
+"#
+        );
+        assert_eq!(path_case(&script, input), expected.as_bytes(), "{input:?}");
+    }
 }

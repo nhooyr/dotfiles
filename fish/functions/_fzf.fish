@@ -1,6 +1,13 @@
 source "$(status dirname)/../fzf_upstream.fish"; or return
 
 function _fzf --argument-names widget
+    if test "$widget" = fzf-path-first-widget
+        fzf_path_widget "$widget"
+        return
+    else if test "$widget" = fzf-history-first-widget
+        fzf-history-widget --first
+        return
+    end
     aqsnow_init_rendezvous; or return
     # Indices preserve fzf's empty-selection guard without copying filenames.
     set -l action "alt-enter:execute-silent(test -n '{+n}'; and printf exec > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
@@ -16,6 +23,15 @@ function _fzf --argument-names widget
         $widget
     end
     aqsnow_rendezvous
+end
+
+function _fzf_select --argument-names widget query
+    if contains -- "$widget" fzf-path-first-widget fzf-history-first-widget
+        fzf --filter="$query" | read --null --local result
+        and printf '%s\0' "$result"
+    else
+        fzf --query="$query"
+    end
 end
 
 function fzf_path_widget --argument-names widget
@@ -67,9 +83,9 @@ function fzf_path_widget --argument-names widget
         "$opts --ansi --read0 --print0 --with-shell=$(string escape -- "$shell")")
     set -lx FZF_DEFAULT_OPTS_FILE
     set -l query "$parsed[2]"
-    # ./ selects local search; only Alt-V keeps it in the query.
+    # Path widgets keep ./ in the query to select explicit local paths.
     if test "$widget" != fzf-recent-widget; and string match -q -- './*' "$token"
-        test "$widget" = fzf-path-widget; and set query "$token"
+        contains -- "$widget" fzf-path-widget fzf-path-first-widget; and set query "$token"
         set global_alias ''
     else if not contains -- "$widget" fzf-file-widget fzf-recent-widget
         set -a flags --cdpath "$CDPATH"
@@ -79,9 +95,9 @@ function fzf_path_widget --argument-names widget
         set result $(command nvim --headless -u NONE -n \
             -c 'lua for _, path in ipairs(vim.v.oldfiles) do if path:sub(1, 1) == "/" then io.write(path, "\0") end end; vim.o.shadafile = "NONE"' -c 'qa!' \
             | fzfpaths --read0 --color --classify $flags $dirs -- . '' -f \
-            | fzf --query="$query" | string split0)
+            | _fzf_select "$widget" "$query" | string split0)
     else
-        set result $(fzfpaths --color --classify $flags $dirs -- "$dir" "$global_alias" "$type" | fzf --query="$query" | string split0)
+        set result $(fzfpaths --color --classify $flags $dirs -- "$dir" "$global_alias" "$type" | _fzf_select "$widget" "$query" | string split0)
     end
     if set -q result[1]
         set -l resolve_cdpath 1
@@ -136,7 +152,8 @@ function fzf_path_widget --argument-names widget
                         set next_kind file
                         if test -x "$target"
                             if not set -q kind[1]
-                                if string match -q -- './*' "$result[1]"; or string match -q -- '/*' "$token"
+                                if test "$widget" = fzf-path-first-widget
+                                    or string match -q -- './*' "$result[1]"; or string match -q -- '/*' "$token"
                                     set execute 1
                                 end
                             end
@@ -164,6 +181,11 @@ function fzf_path_widget --argument-names widget
                 test "$kind" = special; and break
             end
             test "$(count $result)" -eq 1; or set execute 0
+            if test "$execute" -eq 1 -a "$widget" = fzf-path-first-widget
+                and not string match -q -- '/*' "$target"
+                and not string match -q -- './*' "$result[1]"
+                set escaped "$(aqsnow_fzf_path_quote "./$result[1]" "$parsed[3]")"
+            end
             if test "$execute" -eq 1; and string match -q -- '/*' "$token"
                 if not string match -q -- '/*' "$target"
                     set target "$PWD/$(string replace --regex -- '^\./' '' "$target")"

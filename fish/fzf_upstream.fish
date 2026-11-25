@@ -118,7 +118,11 @@ function fzf-history-widget -d "Show command history"
     # Merge history from other sessions before searching
     test -z "$fish_private_mode"; and builtin history merge
 
-    if set -l result (eval $FZF_DEFAULT_COMMAND \| (__fzfcmd) --query=$fzf_query | string split0)
+    set -l finder "$(__fzfcmd) --query=$fzf_query"
+    if test "$argv[1]" = --first
+        set finder "_fzf_select fzf-history-first-widget $fzf_query"
+    end
+    if set -l result (eval $FZF_DEFAULT_COMMAND \| "$finder" | string split0)
         if test "$total_lines" -eq 1
             commandline -- $result
         else
