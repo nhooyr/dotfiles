@@ -10,7 +10,7 @@ fi
 git ls-files --cached --others --exclude-standard -z -- '*.fish' |
 	perl -0ne 'chomp; print "./$_\0" if -f && !-l' | xargs -0 -n1 fish --no-execute
 git ls-files --cached --others --exclude-standard -z -- '*.pl' '*.pm' '*.t' |
-	xargs -0 -n1 sh -c 'test ! -f "$1" || test -L "$1" || perl -c "./$1"' sh
+	perl -0ne 'chomp; print "./$_\0" if -f && !-l' | xargs -0 -r -n1 perl -c
 
 git ls-files --cached --others --exclude-standard -z |
 	perl -0ne 'chomp; print "./$_\0" if -f && !-l' |

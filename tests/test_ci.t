@@ -24,6 +24,8 @@ sub ignored_files_are_not_formatted_or_linted {
     symlink '../.cache/cached.fish', "$temporary/fish/linked.fish" or die $!;
     write_file( "$temporary/shell/good.sh",    "if true;then\nprintf x\nfi\n" );
     write_file( "$temporary/shell/deleted.sh", "echo deleted\n" );
+    write_file( "$temporary/shell/good.pl",    'my $x=1;' . "\n" );
+    write_file( "$temporary/shell/deleted.pl", 'my $x=1;' . "\n" );
     my $invalid_shell = "if then\n";
     write_file( "$temporary/.cache/ignored.sh", $invalid_shell );
     write_file( "$temporary/.cache/linked.sh",  $invalid_shell );
@@ -35,6 +37,7 @@ sub ignored_files_are_not_formatted_or_linted {
     run_command( [ 'git', '-C', $temporary, 'add',  '.' ],  { check => 1 } );
     unlink "$temporary/fish/deleted.fish" or die $!;
     unlink "$temporary/shell/deleted.sh"  or die $!;
+    unlink "$temporary/shell/deleted.pl"  or die $!;
     my %env  = ( %ENV, PATH => "$temporary/bin:$ENV{PATH}", GITHUB_ACTIONS => '', CI => '' );
     my $lint = run_command( ["$temporary/ci/lint.sh"], { env => \%env } );
     is( $lint->{returncode}, 0, "lint ignores cached and deleted files: $lint->{stderr}" );
@@ -59,6 +62,7 @@ sub ignored_files_are_not_formatted_or_linted {
         $invalid_shell, 'symlinked invalid shell files are neither parsed nor formatted' );
     is( read_file("$temporary/.cache/linked.pm"),
         $invalid_perl, 'symlinked Perl files are neither compiled nor formatted' );
+    is( read_file("$temporary/shell/good.pl"), 'my $x = 1;' . "\n", 'regular Perl files are formatted' );
 }
 
 sub test_script_fixture {
