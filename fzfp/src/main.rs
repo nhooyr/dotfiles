@@ -1,7 +1,7 @@
 use ignore::Match;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use lscolors::{Indicator, LsColors, Style};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet, hash_map::Entry};
 use std::env;
 use std::ffi::{OsStr, OsString, c_int};
 use std::fs::{self, Metadata};
@@ -986,6 +986,7 @@ impl Scanner {
 
     fn input_paths(&self) -> io::Result<()> {
         let physical_cwd = env::current_dir()?;
+        let mut parents = HashMap::new();
         let mut input = io::stdin().lock();
         let mut pending = Vec::new();
         let mut buffer = [0; 8192];
@@ -1009,20 +1010,25 @@ impl Scanner {
             }
             let length = input.read(&mut buffer)?;
             if length == 0 {
-                return self.input_path(&pending, &physical_cwd);
+                return self.input_path(&pending, &physical_cwd, &mut parents);
             }
             for part in buffer[..length].split_inclusive(|byte| *byte == 0) {
                 pending.extend_from_slice(part);
                 if pending.last() == Some(&0) {
                     pending.pop();
-                    self.input_path(&pending, &physical_cwd)?;
+                    self.input_path(&pending, &physical_cwd, &mut parents)?;
                     pending.clear();
                 }
             }
         }
     }
 
-    fn input_path(&self, bytes: &[u8], physical_cwd: &Path) -> io::Result<()> {
+    fn input_path(
+        &self,
+        bytes: &[u8],
+        physical_cwd: &Path,
+        parents: &mut HashMap<PathBuf, PathBuf>,
+    ) -> io::Result<()> {
         if bytes.is_empty() {
             return Ok(());
         }
@@ -1046,11 +1052,22 @@ impl Scanner {
             .ok()
             .or_else(|| {
                 // Resolve directory aliases without replacing a symlink's filename.
-                let physical = absolute
-                    .parent()?
-                    .canonicalize()
-                    .ok()?
-                    .join(absolute.file_name()?);
+                let parent = absolute.parent()?;
+                let physical = match parents.entry(parent.to_path_buf()) {
+                    Entry::Occupied(mut entry) => {
+                        if !parent
+                            .metadata()
+                            .ok()
+                            .zip(entry.get().metadata().ok())
+                            .is_some_and(|(a, b)| (a.dev(), a.ino()) == (b.dev(), b.ino()))
+                        {
+                            *entry.get_mut() = parent.canonicalize().ok()?;
+                        }
+                        entry.into_mut()
+                    }
+                    Entry::Vacant(entry) => entry.insert(parent.canonicalize().ok()?),
+                }
+                .join(absolute.file_name()?);
                 physical
                     .strip_prefix(physical_cwd)
                     .map(Path::to_path_buf)

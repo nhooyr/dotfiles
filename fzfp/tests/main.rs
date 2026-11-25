@@ -3207,6 +3207,82 @@ fn input_paths_preserve_symlink_filenames() {
 }
 
 #[test]
+fn input_paths_resolve_repeated_symlink_parents_in_input_order() {
+    let fixture = Fixture::new();
+    let alias = fixture.root.join("local-alias");
+    symlink(&fixture.local, &alias).unwrap();
+    symlink("file", fixture.local.join("file-link")).unwrap();
+    let paths = from_input(
+        &mut fixture.command_with_flags(&["--read0"], &fixture.local, Path::new(""), "-f", &[]),
+        &[
+            &alias.join("file-link"),
+            &alias.join("executable"),
+            &alias.join("file"),
+            &alias.join("file-link"),
+        ],
+    );
+    assert_eq!(
+        paths,
+        ["file-link", "executable", "file"].map(OsString::from)
+    );
+}
+
+#[test]
+fn input_paths_revalidate_changed_symlink_parents() {
+    for rename in [false, true] {
+        let fixture = Fixture::new();
+        let original = fixture.local.join("original");
+        write(&original, "first");
+        write(&original, "second");
+        let alias = fixture.root.join("alias");
+        symlink(&original, &alias).unwrap();
+        let mut child = fixture
+            .command_with_flags(&["--read0"], &fixture.local, Path::new(""), "-f", &[])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let mut input = child.stdin.take().unwrap();
+        let mut output = BufReader::new(child.stdout.take().unwrap());
+        input
+            .write_all(format!("{}/first\0", alias.display()).as_bytes())
+            .unwrap();
+        let mut first = Vec::new();
+        output.read_until(0, &mut first).unwrap();
+        assert_eq!(first, b"original/first\0");
+
+        let target = if rename {
+            let moved = fixture.local.join("moved");
+            fs::rename(&original, &moved).unwrap();
+            write(&original, "second");
+            moved
+        } else {
+            let outside = fixture.root.join("outside");
+            write(&outside, "second");
+            outside
+        };
+        fs::remove_file(&alias).unwrap();
+        symlink(target, &alias).unwrap();
+        input
+            .write_all(format!("{}/second\0", alias.display()).as_bytes())
+            .unwrap();
+        drop(input);
+        let mut second = Vec::new();
+        output.read_until(0, &mut second).unwrap();
+        let expected = if rename {
+            b"moved/second\0".to_vec()
+        } else {
+            format!("{}/second\0", alias.display()).into_bytes()
+        };
+        assert_eq!(second, expected);
+        let result = child.wait_with_output().unwrap();
+        assert!(result.status.success(), "{result:?}");
+        assert!(result.stderr.is_empty(), "{result:?}");
+    }
+}
+
+#[test]
 fn directory_aliases_match_logical_and_physical_input_paths() {
     let fixture = Fixture::new();
     let directory = fixture.root.join("external");
