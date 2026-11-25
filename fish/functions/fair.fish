@@ -6,12 +6,12 @@ function fair --description 'fair [n] [--date1 YYYY-MM-DD --date2 YYYY-MM-DD] | 
             printf '%s: --sort does not accept a count\n' "$(status function)" >&2
             return 2
         end
-        cd -- "$fair_repo"; or return
+        cd -- "$fair"; or return
         perl "$dotfiles/fish/fair_sort.pl"
         return "$status"
     end
-    if test "$(path resolve -- "$PWD")" != "$(path resolve -- "$fair_repo")"
-        cdc "$fair_repo" fair $arguments
+    if test "$(path resolve -- "$PWD")" != "$(path resolve -- "$fair")"
+        cdc "$fair" fair $arguments
         return
     end
     set -l n "$argv[1]"
