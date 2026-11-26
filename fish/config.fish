@@ -469,13 +469,26 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     aqsnow_run_requested; or return 0
     test "$code" -eq 0; or return 0
 
+    set -l prefix ''
+    if string match -qr '\bcdc\s' -- "$cmdline"
+        printf '%s\0' "$cmdline" | read --null --tokenize-raw --local --array tokens
+        set -l last_command
+        for token in $tokens[-1..1]
+            contains -- "$token" ';' '&&' '||' '|' \n; and break
+            set -p last_command "$token"
+        end
+        contains -- "$last_command[1]" and or; and set -e last_command[1]
+        while test "$last_command[1]" = cdc
+            set prefix "$prefix$(string join -- ' ' $last_command[1..2]) "
+            set -e last_command[1..2]
+        end
+        set cmdline "$(string join -- ' ' $last_command)"
+    end
     switch "$cmdline"
         case 'git commit --amend' '*; and git commit --amend' gcma '*; and gcma'
-            gpf
-        case 'git commit*' '* git commit*' 'gcm*' '* gcm*' 'gacm*' '* gacm*'
-            git push
-        case './commit*' '* ./commit*'
-            git push
+            eval "$prefix gpf"
+        case 'git commit*' '* git commit*' 'gcm*' '* gcm*' 'gacm*' '* gacm*' './commit*' '* ./commit*'
+            eval "$prefix git push"
     end
 end
 # Always disable bracketed paste queries. https://github.com/junegunn/fzf/issues/4963
