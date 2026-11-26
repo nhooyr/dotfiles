@@ -69,10 +69,12 @@ abbrali grou git remote get-url
 abbrali gror git remote rename
 abbrali grod git remote remove
 abbrali gb git branch -vv
-abbrali gbm git branch -vvm
-abbrali gbu git branch -vvu
-abbrali gba git branch -vva
-abbrali gbr git branch -vvr
+abbrali gbm git branch -vv -m
+abbrali gbu git branch -vv -u
+abbrali gba git branch -vv -a
+abbrali gbr git branch -vv -r
+abbrali gbd git branch -vv -d
+abbrali gbD git branch -vv -D
 abbrali gst git stash push -u
 abbrali gstk git stash push -u --keep-index
 abbrali gsta git stash apply
@@ -123,6 +125,7 @@ abbrali gsubu git submodule update --init --recursive
 abbrali grl git reflog
 abbrali grfl git reflog
 abbrali gcp git cherry-pick
+abbrali gcpc git cherry-pick --continue
 abbrali gcps git cherry-pick --skip
 abbrali gcpa git cherry-pick --abort
 abbrali gmb git merge-base HEAD origin
