@@ -14,6 +14,15 @@ sub ignored_files_are_not_formatted_or_linted {
     copy_preserve( "$root/ci/$_", "$temporary/ci/$_" ) for qw(fmt.sh lint.sh);
     write_file( "$temporary/bin/cargo", "#!/bin/sh\nexit 0\n" );
     chmod 0755, "$temporary/bin/cargo";
+    my $perltidy = which('perltidy') or die 'perltidy not found';
+    write_file( "$temporary/bin/perltidy", '#!' . perl_executable() . "\n" . <<'PERL_TIDY' );
+use strict; use warnings; use FindBin;
+open my $calls, '>>', "$FindBin::Bin/../perltidy.calls" or die $!;
+print {$calls} "called\n";
+close $calls or die $!;
+exec { $ENV{TEST_PERLTIDY} } $ENV{TEST_PERLTIDY}, @ARGV or die $!;
+PERL_TIDY
+    chmod 0755, "$temporary/bin/perltidy";
     write_file( "$temporary/.gitignore",        ".cache/\n" );
     write_file( "$temporary/fish/good.fish",    "function good\nprintf x\nend\n" );
     write_file( "$temporary/fish/deleted.fish", "echo deleted\n" );
@@ -25,6 +34,8 @@ sub ignored_files_are_not_formatted_or_linted {
     write_file( "$temporary/shell/good.sh",    "if true;then\nprintf x\nfi\n" );
     write_file( "$temporary/shell/deleted.sh", "echo deleted\n" );
     write_file( "$temporary/shell/good.pl",    'my $x=1;' . "\n" );
+    write_file( "$temporary/shell/second.pm",  'my $second=2;' . "\n" );
+    write_file( "$temporary/shell/third.t",    'my $third=3;' . "\n" );
     write_file( "$temporary/shell/deleted.pl", 'my $x=1;' . "\n" );
     my $invalid_shell = "if then\n";
     write_file( "$temporary/.cache/ignored.sh", $invalid_shell );
@@ -38,7 +49,13 @@ sub ignored_files_are_not_formatted_or_linted {
     unlink "$temporary/fish/deleted.fish" or die $!;
     unlink "$temporary/shell/deleted.sh"  or die $!;
     unlink "$temporary/shell/deleted.pl"  or die $!;
-    my %env  = ( %ENV, PATH => "$temporary/bin:$ENV{PATH}", GITHUB_ACTIONS => '', CI => '' );
+    my %env = (
+        %ENV,
+        PATH           => "$temporary/bin:$ENV{PATH}",
+        GITHUB_ACTIONS => '',
+        CI             => '',
+        TEST_PERLTIDY  => $perltidy
+    );
     my $lint = run_command( ["$temporary/ci/lint.sh"], { env => \%env } );
     is( $lint->{returncode}, 0, "lint ignores cached and deleted files: $lint->{stderr}" );
     my $fmt = run_command( ["$temporary/ci/fmt.sh"], { env => \%env } );
@@ -62,7 +79,14 @@ sub ignored_files_are_not_formatted_or_linted {
         $invalid_shell, 'symlinked invalid shell files are neither parsed nor formatted' );
     is( read_file("$temporary/.cache/linked.pm"),
         $invalid_perl, 'symlinked Perl files are neither compiled nor formatted' );
-    is( read_file("$temporary/shell/good.pl"), 'my $x = 1;' . "\n", 'regular Perl files are formatted' );
+    is( read_file("$temporary/shell/good.pl"),   'my $x = 1;' . "\n", 'regular Perl files are formatted' );
+    is( read_file("$temporary/shell/second.pm"), 'my $second = 2;' . "\n", 'Perl modules are formatted' );
+    is(
+        read_file("$temporary/shell/third.t"),
+        'my $third = 3;' . "\n",
+        'Perl regression tests are formatted'
+    );
+    is( read_file("$temporary/perltidy.calls"), "called\n", 'Perl inputs share one formatter process' );
 }
 
 sub test_script_fixture {
