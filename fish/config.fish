@@ -162,6 +162,8 @@ abbrali finder open -R
 abbrali safari open -a Safari
 abbrali chrome open -a '"Google Chrome"'
 abbrali t time
+abbrali typa type -as
+abbrali typea type -as
 abbrali diff diff -r
 abbrali esc string escape
 abbrali m man
