@@ -147,6 +147,7 @@ noremap ; :
 noremap : ;
 noremap 0 ^
 noremap ^ 0
+xnoremap % o
 sunmap ;
 sunmap :
 sunmap 0
