@@ -1,0 +1,103 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Getopt::Long qw(GetOptions);
+use JSON::PP     qw(decode_json);
+
+my $help;
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case));
+GetOptions( 'h|help' => \$help ) or exit 2;
+if ($help) {
+    print <<'HELP';
+Usage: dirtci [-h|--help]
+
+Report GitHub Actions failures and pending runs for the latest commit on
+each default branch in your owned, non-archived GitHub repositories.
+Uses the GitHub API through gh; no local clones are needed.
+
+Report each workflow separately, with its status and run URL. For pending
+runs, also show the last completed result on that branch, linking it if
+unsuccessful. Completed success, neutral, and skipped runs are hidden.
+Pull-request and merge-queue runs are excluded.
+
+  -h, --help  Show this help.
+HELP
+    exit 0;
+}
+if (@ARGV) {
+    print STDERR "Usage: dirtci [-h|--help]\n";
+    exit 2;
+}
+binmode STDOUT, ':encoding(UTF-8)';
+$| = 1;
+
+sub api {
+    my ( $endpoint, @arguments ) = @_;
+    open my $pipe, '-|', 'gh', 'api', $endpoint, @arguments or die "dirtci: gh: $!\n";
+    local $/;
+    my $json = <$pipe>;
+    close $pipe or die "dirtci: GitHub API request failed ($endpoint)\n";
+    return decode_json($json);
+}
+
+sub branch_run {
+    return $_[0]{event} !~ /\A(?:pull_request|merge_group)/;
+}
+
+sub unsuccessful {
+    return $_[0] !~ /\A(?:success|neutral|skipped)\z/;
+}
+
+sub previous_run {
+    my ( $repository, $branch, $current ) = @_;
+    for ( my $page = 1 ; ; $page++ ) {
+        my $result = api( "repos/$repository/actions/workflows/$current->{workflow_id}/runs",
+            '--method', 'GET',          '-f', "branch=$branch", '-f', 'status=completed',
+            '-F',       'per_page=100', '-F', "page=$page" );
+        for my $run ( @{ $result->{workflow_runs} } ) {
+            return $run if $run->{id} != $current->{id} && branch_run($run);
+        }
+        return if @{ $result->{workflow_runs} } < 100;
+    }
+}
+
+my $query = <<'GRAPHQL';
+query($endCursor: String) {
+  viewer {
+    repositories(first: 100, after: $endCursor, ownerAffiliations: OWNER, isArchived: false) {
+      nodes { nameWithOwner defaultBranchRef { name target { oid } } }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+}
+GRAPHQL
+my $pages        = api( 'graphql', '--paginate', '--slurp', '-f', "query=$query" );
+my @repositories = map { @{ $_->{data}{viewer}{repositories}{nodes} } } @$pages;
+for my $repository ( sort { $a->{nameWithOwner} cmp $b->{nameWithOwner} } @repositories ) {
+    my $ref = $repository->{defaultBranchRef} or next;
+    my ( $name, $branch, $sha ) = ( $repository->{nameWithOwner}, $ref->{name}, $ref->{target}{oid} );
+    my $results = api( "repos/$name/actions/runs", '--method', 'GET', '-f', "branch=$branch",
+        '-f', "head_sha=$sha", '-F', 'per_page=100', '--paginate', '--slurp' );
+    my %latest;
+    for my $run ( sort { $b->{id} <=> $a->{id} } map { @{ $_->{workflow_runs} } } @$results ) {
+        next unless branch_run($run);
+        $latest{ $run->{workflow_id} } //= $run;
+    }
+    for my $id ( sort { $a <=> $b } keys %latest ) {
+        my $run     = $latest{$id};
+        my $pending = $run->{status} ne 'completed';
+        my $status  = $pending ? $run->{status} : $run->{conclusion} // 'unknown';
+        next unless $pending || unsuccessful($status);
+        printf "%s [%s]: %s %s\n", $name, $run->{name} // $id, $status, $run->{html_url};
+        next unless $pending;
+        my $previous = previous_run( $name, $branch, $run );
+        if ($previous) {
+            my $conclusion = $previous->{conclusion} // 'unknown';
+            printf "  last completed: %s%s\n", $conclusion,
+              unsuccessful($conclusion) ? " $previous->{html_url}" : '';
+        }
+        else {
+            print "  last completed: none\n";
+        }
+    }
+}
