@@ -45,6 +45,7 @@ abbrali vs nvim -o
 abbrali vv nvim -O
 abbrali vi nvim
 abbrali vim nvim
+abbrali nvi nvim
 abbrali vid vidir
 abbrali vid. vidir .
 abbrali e nvim
