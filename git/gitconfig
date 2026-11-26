@@ -18,6 +18,8 @@
 	enabled = true
 [branch]
 	sort = -committerdate
+[credential "https://*.googlesource.com"]
+    helper = oauth
 
 [fetch]
 	prune = true
