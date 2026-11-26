@@ -493,8 +493,14 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     contains -- "$command[1]" gcm gacm gacmp gcmf gcma gacma ./commit; or return 0
     set -l push 'git push'
     contains -- "$command[1]" gcma gacma; and set push gpf
-    if test "$command[1]" != ./commit; and test "$command[2]" = --amend
-        set push gpf
+    if test "$command[1]" != ./commit
+        # Skip option values so commit messages are not mistaken for --amend.
+        argparse --ignore-unknown amend a i o p q v s n e z \
+            'm/message=' 'F/file=' 'C/reuse-message=' 'c/reedit-message=' 't/template=' \
+            'author=' 'date=' 'fixup=' 'squash=' 'trailer=' 'cleanup=' \
+            'pathspec-from-file=' 'U/unified=' 'inter-hunk-context=' \
+            'S/gpg-sign=?' 'u/untracked-files=?' -- $command[2..] 2>/dev/null
+        and set -q _flag_amend; and set push gpf
     end
     eval "$prefix $push"
 end

@@ -132,6 +132,26 @@ sub wrapped_sequences_reuse_the_raw_prefix {
     pushed( $self, 'cdc "$TEST_TARGET" true; and git commit', 'push', $self->{temporary} );
 }
 
+sub amend_flags_are_distinguished_from_values {
+    my ($self) = @_;
+    for my $case (
+        [ 'git commit --no-edit --amend',      'force' ],
+        [ 'git commit -m message --amend',     'force' ],
+        [ 'gcm -qam message --amend',          'force' ],
+        [ 'gacm path --amend',                 'force' ],
+        [ 'git commit -am "--amend"',          'push' ],
+        [ 'git commit -qam "--amend"',         'push' ],
+        [ 'git commit --message=--amend',      'push' ],
+        [ 'git commit --file --amend',         'push' ],
+        [ 'git commit --file --amend --amend', 'force' ],
+        [ 'git commit -- --amend',             'push' ],
+      )
+    {
+        pushed( $self, $case->[0],                         $case->[1], $self->{temporary} );
+        pushed( $self, 'cdc "$TEST_TARGET" ' . $case->[0], $case->[1], $self->{target} );
+    }
+}
+
 sub failed_or_unrelated_commands_do_not_push {
     my ($self) = @_;
     $self->{env}{TEST_STATUS} = 23;
@@ -167,10 +187,11 @@ sub only_command_tokens_trigger_a_push {
 
 run_cases(
     {
-        plain_and_wrapped_commit_forms           => \&plain_and_wrapped_commit_forms,
-        wrapped_sequences_reuse_the_raw_prefix   => \&wrapped_sequences_reuse_the_raw_prefix,
-        failed_or_unrelated_commands_do_not_push => \&failed_or_unrelated_commands_do_not_push,
-        only_command_tokens_trigger_a_push       => \&only_command_tokens_trigger_a_push,
+        plain_and_wrapped_commit_forms            => \&plain_and_wrapped_commit_forms,
+        wrapped_sequences_reuse_the_raw_prefix    => \&wrapped_sequences_reuse_the_raw_prefix,
+        amend_flags_are_distinguished_from_values => \&amend_flags_are_distinguished_from_values,
+        failed_or_unrelated_commands_do_not_push  => \&failed_or_unrelated_commands_do_not_push,
+        only_command_tokens_trigger_a_push        => \&only_command_tokens_trigger_a_push,
     },
     \&setup
 );
