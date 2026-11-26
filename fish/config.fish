@@ -216,6 +216,231 @@ abbr -a --command noti e eval
 abbrali bell printf '\a'
 abbrali beep printf '\a'
 
+function cdpath_add
+    argparse --exclusive p,a,b h/help p/prepend a/after= b/before= -- $argv; or return
+    if set -q _flag_help
+        printf '%s\n' 'Usage: cdpath_add [-p|--prepend | -a|--after ENTRY | -b|--before ENTRY] DIRECTORY...' \
+            'Add directories to CDPATH, ignoring empty and duplicate entries.' \
+            'By default append them; --after and --before require an existing CDPATH entry.'
+        return 0
+    end
+    set -l index "$(count $CDPATH)"
+    set -q _flag_prepend; and set index 0
+    set -l anchor $_flag_before $_flag_after
+    if set -q anchor[1]
+        set index "$(contains -i -- "$anchor" $CDPATH)"
+        if test -z "$index"
+            printf '%s: %s is not in CDPATH\n' "$(status function)" "$(string escape -- "$anchor")" >&2
+            return 1
+        end
+        set -q _flag_before; and set index "$(math "$index - 1")"
+    end
+
+    set -l paths
+    for path in $argv
+        if test -n "$path"; and not contains -- "$path" $CDPATH $paths
+            set -a paths "$path"
+        end
+    end
+    set -q paths[1]; or return 0
+    set -l head
+    test "$index" -gt 0; and set head $CDPATH[..$index]
+    set -l next_index "$(math "$index + 1")"
+    set --path -g CDPATH $head $paths $CDPATH[$next_index..]
+end
+cdpath_add . "$dotfiles" "$notes" "$nhooyr" ~/code ~
+
+abbr --add dotdot --regex '^\.\.\.+$' --function multicd
+abbrali pd prevd
+abbrali bd prevd
+abbrali nd nextd
+abbrali md mkdir -p
+abbrali mcdt 'cd -- "$(mktemp -d)"'
+
+# From embedded:functions/cd.fish @ line 5
+# Only change I made is to use cdf and increase MAX_DIR_HIST to 999.
+function cd --description 'Change directory'
+    set -l MAX_DIR_HIST 999
+
+    # Skip history in subshells.
+    if status is-command-substitution
+        builtin cd $argv
+        return $status
+    end
+
+    # Avoid set completions.
+    set -l previous $PWD
+
+    if test "$argv" = -
+        if test "$__fish_cd_direction" = next
+            nextd
+        else
+            prevd
+        end
+        return $status
+    end
+
+    set -l file $argv
+    if test "$argv[1]" = --
+        set file $argv[2..]
+    end
+    if test "$(count $file)" -eq 1; and test -f "$file"
+        cdf "$file"
+        return
+    end
+
+    builtin cd $argv
+    set -l cd_status $status
+
+    if test "$cd_status" -eq 0; and test "$PWD" != "$previous"
+        set -q dirprev; or set -l dirprev
+        set -q dirprev[$MAX_DIR_HIST]; and set -e dirprev[1]
+
+        # If dirprev, dirnext, __fish_cd_direction
+        # are set as universal variables, honor their scope.
+
+        set -U -q dirprev; and set -U -a dirprev $previous; or set -g -a dirprev $previous
+
+        set -U -q dirnext; and set -U -e dirnext; or set -e dirnext
+
+        set -U -q __fish_cd_direction; and set -U __fish_cd_direction prev; or set -g __fish_cd_direction prev
+    end
+
+    return $cd_status
+end
+
+abbrali g git
+abbrali grv 'git rev-parse --abbrev-ref HEAD | pbc'
+abbrali grvs 'git rev-parse --short HEAD | pbc'
+abbrali gsh git show
+abbrali gshs git show --stat
+abbrali gsht 'git show -s --format=%s | pbc'
+abbrali gshb 'git show -s --format=%b | pbc'
+abbrali ga git add -A
+abbrali gap git add -p
+abbrali gai git add -i
+abbrali gp git push
+abbrali gps git push
+abbrali gpf git push --force-with-lease
+abbrali gcm git commit
+abbr -a gacm 'ga; and gcm'
+function gacm
+    ga; and gcm $argv
+end
+abbr -a gacmp 'ga; and gcm; and gp'
+function gacmp
+    ga; and gcm $argv; and gp
+end
+abbrali gcma git commit --amend
+abbr -a gacma 'ga; and gcma'
+abbr -a fcm 'ga; and gcma'
+function gacma
+    ga; and gcma $argv
+end
+abbrali gcmf git commit --fixup
+abbrali grb git_rebase
+abbrali grbi git_rebase -i
+abbrali grbr git_rebase -i --root
+abbrali grbc git_rebase --continue
+abbrali grbs git_rebase --skip
+abbrali grba git_rebase --abort
+abbrali gs git status
+abbrali gd git diff --patch-with-stat
+abbrali grt git reset
+abbrali grtp git reset -p
+abbrali grth git reset --hard
+abbrali gdc git diff --patch-with-stat --cached
+abbr -a --command git diffc diff --patch-with-stat --cached
+abbrali gdcs git diff --cached --patch-with-stat
+abbrali grm git rm
+abbrali grmr git rm -r
+abbrali grmf git rm -f
+abbrali grmrf git rm -rf
+abbrali grmc git rm --cached
+abbrali grmcr git rm --cached -r
+abbrali grmcrf git rm --cached -rf
+abbrali gl git_log
+abbrali glp git_log -p
+abbrali glo git_log --oneline
+abbrali glol git_log --oneline \| wc -l
+abbrali glss git_log --show-signature
+abbrali gls git ls-files
+abbrali gcl git clone
+function gcld
+    git clone $argv; and cd "$(path basename -- $argv[-1])"
+end
+abbrali gpl git pull
+abbrali gf git fetch
+abbrali gfa git fetch --all
+abbrali gfp git fetch --prune-tags
+abbrali gro git remote -v
+abbrali groa git remote add
+abbrali gros git remote set-url
+abbrali grou git remote get-url
+abbrali gror git remote rename
+abbrali grod git remote remove
+abbrali gb git branch -vv
+abbrali gbm git branch -vv -m
+abbrali gbu git branch -vv -u
+abbrali gba git branch -vv -a
+abbrali gbr git branch -vv -r
+abbrali gbd git branch -vv -d
+abbrali gbD git branch -vv -D
+abbrali gst git stash push -u
+abbrali gstk git stash push -u --keep-index
+abbrali gsta git stash apply
+abbrali gsts git stash show
+abbrali gstp git stash pop
+abbrali gstl git stash list
+abbrali gstd git diff stash@{0}
+abbrali gstdd git stash drop
+abbrali gbl git blame
+abbrali gch git checkout
+abbrali gchb git checkout -b
+abbrali gt git tag
+abbrali grs git restore
+abbrali grsp git restore -p
+abbrali grss git restore -S
+abbrali grsw git restore -W
+abbrali grssw git restore -SW
+abbrali gcln git clean -ndX
+abbrali gclx git clean -fdX
+
+abbrali .co 'gcd && ./commit'
+abbrali .fmt 'gcd && ./ci/fmt.sh'
+abbrali .lint 'gcd && ./ci/lint.sh'
+abbrali .test 'gcd && ./ci/test.sh'
+abbrali .run 'gcd && ./ci/run.sh'
+abbrali app git apply
+
+alias gh='NO_COLOR=1 command gh'
+abbrali ghgp ghg -p
+abbrali ghf 'gh repo fork --remote; and gh repo set-default upstream'
+abbrali ghch gh pr checkout
+abbrali ghep gh pr create --web --fill-verbose
+abbrali ghl gh repo list --visibility public --source --no-archived --json url --jq '.[].url'
+
+abbrali tabt column -ts '\t'
+abbrali dt dirt
+abbrali dtb dirtb
+abbrali dtc dirtci
+abbrali dtci dirtci
+
+abbrali imps "ga; and gcm -em 'imps'"
+
+abbrali glfs git lfs
+abbrali gfr git filter-repo --invert-paths --path
+
+abbrali gsub git submodule
+abbrali gsubu git submodule update --init --recursive
+abbrali grl git reflog
+abbrali grfl git reflog
+abbrali gcp git cherry-pick
+abbrali gcpc git cherry-pick --continue
+abbrali gcps git cherry-pick --skip
+abbrali gcpa git cherry-pick --abort
+abbrali gmb git merge-base HEAD origin
+
 bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
 
