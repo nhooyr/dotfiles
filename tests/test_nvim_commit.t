@@ -64,6 +64,7 @@ vim.api.nvim_create_autocmd('VimEnter', { callback = function()
             cursor = vim.api.nvim_win_get_cursor(0),
             mode = vim.fn.mode(),
             commit_module_loaded = package.loaded.gitcommit ~= nil,
+            textwidth = vim.bo.textwidth,
             snippet_active = vim.snippet.active(),
             selection = vim.fn.getregion(vim.fn.getpos('v'), vim.fn.getpos('.'), { type = 'v' }),
         }
@@ -163,6 +164,24 @@ sub one_staged_file {
     put( $self, 'two.txt', "unstaged\n" );
     git( $self, 'add', 'one.txt' );
     prefixed( edit( $self, 'commit' ), 'one.txt' );
+}
+
+sub editorconfig_width {
+    my ($self) = @_;
+    put( $self, '.editorconfig',
+        "root = true\n\n[COMMIT_EDITMSG]\nmax_line_length = 72\ntrim_trailing_whitespace = true\n" );
+    put( $self, 'one.txt', "one\n\nthree\n" );
+    git( $self, 'add', 'one.txt' );
+    git( $self, 'commit', '-qm', 'Initial title' );
+    put( $self, 'one.txt', "changed\n\nthree\n" );
+    git( $self, 'add', 'one.txt' );
+    my $diff     = git( $self, 'diff', '--cached' );
+    my $snapshot = edit( $self, 'commit' );
+    is( $snapshot->{textwidth}, 80, 'commit messages keep an 80-column width despite EditorConfig' );
+    local $self->{env}{TEST_SAVE} = 'Commit message';
+    git( $self, 'commit' );
+    like( read_file("$self->{repo}/.git/COMMIT_EDITMSG"),
+        qr/\Q$diff\E/, 'saving preserves verbose diff whitespace' );
 }
 
 sub independent_of_patch_format {
@@ -563,6 +582,7 @@ sub tag_message {
 run_cases(
     {
         one_staged_file                        => \&one_staged_file,
+        editorconfig_width                     => \&editorconfig_width,
         independent_of_patch_format            => \&independent_of_patch_format,
         unstaged_verbose_diff                  => \&unstaged_verbose_diff,
         preview_stat_is_once_and_not_committed => \&preview_stat_is_once_and_not_committed,
