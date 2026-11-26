@@ -52,7 +52,11 @@ vim.api.nvim_create_autocmd('VimEnter', { callback = function()
         if vim.env.TEST_REPLACEMENT then
             vim.api.nvim_feedkeys(vim.env.TEST_REPLACEMENT, 'xt', false)
         end
-        if vim.env.TEST_REPEAT_SETUP then require('gitcommit').setup() end
+        if vim.env.TEST_REPEAT_SETUP then
+            while vim.snippet.active() do vim.snippet.stop() end
+            vim.api.nvim_buf_set_lines(0, 0, 1, false, { '' })
+            require('gitcommit').setup()
+        end
         if vim.env.TEST_SAVE then vim.api.nvim_buf_set_lines(0, 0, 1, false, { vim.env.TEST_SAVE }) end
         local snapshot = {
             lines = vim.api.nvim_buf_get_lines(0, 0, -1, false),
@@ -69,10 +73,11 @@ vim.api.nvim_create_autocmd('VimEnter', { callback = function()
 end })
 EOF
 VIM
-    git( $self, 'init',   '-q',             '--template=' );
-    git( $self, 'config', 'user.name',      'Test' );
-    git( $self, 'config', 'user.email',     'test@example.invalid' );
-    git( $self, 'config', 'commit.verbose', 'true' );
+    git( $self, 'init',   '-q',                   '--template=' );
+    git( $self, 'config', 'user.name',            'Test' );
+    git( $self, 'config', 'user.email',           'test@example.invalid' );
+    git( $self, 'config', 'commit.verbose',       'true' );
+    git( $self, 'config', 'status.relativePaths', 'false' );
 }
 
 sub git {
@@ -108,18 +113,23 @@ sub edit {
 
 sub stat_lines {
     my ($snapshot) = @_;
-    my $added = @{ $snapshot->{lines} } - @{ $snapshot->{original} };
-    return [] unless $added;
-    my ($start) = grep { $snapshot->{original}[$_] =~ /^diff --git / } 0 .. $#{ $snapshot->{original} };
+    my ($start)    = grep { $snapshot->{lines}[$_] =~ /^#\tstat:/ } 0 .. $#{ $snapshot->{lines} };
     return [] unless defined $start;
-    return [ @{ $snapshot->{lines} }[ $start .. $start + $added - 1 ] ];
+    my $end = $start;
+    $end++ while $snapshot->{lines}[$end] ne '#';
+    return [ @{ $snapshot->{lines} }[ $start .. $end - 1 ] ];
 }
 
 sub without_stat {
     my ($snapshot) = @_;
     my @lines      = @{ $snapshot->{lines} };
-    my ($start)    = grep { $snapshot->{original}[$_] =~ /^diff --git / } 0 .. $#{ $snapshot->{original} };
-    splice @lines, $start, scalar @{ stat_lines($snapshot) } if defined $start;
+    my ($start)    = grep { $lines[$_] =~ /^#\tstat:/ } 0 .. $#lines;
+    if ( defined $start ) {
+        my $end = $start;
+        $end++ while $snapshot->{original}[$end] ne '#';
+        splice @lines, $start, scalar @{ stat_lines($snapshot) },
+          @{ $snapshot->{original} }[ $start .. $end - 1 ];
+    }
     return \@lines;
 }
 
@@ -203,6 +213,47 @@ sub preview_stat_is_once_and_not_committed {
         "Committed message\n\n",
         'the stat is not part of the commit message'
     );
+}
+
+sub status_stat_layout {
+    my ($self) = @_;
+    seed($self);
+    put( $self, $_, "changed\n" ) for qw(one.txt two.txt);
+    git( $self, 'add', '.' );
+    my $snapshot = edit( $self, 'commit' );
+    my $stat     = stat_lines($snapshot);
+    is(
+        $stat->[0],
+        "#\tstat:       2 files changed, 2 insertions(+), 2 deletions(-)",
+        'summary follows the staged heading'
+    );
+    like( $stat->[1], qr/^#\tmodified:   one\.txt\s+\|\s+2 \+-$/, 'first status row includes its stat' );
+    like( $stat->[2], qr/^#\tmodified:   two\.txt\s+\|\s+2 \+-$/, 'second status row includes its stat' );
+    is( index( $stat->[1], '|' ), index( $stat->[2], '|' ), 'stat columns align' );
+}
+
+sub stat_paths {
+    my ($self) = @_;
+    seed($self);
+    git( $self, 'mv', 'one.txt', 'zzz.txt' );
+    my $unicode = "caf\x{e9}.txt";
+    utf8::encode($unicode);
+    my @paths = ( 'two.txt', 'space name.txt', 'quote"name.txt', $unicode, ( 'long-name-' x 12 ) . '.txt' );
+    put( $self, $_, "changed\n" ) for @paths;
+    git( $self, 'add', '.' );
+
+    for my $quote (qw(true false)) {
+        my $snapshot = edit( $self, '-c', "core.quotePath=$quote", 'commit' );
+        my $stat     = stat_lines($snapshot);
+        is( scalar @$stat, 7, 'all status rows remain visible' );
+        like( $_, qr/\|\s+\d/, 'every status row receives its matching stat' ) for @$stat[ 1 .. $#$stat ];
+        like(
+            $stat->[-1],
+            qr/renamed:.*zzz\.txt.*\|\s+0$/,
+            'rename receives its own stat after status sorting'
+        );
+        like( join( "\n", @$stat ), qr/\Q$paths[-1]\E/, 'long status paths are not truncated' );
+    }
 }
 
 sub binary_stat {
@@ -466,7 +517,7 @@ sub path_spelling {
     put( $self, $path, "new\n" );
     git( $self, 'add', '--', $path );
     local $self->{repo} = "$self->{repo}/nested";
-    prefixed( edit( $self, 'commit' ), 'with space/name.txt' );
+    prefixed( edit( $self, 'commit' ), 'nested/with space/name.txt' );
 }
 
 sub description_replacement {
@@ -515,6 +566,8 @@ run_cases(
         independent_of_patch_format            => \&independent_of_patch_format,
         unstaged_verbose_diff                  => \&unstaged_verbose_diff,
         preview_stat_is_once_and_not_committed => \&preview_stat_is_once_and_not_committed,
+        status_stat_layout                     => \&status_stat_layout,
+        stat_paths                             => \&stat_paths,
         binary_stat                            => \&binary_stat,
         malformed_staged_list                  => \&malformed_staged_list,
         no_subprocess                          => \&no_subprocess,

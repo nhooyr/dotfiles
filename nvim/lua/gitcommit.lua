@@ -7,36 +7,58 @@ local function setup()
 	vim.bo.tabstop = 4
 	vim.bo.textwidth = 80
 	require('diff').setup()
-	add_stat()
 	prefill_title()
+	add_stat()
 end
 
 function add_stat()
-	if vim.b.gitcommit_stat then return end
+	if vim.b.gitcommit_stat_rows then return end
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-	local preview, first, last = false, nil, #lines
-	for i, line in ipairs(lines) do
-		if line:match('^# %-+ >8 %-+$') then preview = true end
-		if preview and not first and line:match('^diff %-%-git ') then first = i end
-		if first and line:match('^#') then last = i - 1; break end
-	end
-	if not first then return end
-	local patch = table.concat(vim.list_slice(lines, first, last), '\n') .. '\n'
+	local header = vim.fn.match(lines, '^# Changes to be committed:$')
+	local finish = vim.fn.match(lines, '^#$', header + 1)
+	local cutoff = vim.fn.match(lines, '^# -\\+ >8 -\\+$')
+	local first = vim.fn.match(lines, '^diff --git ', cutoff + 1)
+	if header < 0 or finish < 0 or cutoff < 0 or first < 0 then return end
+	local last = vim.fn.match(lines, '^#', first + 1)
+	local patch = table.concat(lines, '\n', first + 1, last < 0 and #lines or last) .. '\n'
 	local result
-	-- Verbose diffs normally have path prefixes; diff.noprefix omits them.
 	local unprefixed = ('\n' .. patch):find('\ndiff %-%-git ([^\n]+) %1\n')
 	for _, strip in ipairs(unprefixed and { 0, 1 } or { 1, 0 }) do
-		result = vim.system({ 'git', '--no-pager', '-c', 'color.ui=false', 'apply', '--stat', '-p' .. strip }, {
-			stdin = patch, text = true,
-		}):wait()
+		result = vim.system({
+			'git', '--no-pager', '-c', 'color.ui=false', '-c', 'core.quotePath=true',
+			'apply', '--stat', '--numstat', '-p' .. strip,
+		}, { stdin = patch, text = true, cwd = '/' }):wait()
 		if result.code == 0 then break end
 	end
 	if result.code ~= 0 then return end
 	local stat = vim.split(result.stdout, '\n', { trimempty = true })
-	if #stat == 0 then return end
-	stat[#stat + 1] = ''
-	vim.api.nvim_buf_set_lines(0, first - 1, first - 1, false, stat)
-	vim.b.gitcommit_stat = true
+	local count, tails = (#stat - 1) / 2, {}
+	if count < 1 then return end
+	-- Numstat supplies full paths even when the stat display truncates them.
+	for i = 1, count do
+		local path = stat[count + 1 + i]:match('^[^\t]+\t[^\t]+\t(.+)$')
+		local tail = stat[i]:match('.* |(.-)%s*$')
+		tails[path] = tail
+		if path:sub(1, 1) == '"' then path = vim.fn.eval(path) end
+		tails[path], tails[vim.json.encode(path)] = tail, tail
+	end
+	local rows, width = {}, 0
+	for i = header + 2, finish do
+		local row = lines[i]
+		local path = row:match('^#\t[^:]+:%s+(.+)$')
+		if not path then return end
+		rows[#rows + 1] = { row, tails[path:match('.* %-> (.+)$') or path] }
+		width = math.max(width, vim.fn.strdisplaywidth(row))
+	end
+	local output = { '#\tstat:       ' .. stat[count + 1]:gsub('^%s+', '') }
+	local original = { [output[1]] = lines[header + 1] }
+	for _, row in ipairs(rows) do
+		local padding = string.rep(' ', width - vim.fn.strdisplaywidth(row[1]))
+		output[#output + 1] = row[1] .. (row[2] and padding .. ' |' .. row[2] or '')
+		original[output[#output]] = row[1]
+	end
+	vim.api.nvim_buf_set_lines(0, header + 1, finish, false, output)
+	vim.b.gitcommit_stat_rows = original
 end
 
 function prefill_title()
@@ -45,7 +67,9 @@ function prefill_title()
 	if lines[1] ~= '' then return end
 
 	local files, staged = {}, false
+	local original = vim.b.gitcommit_stat_rows or {}
 	for _, line in ipairs(lines) do
+		line = original[line] or line
 		if line == '# Changes to be committed:' then
 			staged = true
 		elseif staged then
