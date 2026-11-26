@@ -214,6 +214,7 @@ abbrali num random 1 999
 abbrali n noti
 abbr -a --command noti e eval
 abbrali bell printf '\a'
+abbrali beep printf '\a'
 
 bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
