@@ -138,6 +138,7 @@ abbr -a --set-cursor fdg "fdg '*%*'"
 set -gx GREP_COLORS 'mt=30;103:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '30;103'
 abbr -a gr grep
+abbr -a gre grep
 abbrali grepe grep -E
 abbrali grepf grep -F
 abbrali grepi grep -i

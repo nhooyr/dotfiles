@@ -54,6 +54,9 @@ abbrali glol git_log --oneline \| wc -l
 abbrali glss git_log --show-signature
 abbrali gls git ls-files
 abbrali gcl git clone
+function gcld
+    git clone $argv; and cd "$(path basename -- $argv[-1])"
+end
 abbrali gpl git pull
 abbrali gf git fetch
 abbrali gfa git fetch --all

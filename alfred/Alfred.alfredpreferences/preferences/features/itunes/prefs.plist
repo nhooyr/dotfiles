@@ -5,11 +5,11 @@
 	<key>hotkey</key>
 	<dict>
 		<key>key</key>
-		<integer>-1</integer>
+		<integer>49</integer>
 		<key>mod</key>
-		<integer>-1</integer>
+		<integer>1572864</integer>
 		<key>string</key>
-		<string></string>
+		<string> </string>
 	</dict>
 	<key>keyword</key>
 	<string>_music</string>
