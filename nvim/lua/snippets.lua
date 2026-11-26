@@ -1,7 +1,9 @@
 local snippets = {
 	global = {
 		fl = 'Fiat Lux$0',
+		fx = 'Fiat Lux$0',
 		fn = 'Fiat Nox$0',
+		fd = 'Fiat Nox$0',
 		chat = 'chat: ${1:Improvements}$0',
 		todo = 'TODO: ${1:desc}$0',
 
