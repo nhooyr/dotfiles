@@ -52,6 +52,8 @@ vim.api.nvim_create_autocmd('VimEnter', { callback = function()
         if vim.env.TEST_REPLACEMENT then
             vim.api.nvim_feedkeys(vim.env.TEST_REPLACEMENT, 'xt', false)
         end
+        if vim.env.TEST_REPEAT_SETUP then require('gitcommit').setup() end
+        if vim.env.TEST_SAVE then vim.api.nvim_buf_set_lines(0, 0, 1, false, { vim.env.TEST_SAVE }) end
         local snapshot = {
             lines = vim.api.nvim_buf_get_lines(0, 0, -1, false),
             original = vim.fn.readfile(vim.api.nvim_buf_get_name(0)),
@@ -62,7 +64,7 @@ vim.api.nvim_create_autocmd('VimEnter', { callback = function()
             selection = vim.fn.getregion(vim.fn.getpos('v'), vim.fn.getpos('.'), { type = 'v' }),
         }
         vim.fn.writefile({ vim.json.encode(snapshot) }, vim.env.TEST_SNAPSHOT)
-        vim.cmd.cquit()
+        if vim.env.TEST_SAVE then vim.cmd('write | qall') else vim.cmd.cquit() end
     end, 20)
 end })
 EOF
@@ -104,6 +106,23 @@ sub edit {
     return JSON::PP->new->decode( read_file( $self->{env}{TEST_SNAPSHOT} ) );
 }
 
+sub stat_lines {
+    my ($snapshot) = @_;
+    my $added = @{ $snapshot->{lines} } - @{ $snapshot->{original} };
+    return [] unless $added;
+    my ($start) = grep { $snapshot->{original}[$_] =~ /^diff --git / } 0 .. $#{ $snapshot->{original} };
+    return [] unless defined $start;
+    return [ @{ $snapshot->{lines} }[ $start .. $start + $added - 1 ] ];
+}
+
+sub without_stat {
+    my ($snapshot) = @_;
+    my @lines      = @{ $snapshot->{lines} };
+    my ($start)    = grep { $snapshot->{original}[$_] =~ /^diff --git / } 0 .. $#{ $snapshot->{original} };
+    splice @lines, $start, scalar @{ stat_lines($snapshot) } if defined $start;
+    return \@lines;
+}
+
 sub prefixed {
     my ( $snapshot, $path ) = @_;
     my $title = "$path: desc";
@@ -113,16 +132,16 @@ sub prefixed {
     is_deeply( $snapshot->{selection}, ['desc'], 'only the description is selected' );
     is( $snapshot->{original}[0], '', 'Git supplied a blank title' );
     is_deeply(
-        [ @{ $snapshot->{lines} }[ 1 .. $#{ $snapshot->{lines} } ] ],
+        [ @{ without_stat($snapshot) }[ 1 .. $#{ $snapshot->{original} } ] ],
         [ @{ $snapshot->{original} }[ 1 .. $#{ $snapshot->{original} } ] ],
-        'message body is preserved'
+        'message body is preserved apart from the preview stat'
     );
 }
 
 sub unchanged {
     my ($snapshot) = @_;
     my $original = @{ $snapshot->{original} } ? $snapshot->{original} : [''];
-    is_deeply( $snapshot->{lines}, $original, 'message is unchanged' );
+    is_deeply( without_stat($snapshot), $original, 'message is unchanged apart from the preview stat' );
     is( $snapshot->{mode}, 'n', 'editor stays in Normal mode' );
     ok( !$snapshot->{snippet_active}, 'no snippet is active' );
 }
@@ -139,11 +158,20 @@ sub one_staged_file {
 sub independent_of_patch_format {
     my ($self) = @_;
     seed($self);
-    put( $self, 'one.txt', "changed\n" );
-    git( $self, 'add', 'one.txt' );
-    prefixed( edit( $self, 'commit', '--no-verbose' ),                                           'one.txt' );
-    prefixed( edit( $self, '-c', 'diff.noprefix=true', 'commit' ),                               'one.txt' );
-    prefixed( edit( $self, '-c', 'diff.srcPrefix=old/', '-c', 'diff.dstPrefix=new/', 'commit' ), 'one.txt' );
+    put( $self, 'directory/one.txt', "changed\n" );
+    git( $self, 'add', 'directory/one.txt' );
+    my $plain = edit( $self, 'commit', '--no-verbose' );
+    prefixed( $plain, 'directory/one.txt' );
+    is_deeply( stat_lines($plain), [], 'nonverbose commits do not gain a stat' );
+    for my $args ( [ '-c', 'diff.noprefix=true', 'commit' ],
+        [ '-c', 'diff.srcPrefix=old/', '-c', 'diff.dstPrefix=new/', 'commit' ] )
+    {
+        my $snapshot = edit( $self, @$args );
+        prefixed( $snapshot, 'directory/one.txt' );
+        like( join( "\n", @{ stat_lines($snapshot) } ), qr/1 file changed/, 'stat supports patch prefixes' );
+        like( join( "\n", @{ stat_lines($snapshot) } ),
+            qr/directory\/one\.txt/, 'stat preserves the directory path' );
+    }
 }
 
 sub unstaged_verbose_diff {
@@ -152,7 +180,44 @@ sub unstaged_verbose_diff {
     put( $self, 'one.txt', "staged\n" );
     put( $self, 'two.txt', "unstaged\n" );
     git( $self, 'add', 'one.txt' );
-    prefixed( edit( $self, 'commit', '-vv' ), 'one.txt' );
+    my $snapshot = edit( $self, 'commit', '-vv' );
+    prefixed( $snapshot, 'one.txt' );
+    my $stat = join( "\n", @{ stat_lines($snapshot) } );
+    like( $stat, qr/one\.txt.*\|.*2.*\+-/, 'the stat describes the staged edit' );
+    unlike( $stat, qr/two\.txt/, 'the stat excludes unstaged changes with -vv' );
+}
+
+sub preview_stat_is_once_and_not_committed {
+    my ($self) = @_;
+    seed($self);
+    put( $self, 'one.txt', "changed\n" );
+    git( $self, 'add', 'one.txt' );
+    $self->{env}{TEST_REPEAT_SETUP} = 1;
+    my $snapshot = edit( $self, 'commit' );
+    my $stat     = join( "\n", @{ stat_lines($snapshot) } );
+    is( scalar( () = $stat =~ /1 file changed/g ), 1, 'repeated setup does not duplicate the stat' );
+    $self->{env}{TEST_SAVE} = 'Committed message';
+    git( $self, 'commit' );
+    is(
+        git( $self, 'log', '-1', '--format=%B' ),
+        "Committed message\n\n",
+        'the stat is not part of the commit message'
+    );
+}
+
+sub binary_stat {
+    my ($self) = @_;
+    seed($self);
+    put( $self, 'binary.bin', "old\0data" );
+    git( $self, 'add', '.' );
+    git( $self, 'commit', '-qm', 'Add binary' );
+    put( $self, 'binary.bin', "new\0data" );
+    git( $self, 'add', '.' );
+    for my $args ( ['commit'], [ '-c', 'diff.noprefix=true', 'commit' ] ) {
+        my $snapshot = edit( $self, @$args );
+        like( join( "\n", @{ stat_lines($snapshot) } ),
+            qr/binary\.bin.*\|.*Bin/, 'binary changes have a stat' );
+    }
 }
 
 sub malformed_staged_list {
@@ -334,7 +399,11 @@ sub partial_commit {
     put( $self, 'one.txt', "chosen\n" );
     put( $self, 'two.txt', "staged\n" );
     git( $self, 'add', 'two.txt' );
-    prefixed( edit( $self, 'commit', '--only', '--', 'one.txt' ), 'one.txt' );
+    my $snapshot = edit( $self, 'commit', '--only', '--', 'one.txt' );
+    prefixed( $snapshot, 'one.txt' );
+    my $stat = join( "\n", @{ stat_lines($snapshot) } );
+    like( $stat, qr/one\.txt/, 'partial commit stat includes the selected file' );
+    unlike( $stat, qr/two\.txt/, 'partial commit stat excludes the separately staged file' );
     is( git( $self, 'diff', '--cached', '--name-only' ),
         "two.txt\n", 'aborted partial commit preserves the original index' );
 }
@@ -360,6 +429,11 @@ sub existing_titles {
     git( $self, 'add', 'one.txt' );
     my $amend = edit( $self, 'commit', '--amend' );
     unchanged($amend);
+    like(
+        join( "\n", @{ stat_lines($amend) } ),
+        qr/2 files changed/,
+        'amend stat compares against the parent of the replaced commit'
+    );
     is( $amend->{lines}[0], 'Initial title', 'amend title is preserved' );
     my $template = "$self->{temporary}/template";
     write_file( $template, "Template title\n\nTemplate body.\n" );
@@ -410,9 +484,9 @@ sub description_replacement {
         'typing replaces desc and preserves the literal prefix'
     );
     is_deeply(
-        [ @{ $snapshot->{lines} }[ 1 .. $#{ $snapshot->{lines} } ] ],
+        [ @{ without_stat($snapshot) }[ 1 .. $#{ $snapshot->{original} } ] ],
         [ @{ $snapshot->{original} }[ 1 .. $#{ $snapshot->{original} } ] ],
-        'typing leaves the message body untouched'
+        'typing leaves the message body untouched apart from the preview stat'
     );
 }
 
@@ -437,32 +511,34 @@ sub tag_message {
 
 run_cases(
     {
-        one_staged_file                => \&one_staged_file,
-        independent_of_patch_format    => \&independent_of_patch_format,
-        unstaged_verbose_diff          => \&unstaged_verbose_diff,
-        malformed_staged_list          => \&malformed_staged_list,
-        no_subprocess                  => \&no_subprocess,
-        lazy_loading                   => \&lazy_loading,
-        multiple_or_no_files           => \&multiple_or_no_files,
-        shared_directory               => \&shared_directory,
-        deepest_shared_directory       => \&deepest_shared_directory,
-        mostly_shared_directory        => \&mostly_shared_directory,
-        directory_without_majority     => \&directory_without_majority,
-        shared_word                    => \&shared_word,
-        most_common_word               => \&most_common_word,
-        underscores_stay_within_words  => \&underscores_stay_within_words,
-        shared_underscore_chunk        => \&shared_underscore_chunk,
-        directory_component_boundaries => \&directory_component_boundaries,
-        file_replaced_by_directory     => \&file_replaced_by_directory,
-        partial_commit                 => \&partial_commit,
-        commit_all                     => \&commit_all,
-        initial_commit                 => \&initial_commit,
-        existing_titles                => \&existing_titles,
-        rename_and_delete              => \&rename_and_delete,
-        path_spelling                  => \&path_spelling,
-        description_replacement        => \&description_replacement,
-        linked_worktree                => \&linked_worktree,
-        tag_message                    => \&tag_message,
+        one_staged_file                        => \&one_staged_file,
+        independent_of_patch_format            => \&independent_of_patch_format,
+        unstaged_verbose_diff                  => \&unstaged_verbose_diff,
+        preview_stat_is_once_and_not_committed => \&preview_stat_is_once_and_not_committed,
+        binary_stat                            => \&binary_stat,
+        malformed_staged_list                  => \&malformed_staged_list,
+        no_subprocess                          => \&no_subprocess,
+        lazy_loading                           => \&lazy_loading,
+        multiple_or_no_files                   => \&multiple_or_no_files,
+        shared_directory                       => \&shared_directory,
+        deepest_shared_directory               => \&deepest_shared_directory,
+        mostly_shared_directory                => \&mostly_shared_directory,
+        directory_without_majority             => \&directory_without_majority,
+        shared_word                            => \&shared_word,
+        most_common_word                       => \&most_common_word,
+        underscores_stay_within_words          => \&underscores_stay_within_words,
+        shared_underscore_chunk                => \&shared_underscore_chunk,
+        directory_component_boundaries         => \&directory_component_boundaries,
+        file_replaced_by_directory             => \&file_replaced_by_directory,
+        partial_commit                         => \&partial_commit,
+        commit_all                             => \&commit_all,
+        initial_commit                         => \&initial_commit,
+        existing_titles                        => \&existing_titles,
+        rename_and_delete                      => \&rename_and_delete,
+        path_spelling                          => \&path_spelling,
+        description_replacement                => \&description_replacement,
+        linked_worktree                        => \&linked_worktree,
+        tag_message                            => \&tag_message,
     },
     \&setup
 );

@@ -1,4 +1,4 @@
-local prefill_title
+local prefill_title, add_stat
 
 local function setup()
 	vim.keymap.set('n', ']c', '/^diff --<CR>', { buffer = true })
@@ -7,7 +7,36 @@ local function setup()
 	vim.bo.tabstop = 4
 	vim.bo.textwidth = 80
 	require('diff').setup()
+	add_stat()
 	prefill_title()
+end
+
+function add_stat()
+	if vim.b.gitcommit_stat then return end
+	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+	local preview, first, last = false, nil, #lines
+	for i, line in ipairs(lines) do
+		if line:match('^# %-+ >8 %-+$') then preview = true end
+		if preview and not first and line:match('^diff %-%-git ') then first = i end
+		if first and line:match('^#') then last = i - 1; break end
+	end
+	if not first then return end
+	local patch = table.concat(vim.list_slice(lines, first, last), '\n') .. '\n'
+	local result
+	-- Verbose diffs normally have path prefixes; diff.noprefix omits them.
+	local unprefixed = ('\n' .. patch):find('\ndiff %-%-git ([^\n]+) %1\n')
+	for _, strip in ipairs(unprefixed and { 0, 1 } or { 1, 0 }) do
+		result = vim.system({ 'git', '--no-pager', '-c', 'color.ui=false', 'apply', '--stat', '-p' .. strip }, {
+			stdin = patch, text = true,
+		}):wait()
+		if result.code == 0 then break end
+	end
+	if result.code ~= 0 then return end
+	local stat = vim.split(result.stdout, '\n', { trimempty = true })
+	if #stat == 0 then return end
+	stat[#stat + 1] = ''
+	vim.api.nvim_buf_set_lines(0, first - 1, first - 1, false, stat)
+	vim.b.gitcommit_stat = true
 end
 
 function prefill_title()
