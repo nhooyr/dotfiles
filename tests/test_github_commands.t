@@ -1633,7 +1633,11 @@ sub test_gho_linked_worktree_uses_its_own_branch_and_shared_default {
     assert_success( $self, $opened );
     ( is_deeply( trim( $opened->{stdout} ), $self->{url} ) or die "assertion failed\n" );
     ( is_deeply( network_calls($self),      [] )           or die "assertion failed\n" );
-    ( cmp_ok( scalar( @{ calls( $self, "git" ) } ), "<=", 5 ) or die "assertion failed\n" );
+    (
+        cmp_ok( scalar( @{ calls( $self, "git" ) } ),
+            "<=", 6, 'no-argument lookup includes one local PR-routing check' )
+          or die "assertion failed\n"
+    );
 }
 
 sub test_gho_ignores_overlapping_fetch_mappings {

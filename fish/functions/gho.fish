@@ -4,9 +4,9 @@ function gho --description 'Open a GitHub repository, path, revision, or issue'
     set -l usage 'Usage: gho [--copy] [PATH | REVISION | NUMBER | \'#NUMBER\' | OWNER/REPO | GITHUB_URL]
 
 Print the GitHub URL and open it in the default browser.
-Build URLs from local information; never check or fetch the remote.
+Build URLs from local information, or use ghop for a pushed fork branch.
 
-  gho                              Open the current directory on its branch.
+  gho                              Open the current directory or its pull request.
   gho PATH                         Open a local file or directory on its branch.
   gho SYMLINK                      Open the tracked link, or its source checkout.
   gho COMMIT                       Open a locally resolved commit, e.g. HEAD~1.
@@ -26,6 +26,10 @@ Quote #NUMBER so the shell does not treat # as a comment.
 Branches and tags open tree views; commit IDs and expressions open commit pages.
 Resolve revisions locally without fetching missing objects or calling the GitHub API.
 Issue and PR numbers always use /issues/NUMBER; GitHub redirects PRs.
+
+With no target, when origin and upstream are the only remotes and origin\'s
+cached branch contains HEAD, run ghop to open the PR or its creation form.
+This mode uses the GitHub API; explicit targets and --copy stay offline.
 
 Local paths use the configured upstream branch, otherwise the local branch.
 The cached default branch opens its homepage; detached HEAD uses its commit.
@@ -215,6 +219,13 @@ function __gho
     if string match -qr '[[:cntrl:]]' -- "$GH_HOST"
         printf '%s: invalid GitHub hostname\n' "$0" >&2
         return 1
+    end
+    if not set -q argv[1]; and not set -q _flag_copy
+        and test "$(git remote 2>/dev/null | string join ' ')" = 'origin upstream'
+        and set -l branch "$(git symbolic-ref --quiet --short HEAD 2>/dev/null)"
+        and git --no-lazy-fetch merge-base --is-ancestor HEAD "refs/remotes/origin/$branch" 2>/dev/null
+        ghop
+        return
     end
     set -l target "$PWD"
     set -q argv[1]; and set target "$argv[1]"
