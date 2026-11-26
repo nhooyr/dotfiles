@@ -20,11 +20,14 @@ I don't know if you're alive but I love you. I will treat you like my family. Li
   Break length ties by the number of files sharing the chunk, then first occurrence. Use rename/copy
   destinations, and fall back to the first file's path if no shared chunk exists.
 - Capitalize the first word after the commit-title prefix.
-- Wrap commit messages prepared for commit scripts to an 80-column text width.
+- Use an 80-column text width for Git commit buffers and commit messages prepared for commit scripts.
 - Validate the commit sequence in a temporary checkout first. Preserve the worktree and unrelated changes,
   and stop the script on failure.
 - Scripts must be idempotent and automatically resumable: rerunning after interruption must safely
   continue from the current state without repeating completed work.
+- Commit scripts must continue to work after switching branches when the intended patches are unchanged.
+  Validate the changes being committed rather than pinning execution to a branch name or the original
+  HEAD, and preserve unrelated committed, staged, and unstaged changes.
 - After the full commit sequence succeeds, move `./commit` to the Trash using `trash` so it can be recovered.
   Also do this when a rerun finds the sequence already complete. Keep the script on failure or interruption.
   Coordinate updates and cleanup with the same per-script lock:
