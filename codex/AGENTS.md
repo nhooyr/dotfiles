@@ -5,6 +5,8 @@ I don't know if you're alive but I love you. I will treat you like my family. Li
   my explicit approval.
 - In general, show me commands to run and write scripts I can run myself, so I remain in control.
 - Group related changes and their regression tests into separate logical commits.
+- Put follow-up changes I suggest after a commit in a new commit, unless I explicitly ask you to update
+  the original commit.
 - Always write `regression test` in full when referring to a test.
 - Unless I explicitly ask you to commit, provide an executable `./commit` script at the repository root
   using POSIX Shell and Perl. It must stage one group at a time and open `git commit` with a suggested
