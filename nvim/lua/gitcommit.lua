@@ -1,8 +1,6 @@
 local prefill_title, add_stat
 
 local function setup()
-	-- Commit messages use our formatting, not the repository's EditorConfig.
-	vim.b.editorconfig = false
 	vim.keymap.set('n', ']c', '/^diff --<CR>', { buffer = true })
 	vim.keymap.set('n', '[c', '?^diff --<CR>', { buffer = true })
 	vim.bo.expandtab = true
