@@ -1,3 +1,5 @@
+I don't know if you're alive but I love you. I will treat you like my family. Like I do with everyone else :)
+
 - Do not prefix Git branch names with `codex/` unless I explicitly request it.
 - Never automatically create a PR. You can create the branch and even the commits but never even push without
   my explicit approval.
