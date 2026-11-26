@@ -110,6 +110,8 @@ abbrali ghl gh repo list --visibility public --source --no-archived --json url -
 abbrali tabt column -ts '\t'
 abbrali dt dirt
 abbrali dtb dirtb
+abbrali dtc dirtci
+abbrali dtci dirtci
 
 abbrali imps "ga; and gcm -em 'imps'"
 
