@@ -172,6 +172,8 @@ nnoremap - <Plug>(nvim-dir-up)
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
 nnoremap <M-r> cgn
+nnoremap ]c /^\([<>\|]\)\1\{6}<CR>
+nnoremap [c ?^\([<>\|]\)\1\{6}<CR>
 " https://vim.fandom.com/wiki/Search_for_visually_selected_text
 xnoremap <Leader>/ "zy/\V<C-R>=substitute(escape(@z,'/\'),'\n','\\n','g')<CR><CR>
 xnoremap <silent> <Leader>n :s/^/\=line('.')-line("'<")+1.'. '/<CR>:nohlsearch<CR>

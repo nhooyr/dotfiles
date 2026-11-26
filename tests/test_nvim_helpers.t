@@ -554,6 +554,39 @@ eq({ vim.go.number, vim.go.list, vim.go.foldmethod, vim.go.foldlevel,
 LUA
 }
 
+sub conflict_navigation {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+    'text', 'inline <<<<<<<', '<<<<<<< ours', 'ours', '=======',
+    '||||||| base', 'base', '<<<<<< six', '>>>>>>> theirs', 'tail', '<><><>< mixed',
+})
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+for _, row in ipairs({ 3, 6, 9, 3 }) do
+    feed(']c')
+    eq(vim.fn.line('.'), row, 'forward conflict navigation skips nonmarkers and wraps')
+end
+for _, row in ipairs({ 9, 6, 3 }) do
+    feed('[c')
+    eq(vim.fn.line('.'), row, 'backward conflict navigation wraps')
+end
+feed('2]c')
+eq(vim.fn.line('.'), 9, 'forward navigation accepts a count')
+feed('2[c')
+eq(vim.fn.line('.'), 3, 'backward navigation accepts a count')
+
+vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+    'diff --git a/one b/one', '<<<<<<< ours', 'diff --git a/two b/two',
+})
+vim.bo.filetype = 'gitcommit'
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+feed(']c')
+eq(vim.fn.line('.'), 3, 'Git commit buffers retain their local diff navigation')
+feed('[c')
+eq(vim.fn.line('.'), 1, 'Git commit buffers retain backward diff navigation')
+LUA
+}
+
 sub list_toggle {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -2032,6 +2065,7 @@ run_cases(
         coalesced_config_reload                 => \&coalesced_config_reload,
         config_reload_preserves_options         => \&config_reload_preserves_options,
         list_toggle                             => \&list_toggle,
+        conflict_navigation                     => \&conflict_navigation,
         conceal_toggle                          => \&conceal_toggle,
         nested_module_reload                    => \&nested_module_reload,
         man_highlights_survive_reload           => \&man_highlights_survive_reload,
