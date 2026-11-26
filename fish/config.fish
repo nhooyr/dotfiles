@@ -570,9 +570,7 @@ abbrali noisep 'cdc "$noise" gacmp'
 abbrali notep 'cdc "$notes" gacmp'
 abbrali netq networkquality
 
-source "$dotfiles/fish/git.fish"
 source "$dotfiles/fish/prompt.fish"
-source "$dotfiles/fish/cd.fish"
 
 if test "$PWD" = "$HOME"
     cd -- "$dotfiles"
