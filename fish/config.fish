@@ -469,15 +469,9 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     aqsnow_run_requested; or return 0
     test "$code" -eq 0; or return 0
 
-    printf '%s\0' "$cmdline" | read --null --tokenize-raw --local --array tokens
-    set -l last_command
-    for token in $tokens[-1..1]
-        if contains -- "$token" ';' '&&' '||' '|' \n
-            set -q last_command[1]; and break
-            continue
-        end
-        set -p last_command "$token"
-    end
+    set cmdline "$(string replace -r '[;[:space:]]+$' '' -- "$cmdline")"
+    printf '%s\0' "$(commandline --input="$cmdline" --current-process)" |
+        read --null --tokenize-raw --local --array last_command
     contains -- "$last_command[1]" and or; and set -e last_command[1]
     set -l prefix ''
     while test "$last_command[1]" = cdc

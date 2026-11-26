@@ -101,6 +101,7 @@ sub plain_and_wrapped_commit_forms {
     for my $case (
         [ 'git commit',                   'push' ],
         [ 'git commit;',                  'push' ],
+        [ 'git commit;   ',               'push' ],
         [ 'git commit --amend --no-edit', 'force' ],
         [ '"git" "commit"',               'push' ],
         [ 'gcm',                          'push' ],
