@@ -53,6 +53,18 @@ end
 function gcma
     git commit --amend $argv
 end
+function gacma
+    git commit --amend $argv
+end
+function gacmp
+    git commit $argv
+end
+function gcmf
+    git commit --fixup $argv
+end
+function gcm-extra
+    return 0
+end
 function aqsnow_run_requested
     return 0
 end
@@ -87,12 +99,20 @@ sub pushed {
 sub plain_and_wrapped_commit_forms {
     my ($self) = @_;
     for my $case (
-        [ 'git commit',         'push' ],
-        [ 'git commit --amend', 'force' ],
-        [ 'gcm',                'push' ],
-        [ 'gacm',               'push' ],
-        [ 'gcma',               'force' ],
-        [ './commit',           'push' ],
+        [ 'git commit',                   'push' ],
+        [ 'git commit;',                  'push' ],
+        [ 'git commit --amend --no-edit', 'force' ],
+        [ 'git commit -m "--amend"',      'push' ],
+        [ '"git" "commit"',               'push' ],
+        [ 'gcm',                          'push' ],
+        [ 'gcm --amend --no-edit',        'force' ],
+        [ 'gacm',                         'push' ],
+        [ 'gcma -m message',              'force' ],
+        [ 'gacma -m message',             'force' ],
+        [ 'gacmp',                        'push' ],
+        [ 'gcmf HEAD',                    'push' ],
+        [ './commit argument',            'push' ],
+        [ './commit --amend',             'push' ],
       )
     {
         pushed( $self, $case->[0],                         $case->[1], $self->{temporary} );
@@ -128,11 +148,29 @@ sub failed_or_unrelated_commands_do_not_push {
     ok( !-e $self->{env}{TEST_LOG}, 'an unrelated final command does not reuse the wrapped commit' );
 }
 
+sub only_command_tokens_trigger_a_push {
+    my ($self) = @_;
+    for my $line (
+        q{echo 'git commit'},
+        q{printf '%s\n' gcm},
+        q{git status 'git commit'},
+        q{git commitment},
+        q{gcm-extra}, q{cdc "$TEST_TARGET" gcm-extra},
+        q{true;},     q{# comment}, '',
+      )
+    {
+        my $result = run_line( $self, $line );
+        is( $result->{returncode}, 0, $result->{stderr} );
+        ok( !-e $self->{env}{TEST_LOG}, "$line does not push" );
+    }
+}
+
 run_cases(
     {
         plain_and_wrapped_commit_forms           => \&plain_and_wrapped_commit_forms,
         wrapped_sequences_reuse_the_raw_prefix   => \&wrapped_sequences_reuse_the_raw_prefix,
         failed_or_unrelated_commands_do_not_push => \&failed_or_unrelated_commands_do_not_push,
+        only_command_tokens_trigger_a_push       => \&only_command_tokens_trigger_a_push,
     },
     \&setup
 );
