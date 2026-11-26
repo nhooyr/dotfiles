@@ -31,6 +31,7 @@ abbrali grb git_rebase
 abbrali grbi git_rebase -i
 abbrali grbr git_rebase -i --root
 abbrali grbc git_rebase --continue
+abbrali grbs git_rebase --skip
 abbrali grba git_rebase --abort
 abbrali gs git status
 abbrali gd git diff --patch-with-stat
@@ -120,5 +121,8 @@ abbrali gfr git filter-repo --invert-paths --path
 abbrali gsub git submodule
 abbrali gsubu git submodule update --init --recursive
 abbrali grl git reflog
+abbrali grfl git reflog
 abbrali gcp git cherry-pick
+abbrali gcps git cherry-pick --skip
+abbrali gcpa git cherry-pick --abort
 abbrali gmb git merge-base HEAD origin
