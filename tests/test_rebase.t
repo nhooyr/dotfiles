@@ -13,6 +13,8 @@ sub setup {
     $self->{temporary} = tempdir( 'rebase-tests-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $dir = $self->{temporary};
     make_path("$dir/bin");
+    my $aliases = join "\n", read_file("$fish/config.fish") =~ /^(abbrali \w+ git_(?:log|rebase)(?: .*)?)$/mg;
+    write_file( "$dir/git-aliases.fish", "$aliases\n" );
     my %env = %ENV;
     delete @env{ grep { /^GIT_/ } keys %env };
     $self->{env} = {
@@ -26,7 +28,7 @@ sub setup {
         GIT_COMMITTER_EMAIL => 'test@example.invalid',
         TEST_REAL_GIT       => $git,
         TEST_FISH_FUNCTIONS => "$fish/functions",
-        TEST_GIT_CONFIG     => "$fish/git.fish",
+        TEST_GIT_CONFIG     => "$dir/git-aliases.fish",
         TEST_GIT_STATUS     => 0,
     };
     write_file( "$dir/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
@@ -51,9 +53,11 @@ sub real_git {
 
 sub refs {
     my ( $self, @names ) = @_;
-    real_git( $self, 'update-ref', '-d', "refs/remotes/$_" )
-      for qw(origin/main origin/master upstream/main upstream/master);
-    real_git( $self, 'update-ref', "refs/remotes/$_", $self->{commit} ) for @names;
+    real_git( $self, 'update-ref', '-d', "refs/$_" ) for qw(
+      heads/main heads/master remotes/origin/main remotes/origin/master
+      remotes/upstream/main remotes/upstream/master tags/main tags/master
+    );
+    real_git( $self, 'update-ref', "refs/$_", $self->{commit} ) for @names;
 }
 
 sub run {
@@ -68,11 +72,12 @@ sub run {
 sub preferred_default {
     my ($self) = @_;
     for my $case (
-        [ [qw(origin/main origin/master upstream/main upstream/master)], 'origin/main' ],
-        [ ['origin/main'],                                               'origin/main' ],
-        [ [qw(origin/master upstream/main upstream/master)],             'origin/master' ],
-        [ [qw(upstream/main upstream/master)],                           undef ],
-        [ [],                                                            undef ]
+        [ [qw(heads/main heads/master remotes/origin/main)],                     'main' ],
+        [ ['heads/main'],                                                        'main' ],
+        [ [qw(heads/master remotes/origin/main tags/main)],                      'master' ],
+        [ [qw(remotes/origin/main remotes/origin/master remotes/upstream/main)], undef ],
+        [ [qw(tags/main tags/master)],                                           undef ],
+        [ [],                                                                    undef ]
       )
     {
         refs( $self, @{ $case->[0] } );
@@ -82,7 +87,7 @@ sub preferred_default {
             is_deeply(
                 decode_json( $result->{stdout} ),
                 [ 'rebase', $flag, defined( $case->[1] ) ? $case->[1] : () ],
-                'origin/main is preferred over origin/master, otherwise Git chooses its default'
+                'local main is preferred over local master; remote branches and tags are ignored'
             );
         }
     }
@@ -90,8 +95,9 @@ sub preferred_default {
 
 sub explicit_invocations {
     my ($self) = @_;
-    refs( $self, qw(origin/main origin/master) );
-    for my $args ( [qw(-i HEAD~2)], [qw(-i --root)], [qw(-i --autosquash)], ['--continue'], ['--abort'], [] )
+    refs( $self, qw(heads/main heads/master) );
+    for my $args ( [qw(-i HEAD~2)], [qw(-i --root)], [qw(-i --autosquash)],
+        ['--continue'], ['--abort'], ['-h'], ['--help'], [] )
     {
         my $result = run( $self, 'git_rebase', @$args );
         is( $result->{returncode}, 0, 'rebase succeeds' );
@@ -143,6 +149,7 @@ FISH
         grbi => 'git_rebase -i',
         grbr => 'git_rebase -i --root',
         grbc => 'git_rebase --continue',
+        grbs => 'git_rebase --skip',
         grba => 'git_rebase --abort',
         gl   => 'git_log',
         glp  => 'git_log -p',
