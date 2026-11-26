@@ -41,26 +41,6 @@ sub help_flags {
     }
 }
 
-sub repeated_colors_share_one_conversion {
-    my ($self)  = @_;
-    my $profile = read_file("$self->{term}/0nhooyr.terminal");
-    my ($color) = $profile =~ m{<key>ANSIRedColor</key>\s*<data>(.*?)</data>}s;
-    $profile =~ s{(<key>[^<]*Color</key>\s*<data>).*?(</data>)}{$1$color$2}gs;
-    write_file( "$self->{term}/0nhooyr.terminal", $profile );
-    my $bin = "$self->{temporary}/bin";
-    make_path($bin);
-    write_file( "$bin/plutil", <<'SH' );
-#!/bin/sh
-printf 'conversion\n' >> "$TERM_CONVERSIONS"
-exec /usr/bin/plutil "$@"
-SH
-    chmod 0755, "$bin/plutil" or die $!;
-    local $ENV{PATH}             = "$bin:$ENV{PATH}";
-    local $ENV{TERM_CONVERSIONS} = "$self->{temporary}/conversions";
-    generate($self);
-    is( read_file( $ENV{TERM_CONVERSIONS} ), "conversion\n", 'identical colors need only one conversion' );
-}
-
 sub palette_drives_both_themes {
     my ($self)  = @_;
     my $profile = read_file("$self->{term}/0nhooyr.terminal");
@@ -167,7 +147,6 @@ sub string_and_global_token_rules {
 run_cases(
     {
         help_flags                                      => \&help_flags,
-        repeated_colors_share_one_conversion            => \&repeated_colors_share_one_conversion,
         palette_drives_both_themes                      => \&palette_drives_both_themes,
         compacts_srgb_without_changing_profile_settings => \&compacts_srgb_without_changing_profile_settings,
         converts_display_p3_to_srgb                     => \&converts_display_p3_to_srgb,

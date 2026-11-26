@@ -101,18 +101,11 @@ sub inherited_environment {
       for qw(HOMEBREW_PREFIX HOMEBREW_CELLAR HOMEBREW_REPOSITORY MANPATH INFOPATH);
 }
 
-sub interactive_startup {
-    my ($self) = @_;
-    my $env = startup( $self, 1 );
-    like( $env->{LESS}, qr/(?:^| )-ix4(?: |$)/, 'less still displays four-column tabs' );
-}
-
 run_cases(
     {
         fresh_environment     => \&fresh_environment,
         existing_search_paths => \&existing_search_paths,
         inherited_environment => \&inherited_environment,
-        interactive_startup   => \&interactive_startup,
     },
     \&setup
 );

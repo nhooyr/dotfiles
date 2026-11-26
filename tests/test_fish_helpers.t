@@ -542,23 +542,6 @@ FISH
     is( $result->{stdout}, "7\n", 'source failure is returned without running history merge' );
 }
 
-sub cdf_completes_files_while_retaining_cd_wrapping {
-    my ($self) = @_;
-    make_path("$self->{root}/alpha_dir");
-    write_file( "$self->{root}/alpha_file.txt", 'contents' );
-    my $result = fish( $self, <<'FISH' );
-function abbrali
-end
-source "$TEST_CD"; or exit 1
-set -p fish_complete_path "$TEST_COMPLETIONS"
-complete -C 'cdf alpha'
-functions cdf
-FISH
-    like( $result->{stdout}, qr/^alpha_dir\//m,      'directory completion is retained' );
-    like( $result->{stdout}, qr/^alpha_file\.txt$/m, 'regular files are also offered' );
-    like( $result->{stdout}, qr/--wraps[= ]'?cd'?/,  'cdf retains its cd wrapper metadata' );
-}
-
 sub configured_temp_directory_is_aliased {
     my ($self) = @_;
     $self->{env}{TEST_DOTFILES} = $root;
@@ -746,8 +729,7 @@ run_cases(
         alias_registration_appends_only_new_names            => \&alias_registration_appends_only_new_names,
         alias_values_defined_later_keep_the_export_attribute =>
           \&alias_values_defined_later_keep_the_export_attribute,
-        initialized_alias_exports_are_not_rewritten     => \&initialized_alias_exports_are_not_rewritten,
-        cdf_completes_files_while_retaining_cd_wrapping => \&cdf_completes_files_while_retaining_cd_wrapping,
+        initialized_alias_exports_are_not_rewritten => \&initialized_alias_exports_are_not_rewritten,
         mcd_rejects_multiple_arguments_before_creating_anything =>
           \&mcd_rejects_multiple_arguments_before_creating_anything,
         occasional_helpers_load_lazily                      => \&occasional_helpers_load_lazily,

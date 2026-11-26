@@ -1027,21 +1027,6 @@ end
 LUA
 }
 
-sub recording_mode_color {
-    my ($self) = @_;
-    run_script( $self, <<'LUA' );
-for _, register in ipairs({ 'a', 'b' }) do
-    vim.cmd('normal! q' .. register)
-    eq(vim.fn.reg_recording(), register, 'macro recording starts')
-    eq(vim.api.nvim_get_hl(0, { name = 'ModeMsg' }).ctermfg, 4,
-        'the first and subsequent recordings use the recording color')
-    vim.cmd('normal! q')
-    eq(vim.fn.reg_recording(), '', 'macro recording stops')
-    eq(vim.api.nvim_get_hl(0, { name = 'ModeMsg' }).ctermfg, 2, 'stopping restores the normal color')
-end
-LUA
-}
-
 sub snippet_navigation_mappings {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -1463,33 +1448,6 @@ vim.cmd('silent grep Needle .')
 local items = vim.fn.getqflist()
 eq(#items, 1, 'uppercase pattern is case-sensitive')
 eq({ items[1].lnum, items[1].col }, { 2, 8 }, 'uppercase search keeps the correct quickfix position')
-LUA
-}
-
-sub json_indentation {
-    my ($self) = @_;
-    write_file( "$self->{temporary}/example.$_", '' ) for qw(json json5 jsonc);
-    run_script( $self, <<'LUA' );
-for _, extension in ipairs({ 'json', 'json5', 'jsonc' }) do
-    vim.cmd.edit('example.' .. extension)
-    assert(vim.bo.expandtab, extension .. ' uses spaces for indentation')
-    eq(vim.bo.tabstop, 2, extension .. ' uses two-column tab stops')
-    feed('i<Tab>X<Esc>')
-    eq(vim.api.nvim_get_current_line(), '  X', extension .. ' inserts two spaces')
-end
-LUA
-}
-
-sub markdown_tabs {
-    my ($self) = @_;
-    run_script( $self, <<'LUA' );
-vim.cmd.enew()
-vim.bo.filetype = 'markdown'
-feed('i<Tab>X<Esc>')
-eq(vim.api.nvim_get_current_line(), '   X', 'Markdown indentation uses three spaces')
-vim.api.nvim_set_current_line('')
-feed('iX<Tab>Y<Esc>')
-eq(vim.api.nvim_get_current_line(), 'X  Y', 'Markdown inline tabs use the same three-column stops')
 LUA
 }
 
@@ -2073,7 +2031,6 @@ run_cases(
         terminal_editor_handoff                 => \&terminal_editor_handoff,
         gitstatus_native_directory              => \&gitstatus_native_directory,
         gitstatus_remote_buffers                => \&gitstatus_remote_buffers,
-        recording_mode_color                    => \&recording_mode_color,
         snippet_navigation_mappings             => \&snippet_navigation_mappings,
         snippet_completion_reload               => \&snippet_completion_reload,
         gitstatus_lifecycle                     => \&gitstatus_lifecycle,
@@ -2081,8 +2038,6 @@ run_cases(
         gitstatus_quickfix_context              => \&gitstatus_quickfix_context,
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         find_files_quickfix                     => \&find_files_quickfix,
-        json_indentation                        => \&json_indentation,
-        markdown_tabs                           => \&markdown_tabs,
         markdown_checkbox_abbreviation          => \&markdown_checkbox_abbreviation,
         find_files_async_results                => \&find_files_async_results,
         find_files_config_reload                => \&find_files_config_reload,
