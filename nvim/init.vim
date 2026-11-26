@@ -322,6 +322,7 @@ snoremap <expr> <M-h> v:lua.vim.snippet.active()
             \ ? "\<Cmd>lua vim.snippet.jump(-1)\<CR>" : "\<Esc>h"
 inoremap <M-k> <Cmd>lua vim.snippet.stop()<CR>
 snoremap <M-k> <Cmd>lua vim.snippet.stop()<CR><Esc>i
+inoremap <CR> <C-]><Cmd>lua while vim.snippet.active() do vim.snippet.stop() end<CR><CR>
 snoremap <C-u> <C-g>"_c<C-u>
 snoremap <C-k> <C-g>"_c<C-\><C-o>D
 

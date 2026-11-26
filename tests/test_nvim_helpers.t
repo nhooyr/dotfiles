@@ -1048,7 +1048,7 @@ sub snippet_navigation_mappings {
 local captured
 _G.test_snippet_capture = function()
     captured = { vim.api.nvim_get_current_line(), vim.api.nvim_win_get_cursor(0),
-        vim.fn.mode(1), vim.snippet.active() }
+        vim.fn.mode(1), vim.snippet.active(), vim.api.nvim_buf_get_lines(0, 0, -1, false) }
 end
 local function reset()
     while vim.snippet.active() do vim.snippet.stop() end
@@ -1099,6 +1099,38 @@ for _, keys in ipairs({ '<M-k>', '<Esc>`>a<M-k>' }) do
 end
 reset()
 eq(capture('i<M-k>'), capture('i'), 'Alt-k does nothing without a snippet')
+
+for _, keys in ipairs({ '<CR>', 'replacement<CR>' }) do
+    local stopped = snippet(keys)
+    local first_line = keys == '<CR>' and '' or 'replacement'
+    eq(stopped[5], { first_line, 'two' }, 'Enter keeps native selection replacement and newline behavior')
+    eq(stopped[3], 'i', 'Enter leaves Insert mode active')
+    eq(stopped[4], false, 'Enter ends the snippet')
+end
+
+reset()
+vim.api.nvim_set_current_line('')
+vim.snippet.expand('${1:parent} $1$0')
+feed('child<Cmd>lua vim.snippet.expand("${1:nested}$0")<CR>')
+local stopped = capture('<CR>')
+eq(stopped[4], false, 'Enter ends the parent and nested snippet')
+eq(stopped[3], 'i', 'nested snippets end in Insert mode')
+
+vim.cmd('iabbrev Q ZOO')
+for _, case in ipairs({
+    { 'i', 'iQ<CR>' },
+    { 'i', 'i<Cmd>call complete(1, ["alpha", "beta"])<CR><C-n><CR>' },
+}) do
+    local mode, keys = unpack(case)
+    local mapping = vim.fn.maparg('<CR>', mode, false, true)
+    vim.keymap.del(mode, '<CR>')
+    reset()
+    local native = capture(keys)
+    vim.fn.mapset(mode, false, mapping)
+    reset()
+    eq(capture(keys), native, 'Enter preserves native behavior without a snippet in ' .. mode)
+end
+vim.cmd('iunabbrev Q')
 LUA
 }
 
