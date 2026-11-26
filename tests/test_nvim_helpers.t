@@ -566,6 +566,24 @@ eq(vim.wo.list, false, 'the mapping disables list again')
 LUA
 }
 
+sub conceal_toggle {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+vim.cmd.vsplit()
+vim.wo.conceallevel = 3
+local other = vim.api.nvim_get_current_win()
+vim.cmd.wincmd('p')
+vim.wo.conceallevel = 0
+local default = vim.go.conceallevel
+feed('<Leader>,')
+eq(vim.wo.conceallevel, 2, 'the mapping enables conceal in this window')
+feed('<Leader>,')
+eq(vim.wo.conceallevel, 0, 'the mapping disables conceal again')
+eq(vim.go.conceallevel, default, 'the mapping preserves the default')
+eq(vim.wo[other].conceallevel, 3, 'the mapping preserves other windows')
+LUA
+}
+
 sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
@@ -2014,6 +2032,7 @@ run_cases(
         coalesced_config_reload                 => \&coalesced_config_reload,
         config_reload_preserves_options         => \&config_reload_preserves_options,
         list_toggle                             => \&list_toggle,
+        conceal_toggle                          => \&conceal_toggle,
         nested_module_reload                    => \&nested_module_reload,
         man_highlights_survive_reload           => \&man_highlights_survive_reload,
         config_reload_via_symlink               => \&config_reload_via_symlink,

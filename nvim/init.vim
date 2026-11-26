@@ -108,6 +108,7 @@ call s:set_mode_highlight(v:true)
 
 set listchars+=extends:>,precedes:<
 nnoremap <Leader>. <Cmd>setlocal list!<CR>
+nnoremap <Leader>, <Cmd>let &l:conceallevel = &l:conceallevel ? 0 : 2<CR>
 highlight! link NonText Comment
 highlight! link Folded Comment
 
