@@ -100,13 +100,19 @@ sub published_topic_uses_ghop {
     git( $self, 'reset',      '--quiet',                   '--hard', 'HEAD~1' );
     is( gho( $self, $self->{repo} )->{returncode}, 0, 'a branch behind origin is still pushed' );
     is( read_file( $self->{env}{TEST_LOG} ), "pr\t$self->{repo}\n", 'origin may contain newer commits' );
+    git( $self, 'commit', '--quiet', '--allow-empty', '-m', 'Local change' );
+    is( gho( $self, $self->{repo} )->{returncode}, 0,               'a branch may diverge from origin' );
+    is( read_file( $self->{env}{TEST_LOG} ), "pr\t$self->{repo}\n", 'diverged branches still use ghop' );
+    git( $self, 'update-ref', 'refs/remotes/origin/topic', 'HEAD~1' );
+    is( gho( $self, $self->{repo} )->{returncode}, 0, 'a branch may have unpushed commits' );
+    is( read_file( $self->{env}{TEST_LOG} ),       "pr\t$self->{repo}\n", 'ahead branches still use ghop' );
     $self->{env}{TEST_PR_STATUS} = 47;
     is( gho( $self, $self->{repo} )->{returncode}, 47, 'ghop failure status is preserved' );
     is( read_file( $self->{env}{TEST_LOG} ),
         "pr\t$self->{repo}\n", 'ghop failure does not open a fallback URL' );
 }
 
-sub remote_layout_must_match_exactly {
+sub required_remotes_must_exist {
     my ($self) = @_;
     git( $self, 'remote', 'remove', 'upstream' );
     falls_back($self);
@@ -114,6 +120,9 @@ sub remote_layout_must_match_exactly {
     falls_back($self);
     git( $self, 'remote', 'rename', 'other', 'upstream' );
     git( $self, 'remote', 'add',    'third', 'https://github.com/example/third.git' );
+    is( gho( $self, $self->{repo} )->{returncode}, 0,                     'additional remotes are allowed' );
+    is( read_file( $self->{env}{TEST_LOG} ),       "pr\t$self->{repo}\n", 'a third remote still uses ghop' );
+    git( $self, 'remote', 'rename', 'origin', 'fork' );
     falls_back($self);
 }
 
@@ -122,9 +131,7 @@ sub unpublished_detached_and_unborn_use_urls {
     git( $self, 'update-ref', '-d', 'refs/remotes/origin/topic' );
     falls_back($self);
     git( $self, 'update-ref', 'refs/remotes/origin/topic', 'HEAD' );
-    git( $self, 'commit', '--quiet', '--allow-empty', '-m', 'Not pushed' );
-    falls_back($self);
-    git( $self, 'checkout', '--quiet', '--detach' );
+    git( $self, 'checkout',   '--quiet',                   '--detach' );
     falls_back($self);
     git( $self, 'symbolic-ref', 'HEAD', 'refs/heads/unborn' );
     falls_back($self);
@@ -145,7 +152,7 @@ sub explicit_targets_and_copy_never_use_ghop {
 run_cases(
     {
         published_topic_uses_ghop                => \&published_topic_uses_ghop,
-        remote_layout_must_match_exactly         => \&remote_layout_must_match_exactly,
+        required_remotes_must_exist              => \&required_remotes_must_exist,
         unpublished_detached_and_unborn_use_urls => \&unpublished_detached_and_unborn_use_urls,
         explicit_targets_and_copy_never_use_ghop => \&explicit_targets_and_copy_never_use_ghop,
     },
