@@ -48,4 +48,4 @@
   tests or code to handle them; NUL-delimited path transport is for performance only.
 - Prefer Perl over Python for scripting.
 - Never create or modify `README.md` or other documentation without my explicit permission.
-- Whenever updating `CHANGELOG.md`, bump the project's patch version and set its version string to `MAJOR.MINOR.PATCH-dev`, preserving any existing `v` prefix.
+- Whenever updating `CHANGELOG.md`, bump a released version to the next patch version with `-dev`, preserving any existing `v` prefix. If the current version already ends in `-dev`, keep that version until release; do not bump it again for further changelog edits.
