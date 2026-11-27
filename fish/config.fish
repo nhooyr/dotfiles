@@ -147,6 +147,11 @@ abbrali grpf grep -F
 abbrali grpi grep -i
 abbrali grpr grep -R
 abbrali grpv grep -v
+abbrali grepe grep -E
+abbrali grepf grep -F
+abbrali grepi grep -i
+abbrali grepr grep -R
+abbrali grepv grep -v
 abbr -a --command grep e -- -E
 abbr -a --command grep f -- -F
 abbr -a --command grep i -- -i
