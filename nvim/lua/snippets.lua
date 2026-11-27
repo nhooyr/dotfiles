@@ -22,6 +22,8 @@ local snippets = {
 		Up = 'Update$0',
 		ups = 'updates$0',
 		Ups = 'Updates$0',
+		sim = 'simplify$0',
+		Sim = 'Simplify$0',
 
 		play = 'hello world: ${1:One} ${2:Two} ${3:Three} $1$0',
 	},
