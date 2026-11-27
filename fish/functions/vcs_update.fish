@@ -196,7 +196,7 @@ function vcs_update
     end
     set -e __aqsnow_vcs_dirty
     set -l interpreter "$(status fish-path)"
-    command perl "$dotfiles/fish/git_prompt_worker.pl" "$interpreter" "$dotfiles/fish/prompt.fish" \
+    command "$dotfiles/fish/git_prompt_worker.pl" "$interpreter" "$dotfiles/fish/prompt.fish" \
         "$__aqsnow_rendezvous_dir" "$__aqsnow_vcs_token" "$fish_pid" "$__aqsnow_vcs_root" >/dev/null 2>&1 &
     set -l code "$status"
     if test "$code" -ne 0

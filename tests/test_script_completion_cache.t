@@ -27,7 +27,7 @@ sub script {
 sub complete {
     my ( $self, $path ) = @_;
     return run_command(
-        [ perl_executable(), "$root/fish/compgen.pl", $path // $self->{script} ],
+        [ "$root/fish/compgen.pl", $path // $self->{script} ],
         { env => $self->{env}, input => 'not passed to the script' }
     );
 }
@@ -152,7 +152,7 @@ PERL
             %ENV = %{ $self->{env} };
             open STDOUT, '>', "$path.out" or die $!;
             open STDERR, '>', "$path.err" or die $!;
-            exec perl_executable(), "$root/fish/compgen.pl", $path;
+            exec "$root/fish/compgen.pl", $path;
             die $!;
         }
         my $deadline = time + 2;

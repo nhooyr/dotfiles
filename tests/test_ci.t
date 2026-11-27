@@ -147,7 +147,7 @@ sub test_script_cleans_rust_and_perl_environments {
             $env->{CARGO_HOME}  = "$temporary/custom-cargo";
             $env->{RUSTUP_HOME} = "$temporary/custom-rustup";
         }
-        my @command = $direct ? ( perl_executable(), "$temporary/ci/test.pl" ) : ("$temporary/ci/test.sh");
+        my @command = $direct ? ("$temporary/ci/test.pl") : ("$temporary/ci/test.sh");
         my $result  = run_command( \@command, { env => $env } );
         is( $result->{returncode}, 0, $result->{stderr} );
         my %phases =
@@ -201,7 +201,7 @@ sub explicit_selectors_skip_cargo {
     for my $direct ( 0, 1 ) {
         my ( $temporary, $env ) = test_script_fixture();
         write_file( "$temporary/fail-cargo", '' );
-        my @command = $direct ? ( perl_executable(), "$temporary/ci/test.pl" ) : ("$temporary/ci/test.sh");
+        my @command = $direct ? ("$temporary/ci/test.pl") : ("$temporary/ci/test.sh");
         my $result  = run_command( [ @command, 'test_environment.selected' ], { env => $env } );
         is( $result->{returncode}, 0, $result->{stderr} );
         ok( !-e "$temporary/cargo.json",             'a targeted Perl test does not run Cargo' );
@@ -220,7 +220,7 @@ sub rust_selectors_run_only_matching_tests {
     {
         my ( $temporary, $env ) = test_script_fixture();
         my $result =
-          run_command( [ perl_executable(), "$temporary/ci/test.pl", @{ $case->[0] } ], { env => $env } );
+          run_command( [ "$temporary/ci/test.pl", @{ $case->[0] } ], { env => $env } );
         is( $result->{returncode}, 0, $result->{stderr} );
         my $listing = decode_json( read_file("$temporary/cargo-list.json") );
         is_deeply(
@@ -250,7 +250,7 @@ sub rust_selectors_run_only_matching_tests {
 sub unknown_selector_does_not_run_tests {
     my ( $temporary, $env ) = test_script_fixture();
     my $result =
-      run_command( [ perl_executable(), "$temporary/ci/test.pl", 'missing_test' ], { env => $env } );
+      run_command( [ "$temporary/ci/test.pl", 'missing_test' ], { env => $env } );
     isnt( $result->{returncode}, 0, 'an unknown selector fails' );
     like( $result->{stderr}, qr/Unknown test selector: missing_test/, 'reports the unknown selector' );
     ok( -e "$temporary/cargo-list.json",       'checks Rust names before rejecting the selector' );

@@ -21,8 +21,7 @@ sub setup {
 
 sub generate {
     my ($self) = @_;
-    return run_command( [ perl_executable(), "$self->{term}/generate.pl" ],
-        { cwd => $self->{temporary}, check => 1 } );
+    return run_command( ["$self->{term}/generate.pl"], { cwd => $self->{temporary}, check => 1 } );
 }
 
 sub theme {
@@ -35,7 +34,7 @@ sub theme {
 sub help_flags {
     my ($self) = @_;
     for my $flag ( '-h', '--help' ) {
-        my $result = run_command( [ perl_executable(), "$self->{term}/generate.pl", $flag ] );
+        my $result = run_command( [ "$self->{term}/generate.pl", $flag ] );
         is( $result->{returncode}, 0, "$flag succeeds" );
         like( $result->{stdout}, qr/usage: .*generate\.pl/, "$flag prints usage" );
     }

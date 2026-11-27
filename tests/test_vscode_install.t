@@ -47,7 +47,7 @@ PERL
 sub install {
     my ( $self, @args ) = @_;
     unlink $self->{env}{TEST_CALLS};
-    return run_command( [ 'sh', "$self->{directory}/theme/install.sh", @args ], { env => $self->{env} } );
+    return run_command( [ "$self->{directory}/theme/install.sh", @args ], { env => $self->{env} } );
 }
 
 sub calls {

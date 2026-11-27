@@ -55,7 +55,7 @@ sub exec_helper {
     open STDIN,  '<', '/dev/null'                   or die $!;
     open STDOUT, '>', "$self->{root}/helper.stdout" or die $!;
     open STDERR, '>', "$self->{root}/helper.stderr" or die $!;
-    exec {$^X} $^X, $helper, $self->{fish} // $fish, $self->{prompt},
+    exec {$helper} $helper, $self->{fish} // $fish, $self->{prompt},
       $self->{rendezvous},
       $self->{token}, $parent, $self->{work};
     die "exec helper: $!\n";

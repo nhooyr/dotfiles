@@ -10,7 +10,7 @@ if [ "${GITHUB_ACTIONS-}" ]; then
 	export PERL_CPANM_HOME="$PWD/.build/cpanm"
 	export PERL5LIB="$perl_lib/lib/perl5"
 	export PATH="$perl_lib/bin:$PATH"
-	perl "$(command -v cpanm)" --notest --local-lib-contained "$perl_lib" 'Perl::Tidy@20260826'
+	cpanm --notest --local-lib-contained "$perl_lib" 'Perl::Tidy@20260826'
 fi
 
 git ls-files --cached --others --exclude-standard -z -- '*.fish' |

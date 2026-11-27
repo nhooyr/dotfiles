@@ -16,12 +16,13 @@ sub setup {
         chmod 0755, "$temporary/$name" or die $!;
     }
     write_file( "$temporary/work/file.txt",   'data' );
-    write_file( "$temporary/fish/compgen.pl", <<'PERL' );
+    write_file( "$temporary/fish/compgen.pl", '#!' . perl_executable() . "\n" . <<'PERL' );
 use strict; use warnings;
 open my $calls, '>>', $ENV{TEST_CALLS} or die $!;
 print {$calls} "$ARGV[0]\n";
 print "--generated\n--verbose\n";
 PERL
+    chmod 0755, "$temporary/fish/compgen.pl" or die $!;
     $self->{temporary} = absolute_path($temporary);
     $self->{calls}     = "$temporary/calls";
     $self->{env}       = {

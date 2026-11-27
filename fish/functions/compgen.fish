@@ -19,6 +19,6 @@ function compgen
     # Fish autoloads native completions before evaluating this condition.
     complete -p "$path" -n 'test -z "$(commandline -ct)"; or string match -q -- "-*" "$(commandline -ct)"; and not contains -- -- $(commandline -xpc)' \
         -n "not complete -c $(string escape -- "$name") | string length -q" \
-        -a "\$(command perl $arguments)"
+        -a "\$(command $arguments)"
     set -ga compgen_paths "$path"
 end
