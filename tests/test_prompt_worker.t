@@ -7,7 +7,7 @@ use Test::More;
 use POSIX       qw(WNOHANG);
 use Time::HiRes qw(time sleep);
 
-my $helper = absolute_path("$FindBin::Bin/../fish/git_prompt_job.pl");
+my $helper = absolute_path("$FindBin::Bin/../fish/git_prompt_supervisor.pl");
 my $fish   = which('fish');
 
 {
@@ -53,7 +53,7 @@ sub help_does_not_start_job {
     for my $flag ( '-h', '--help' ) {
         my $result = run_command( [ $helper, $flag ], { env => $self->{env}, cwd => $self->{work} } );
         is( $result->{returncode}, 0, $result->{stderr} );
-        like( $result->{stdout}, qr/^Usage: git_prompt_job\.pl/, 'help describes the one-shot job' );
+        like( $result->{stdout}, qr/^Usage: git_prompt_supervisor\.pl/, 'help describes the one-shot job' );
         is( $result->{stderr}, '', 'help does not report an error' );
     }
     ok( !-e $self->{result}, 'help does not create a prompt result' );

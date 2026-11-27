@@ -151,14 +151,14 @@ function aqsnow_vcs_prompt_done --on-signal USR1
     end
     command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
     if status is-interactive; and test "$__aqsnow_prompt_active" = 1
-        git_prompt_update
+        git_prompt_queue
         if test "$previous" != "$__aqsnow_vcs_prompt"
             commandline -f repaint
         end
     end
 end
 
-function git_prompt_update
+function git_prompt_queue
     aqsnow_vcs_prompt_restore
     if set -q __aqsnow_vcs_pending
         if not set -q __aqsnow_vcs_process
@@ -197,7 +197,7 @@ function git_prompt_update
     end
     set -e __aqsnow_vcs_dirty
     set -l interpreter "$(status fish-path)"
-    command "$dotfiles/fish/git_prompt_job.pl" "$interpreter" "$dotfiles/fish/prompt.fish" \
+    command "$dotfiles/fish/git_prompt_supervisor.pl" "$interpreter" "$dotfiles/fish/prompt.fish" \
         "$__aqsnow_rendezvous_dir" "$__aqsnow_vcs_token" "$fish_pid" "$__aqsnow_vcs_root" >/dev/null 2>&1 &
     set -l code "$status"
     if test "$code" -ne 0

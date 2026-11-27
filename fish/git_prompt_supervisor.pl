@@ -7,7 +7,7 @@ use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 # Supervise one prompt calculation and exit after reporting its result.
 if ( @ARGV == 1 && ( $ARGV[0] eq '-h' || $ARGV[0] eq '--help' ) ) {
     print <<'HELP';
-Usage: git_prompt_job.pl FISH PROMPT_FILE DIRECTORY TOKEN PARENT ROOT
+Usage: git_prompt_supervisor.pl FISH PROMPT_FILE DIRECTORY TOKEN PARENT ROOT
 
 Run one background Git prompt calculation and notify its parent shell.
 
@@ -16,7 +16,7 @@ HELP
     exit 0;
 }
 @ARGV == 6
-  or die "Usage: git_prompt_job.pl FISH PROMPT_FILE DIRECTORY TOKEN PARENT ROOT\n";
+  or die "Usage: git_prompt_supervisor.pl FISH PROMPT_FILE DIRECTORY TOKEN PARENT ROOT\n";
 my ( $fish, $prompt, $directory, $token, $parent, $root ) = @ARGV;
 my $result     = "$directory/vcs-prompt-$token";
 my $control    = "$directory/vcs-alive";
