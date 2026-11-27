@@ -122,6 +122,9 @@ alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
 alias fd='fd --hidden --follow --exclude .git --no-require-git'
 abbrali f fd
+function ggr
+    gg -lz $argv | xargs -0 sed -i.bak -Ee 's'\x1F"$argv[1]"\x1F"$argv[2]"\x1F'gi'
+end
 alias bfs='bfs -L -exclude -name .git'
 set -gx BAT_PAGER 'N=0 pager'
 abbrali rgf rg -F
