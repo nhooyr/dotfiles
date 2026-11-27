@@ -266,56 +266,24 @@ abbrali nd nextd
 abbrali md mkdir -p
 abbrali mcdt 'cd -- "$(mktemp -d)"'
 
-# From embedded:functions/cd.fish @ line 5
-# Only change I made is to use cdf and increase MAX_DIR_HIST to 999.
-function cd --description 'Change directory'
-    set -l MAX_DIR_HIST 999
-
-    # Skip history in subshells.
-    if status is-command-substitution
-        builtin cd $argv
-        return $status
+type -q _cd; or functions -c cd _cd
+function cd --description 'Change directory' --argument-names path
+    switch "$path"
+        case \-
+            _cd $argv
+            return
+        case --
+            set path $argv[2..]
+            if test "$(count $path)" -ne 1
+                _cd $argv
+                return
+            end
     end
-
-    # Avoid set completions.
-    set -l previous $PWD
-
-    if test "$argv" = -
-        if test "$__fish_cd_direction" = next
-            nextd
-        else
-            prevd
-        end
-        return $status
-    end
-
-    set -l file $argv
-    if test "$argv[1]" = --
-        set file $argv[2..]
-    end
-    if test "$(count $file)" -eq 1; and test -f "$file"
-        cdf "$file"
+    if ! test -d "$path"; and test -e "$path"
+        cdf "$path"
         return
     end
-
-    builtin cd $argv
-    set -l cd_status $status
-
-    if test "$cd_status" -eq 0; and test "$PWD" != "$previous"
-        set -q dirprev; or set -l dirprev
-        set -q dirprev[$MAX_DIR_HIST]; and set -e dirprev[1]
-
-        # If dirprev, dirnext, __fish_cd_direction
-        # are set as universal variables, honor their scope.
-
-        set -U -q dirprev; and set -U -a dirprev $previous; or set -g -a dirprev $previous
-
-        set -U -q dirnext; and set -U -e dirnext; or set -e dirnext
-
-        set -U -q __fish_cd_direction; and set -U __fish_cd_direction prev; or set -g __fish_cd_direction prev
-    end
-
-    return $cd_status
+    _cd $argv
 end
 
 abbrali g git
