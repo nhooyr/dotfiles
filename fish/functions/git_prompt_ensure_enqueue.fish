@@ -152,14 +152,14 @@ function aqsnow_vcs_prompt_done
     end
     aqsnow_vcs_prompt_cleanup
     if status is-interactive; and test "$__aqsnow_prompt_active" = 1
-        git_prompt_queue
+        git_prompt_ensure_enqueue
         if test "$previous" != "$__aqsnow_vcs_prompt"
             commandline -f repaint
         end
     end
 end
 
-function git_prompt_queue
+function git_prompt_ensure_enqueue
     aqsnow_vcs_prompt_restore
     if set -q __aqsnow_vcs_pending
         if not set -q __aqsnow_vcs_process

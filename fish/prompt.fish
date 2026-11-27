@@ -1,7 +1,7 @@
 function fish_prompt
     set -l last_status "$status"
     set -g __aqsnow_prompt_active 1
-    git_prompt_queue
+    git_prompt_ensure_enqueue
     set -l normal "$(set_color --reset)"
     set -l cwd_color "$(set_color $fish_color_cwd)"
     set -l prompt_status ''

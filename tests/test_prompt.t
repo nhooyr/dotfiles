@@ -9,7 +9,7 @@ use Test::More;
 my $dotfiles = absolute_path("$FindBin::Bin/..");
 my $fish     = which('fish');
 my $git      = which('git');
-my $source   = "$dotfiles/fish/functions/git_prompt_queue.fish";
+my $source   = "$dotfiles/fish/functions/git_prompt_ensure_enqueue.fish";
 
 sub setup {
     my ($self) = @_;
@@ -144,13 +144,13 @@ functions -q git_prompt_cache git_prompt_identity; and exit 1
 function mktemp
     return 1
 end
-git_prompt_queue
+git_prompt_ensure_enqueue
 test "$status" -eq 1; or exit 2
-for name in git_prompt_queue git_prompt_cache git_prompt_identity
+for name in git_prompt_ensure_enqueue git_prompt_cache git_prompt_identity
     functions -q "$name"; or exit 3
 end
 set -l generation "$__aqsnow_vcs_generation"
-git_prompt_queue
+git_prompt_ensure_enqueue
 test "$__aqsnow_vcs_generation" = "$generation"; or exit 4
 test -z "$__aqsnow_vcs_process"; or exit 5
 FISH
@@ -172,7 +172,7 @@ sub cached_first_render {
     for ( 1 .. 2 ) {
         my $result = shell( $self, <<'FISH' );
 set -g __aqsnow_vcs_pending 1
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n%s\n' "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"
 FISH
         is(
@@ -188,7 +188,7 @@ sub head_identity_without_cache {
     my ($self) = @_;
     my $result = shell( $self, <<'FISH' );
 set -g __aqsnow_vcs_pending 1
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n%s\n' "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"
 FISH
     is( output($result), " (main)\n (main)\n", 'unborn HEAD supplies identity immediately' );
@@ -202,7 +202,7 @@ FISH
         { env => $self->{env}, check => 1 } );
     $result = shell( $self, <<'FISH' );
 set -g __aqsnow_vcs_pending 1
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n' "$__aqsnow_vcs_prompt"
 FISH
     is( output($result), " ($head)\n", 'detached HEAD supplies identity without full status' );
@@ -215,7 +215,7 @@ sub subdirectories_and_metadata {
     for my $directory ( "$self->{repo}/nested/deep", "$self->{repo}/.git/objects" ) {
         my $result = shell( $self, <<'FISH', $directory );
 set -g __aqsnow_vcs_pending 1
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n%s\n' "$__aqsnow_vcs_root" "$__aqsnow_vcs_prompt"
 FISH
         is( output($result), "$self->{repo}\n (cached-main)\n", 'subdirectories share the worktree cache' );
@@ -232,14 +232,14 @@ sub linked_worktrees {
     write_file( "$self->{repo}/.fish_git_prompt", ' (main-only)' );
     my $result = shell( $self, <<'FISH', $linked );
 set -g __aqsnow_vcs_pending 1
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n%s\n' "$__aqsnow_vcs_root" "$__aqsnow_vcs_prompt"
 FISH
     is( output($result), "$linked\n (linked-branch)\n", 'linked worktree reads its own HEAD' );
     write_file( "$linked/.fish_git_prompt", ' (linked-cached)' );
     $result = shell( $self, <<'FISH', $linked );
 set -g __aqsnow_vcs_pending 1
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n' "$__aqsnow_vcs_prompt"
 FISH
     is( output($result), " (linked-cached)\n", 'linked worktree has a separate persistent cache' );
@@ -259,7 +259,7 @@ end
 FISH
     my $result = shell( $self, <<'FISH' . wait_for_refresh() . <<'FISH', $link );
 cd -- "$TEST_OTHER/link"
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n%s\n%s\n' "$PWD" "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
@@ -288,14 +288,14 @@ sub directory_switch_while_pending {
     write_file( "$self->{other}/.fish_git_prompt", ' (other-cached)' );
     my $result = shell( $self, <<'FISH' );
 set -g __aqsnow_vcs_pending 1
-git_prompt_queue
+git_prompt_ensure_enqueue
 set -g __aqsnow_vcs_request_directory "$PWD"
 set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"
 set -g __aqsnow_vcs_request_generation "$__aqsnow_vcs_generation"
 set -g __aqsnow_vcs_dir "$(mktemp -d)"
 set -g __aqsnow_vcs_file "$__aqsnow_vcs_dir/result"
 cd -- "$TEST_OTHER"
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n' "$__aqsnow_vcs_prompt"
 printf %s ' (main-refreshed)' > "$__aqsnow_vcs_file"
 printf '0 %s\n' "$(command perl -e 'my @s = stat "$ARGV[0]/.git"; print "$s[0]:$s[1]" if @s' "$__aqsnow_vcs_request_root")" > "$__aqsnow_vcs_file.status"
@@ -326,13 +326,13 @@ sub initialized_repository_in_same_directory {
     my ($self) = @_;
     my $result = shell( $self, <<'FISH' . wait_for_refresh() . <<'FISH', $self->{plain} );
 set -g __aqsnow_vcs_pending 1
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '<%s>\n' "$AQSNOW_FISH_GIT_PROMPT"
 set -e __aqsnow_vcs_pending
 command git init --quiet --initial-branch fresh .
 aqsnow_vcs_prompt_invalidate
 printf '%s\n' "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
-git_prompt_queue
+git_prompt_ensure_enqueue
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
 exit 0
@@ -353,13 +353,13 @@ sub nested_repository_during_refresh {
     write_file( "$self->{repo}/.fish_git_prompt", ' (parent-cached)' );
     my $result = shell(
         $self,
-        "set -g __aqsnow_vcs_pending 1\ngit_prompt_queue\n"
+        "set -g __aqsnow_vcs_pending 1\ngit_prompt_ensure_enqueue\n"
           . stage_completion( ' (wrong-parent-result)', '0' )
           . <<'FISH' . wait_for_refresh() . <<'FISH', $nested );
 command git init --quiet --initial-branch nested .
 # Another process can create the repository before this shell gets a postexec event.
 aqsnow_vcs_prompt_done
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n%s\n' "$__aqsnow_vcs_root" "$AQSNOW_FISH_GIT_PROMPT"
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
@@ -383,7 +383,7 @@ sub removed_repository_during_refresh {
     my ($self) = @_;
     write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\ngit_prompt_queue\n"
+            "set -g __aqsnow_vcs_pending 1\ngit_prompt_ensure_enqueue\n"
           . stage_completion( ' (obsolete)', '0' )
           . <<'FISH' );
 command rm -rf -- .git
@@ -403,7 +403,7 @@ sub replaced_repository_during_foreground_command {
     my ($self) = @_;
     write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\ngit_prompt_queue\n"
+            "set -g __aqsnow_vcs_pending 1\ngit_prompt_ensure_enqueue\n"
           . stage_completion( ' (obsolete)', '0' )
           . <<'FISH' . wait_for_refresh() . <<'FISH' );
 aqsnow_vcs_prompt_preexec
@@ -413,7 +413,7 @@ command git init --quiet --initial-branch replacement .
 aqsnow_vcs_prompt_done
 printf '%s\n' "$(string collect < .fish_git_prompt)"
 aqsnow_vcs_prompt_invalidate
-git_prompt_queue
+git_prompt_ensure_enqueue
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
 exit 0
@@ -494,13 +494,13 @@ function aqsnow_vcs_prompt
 end
 FISH
     my $result = shell( $self,
-            "git_prompt_queue\n"
+            "git_prompt_ensure_enqueue\n"
           . wait_for_marker('first-worker')
           . <<'FISH' . wait_for_retired_process() . <<'FISH' . wait_for_refresh() . <<'FISH' );
 set -l retired_process "$__aqsnow_vcs_process"
 command kill -TERM -- "$retired_process"
 FISH
-git_prompt_queue
+git_prompt_ensure_enqueue
 test "$__aqsnow_vcs_process" != "$retired_process"
 printf 'restarted=%s\n' "$status"
 FISH
@@ -531,7 +531,7 @@ function aqsnow_vcs_prompt
 end
 FISH
     my $result = shell( $self,
-            "git_prompt_queue\n"
+            "git_prompt_ensure_enqueue\n"
           . wait_for_marker('old-worker')
           . <<'FISH' . wait_for_refresh() . <<'FISH' . wait_for_retired_process() . "exit 0\n" );
 set -l retired_process "$__aqsnow_vcs_process"
@@ -539,7 +539,7 @@ set -l retired_directory "$__aqsnow_vcs_dir"
 aqsnow_vcs_prompt_preexec
 cd -- "$TEST_OTHER"
 aqsnow_vcs_prompt_invalidate
-git_prompt_queue
+git_prompt_ensure_enqueue
 test -d "$__aqsnow_vcs_dir"; or exit 7
 test "$__aqsnow_vcs_dir" != "$retired_directory"; or exit 5
 test ! -e "$retired_directory"; or exit 6
@@ -579,7 +579,7 @@ function aqsnow_vcs_prompt
 end
 FISH
     my $result = shell( $self,
-            "git_prompt_queue\n"
+            "git_prompt_ensure_enqueue\n"
           . wait_for_marker('identity-worker')
           . <<'FISH' . wait_for_refresh() . <<'FISH' . wait_for_refresh() . <<'FISH' );
 # No preexec/postexec event: model another process replacing this repository.
@@ -588,7 +588,7 @@ command git init --quiet --initial-branch replacement .
 printf release > "$TEST_ROOT/release-worker"
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
-git_prompt_queue
+git_prompt_ensure_enqueue
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
 exit 0
@@ -616,7 +616,7 @@ FISH
     my $result = shell( $self, <<'FISH' . wait_for_refresh() . <<'FISH' );
 function hold_completion
     block --local
-    git_prompt_queue
+    git_prompt_ensure_enqueue
     for i in $(seq 1 100)
         test -f "$__aqsnow_vcs_file.status"; and not command kill -0 "$__aqsnow_vcs_process" 2>/dev/null; and break
         command sleep 0.01
@@ -627,7 +627,7 @@ function hold_completion
 end
 hold_completion
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
-git_prompt_queue
+git_prompt_ensure_enqueue
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
 exit 0
@@ -657,7 +657,7 @@ FISH
     my $result = shell( $self, <<'FISH' . wait_for_refresh() . <<'FISH', $linked );
 function hold_completion
     block --local
-    git_prompt_queue
+    git_prompt_ensure_enqueue
     for i in $(seq 1 100)
         test -f "$__aqsnow_vcs_file.status"; and not command kill -0 "$__aqsnow_vcs_process" 2>/dev/null; and break
         command sleep 0.01
@@ -671,7 +671,7 @@ function hold_completion
 end
 hold_completion
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
-git_prompt_queue
+git_prompt_ensure_enqueue
 FISH
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT" "$(string collect < .fish_git_prompt)"
 exit 0
@@ -731,7 +731,7 @@ sub failed_refresh_keeps_display {
     write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
     for my $case ( [ '', '0' ], [ ' (partial)', '1' ] ) {
         my $result = shell( $self,
-                "set -g __aqsnow_vcs_pending 1\ngit_prompt_queue\n"
+                "set -g __aqsnow_vcs_pending 1\ngit_prompt_ensure_enqueue\n"
               . fake_completion(@$case)
               . 'printf "%s\n%s\n" "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"'
               . "\n" );
@@ -749,7 +749,7 @@ sub successful_refresh_is_atomic {
     write_file( "$self->{repo}/.fish_git_prompt", ' (old)' );
     my $fresh  = " (\e[4mmain\e[0m +3)";
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\ngit_prompt_queue\n"
+            "set -g __aqsnow_vcs_pending 1\ngit_prompt_ensure_enqueue\n"
           . fake_completion( $fresh, '0' )
           . 'printf "%s\n%s\n" "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"'
           . "\n" );
@@ -767,7 +767,7 @@ sub unchanged_cache_is_not_rewritten {
     utime( 1700000000, 1700000000, $cache ) or die $!;
     my $before = ( stat $cache )[9];
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\ngit_prompt_queue\n"
+            "set -g __aqsnow_vcs_pending 1\ngit_prompt_ensure_enqueue\n"
           . fake_completion( ' (unchanged)', '0' )
           . 'printf "%s\\n" "$AQSNOW_FISH_GIT_PROMPT"'
           . "\n" );
@@ -798,7 +798,7 @@ SHELL
     $self->{env}{TEST_REAL_MV}  = which('mv');
     $self->{env}{PATH}          = "$self->{root}/bin:$ENV{PATH}";
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\ngit_prompt_queue\n"
+            "set -g __aqsnow_vcs_pending 1\ngit_prompt_ensure_enqueue\n"
           . fake_completion( ' (fresh)', '0' )
           . 'printf "%s\\n" "$AQSNOW_FISH_GIT_PROMPT"'
           . "\n" );
@@ -827,7 +827,7 @@ function aqsnow_vcs_prompt
 end
 FISH
     my $result = shell( $self, <<'FISH' );
-git_prompt_queue
+git_prompt_ensure_enqueue
 set -l worker_directory "$__aqsnow_vcs_dir"
 test -d "$worker_directory"; or exit 3
 printf '%s\n' "$__aqsnow_vcs_prompt"
@@ -875,7 +875,7 @@ function aqsnow_vcs_prompt
     command "$TEST_PERL" "$TEST_ROOT/child.pl"
 end
 FISH
-    my $result = shell( $self, "git_prompt_queue\n" . wait_for_marker('heartbeat') . <<'FISH' );
+    my $result = shell( $self, "git_prompt_ensure_enqueue\n" . wait_for_marker('heartbeat') . <<'FISH' );
 set -l worker "$__aqsnow_vcs_process"
 set -l worker_directory "$__aqsnow_vcs_dir"
 test -d "$worker_directory"; or exit 7
@@ -909,7 +909,7 @@ function aqsnow_vcs_prompt
     command sleep 20
 end
 FISH
-    my $result = shell( $self, "git_prompt_queue\n" . wait_for_marker('ready') . <<'FISH' );
+    my $result = shell( $self, "git_prompt_ensure_enqueue\n" . wait_for_marker('ready') . <<'FISH' );
 test -d "$__aqsnow_vcs_dir"; or exit 1
 printf '%s\n' "$__aqsnow_vcs_dir" > "$TEST_ROOT/worker-directory"
 exit 0
@@ -922,7 +922,7 @@ FISH
 sub real_git_refresh {
     my ($self) = @_;
     my $result = shell( $self, <<'FISH' );
-git_prompt_queue
+git_prompt_ensure_enqueue
 printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
 for i in $(seq 1 100)
     set -q __aqsnow_vcs_pending; or break
@@ -945,7 +945,7 @@ sub unwritable_cache_keeps_display {
     write_file( "$self->{repo}/.fish_git_prompt", ' (saved)' );
     chmod 0500, $self->{repo} or die $!;
     my $result = shell( $self,
-            "set -g __aqsnow_vcs_pending 1\ngit_prompt_queue\n"
+            "set -g __aqsnow_vcs_pending 1\ngit_prompt_ensure_enqueue\n"
           . fake_completion( ' (fresh)', '0' )
           . 'printf "%s\n" "$AQSNOW_FISH_GIT_PROMPT"'
           . "\n" );
@@ -979,7 +979,7 @@ end
 function prompt_login
     printf login
 end
-function git_prompt_queue
+function git_prompt_ensure_enqueue
 end
 source "$TEST_DOTFILES/fish/prompt.fish"
 set -g aqsnow_fzf_diralis HOME TMPDIR TEST_ALIAS_PATH
@@ -1014,7 +1014,7 @@ end
 function prompt_login
     printf login
 end
-function git_prompt_queue
+function git_prompt_ensure_enqueue
 end
 source "$TEST_DOTFILES/fish/prompt.fish"
 set -g aqsnow_fzf_diralis TMPDIR

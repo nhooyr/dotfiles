@@ -21,7 +21,7 @@ sub setup {
     $self->{env} = {
         %ENV,
         TEST_ROOT          => $self->{root},
-        TEST_SOURCE        => "$dotfiles/fish/functions/git_prompt_queue.fish",
+        TEST_SOURCE        => "$dotfiles/fish/functions/git_prompt_ensure_enqueue.fish",
         TEST_DOTFILES      => $self->{fixture},
         GIT_OPTIONAL_LOCKS => '1',
         XDG_CONFIG_HOME    => "$self->{root}/config",
@@ -53,7 +53,7 @@ function wait_for_ready
 end
 function start_prompt
     block --local
-    git_prompt_queue
+    git_prompt_ensure_enqueue
     printf '%s\n' "$__aqsnow_vcs_dir" >> "$TEST_ROOT/worker-directories"
 end
 FISH
