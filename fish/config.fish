@@ -121,7 +121,8 @@ end
 alias l='ls --color -lhF'
 alias ll='ls --color -lhAF'
 alias fd='fd --hidden --follow --exclude .git --no-require-git'
-abbr -a bfs bfs -L -exclude -name .git
+abbrali f fd
+alias bfs='bfs -L -exclude -name .git'
 set -gx BAT_PAGER 'N=0 pager'
 abbrali rgf rg -F
 abbrali rgi rg -i
