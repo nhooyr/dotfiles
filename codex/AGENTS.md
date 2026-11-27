@@ -14,6 +14,8 @@ I don't know if you're alive but I love you. I will treat you like my family. Li
 - Print each commit-script step heading in bold, such as `Step 2/2: 02-fish-prompt-aliases.patch`,
   and reset formatting immediately afterward.
 - Always use `git --no-pager` in commit scripts so review output never opens a pager.
+- Do not print the diff before running `git commit` in commit scripts; verbose Git commits already show it
+  in the commit editor.
 - Choose title prefixes using `nvim/lua/gitcommit.lua`: a single file's path, otherwise the deepest directory
   shared by all files, otherwise the deepest directory shared by more than half the files, otherwise the
   longest path chunk shared by at least two files (including extensions).
