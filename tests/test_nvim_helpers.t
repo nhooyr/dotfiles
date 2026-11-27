@@ -576,14 +576,21 @@ feed('2[c')
 eq(vim.fn.line('.'), 3, 'backward navigation accepts a count')
 
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
-    'diff --git a/one b/one', '<<<<<<< ours', 'diff --git a/two b/two',
+    'commit abc', 'diff --git a/one b/one', '@@ -1 +1 @@', '<<<<<<< ours',
+    'line', '||||||| base', 'diff --git a/two b/two', '@@ -2 +2 @@', '>>>>>>> theirs',
 })
 vim.bo.filetype = 'gitcommit'
-vim.api.nvim_win_set_cursor(0, { 1, 0 })
-feed(']c')
-eq(vim.fn.line('.'), 3, 'Git commit buffers retain their local diff navigation')
-feed('[c')
-eq(vim.fn.line('.'), 1, 'Git commit buffers retain backward diff navigation')
+for _, case in ipairs({
+    { ']d', { 2, 7, 2 } }, { '[d', { 7, 2, 7 } },
+    { ']h', { 2, 3, 7, 8, 2 } }, { '[h', { 8, 7, 3, 2, 8 } },
+    { ']c', { 4, 6, 9, 4 } }, { '[c', { 9, 6, 4, 9 } },
+}) do
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    for _, row in ipairs(case[2]) do
+        feed(case[1])
+        eq(vim.fn.line('.'), row, 'Git commit navigation: ' .. case[1])
+    end
+end
 LUA
 }
 

@@ -1,12 +1,13 @@
 local prefill_title, add_stat
 
 local function setup()
-	vim.keymap.set('n', ']c', '/^diff --<CR>', { buffer = true })
-	vim.keymap.set('n', '[c', '?^diff --<CR>', { buffer = true })
+	vim.keymap.set('n', ']d', '/^diff --<CR>', { buffer = true })
+	vim.keymap.set('n', '[d', '?^diff --<CR>', { buffer = true })
+	vim.keymap.set('n', ']h', [[/^\(diff --\|@@\)<CR>]], { buffer = true })
+	vim.keymap.set('n', '[h', [[?^\(diff --\|@@\)<CR>]], { buffer = true })
 	vim.bo.expandtab = true
 	vim.bo.tabstop = 4
 	vim.bo.textwidth = 80
-	require('diff').setup()
 	prefill_title()
 	add_stat()
 end
