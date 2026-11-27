@@ -142,6 +142,11 @@ set -gx GREP_COLORS 'mt=30;103:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '30;103'
 abbrali gr grep
 abbrali gre grep
+abbrali gree grep -E
+abbrali gref grep -F
+abbrali grei grep -i
+abbrali grer grep -R
+abbrali grev grep -v
 abbrali grp grep
 abbrali grpe grep -E
 abbrali grpf grep -F
