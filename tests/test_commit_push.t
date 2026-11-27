@@ -43,10 +43,13 @@ end
 function gpf
     printf 'force\t%s\n' "$PWD" >> "$TEST_LOG"
 end
-for name in gcm gacm gcma gacma gacmp gcmf
+for name in gcm gacm gcma gacma gcmf
     function $name
         git commit $argv
     end
+end
+function gacmp
+    git commit $argv; and git push
 end
 function gcm-extra
     return 0
@@ -95,6 +98,7 @@ sub plain_and_wrapped_commit_forms {
         [ 'gcma -m message',              'force' ],
         [ 'gacma -m message',             'force' ],
         [ 'gacmp',                        'push' ],
+        [ 'gacmp --amend',                'push' ],
         [ 'gcmf HEAD',                    'push' ],
         [ './commit',                     'push' ],
       )
@@ -136,6 +140,8 @@ sub failed_or_unrelated_commands_do_not_push {
         [ 'git commit',                    '', undef, 23 ],
         [ 'cdc "$TEST_TARGET" git commit', '', undef, 23 ],
         [ 'cdc "$TEST_TARGET" gcma',       '', undef, 23 ],
+        [ 'gacmp',                         '', undef, 23 ],
+        [ 'cdc "$TEST_TARGET" gacmp',      '', undef, 23 ],
         ['cdc "$TEST_TARGET" git commit; and true'],
     );
 }

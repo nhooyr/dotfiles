@@ -473,7 +473,7 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     set -l command $(commandline --input="$cmdline" --current-process --tokens-expanded)
     contains -- "$command[1]" and or; and set -e command[1]
     set -l push
-    while test "$command[1]" = cdc
+    if test "$command[1]" = cdc
         set -a push $command[1..2]
         set -e command[1..2]
     end
@@ -481,7 +481,7 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     if test "$command[1]" = git; and test "$command[2]" = commit
         set command gcm $command[3..]
     end
-    contains -- "$command[1]" gcm gacm gacmp gcmf gcma gacma ./commit; or return 0
+    contains -- "$command[1]" gcm gacm gcmf gcma gacma ./commit; or return 0
     if contains -- "$command[1]" gcma gacma; or contains -- --amend $command[2..]
         set -a push gpf
     else
