@@ -97,10 +97,12 @@ FISH
 sub fake_dotfiles {
     my ( $self, $prompt ) = @_;
     my $fixture = "$self->{root}/dotfiles";
-    make_path("$fixture/fish");
+    make_path( "$fixture/fish", "$fixture/bin" );
     write_file( "$fixture/fish/prompt.fish", $prompt );
-    symlink "$dotfiles/fish/git_prompt_supervisor.pl", "$fixture/fish/git_prompt_supervisor.pl"
+    symlink "$dotfiles/bin/super", "$fixture/bin/super"
       or die "link prompt supervisor: $!";
+    symlink "$dotfiles/fish/git_prompt_cache.fish", "$fixture/fish/git_prompt_cache.fish"
+      or die "link prompt cache: $!";
     $self->{env}{TEST_DOTFILES} = $fixture;
     return $fixture;
 }
@@ -468,7 +470,7 @@ FISH
     is(
         output($result),
         "pending=0\n (last-known)\n (complete-result)\n",
-        'a premature signal retains the request until the status marker is ready'
+        'premature completion retains the request until its identity is ready'
     );
     is(
         read_file("$self->{repo}/.fish_git_prompt"),
@@ -494,7 +496,7 @@ FISH
           . wait_for_marker('first-worker')
           . <<'FISH' . wait_for_retired_process() . <<'FISH' . wait_for_refresh() . <<'FISH' );
 set -l retired_process "$__aqsnow_vcs_process"
-command kill -KILL -- "-$retired_process"
+command kill -TERM -- "$retired_process"
 FISH
 git_prompt_queue
 test "$__aqsnow_vcs_process" != "$retired_process"
@@ -509,42 +511,6 @@ FISH
         'a dead supervisor is replaced on the next update without losing cached text'
     );
     is( read_file("$self->{repo}/.fish_git_prompt"), ' (recovered)', 'recovered worker updates disk cache' );
-}
-
-sub missing_control_is_recovered {
-    my ($self) = @_;
-    write_file( "$self->{repo}/.fish_git_prompt", ' (last-known)' );
-    fake_dotfiles( $self, <<'FISH' );
-function aqsnow_vcs_prompt
-    if not test -e "$TEST_ROOT/first-worker"
-        printf started > "$TEST_ROOT/first-worker"
-        command sleep 20
-    end
-    printf ' (recovered-control)'
-end
-FISH
-    my $result = shell( $self,
-            "git_prompt_queue\n"
-          . wait_for_marker('first-worker')
-          . <<'FISH' . wait_for_refresh() . <<'FISH' . wait_for_retired_process() . "exit 0\n" );
-set -l retired_process "$__aqsnow_vcs_process"
-command rm -- "$__aqsnow_rendezvous_dir/vcs-alive"
-git_prompt_queue
-test "$__aqsnow_vcs_process" != "$retired_process"
-printf 'restarted=%s\n' "$status"
-FISH
-printf '%s\n' "$AQSNOW_FISH_GIT_PROMPT"
-FISH
-    is(
-        output($result),
-        "restarted=0\n (recovered-control)\n",
-        'missing ownership control immediately permits a replacement and retires the old supervisor'
-    );
-    is(
-        read_file("$self->{repo}/.fish_git_prompt"),
-        ' (recovered-control)',
-        'replacement result reaches disk cache'
-    );
 }
 
 sub obsolete_worker_does_not_block_new_directory {
@@ -646,7 +612,7 @@ function hold_completion
     block --local
     git_prompt_queue
     for i in $(seq 1 100)
-        test -f "$__aqsnow_vcs_file.status"; and break
+        test -f "$__aqsnow_vcs_file.status"; and not command kill -0 "$__aqsnow_vcs_process" 2>/dev/null; and break
         command sleep 0.01
     end
     test -f "$__aqsnow_vcs_file.status"; or exit 3
@@ -687,7 +653,7 @@ function hold_completion
     block --local
     git_prompt_queue
     for i in $(seq 1 100)
-        test -f "$__aqsnow_vcs_file.status"; and break
+        test -f "$__aqsnow_vcs_file.status"; and not command kill -0 "$__aqsnow_vcs_process" 2>/dev/null; and break
         command sleep 0.01
     end
     test -f "$__aqsnow_vcs_file.status"; or exit 3
@@ -876,7 +842,7 @@ FISH
         ' (async-refreshed)',
         'real worker completion persists the result'
     );
-    ok( !-e "$self->{root}/rendezvous/vcs-alive", 'Fish exit cleans supervisor liveness' );
+    is_deeply( directory_entries("$self->{root}/rendezvous"), [], 'completion cleans result files' );
 }
 
 sub cancellation_immediately_stops_worker_group {
@@ -911,7 +877,7 @@ command "$TEST_PERL" -MTime::HiRes=time,sleep -e '
     }
 ' "$worker"; or exit
 set -q __aqsnow_vcs_pending; and exit 2
-test -e "$__aqsnow_rendezvous_dir/vcs-alive"; and exit 3
+functions -q aqsnow_vcs_prompt_finished; and exit 3
 exit 0
 FISH
     is( output($result), '', 'cancellation stops the worker before its two-second ownership poll' );
@@ -1055,7 +1021,6 @@ run_cases(
         resourcing_keeps_generations_monotonic        => \&resourcing_keeps_generations_monotonic,
         result_requires_ready_status                  => \&result_requires_ready_status,
         dead_supervisor_is_recovered                  => \&dead_supervisor_is_recovered,
-        missing_control_is_recovered                  => \&missing_control_is_recovered,
         obsolete_worker_does_not_block_new_directory  => \&obsolete_worker_does_not_block_new_directory,
         external_repository_replacement_is_rejected   => \&external_repository_replacement_is_rejected,
         completed_worker_rejects_replacement_before_delivery =>

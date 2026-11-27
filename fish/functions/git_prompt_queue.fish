@@ -101,10 +101,8 @@ function aqsnow_vcs_prompt_preexec --on-event fish_preexec
 end
 
 function aqsnow_vcs_prompt_cancel
+    functions --erase aqsnow_vcs_prompt_finished
     aqsnow_vcs_prompt_cleanup
-    if set -q __aqsnow_vcs_process
-        command kill -TERM "$__aqsnow_vcs_process" 2>/dev/null
-    end
     if set -q __aqsnow_vcs_file
         command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
     end
@@ -113,12 +111,12 @@ function aqsnow_vcs_prompt_cancel
 end
 
 function aqsnow_vcs_prompt_cleanup --on-event fish_exit
-    if set -q __aqsnow_rendezvous_dir
-        command rm -f -- "$__aqsnow_rendezvous_dir/vcs-alive"
+    if set -q __aqsnow_vcs_process
+        command kill -TERM "$__aqsnow_vcs_process" 2>/dev/null
     end
 end
 
-function aqsnow_vcs_prompt_done --on-signal USR1
+function aqsnow_vcs_prompt_done
     set -q __aqsnow_vcs_pending; or return
     test -f "$__aqsnow_vcs_file.status"; or return
     set -l previous "$__aqsnow_vcs_prompt"
@@ -127,6 +125,9 @@ function aqsnow_vcs_prompt_done --on-signal USR1
     set -l identity
     if test -r "$__aqsnow_vcs_file.status"
         read code identity <"$__aqsnow_vcs_file.status"
+    end
+    if set -q argv[1]
+        set code "$argv[1]"
     end
     set -l value "$(string collect < "$__aqsnow_vcs_file")"
     set -l current_root "$(aqsnow_vcs_prompt_root "$__aqsnow_vcs_request_directory")"
@@ -164,19 +165,8 @@ function git_prompt_queue
         if not set -q __aqsnow_vcs_process
             return
         end
-        set -l owner
-        if test -r "$__aqsnow_rendezvous_dir/vcs-alive"
-            read owner <"$__aqsnow_rendezvous_dir/vcs-alive"
-        end
         if test "$__aqsnow_vcs_request_generation" != "$__aqsnow_vcs_generation"
             or test "$__aqsnow_vcs_request_directory" != "$PWD"
-            or test "$owner" != "$__aqsnow_vcs_token"
-            aqsnow_vcs_prompt_cancel
-        else if not command kill -0 "$__aqsnow_vcs_process" 2>/dev/null
-            if test -f "$__aqsnow_vcs_file.status"
-                aqsnow_vcs_prompt_done
-                return
-            end
             aqsnow_vcs_prompt_cancel
         else
             return
@@ -191,14 +181,17 @@ function git_prompt_queue
     set -g __aqsnow_vcs_request_directory "$PWD"
     set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"
     set -g __aqsnow_vcs_request_generation "$__aqsnow_vcs_generation"
-    printf '%s\n' "$__aqsnow_vcs_token" >"$__aqsnow_rendezvous_dir/vcs-alive"; or begin
-        aqsnow_vcs_prompt_cancel
-        return 1
-    end
     set -e __aqsnow_vcs_dirty
     set -l interpreter "$(status fish-path)"
-    command "$dotfiles/fish/git_prompt_supervisor.pl" "$interpreter" "$dotfiles/fish/prompt.fish" \
-        "$__aqsnow_rendezvous_dir" "$__aqsnow_vcs_token" "$fish_pid" "$__aqsnow_vcs_root" >/dev/null 2>&1 &
+    GIT_OPTIONAL_LOCKS=0 command "$dotfiles/bin/super" "$interpreter" --no-config -c '
+        source "$argv[1]/fish/git_prompt_cache.fish"; or exit
+        set -l identity "$(git_prompt_identity "$argv[3]")"
+        source "$argv[1]/fish/prompt.fish"; or exit
+        aqsnow_vcs_prompt
+        set -l code "$status"
+        printf "%s %s\n" "$code" "$identity" >"$argv[2].status"; or exit
+        exit "$code"
+    ' "$dotfiles" "$__aqsnow_vcs_file" "$__aqsnow_vcs_root" </dev/null >"$__aqsnow_vcs_file" 2>/dev/null &
     set -l code "$status"
     if test "$code" -ne 0
         aqsnow_vcs_prompt_cancel
@@ -206,6 +199,17 @@ function git_prompt_queue
     end
     if set -q __aqsnow_vcs_pending
         set -g __aqsnow_vcs_process "$last_pid"
-        disown "$__aqsnow_vcs_process"
+        # Keep the job owned for exit events; jobs started in functions do not print completion notices.
+        function aqsnow_vcs_prompt_finished --on-process-exit "$__aqsnow_vcs_process"
+            test "$argv[2]" = "$__aqsnow_vcs_process"; or return
+            functions --erase aqsnow_vcs_prompt_finished
+            if test "$argv[3]" -ge 128
+                aqsnow_vcs_prompt_cancel
+            else if test -f "$__aqsnow_vcs_file.status"
+                aqsnow_vcs_prompt_done "$argv[3]"
+            else
+                aqsnow_vcs_prompt_cancel
+            end
+        end
     end
 end
