@@ -14,8 +14,8 @@ function rendezvous
             case '*'
                 return 1
         end
-    else
-        set -q argv[1]; or return 1
+    else if set -q argv[1]
+        return 1
     end
     if test "$fish_bind_mode" != insert
         set -g fish_bind_mode insert
