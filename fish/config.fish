@@ -139,16 +139,19 @@ alias bigdirs='du -hd 1 | sort -hr | head -n 16'
 abbr -a --set-cursor fdg "fdg '*%*'"
 set -gx GREP_COLORS 'mt=30;103:fn=36:ln=35:bn=35:se=00'
 set -gx GREP_COLOR '30;103'
-abbr -a gr grep
-abbr -a gre grep
-abbrali grepe grep -E
-abbrali grepf grep -F
-abbrali grepi grep -i
-abbrali grepr grep -R
+abbrali gr grep
+abbrali gre grep
+abbrali grp grep
+abbrali grpe grep -E
+abbrali grpf grep -F
+abbrali grpi grep -i
+abbrali grpr grep -R
+abbrali grpv grep -v
 abbr -a --command grep e -- -E
 abbr -a --command grep f -- -F
 abbr -a --command grep i -- -i
 abbr -a --command grep r -- -R
+abbr -a --command grep v -- -v
 abbrali ggf gg -F
 abbr -a --set-cursor grepw "grepe '^\s+%'"
 abbr -a --set-cursor ggw "gg '^[[:space:]]+%'"
