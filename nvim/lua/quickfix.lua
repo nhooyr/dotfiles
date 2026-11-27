@@ -1,6 +1,11 @@
 local fn = vim.fn
 local kinds = { e = 'error', w = 'warning', i = 'info', n = 'note' }
 
+local function toggle_location_list()
+	local list = fn.getloclist(0, { winid = 0, id = 0 })
+	vim.cmd(list.winid ~= 0 and 'lclose' or list.id ~= 0 and 'lopen' or 'Lvim')
+end
+
 local function range(first, last)
 	return last > 0 and last ~= first and first .. '-' .. last or tostring(first)
 end
@@ -63,4 +68,4 @@ local function fmt(info)
 	return lines
 end
 
-return { fmt = fmt, title = title, directory = directory }
+return { fmt = fmt, title = title, directory = directory, toggle_location_list = toggle_location_list }
