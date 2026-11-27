@@ -1,8 +1,8 @@
 local function setup()
-	vim.keymap.set('n', ']d', '/^diff --<CR>', { buffer = true })
-	vim.keymap.set('n', '[d', '?^diff --<CR>', { buffer = true })
-	vim.keymap.set('n', ']h', [[/^\(diff --\|@@\)<CR>]], { buffer = true })
-	vim.keymap.set('n', '[h', [[?^\(diff --\|@@\)<CR>]], { buffer = true })
+	vim.keymap.set('n', ']f', '/^diff --<CR>', { buffer = true })
+	vim.keymap.set('n', '[f', '?^diff --<CR>', { buffer = true })
+	vim.keymap.set('n', ']c', [[/^\(diff --\|@@\)<CR>]], { buffer = true })
+	vim.keymap.set('n', '[c', [[?^\(diff --\|@@\)<CR>]], { buffer = true })
 end
 
 local function orig()

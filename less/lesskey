@@ -1,10 +1,10 @@
 ; noaction :
 ^E noaction 2j
 ^Y noaction 2k
-]d forw-search ^K\^(commit\ |diff\ --)\nn
-[d back-search ^K\^(commit\ |diff\ --)\nn
-]g forw-search ^K\^commit\ \nn
-[g back-search ^K\^commit\ \nn
-]h forw-search ^K\^(commit\ |diff\ --|@@)\nn
-[h back-search ^K\^(commit\ |diff\ --|@@)\nn
+]s forw-search ^K\^commit\ \nn
+[s back-search ^K\^commit\ \nn
+]f forw-search ^K\^(commit\ |diff\ --)\nn
+[f back-search ^K\^(commit\ |diff\ --)\nn
+]c forw-search ^K\^(commit\ |diff\ --|@@)\nn
+[c back-search ^K\^(commit\ |diff\ --|@@)\nn
 \\h undo-hilite
