@@ -1,3 +1,4 @@
+# Complete OWNER/REPO from ~/code/OWNER/REPO checkouts without querying GitHub.
 function __gh_complete_repositories
     for gitdir in ~/code/*/*/.git
         set -l repository "$(string replace -- "$HOME/code/" '' "$(path dirname -- "$gitdir")")"
