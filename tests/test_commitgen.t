@@ -42,6 +42,10 @@ close $message;
 open my $calls, '>>', $log or die $!;
 print {$calls} encode_json({text => $text, args => \@ARGV}), "\n";
 close $calls;
+if ($ENV{TEST_EDITOR_ACTION}) {
+    system $^X, $ENV{TEST_EDITOR_ACTION};
+    die "editor action failed\n" if $?;
+}
 if ($ENV{TEST_REPLACE_SCRIPT}) {
     open my $replacement, '>', "$ENV{TEST_REPO}/replacement" or die $!;
     print {$replacement} "#!/bin/sh\nprintf 'replacement\\n'\n";
@@ -54,6 +58,12 @@ PERL
     write_file( "$self->{temporary}/bin/trash", '#!' . perl_executable() . "\n" . <<'PERL' );
 use strict;
 use warnings;
+if ($ENV{TEST_TRASH_REPLACE}) {
+    open my $file, '>', "$ENV{TEST_REPO}/replacement" or die $!;
+    print {$file} "late replacement\n";
+    close $file or die $!;
+    rename "$ENV{TEST_REPO}/replacement", "$ENV{TEST_REPO}/commit" or die $!;
+}
 my $destination = "$ENV{TEST_ROOT}/trashed-commit";
 unlink $destination if -e $destination;
 rename $ARGV[0], $destination or die $!;
@@ -110,6 +120,88 @@ sub prepare_two {
     my $result = generate( $self, groups() );
     is( $result->{returncode}, 0, $result->{stderr} );
     ok( -x "$self->{repo}/commit", 'generator publishes an executable helper' );
+}
+
+sub prepare_one {
+    my ($self) = @_;
+    write_file( "$self->{repo}/one.txt", "one prepared\n" );
+    my $result = generate( $self, [ groups()->[0] ] );
+    is( $result->{returncode}, 0, $result->{stderr} );
+}
+
+sub concurrent_action {
+    my ( $self, $body ) = @_;
+    my $path = "$self->{temporary}/concurrent-action.pl";
+    write_file( $path, <<'PERL' . $body . <<'END' );
+use strict;
+use warnings;
+use File::Copy qw(copy);
+delete @ENV{qw(GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR)};
+sub git {
+    system $ENV{TEST_REAL_GIT}, '--no-pager', '-C', $ENV{TEST_REPO}, @_;
+    die "concurrent Git action failed\n" if $?;
+}
+sub capture_git {
+    open my $pipe, '-|', $ENV{TEST_REAL_GIT}, '--no-pager', '-C', $ENV{TEST_REPO}, @_ or die $!;
+    my $text = do { local $/; <$pipe> };
+    close $pipe or die "concurrent Git query failed\n";
+    chomp $text;
+    return $text;
+}
+sub write_file {
+    open my $file, '>', $_[0] or die $!;
+    print {$file} $_[1];
+    close $file or die $!;
+}
+PERL
+copy "$ENV{TEST_REPO}/.git/index", "$ENV{TEST_ROOT}/concurrent-index" or die $!;
+write_file("$ENV{TEST_ROOT}/concurrent-head", capture_git('rev-parse', 'HEAD'));
+END
+    $self->{env}{TEST_REAL_GIT} = $git;
+    return $path;
+}
+
+sub editor_action {
+    my ( $self, $body ) = @_;
+    $self->{env}{TEST_EDITOR_ACTION} = concurrent_action( $self, $body );
+}
+
+sub git_action {
+    my ( $self, $trigger, $body ) = @_;
+    $self->{env}{TEST_GIT_ACTION}  = concurrent_action( $self, $body );
+    $self->{env}{TEST_GIT_TRIGGER} = $trigger;
+    write_file( "$self->{temporary}/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
+use strict;
+use warnings;
+my $trigger = $ENV{TEST_GIT_TRIGGER};
+my $matches = $trigger eq 'snapshot'
+    ? ((grep { $_ eq 'diff' } @ARGV) && (grep { $_ eq '--cached' } @ARGV))
+    : $trigger eq 'publish'
+    ? ((grep { $_ eq 'update-ref' } @ARGV) && (grep { $_ eq '--stdin' } @ARGV))
+    : (grep { $_ eq $trigger } @ARGV);
+my $marker = "$ENV{TEST_ROOT}/git-action-ran";
+sub action {
+    open my $file, '>', $marker or die $!;
+    close $file;
+    system $^X, $ENV{TEST_GIT_ACTION};
+    die "Git action failed\n" if $?;
+}
+action() if $matches && !-e $marker && $trigger ne 'snapshot';
+system $ENV{TEST_REAL_GIT}, @ARGV;
+my $status = $?;
+action() if !$status && $matches && !-e $marker && $trigger eq 'snapshot';
+exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
+PERL
+    chmod 0755, "$self->{temporary}/bin/git" or die $!;
+}
+
+sub concurrent_index_preserved {
+    my ($self) = @_;
+    is(
+        Digest::SHA->new(256)->addfile("$self->{repo}/.git/index")->hexdigest,
+        Digest::SHA->new(256)->addfile("$self->{temporary}/concurrent-index")->hexdigest,
+        'concurrent index content is preserved byte for byte'
+    );
 }
 
 sub help_and_completion_are_read_only {
@@ -321,7 +413,7 @@ use strict;
 use warnings;
 system $ENV{TEST_REAL_GIT}, @ARGV;
 my $status = $? >> 8;
-if (!$status && grep { $_ eq 'commit' } @ARGV) {
+if (!$status && (grep { $_ eq 'update-ref' } @ARGV) && (grep { $_ eq '--stdin' } @ARGV)) {
     my $path = "$ENV{TEST_ROOT}/commits-finished";
     my $count = 1;
     if (open my $previous, '<', $path) { ++$count while <$previous>; close $previous; }
@@ -515,8 +607,394 @@ sub generator_uses_the_runtime_lock {
     unlink $lock_path or die $!;
 }
 
+sub concurrent_commit_during_editor_is_retained {
+    my ($self) = @_;
+    prepare_one($self);
+    editor_action( $self, <<'PERL' );
+write_file("$ENV{TEST_REPO}/unrelated.txt", "concurrent commit\n");
+git('commit', '--quiet', '--only', '-m', 'Concurrent', '--', 'unrelated.txt');
+PERL
+    my $result = run_commit($self);
+    isnt( $result->{returncode}, 0, 'concurrent commit stops the prepared commit' );
+    concurrent_index_preserved($self);
+    my $concurrent = read_file("$self->{temporary}/concurrent-head");
+    is( git( $self, 'rev-parse', 'HEAD' ), $concurrent, 'concurrent commit remains the branch tip' );
+    is(
+        git( $self, 'show', 'HEAD:unrelated.txt' ),
+        'concurrent commit',
+        'concurrent committed content survives'
+    );
+    is( read_file("$self->{repo}/one.txt"), "one prepared\n", 'prepared worktree content is retained' );
+    ok( -x "$self->{repo}/commit", 'contention retains the commit helper' );
+}
+
+sub concurrent_commit_before_git_starts_is_retained {
+    my ($self) = @_;
+    prepare_one($self);
+    git_action( $self, 'commit', <<'PERL' );
+write_file("$ENV{TEST_REPO}/unrelated.txt", "concurrent commit\n");
+git('commit', '--quiet', '--only', '-m', 'Concurrent', '--', 'unrelated.txt');
+PERL
+    my $result = run_commit($self);
+    isnt( $result->{returncode}, 0, 'concurrent update after the last precheck stops publication' );
+    concurrent_index_preserved($self);
+    my $concurrent = read_file("$self->{temporary}/concurrent-head");
+    is( git( $self, 'rev-parse', 'HEAD' ),
+        $concurrent, 'no stale prepared tree is committed over the new tip' );
+    is(
+        git( $self, 'show', 'HEAD:unrelated.txt' ),
+        'concurrent commit',
+        'concurrent content is not reverted'
+    );
+    is( git( $self, 'show', 'HEAD:one.txt' ),
+        'one original', 'prepared commit is not published after contention' );
+    ok( -x "$self->{repo}/commit", 'contention leaves the helper available for review' );
+}
+
+sub concurrent_commit_at_publication_is_retained {
+    my ($self) = @_;
+    prepare_one($self);
+    git_action( $self, 'publish', <<'PERL' );
+die "missing index lock at publication\n" unless -e "$ENV{TEST_REPO}/.git/index.lock";
+$ENV{GIT_INDEX_FILE} = "$ENV{TEST_ROOT}/concurrent-commit-index";
+git('read-tree', 'HEAD');
+write_file("$ENV{TEST_REPO}/unrelated.txt", "concurrent publication\n");
+git('add', 'unrelated.txt');
+git('commit', '--quiet', '-m', 'Concurrent publication');
+delete $ENV{GIT_INDEX_FILE};
+PERL
+    my $result = run_commit($self);
+    isnt( $result->{returncode}, 0, 'HEAD changed at publication stops the prepared commit' );
+    concurrent_index_preserved($self);
+    is(
+        git( $self, 'rev-parse', 'HEAD' ),
+        read_file("$self->{temporary}/concurrent-head"),
+        'concurrent publication remains the branch tip'
+    );
+    is(
+        git( $self, 'show', 'HEAD:unrelated.txt' ),
+        'concurrent publication',
+        'compare-and-swap failure preserves concurrent committed content'
+    );
+    is( git( $self, 'show', 'HEAD:one.txt' ),
+        'one original', 'prepared candidate is never installed over the concurrent publication' );
+    is(
+        read_file("$self->{repo}/one.txt"),
+        "one prepared\n",
+        'uncommitted prepared content remains available'
+    );
+}
+
+sub same_oid_branch_switch_at_publication_preserves_refs {
+    my ($self) = @_;
+    git( $self, 'branch', 'other' );
+    prepare_one($self);
+    git_action( $self, 'publish', <<'PERL' );
+die "missing index lock at publication\n" unless -e "$ENV{TEST_REPO}/.git/index.lock";
+git('symbolic-ref', 'HEAD', 'refs/heads/other');
+PERL
+    my $result = run_commit($self);
+    isnt( $result->{returncode}, 0, 'same-OID branch change at publication stops the prepared commit' );
+    concurrent_index_preserved($self);
+    is( git( $self, 'symbolic-ref', 'HEAD' ), 'refs/heads/other', 'concurrent HEAD target remains selected' );
+    is( git( $self, 'rev-parse',    'refs/heads/main' ), $self->{base}, 'original branch remains unchanged' );
+    is( git( $self, 'rev-parse',    'refs/heads/other' ),
+        $self->{base}, 'new branch receives no prepared candidate' );
+    is(
+        read_file("$self->{repo}/one.txt"),
+        "one prepared\n",
+        'same-OID branch change preserves working content'
+    );
+}
+
+sub concurrent_staging_during_editor_is_retained {
+    my ($self) = @_;
+    write_file( "$self->{repo}/two.txt", "previously staged\n" );
+    git( $self, 'add', 'two.txt' );
+    prepare_one($self);
+    editor_action( $self, <<'PERL' );
+write_file("$ENV{TEST_REPO}/two.txt", "changed staged content\n");
+write_file("$ENV{TEST_REPO}/unrelated.txt", "new staged content\n");
+git('add', 'two.txt', 'unrelated.txt');
+PERL
+    my $result = run_commit($self);
+    is(
+        git( $self, 'show', ':two.txt' ),
+        'changed staged content',
+        'staging changed during editing is retained'
+    );
+    is(
+        git( $self, 'show', ':unrelated.txt' ),
+        'new staged content',
+        'new staging added during editing is retained'
+    );
+    is(
+        read_file("$self->{repo}/two.txt"),
+        "changed staged content\n",
+        'concurrent staged file is not rewritten'
+    );
+
+    if ( $result->{returncode} ) {
+        concurrent_index_preserved($self);
+    }
+}
+
+sub concurrent_worktree_edits_during_editor_are_retained {
+    my ($self) = @_;
+    prepare_one($self);
+    editor_action( $self, <<'PERL' );
+write_file("$ENV{TEST_REPO}/one.txt", "edited during review\n");
+write_file("$ENV{TEST_REPO}/unrelated.txt", "unrelated edit during review\n");
+write_file("$ENV{TEST_REPO}/new.txt", "untracked edit during review\n");
+PERL
+    run_commit($self);
+    is(
+        read_file("$self->{repo}/one.txt"),
+        "edited during review\n",
+        'selected file edit made during review survives'
+    );
+    is(
+        read_file("$self->{repo}/unrelated.txt"),
+        "unrelated edit during review\n",
+        'unrelated worktree edit survives'
+    );
+    is(
+        read_file("$self->{repo}/new.txt"),
+        "untracked edit during review\n",
+        'new untracked content survives'
+    );
+}
+
+sub branch_switch_during_editor_preserves_both_refs {
+    my ($self) = @_;
+    git( $self, 'branch', 'other' );
+    prepare_one($self);
+    editor_action( $self, <<'PERL' );
+git('switch', '--quiet', 'other');
+PERL
+    my $result = run_commit($self);
+    isnt( $result->{returncode}, 0, 'branch switch stops publication' );
+    concurrent_index_preserved($self);
+    is( git( $self, 'symbolic-ref', 'HEAD' ), 'refs/heads/other', 'concurrent branch selection is retained' );
+    is( git( $self, 'rev-parse',    'refs/heads/main' ), $self->{base}, 'original branch is not changed' );
+    is( git( $self, 'rev-parse',    'refs/heads/other' ),
+        $self->{base}, 'new branch receives no unintended commit' );
+    is(
+        read_file("$self->{repo}/one.txt"),
+        "one prepared\n",
+        'branch switch retains prepared worktree content'
+    );
+}
+
+sub generator_head_change_between_groups_is_rejected {
+    my ($self) = @_;
+    write_file( "$self->{repo}/one.txt", "one prepared\n" );
+    write_file( "$self->{repo}/two.txt", "two prepared\n" );
+    write_file( "$self->{repo}/commit",  "existing output\n" );
+    git_action( $self, 'snapshot', <<'PERL' );
+write_file("$ENV{TEST_REPO}/two.txt", "concurrent base\n");
+git('commit', '--quiet', '--only', '-m', 'Concurrent base', '--', 'two.txt');
+write_file("$ENV{TEST_REPO}/two.txt", "two prepared\n");
+PERL
+    my $result = generate( $self, groups() );
+    isnt( $result->{returncode}, 0, 'generator rejects HEAD changes between group captures' );
+    concurrent_index_preserved($self);
+    is( read_file("$self->{repo}/commit"), "existing output\n", 'generation keeps the previous output' );
+    is(
+        git( $self, 'rev-parse', 'HEAD' ),
+        read_file("$self->{temporary}/concurrent-head"),
+        'concurrent HEAD survives generation'
+    );
+    is(
+        git( $self, 'show', 'HEAD:two.txt' ),
+        'concurrent base',
+        'generation preserves the concurrent base content'
+    );
+    is(
+        read_file("$self->{repo}/two.txt"),
+        "two prepared\n",
+        'generation retains worktree edits after the concurrent commit'
+    );
+}
+
+sub generator_concurrent_output_changes_are_preserved {
+    my ($self) = @_;
+    write_file( "$self->{repo}/one.txt", "one prepared\n" );
+    for my $operation (qw(replace remove)) {
+        write_file( "$self->{repo}/commit", "existing output\n" );
+        unlink "$self->{temporary}/git-action-ran";
+        $self->{env}{TEST_OUTPUT_OPERATION} = $operation;
+        git_action( $self, 'snapshot', <<'PERL' );
+if ($ENV{TEST_OUTPUT_OPERATION} eq 'replace') {
+    write_file("$ENV{TEST_REPO}/replacement", "concurrent output\n");
+    rename "$ENV{TEST_REPO}/replacement", "$ENV{TEST_REPO}/commit" or die $!;
+} else {
+    unlink "$ENV{TEST_REPO}/commit" or die $!;
+}
+PERL
+        my $result = generate( $self, [ groups()->[0] ] );
+        isnt( $result->{returncode}, 0, "$operation during input capture stops publication" );
+        concurrent_index_preserved($self);
+        if ( $operation eq 'replace' ) {
+            is(
+                read_file("$self->{repo}/commit"),
+                "concurrent output\n",
+                'concurrent replacement is preserved'
+            );
+        }
+        else {
+            ok( !-e "$self->{repo}/commit", 'concurrently removed output is not recreated' );
+        }
+        is( git( $self, 'rev-parse', 'HEAD' ),
+            $self->{base}, 'output contention creates no repository commit' );
+    }
+}
+
+sub generator_selected_content_change_is_rejected {
+    my ($self) = @_;
+    write_file( "$self->{repo}/one.txt", "one prepared\n" );
+    write_file( "$self->{repo}/commit",  "existing output\n" );
+    git_action( $self, 'snapshot', <<'PERL' );
+write_file("$ENV{TEST_REPO}/one.txt", "changed during capture\n");
+PERL
+    my $result = generate( $self, [ groups()->[0] ] );
+    isnt( $result->{returncode}, 0, 'generator rejects selected content changed during capture' );
+    concurrent_index_preserved($self);
+    is(
+        read_file("$self->{repo}/commit"),
+        "existing output\n",
+        'stale capture does not replace existing output'
+    );
+    is(
+        read_file("$self->{repo}/one.txt"),
+        "changed during capture\n",
+        'concurrent selected-file edit is preserved'
+    );
+}
+
+sub output_changed_after_final_check_is_preserved {
+    my ($self) = @_;
+    write_file( "$self->{repo}/one.txt",             "one prepared\n" );
+    write_file( "$self->{temporary}/plan.json",      encode_json( { groups => [ groups()->[0] ] } ) );
+    write_file( "$self->{temporary}/late-output.pl", <<'PERL' );
+use strict;
+use warnings;
+use lib $ENV{TEST_COMMIT_LIB};
+use CommitScript;
+my ($plan, $output) = @ARGV;
+my $original = \&CommitScript::output_state;
+my $checks = 0;
+no warnings 'redefine';
+local *CommitScript::output_state = sub {
+    my $state = $original->(@_);
+    if ($_[0] eq $output && ++$checks == 2) {
+        open my $file, '>', "$output.replacement" or die $!;
+        print {$file} "late concurrent output\n";
+        close $file or die $!;
+        rename "$output.replacement", $output or die $!;
+    }
+    return $state;
+};
+CommitScript::generate(plan_file => $plan, path => $output);
+PERL
+    $self->{env}{TEST_COMMIT_LIB} = "$root/codex/lib";
+    for my $existing ( 0, 1 ) {
+        my $output = "$self->{repo}/commit";
+        unlink $output;
+        write_file( $output, "original output\n" ) if $existing;
+        my $result = run_command(
+            [
+                perl_executable(),              "$self->{temporary}/late-output.pl",
+                "$self->{temporary}/plan.json", $output
+            ],
+            { cwd => $self->{repo}, env => $self->{env}, timeout => 30 }
+        );
+        isnt( $result->{returncode}, 0, 'late output contention stops publication' );
+        is(
+            read_file($output),
+            "late concurrent output\n",
+            'output created or replaced after the final check is preserved'
+        );
+        is( git( $self, 'rev-parse', 'HEAD' ), $self->{base},
+            'publication contention leaves HEAD unchanged' );
+    }
+}
+
+sub replacement_created_at_trash_is_preserved {
+    my ($self) = @_;
+    prepare_one($self);
+    $self->{env}{TEST_TRASH_REPLACE} = 1;
+    my $result = run_commit($self);
+    is( $result->{returncode}, 0, $result->{stderr} );
+    ok( -f "$self->{repo}/commit", 'replacement created at cleanup remains at the original path' );
+    is(
+        read_file("$self->{repo}/commit"),
+        "late replacement\n",
+        'cleanup never trashes a concurrently replaced helper'
+    );
+    like( read_file("$self->{temporary}/trashed-commit"),
+        qr/^#!\/bin\/sh\n/, 'only the completed generated helper is trashed' );
+}
+
+sub interrupted_index_preparation_recovers_owned_lock {
+    my ($self) = @_;
+    write_file( "$self->{repo}/two.txt", "unrelated staged\n" );
+    git( $self, 'add', 'two.txt' );
+    prepare_one($self);
+    my $index  = "$self->{repo}/.git/index";
+    my $before = Digest::SHA->new(256)->addfile($index)->hexdigest;
+    write_file( "$self->{temporary}/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
+use strict;
+use warnings;
+my $marker = "$ENV{TEST_ROOT}/killed-index-preparation";
+if ((grep { $_ eq 'merge-tree' } @ARGV) && !-e $marker) {
+    die "missing index lock at interruption\n" unless -e "$ENV{TEST_REPO}/.git/index.lock";
+    open my $file, '>', $marker or die $!;
+    close $file;
+    kill 'KILL', getppid();
+    exit 1;
+}
+exec $ENV{TEST_REAL_GIT}, @ARGV;
+die $!;
+PERL
+    chmod 0755, "$self->{temporary}/bin/git" or die $!;
+    $self->{env}{TEST_REAL_GIT} = $git;
+    my $result = run_commit($self);
+    isnt( $result->{returncode}, 0, 'interrupting index preparation stops the helper' );
+    ok(
+        -e "$self->{temporary}/killed-index-preparation",
+        'interruption occurs after acquiring the index lock'
+    );
+    is( Digest::SHA->new(256)->addfile($index)->hexdigest,
+        $before, 'interruption preserves original index bytes' );
+    is( git( $self, 'rev-parse', 'HEAD' ), $self->{base}, 'interruption publishes no commit' );
+    $result = run_commit($self);
+    is( $result->{returncode}, 0, $result->{stderr} );
+    is( git( $self, 'show', 'HEAD:one.txt' ), 'one prepared',     'rerun completes the prepared commit' );
+    is( git( $self, 'show', ':two.txt' ),     'unrelated staged', 'rerun preserves unrelated staging' );
+    ok( !-e "$self->{repo}/.git/index.lock", 'rerun releases its recovered index lock' );
+}
+
 run_cases(
     {
+        interrupted_index_preparation_recovers_owned_lock =>
+          \&interrupted_index_preparation_recovers_owned_lock,
+        replacement_created_at_trash_is_preserved       => \&replacement_created_at_trash_is_preserved,
+        output_changed_after_final_check_is_preserved   => \&output_changed_after_final_check_is_preserved,
+        concurrent_commit_during_editor_is_retained     => \&concurrent_commit_during_editor_is_retained,
+        concurrent_commit_before_git_starts_is_retained => \&concurrent_commit_before_git_starts_is_retained,
+        concurrent_commit_at_publication_is_retained    => \&concurrent_commit_at_publication_is_retained,
+        same_oid_branch_switch_at_publication_preserves_refs =>
+          \&same_oid_branch_switch_at_publication_preserves_refs,
+        concurrent_staging_during_editor_is_retained => \&concurrent_staging_during_editor_is_retained,
+        concurrent_worktree_edits_during_editor_are_retained =>
+          \&concurrent_worktree_edits_during_editor_are_retained,
+        branch_switch_during_editor_preserves_both_refs  => \&branch_switch_during_editor_preserves_both_refs,
+        generator_head_change_between_groups_is_rejected =>
+          \&generator_head_change_between_groups_is_rejected,
+        generator_concurrent_output_changes_are_preserved =>
+          \&generator_concurrent_output_changes_are_preserved,
+        generator_selected_content_change_is_rejected    => \&generator_selected_content_change_is_rejected,
         generator_uses_the_runtime_lock                  => \&generator_uses_the_runtime_lock,
         output_outside_repository_is_rejected            => \&output_outside_repository_is_rejected,
         conflicting_staged_content_preserves_index       => \&conflicting_staged_content_preserves_index,

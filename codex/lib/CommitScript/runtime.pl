@@ -3,11 +3,13 @@ use warnings;
 use Cwd            qw(abs_path);
 use Digest::SHA    qw(sha256_hex);
 use Fcntl          qw(:DEFAULT :flock);
-use File::Basename qw(dirname);
+use File::Basename qw(dirname basename);
 use File::Copy     qw(copy);
-use File::Path     qw(make_path);
+use File::Path     qw(make_path remove_tree);
 use File::Temp     qw(tempdir);
-use JSON::PP       qw(decode_json encode_json);
+use IPC::Open2     qw(open2);
+use IO::Handle;
+use JSON::PP qw(decode_json encode_json);
 
 my $generated_fingerprint = '0000000000000000000000000000000000000000000000000000000000000000';
 my $script                = abs_path($0);
@@ -45,8 +47,16 @@ my $manifest = decode_json(<<'MANIFEST');
 __COMMIT_MANIFEST__
 MANIFEST
 my $work = tempdir( 'review-commit.XXXXXXXX', TMPDIR => 1, CLEANUP => 1 );
-my $index_lock;
-END { unlink $index_lock if defined $index_lock }
+my ( $index_lock, $index_lock_identity );
+
+sub unlock_index {
+    return unless defined $index_lock;
+    my @current = lstat $index_lock;
+    unlink $index_lock
+      if @current && join( ':', @current[ 0, 1 ] ) eq $index_lock_identity;
+    undef $index_lock;
+}
+END { unlock_index() }
 
 sub capture_result {
     open my $pipe, '-|', 'git', '--no-pager', @_
@@ -105,48 +115,71 @@ sub applies {
     return capture('write-tree') ne $before;
 }
 
-sub stage_index {
-    my ( $path, $before, $after ) = @_;
-    return if $before eq $after;
-    sysopen my $output, "$path.lock", O_CREAT | O_EXCL | O_WRONLY, 0666
-      or die "Cannot lock the Git index: $!\n";
-    $index_lock = "$path.lock";
-    read_file($path) eq $before
-      or die "The Git index changed during preparation; rerun ./commit.\n";
-    binmode $output;
-    print {$output} $after or die "Cannot stage the prepared change: $!\n";
-    close $output          or die "Cannot finish staging the prepared change: $!\n";
-    rename $index_lock, $path or die "Cannot publish the Git index: $!\n";
-    undef $index_lock;
-}
-
 sub finish {
     if ( !-e $script ) {
         print "Commit sequence complete; helper already removed.\n";
         return;
     }
-    my @current_identity = stat $script;
-    my $text             = read_file($script);
-    my ($declared) = $text =~ /^my \$generated_fingerprint = '([0-9a-f]{64})';$/m;
-    my $markers    = $text =~ s/^(my \$generated_fingerprint = ')[0-9a-f]{64}(';)$/$1 . ('0' x 64) . $2/meg;
-    if (   $current_identity[0] != $identity[0]
-        || $current_identity[1] != $identity[1]
-        || !defined($declared)
-        || $markers != 1
-        || $declared ne $generated_fingerprint
-        || sha256_hex($text) ne $generated_fingerprint )
-    {
-        print "Commit sequence complete; keeping the modified or replaced helper.\n";
-        return;
+    my $directory = tempdir( '.commitgen-finish-XXXXXXXX', DIR => dirname($script) );
+    my $held      = "$directory/" . basename($script);
+    my $success   = eval {
+        rename $script, $held or die "Cannot preserve the helper before cleanup: $!\n";
+        my @current_identity = stat $held;
+        my $text             = -f $held && !-l $held ? read_file($held) : '';
+        my ($declared)       = $text =~ /^my \$generated_fingerprint = '([0-9a-f]{64})';$/m;
+        my $markers = $text =~ s/^(my \$generated_fingerprint = ')[0-9a-f]{64}(';)$/$1 . ('0' x 64) . $2/meg;
+        if (  !@current_identity
+            || $current_identity[0] != $identity[0]
+            || $current_identity[1] != $identity[1]
+            || !defined($declared)
+            || $markers != 1
+            || $declared ne $generated_fingerprint
+            || sha256_hex($text) ne $generated_fingerprint )
+        {
+            if ( restore_helper( $held, $script ) ) {
+                print "Commit sequence complete; keeping the modified or replaced helper.\n";
+            }
+            else {
+                print "Commit sequence complete; preserving the replaced helper at $held.\n";
+            }
+        }
+        else {
+            print "Commit sequence complete; moving ./commit to the Trash.\n";
+            run( 'trash', $held );
+        }
+        1;
+    };
+    if ( !$success ) {
+        my $error = $@;
+        restore_helper( $held, $script ) if -e $held || -l $held;
+        rmdir $directory;
+        die $error . "The helper is retained at " . ( -e $held ? $held : $script ) . ".\n";
     }
-    print "Commit sequence complete; moving ./commit to the Trash.\n";
-    run( 'trash', $script );
+    rmdir $directory;
 }
 
-my @groups   = @{ $manifest->{groups} };
-my $progress = capture( 'rev-parse', '--git-path', 'aqsnow-commit-progress' );
+sub restore_helper {
+    my ( $held, $path ) = @_;
+    my $restored = -l $held ? symlink( readlink($held), $path ) : link( $held, $path );
+    return 0 unless $restored;
+    unlink $held or die "Cannot remove the restored helper's backup: $!\n";
+    return 1;
+}
+
+my @groups     = @{ $manifest->{groups} };
+my $repository = capture( 'rev-parse', '--show-toplevel' );
+my $git_dir    = capture( 'rev-parse', '--absolute-git-dir' );
+my $common_dir = capture( 'rev-parse', '--path-format=absolute', '--git-common-dir' );
+my $index_path = capture( 'rev-parse', '--path-format=absolute', '--git-path', 'index' );
+my $progress   = capture( 'rev-parse', '--path-format=absolute', '--git-path', 'aqsnow-commit-progress' );
 make_path($progress);
-my $pending = "$progress/pending-" . sha256_hex($script) . '.json';
+my $script_key = sha256_hex($script);
+my $pending    = "$progress/pending-$script_key.json";
+make_path("$progress/messages");
+
+sub message_path {
+    return "$progress/messages/$script_key-" . sha256_hex( $_[0]{patch} . "\0" . $_[0]{message} );
+}
 sub receipt { return "$progress/" . sha256_hex( $_[0]{patch} ); }
 my %completed;
 sub completed { return $completed{ receipt( $_[0] ) }; }
@@ -159,36 +192,96 @@ sub record_completion {
     $completed{$path} = 1;
 }
 
+sub save_pending {
+    write_file( "$pending.tmp", encode_json( $_[0] ) );
+    rename "$pending.tmp", $pending or die "Cannot record the pending commit: $!\n";
+}
+
+sub candidate_commit {
+    my ($state) = @_;
+    local %ENV = %ENV;
+    $ENV{GIT_DIR}        = "$state->{attempt}/git";
+    $ENV{GIT_COMMON_DIR} = $common_dir;
+    $ENV{GIT_INDEX_FILE} = "$state->{attempt}/index";
+    return capture( 'rev-parse', 'HEAD' );
+}
+
+sub preserve_attempt {
+    my ( $state, $group ) = @_;
+    my $candidate = candidate_commit($state);
+    if ( $candidate ne $state->{base} ) {
+        capture( 'show', '-s', '--format=%P', $candidate ) eq $state->{base}
+          && capture( 'rev-parse', "$candidate^{tree}" ) eq $state->{tree}
+          or die "The reviewed commit changed unexpectedly; recovery files remain at $state->{attempt}.\n";
+        $state->{candidate} = $candidate;
+        my ( $exists, $saved ) = capture_result( 'rev-parse', '--verify', '--quiet', $state->{recovery_ref} );
+        if ( !$exists ) {
+            git( 'update-ref', $state->{recovery_ref}, $candidate, '0' x length($candidate) );
+        }
+        else {
+            $saved eq $candidate or die "The recovery ref changed; preserving $state->{attempt}.\n";
+        }
+        write_file( message_path($group), capture( 'show', '-s', '--format=%B', $candidate ) . "\n" );
+    }
+    elsif ( -f "$state->{attempt}/git/COMMIT_EDITMSG" ) {
+        write_file( message_path($group), read_file("$state->{attempt}/git/COMMIT_EDITMSG") );
+    }
+    save_pending($state);
+}
+
+sub publish_index {
+    my ($state) = @_;
+    return unless defined $state->{index_before};
+    my $current   = sha256_hex( read_file($index_path) );
+    my @lock      = lstat "$index_path.lock";
+    my $owns_lock = @lock && join( ':', @lock[ 0, 1 ] ) eq $state->{lock_identity};
+    if ( $current eq $state->{index_before} && $owns_lock ) {
+        sha256_hex( read_file("$index_path.lock") ) eq $state->{index_after}
+          or die "The pending index changed; recovery files remain at $state->{attempt}.\n";
+        rename "$index_path.lock", $index_path or die "Cannot publish the Git index: $!\n";
+    }
+    elsif ( $current eq $state->{index_after} ) {
+        unlink "$index_path.lock" if $owns_lock;
+    }
+    else {
+        unlink "$index_path.lock" if $owns_lock;
+        die
+"The index changed before publication; preserving it and recovery files at $state->{attempt}.\n";
+    }
+    undef $index_lock;
+    unlink "$state->{attempt}/index.lock";
+}
+
+sub finish_attempt {
+    my ( $state, $group ) = @_;
+    record_completion( $group, $state->{candidate} );
+    git( 'update-ref', '-d', $state->{recovery_ref}, $state->{candidate} );
+    unlink $pending or die "Cannot clear the completed commit: $!\n";
+    unlink message_path($group);
+    remove_tree( $state->{attempt} );
+}
+
 sub recover_pending {
     return unless -f $pending;
     my $state = decode_json( read_file($pending) );
     my ($group) = grep { sha256_hex( $_->{patch} ) eq $state->{patch} } @groups;
     $group or die "The pending commit is absent from this helper; restore its prepared group.\n";
-    my $head = capture( 'rev-parse', 'HEAD' );
-    my @tips = ($head);
-    if ( $state->{ref} ne 'HEAD' ) {
-        my ( $exists, $tip ) = capture_result( 'rev-parse', '--verify', '--quiet', $state->{ref} );
-        push @tips, $tip if $exists && $tip ne $head;
-    }
-    for my $tip (@tips) {
-        my ($descendant) = capture_result( 'merge-base', '--is-ancestor', $state->{base}, $tip );
-        next unless $descendant;
-        my ($commit) = split /\n/,
-          capture( 'rev-list', '--first-parent', '--reverse', "$state->{base}..$tip" );
-        next unless defined $commit;
-        if (   capture( 'show', '-s', '--format=%P', $commit ) eq $state->{base}
-            && capture( 'rev-parse', "$commit^{tree}" ) eq $state->{tree} )
+    preserve_attempt( $state, $group );
+    if ( defined $state->{candidate} ) {
+        my ( $seen, $history ) = capture_result( 'reflog', 'show', '--format=%H', 'HEAD' );
+        if ( $state->{published}
+            || ( $seen && grep { $_ eq $state->{candidate} } split /\n/, $history ) )
         {
-            record_completion( $group, $commit );
-            unlink $pending or die "Cannot clear the pending commit: $!\n";
+            finish_attempt( $state, $group );
             return;
         }
     }
-    if ( grep { $_ eq $state->{base} } @tips ) {
-        unlink $pending or die "Cannot clear the interrupted attempt: $!\n";
-        return;
-    }
-    die "The pending commit differs from the prepared change; keeping its recovery record.\n";
+    my @lock = lstat "$index_path.lock";
+    unlink "$index_path.lock"
+      if @lock
+      && defined( $state->{lock_identity} )
+      && join( ':', @lock[ 0, 1 ] ) eq $state->{lock_identity};
+    rename $pending, "$state->{attempt}/state.json" or die "Cannot preserve the interrupted attempt: $!\n";
 }
 recover_pending();
 %completed = ();
@@ -232,15 +325,59 @@ sub verify_remaining {
     return $tree;
 }
 
+sub publish_commit {
+    my ($state) = @_;
+    local $SIG{PIPE} = 'IGNORE';
+    my ( $from, $to );
+    my $pid = open2( $from, $to, 'git', '--no-pager', 'update-ref', '--stdin',
+        '--create-reflog', '-m', 'commitgen: publish reviewed commit' );
+    $to->autoflush(1);
+    my $success = eval {
+        print {$to} "start\n" or die "Cannot start reference transaction.\n";
+        my $started = <$from> // '';
+        $started eq "start: ok\n" or die "Cannot start reference transaction.\n";
+        print {$to} "update HEAD $state->{candidate} $state->{base}\nprepare\n"
+          or die "Cannot prepare reference transaction.\n";
+        my $prepared = <$from> // '';
+        $prepared eq "prepare: ok\n"
+          or die "HEAD changed during review; the reviewed commit is retained at $state->{recovery_ref}.\n";
+        read_file("$git_dir/HEAD") eq $state->{head_content}
+          or die "The checked-out branch changed during review; no commit was published.\n";
+        sha256_hex( read_file($index_path) ) eq $state->{index_before}
+          or die "The Git index changed despite its lock; no commit was published.\n";
+        $state->{publication_attempted} = 1;
+        save_pending($state);
+
+        # Publish the index while HEAD is locked; never replace it after another commit can land.
+        publish_index($state);
+        $state->{index_published} = 1;
+        save_pending($state);
+        print {$to} "commit\n" or die "Cannot publish reference transaction.\n";
+        my $committed = <$from> // '';
+        $committed eq "commit: ok\n" or die "Reference publication failed; recovery data was retained.\n";
+        1;
+    };
+    my $error = $@;
+    print {$to} "abort\n" unless $success;
+    close $to;
+    close $from;
+    waitpid( $pid, 0 );
+    die $error unless $success;
+    $state->{published} = 1;
+    save_pending($state);
+}
+
 GROUP: for my $i ( 0 .. $#groups ) {
     my $group = $groups[$i];
     next GROUP if completed($group);
-    my $final        = verify_remaining($i);
-    my @files        = @{ $group->{files} };
+    my $head_content = read_file("$git_dir/HEAD");
     my $head         = capture( 'rev-parse', 'HEAD' );
+    my $final        = verify_remaining($i);
+    read_file("$git_dir/HEAD") eq $head_content && capture( 'rev-parse', 'HEAD' ) eq $head
+      or die "HEAD changed during preparation; rerun ./commit.\n";
+    my @files        = @{ $group->{files} };
     my $patch        = "$work/change.patch";
     my $commit_index = "$work/commit-index";
-    my $staged_index = "$work/staged-index";
     write_file( $patch, $group->{patch} );
     my $expected;
     {
@@ -257,64 +394,92 @@ GROUP: for my $i ( 0 .. $#groups ) {
         $changed eq join( "\n", sort @files )
           or die "The prepared patch changes unexpected paths; no files were staged.\n";
     }
-    my $index_path     = capture( 'rev-parse', '--git-path', 'index' );
-    my $original_index = read_file($index_path);
-    copy( $index_path, $staged_index ) or die "Cannot prepare the Git index: $!\n";
-    {
-        local $ENV{GIT_INDEX_FILE} = $staged_index;
-        my $before = capture('write-tree');
-        my ( $clean, $merged ) =
-          capture_result( 'merge-tree', '--write-tree', "--merge-base=$head", $expected, $before );
-        if ( !$clean ) {
-            my ($compatible) =
-              capture_result( 'merge-tree', '--write-tree', "--merge-base=$final", $head, $before );
-            $compatible or die "Staged changes conflict with the prepared sequence; nothing was staged.\n";
-
-            # Keep already-staged later values when this commit introduces an intermediate value.
-            $merged =
-              capture( 'merge-tree', '--write-tree', '-Xtheirs', "--merge-base=$head", $expected, $before );
-        }
-        my ($tree)  = split /\n/, $merged;
-        my $changes = capture( 'diff', '--binary', '--full-index', '--no-ext-diff', $before, $tree );
-        if ( length $changes ) {
-            write_file( "$work/staged.patch", "$changes\n" );
-            git( 'apply', '--cached', '--whitespace=nowarn', "$work/staged.patch" );
-        }
-    }
-    capture( 'rev-parse', 'HEAD' ) eq $head
-      or die "HEAD changed during preparation; rerun ./commit.\n";
-    stage_index( $index_path, $original_index, read_file($staged_index) );
-    my $message = "$work/message";
-    write_file( $message, $group->{message} );
-    write_file(
-        "$pending.tmp",
-        encode_json(
-            {
-                patch => sha256_hex( $group->{patch} ),
-                base  => $head,
-                tree  => $expected,
-                ref   => capture( 'rev-parse', '--symbolic-full-name', 'HEAD' ),
-            }
-        )
-    );
-    rename "$pending.tmp", $pending or die "Cannot record the pending commit: $!\n";
+    my $attempt = tempdir( "attempt-$script_key-XXXXXXXX", DIR => $progress );
+    make_path("$attempt/git");
+    write_file( "$attempt/git/HEAD", "$head\n" );
+    copy( $commit_index, "$attempt/index" ) or die "Cannot retain the prepared index: $!\n";
+    my $message = message_path($group);
+    write_file( $message, $group->{message} ) unless -f $message;
+    my $state = {
+        patch        => sha256_hex( $group->{patch} ),
+        base         => $head,
+        tree         => $expected,
+        head_content => $head_content,
+        attempt      => $attempt,
+        recovery_ref => 'refs/commitgen/' . $script_key . '/' . basename($attempt),
+    };
+    save_pending($state);
     printf "\033[1mStep %d/%d: %s\033[0m\n", $i + 1, scalar(@groups), $group->{name};
     my $success = eval {
-        local $ENV{GIT_INDEX_FILE} = $commit_index;
-        capture( 'rev-parse', 'HEAD' ) eq $head
-          or die "HEAD changed before committing; rerun ./commit.\n";
-        git( 'commit', '--verbose', '--edit', '--file', $message );
+        {
+            local %ENV = %ENV;
+            $ENV{GIT_DIR}        = "$attempt/git";
+            $ENV{GIT_COMMON_DIR} = $common_dir;
+            $ENV{GIT_WORK_TREE}  = $repository;
+            $ENV{GIT_INDEX_FILE} = "$attempt/index";
+            git( 'commit', '--verbose', '--edit', '--file', $message );
+        }
+        preserve_attempt( $state, $group );
+        defined( $state->{candidate} ) or die "No reviewed commit was created.\n";
+        capture( 'rev-parse', 'HEAD' ) eq $head && read_file("$git_dir/HEAD") eq $head_content
+          or die "HEAD changed during review; the reviewed commit is retained at $state->{recovery_ref}.\n";
+
+        sysopen my $locked, "$attempt/index.lock", O_CREAT | O_EXCL | O_WRONLY, 0666
+          or die "Cannot prepare the index lock: $!\n";
+        my @lock = stat $locked;
+        $index_lock_identity = join( ':', @lock[ 0, 1 ] );
+        $state->{lock_identity} = $index_lock_identity;
+        save_pending($state);
+        link "$attempt/index.lock", "$index_path.lock"
+          or die "Cannot lock the Git index: $!\n";
+        $index_lock = "$index_path.lock";
+        my $before_bytes = read_file($index_path);
+        write_file( "$attempt/before.index", $before_bytes );
+        copy( "$attempt/before.index", "$attempt/after.index" )
+          or die "Cannot retain the current index: $!\n";
+        {
+            local $ENV{GIT_INDEX_FILE} = "$attempt/after.index";
+            my $before = capture('write-tree');
+            my ( $clean, $merged ) =
+              capture_result( 'merge-tree', '--write-tree', "--merge-base=$head", $expected, $before );
+            if ( !$clean ) {
+                my ($compatible) =
+                  capture_result( 'merge-tree', '--write-tree', "--merge-base=$final", $head, $before );
+                $compatible
+                  or die "Staged changes conflict with the prepared sequence; no commit was published.\n";
+                $merged = capture( 'merge-tree', '--write-tree', '-Xtheirs',
+                    "--merge-base=$head", $expected, $before );
+            }
+            my ($tree)  = split /\n/, $merged;
+            my $changes = capture( 'diff', '--binary', '--full-index', '--no-ext-diff', $before, $tree );
+            if ( length $changes ) {
+                write_file( "$work/staged.patch", "$changes\n" );
+                git( 'apply', '--cached', '--whitespace=nowarn', "$work/staged.patch" );
+            }
+        }
+        my $after_bytes = read_file("$attempt/after.index");
+        binmode $locked;
+        print {$locked} $after_bytes or die "Cannot prepare the locked index: $!\n";
+        close $locked                or die "Cannot finish the locked index: $!\n";
+        $state->{index_before} = sha256_hex($before_bytes);
+        $state->{index_after}  = sha256_hex($after_bytes);
+        save_pending($state);
+        publish_commit($state);
+        finish_attempt( $state, $group );
         1;
     };
     if ( !$success ) {
         my $error = $@;
-        unlink $pending if capture( 'rev-parse', 'HEAD' ) eq $head;
-        die $error;
+        if ( $state->{publication_attempted} ) {
+            undef $index_lock;
+        }
+        else {
+            unlock_index();
+            preserve_attempt( $state, $group );
+            rename $pending, "$attempt/state.json"
+              or die "Cannot retain the interrupted attempt: $!\n";
+        }
+        die $error . "Recovery files: $attempt\n";
     }
-    capture( 'show', '-s', '--format=%P', 'HEAD' ) eq $head
-      && capture( 'rev-parse', 'HEAD^{tree}' ) eq $expected
-      or die "The commit differs from the prepared patch; keeping the helper.\n";
-    record_completion($group);
-    unlink $pending or die "Cannot clear the completed commit: $!\n";
 }
 finish();

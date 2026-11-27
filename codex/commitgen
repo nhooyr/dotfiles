@@ -3,12 +3,10 @@ use strict;
 use warnings;
 use FindBin qw($RealBin);
 use lib "$RealBin/lib";
-use CommitScript   qw(generate snapshot_patch);
-use Cwd            qw(abs_path);
-use File::Basename qw(dirname);
+use CommitScript qw(generate);
+use Cwd          qw(abs_path);
 use File::Spec;
 use Getopt::Long qw(GetOptions);
-use JSON::PP     qw(decode_json);
 
 my ( $help, $output );
 Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case));
@@ -47,28 +45,5 @@ if ($help) {
 }
 @ARGV == 1 or die $usage;
 my $plan_path = abs_path( $ARGV[0] ) // die "Cannot find $ARGV[0].\n";
-my $plan      = decode_json( CommitScript::read_file($plan_path) );
-ref($plan) eq 'HASH' && ref( $plan->{groups} ) eq 'ARRAY' or die "The plan needs a groups array.\n";
-open my $pipe, '-|', 'git', '--no-pager', 'rev-parse', '--show-toplevel' or die $!;
-my $root = <$pipe>;
-close $pipe or die "Run commitgen inside a Git repository.\n";
-chomp $root;
 $output = File::Spec->rel2abs($output) if defined $output;
-chdir $root or die $!;
-my @groups;
-
-for my $group ( @{ $plan->{groups} } ) {
-    ref($group) eq 'HASH' or die "Invalid commit group.\n";
-    ( exists $group->{files} ) != ( exists $group->{patch_file} )
-      or die "Each group needs either files or patch_file.\n";
-    my $patch;
-    if ( exists $group->{files} ) {
-        ref( $group->{files} ) eq 'ARRAY' or die "Group files must be an array.\n";
-        $patch = snapshot_patch( @{ $group->{files} } );
-    }
-    else {
-        $patch = CommitScript::read_file( File::Spec->rel2abs( $group->{patch_file}, dirname($plan_path) ) );
-    }
-    push @groups, { name => $group->{name}, message => $group->{message}, patch => $patch };
-}
-print generate( path => $output, groups => \@groups ), "\n";
+print generate( path => $output, plan_file => $plan_path ), "\n";

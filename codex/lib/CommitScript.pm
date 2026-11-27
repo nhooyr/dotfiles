@@ -11,7 +11,7 @@ use File::Temp qw(tempdir tempfile);
 use Text::Wrap qw(wrap);
 use JSON::PP;
 
-our @EXPORT_OK = qw(generate snapshot_patch);
+our @EXPORT_OK = qw(generate);
 
 sub read_file {
     open my $file, '<:raw', $_[0] or die "Cannot read $_[0]: $!\n";
@@ -36,19 +36,61 @@ sub git_line {
 }
 
 sub snapshot_patch {
-    my (@files) = @_;
-    @files or die "A commit group needs at least one file.\n";
-    my $temporary = tempdir( 'commitgen-index-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
-    my $root      = git_line( 'rev-parse', '--show-toplevel' );
-    my $head      = git_line( 'rev-parse', 'HEAD' );
-    local @ENV{qw(GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE)};
-    git( 'clone', '--quiet', '--shared', '--no-checkout', $root, "$temporary/checkout" );
-    $ENV{GIT_DIR}        = "$temporary/checkout/.git";
+    my ( $checkout, $root, $head, $index, $files ) = @_;
+    ref($files) eq 'ARRAY' && @$files or die "A commit group needs at least one file.\n";
+    local %ENV = %ENV;
+    $ENV{GIT_DIR}        = "$checkout/.git";
     $ENV{GIT_WORK_TREE}  = $root;
-    $ENV{GIT_INDEX_FILE} = "$temporary/index";
-    git( 'read-tree', $head );
-    git( 'add', '--all', '--', @files );
-    return git( 'diff', '--cached', '--binary', '--full-index', '--no-ext-diff', 'HEAD', '--' );
+    $ENV{GIT_INDEX_FILE} = $index;
+    git( '-C', $root, 'read-tree', $head );
+    git( '-C', $root, 'add', '--all', '--', @$files );
+    return git( '-C', $root, 'diff', '--cached', '--binary', '--full-index', '--no-ext-diff', $head, '--' );
+}
+
+sub output_state {
+    my ($path) = @_;
+    my @entry = lstat $path;
+    return unless @entry;
+    my @target = stat $path;
+    my $hash   = sha256_hex( read_file($path) );
+    my @after  = lstat $path;
+    @after && $entry[0] == $after[0] && $entry[1] == $after[1] && $entry[2] == $after[2]
+      or die "$path changed while it was being read; it was preserved.\n";
+    return { identity => join( ':', @entry[ 0, 1, 2 ], @target[ 0, 1, 2 ] ), hash => $hash };
+}
+
+sub same_output {
+    my ( $before, $after ) = @_;
+    return !defined($before) && !defined($after) unless defined($before) && defined($after);
+    return $before->{identity} eq $after->{identity} && $before->{hash} eq $after->{hash};
+}
+
+sub publish {
+    my ( $staging, $path, $previous ) = @_;
+    if ( !defined $previous ) {
+        link $staging, $path or die "Cannot publish $path without replacing another file: $!\n";
+        return;
+    }
+    my $recovery = tempdir( '.commitgen-backup-XXXXXX', DIR => dirname($path), CLEANUP => 0 );
+    my $backup   = "$recovery/previous";
+    if ( !rename $path, $backup ) {
+        my $error = $!;
+        rmdir $recovery;
+        die "Cannot preserve $path before publication: $error\n";
+    }
+    my $unchanged = eval { same_output( $previous, output_state($backup) ) };
+    if ( !$unchanged ) {
+        my $restored = link $backup, $path;
+        die "$path changed during publication; "
+          . ( $restored ? 'it was restored' : 'the current output was preserved' )
+          . ". Recovery copy: $backup\n";
+    }
+    if ( !link $staging, $path ) {
+        my $error = $!;
+        link $backup, $path;
+        die "Cannot publish $path without replacing another file: $error. Recovery copy: $backup\n";
+    }
+    warn "Previous helper retained at $backup.\n";
 }
 
 sub message {
@@ -85,10 +127,8 @@ sub applies {
 }
 
 sub generate {
-    my (%args) = @_;
-    my $groups = $args{groups};
-    ref($groups) eq 'ARRAY' && @$groups or die "Provide at least one commit group.\n";
-    my $root      = git_line( 'rev-parse', '--show-toplevel' );
+    my (%args)    = @_;
+    my $root      = abs_path( git_line( 'rev-parse', '--show-toplevel' ) );
     my $head      = git_line( 'rev-parse', 'HEAD' );
     my $path      = File::Spec->rel2abs( $args{path} // "$root/commit" );
     my $directory = abs_path( dirname($path) ) // die "Output directory does not exist.\n";
@@ -97,25 +137,65 @@ sub generate {
     abs_path( git_line( '-C', $directory, 'rev-parse', '--show-toplevel' ) ) eq abs_path($root)
       or die "The output belongs to another repository.\n";
     $path = "$directory/" . ( File::Spec->splitpath($path) )[2];
-    my @identity = stat $path;
-    my $previous = -e $path ? sha256_hex( read_file($path) ) : undef;
+    my $previous = output_state($path);
 
     if ( defined $args{expected_hash} ) {
-        defined($previous) && $previous eq $args{expected_hash}
+        defined($previous) && $previous->{hash} eq $args{expected_hash}
           or die "$path changed before generation; it was preserved.\n";
     }
+    my %inputs;
+    my $read_input = sub {
+        my ($file) = @_;
+        $file = File::Spec->rel2abs($file);
+        my $text = read_file($file);
+        my $hash = sha256_hex($text);
+        !exists( $inputs{$file} ) || $inputs{$file} eq $hash
+          or die "$file changed during generation; no helper was published.\n";
+        $inputs{$file} = $hash;
+        return $text;
+    };
+    my $groups = $args{groups};
+    my $plan_directory;
+    if ( defined $args{plan_file} ) {
+        !defined($groups) or die "Provide groups or plan_file, not both.\n";
+        my $plan_path = File::Spec->rel2abs( $args{plan_file} );
+        my $plan      = decode_json( $read_input->($plan_path) );
+        ref($plan) eq 'HASH' or die "The plan needs a groups array.\n";
+        $groups         = $plan->{groups};
+        $plan_directory = dirname($plan_path);
+    }
+    ref($groups) eq 'ARRAY' && @$groups or die "Provide at least one commit group.\n";
     my $temporary = tempdir( 'commitgen-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $checkout  = "$temporary/checkout";
-    local @ENV{qw(GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE)};
+    local %ENV = %ENV;
+    delete @ENV{
+        qw(GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES)
+    };
     git( 'clone', '--quiet', '--shared', '--no-checkout', $root,      $checkout );
     git( '-C',    $checkout, 'checkout', '--quiet',       '--detach', $head );
     my $base = git_line( '-C', $checkout, 'rev-parse', 'HEAD' );
-    my @prepared;
+    my ( @prepared, @snapshots );
 
     for my $i ( 0 .. $#$groups ) {
         my $group = $groups->[$i];
         ref($group) eq 'HASH' or die "Invalid commit group.\n";
-        my $patch = $group->{patch};
+        my $patch;
+        if ( exists $group->{patch} ) {
+            !exists $group->{patch_file} or die "A group cannot contain patch and patch_file.\n";
+            $patch = $group->{patch};
+        }
+        elsif ( exists $group->{patch_file} ) {
+            !exists $group->{files} or die "Each group needs either files or patch_file.\n";
+            my $file =
+              $plan_directory
+              ? File::Spec->rel2abs( $group->{patch_file}, $plan_directory )
+              : File::Spec->rel2abs( $group->{patch_file} );
+            $patch = $read_input->($file);
+        }
+        else {
+            $patch = snapshot_patch( $checkout, $root, $head, "$temporary/snapshot-index", $group->{files} );
+            push @snapshots, { files => [ @{ $group->{files} } ], patch => $patch };
+        }
         defined($patch) && $patch =~ /\S/ or die "Commit group " . ( $i + 1 ) . " has no changes.\n";
         my $message    = message( $group->{message} );
         my $name       = $group->{name} // sprintf( '%02d-change.patch', $i + 1 );
@@ -181,20 +261,31 @@ sub generate {
     open my $lock, '>>', '/tmp/aqsnow-commit-' . sha256_hex($path) . '.lock' or die $!;
     flock( $lock, LOCK_EX ) or die $!;
 
-    if ( -e $path ) {
-        my @current = stat $path;
-        defined($previous)
-          && $previous eq sha256_hex( read_file($path) )
-          && $identity[0] == $current[0]
-          && $identity[1] == $current[1]
-          or die "$path changed during generation; it was preserved.\n";
+    git_line( '-C', $root, 'rev-parse', 'HEAD' ) eq $head
+      or die "HEAD changed during generation; no helper was published.\n";
+    for my $snapshot (@snapshots) {
+        snapshot_patch( $checkout, $root, $head, "$temporary/snapshot-index", $snapshot->{files} ) eq
+          $snapshot->{patch}
+          or die "Selected files changed during generation; no helper was published.\n";
     }
-    my ( $output, $staging ) = tempfile( '.commitgen-XXXXXX', DIR => $directory, UNLINK => 1 );
+    for my $file ( keys %inputs ) {
+        sha256_hex( read_file($file) ) eq $inputs{$file}
+          or die "$file changed during generation; no helper was published.\n";
+    }
+    git_line( '-C', $root, 'rev-parse', 'HEAD' ) eq $head
+      or die "HEAD changed during generation; no helper was published.\n";
+    same_output( $previous, output_state($path) )
+      or die "$path changed during generation; it was preserved.\n";
+    my ( $output, $staging ) = tempfile( '.commitgen-XXXXXX', DIR => $directory, UNLINK => 0 );
     binmode $output;
     print {$output} $source or die $!;
     close $output           or die $!;
     chmod 0755, $staging or die $!;
-    rename $staging, $path or die "Cannot publish $path: $!\n";
+    my $staged  = output_state($staging);
+    my $success = eval { publish( $staging, $path, $previous ); 1 };
+    my $error   = $@;
+    unlink $staging if eval { same_output( $staged, output_state($staging) ) };
+    die $error unless $success;
     return $path;
 }
 
