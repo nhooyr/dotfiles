@@ -32,14 +32,21 @@ if (@ARGV) {
 binmode STDOUT, ':encoding(UTF-8)';
 $| = 1;
 
-sub api {
+sub start_api {
     my ( $endpoint, @arguments ) = @_;
     open my $pipe, '-|', 'gh', 'api', $endpoint, @arguments or die "dirtci: gh: $!\n";
+    return [ $endpoint, $pipe ];
+}
+
+sub finish_api {
+    my ( $endpoint, $pipe ) = @{ $_[0] };
     local $/;
     my $json = <$pipe>;
     close $pipe or die "dirtci: GitHub API request failed ($endpoint)\n";
     return decode_json($json);
 }
+
+sub api { return finish_api( start_api(@_) ); }
 
 sub branch_run {
     return $_[0]{event} !~ /\A(?:pull_request|merge_group)/;
@@ -74,11 +81,20 @@ query($endCursor: String) {
 GRAPHQL
 my $pages        = api( 'graphql', '--paginate', '--slurp', '-f', "query=$query" );
 my @repositories = map { @{ $_->{data}{viewer}{repositories}{nodes} } } @$pages;
+my @pending;
 for my $repository ( sort { $a->{nameWithOwner} cmp $b->{nameWithOwner} } @repositories ) {
     my $ref = $repository->{defaultBranchRef} or next;
     my ( $name, $branch, $sha ) = ( $repository->{nameWithOwner}, $ref->{name}, $ref->{target}{oid} );
-    my $results = api( "repos/$name/actions/runs", '--method', 'GET', '-f', "branch=$branch",
+    my $request = start_api( "repos/$name/actions/runs", '--method', 'GET', '-f', "branch=$branch",
         '-f', "head_sha=$sha", '-F', 'per_page=100', '--paginate', '--slurp' );
+    push @pending, [ $name, $branch, $request ];
+    report( @{ shift @pending } ) if @pending == 8;
+}
+report( @{ shift @pending } ) while @pending;
+
+sub report {
+    my ( $name, $branch, $request ) = @_;
+    my $results = finish_api($request);
     my %latest;
     for my $run ( sort { $b->{id} <=> $a->{id} } map { @{ $_->{workflow_runs} } } @$results ) {
         next unless branch_run($run);

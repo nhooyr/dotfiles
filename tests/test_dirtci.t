@@ -4,6 +4,7 @@ use FindBin;
 use lib $FindBin::Bin;
 use TestHelpers;
 use Test::More;
+use POSIX qw(mkfifo);
 
 my $root = absolute_path("$FindBin::Bin/..");
 
@@ -19,7 +20,7 @@ sub setup {
         TEST_COMPLETIONS => "$root/fish/completions"
     };
     write_file( "$directory/bin/gh", '#!' . perl_executable() . "\n" . <<'PERL' );
-use strict; use warnings; use JSON::PP;
+use strict; use warnings; use JSON::PP; use Fcntl qw(:flock);
 die 'expected gh api' unless shift(@ARGV) eq 'api';
 my $endpoint = shift @ARGV;
 my (@options, %fields, $method);
@@ -32,6 +33,7 @@ while (@ARGV) {
     else { push @options, $argument; }
 }
 open my $log, '>>', "$ENV{TEST_ROOT}/calls" or die $!;
+flock($log, LOCK_EX) or die $!;
 print {$log} encode_json({endpoint => $endpoint, fields => \%fields, options => \@options, method => $method}), "\n";
 close $log;
 open my $file, '<', "$ENV{TEST_ROOT}/responses.json" or die $!;
@@ -39,6 +41,14 @@ my $responses = decode_json(do { local $/; <$file> });
 my $route = $endpoint . (defined $fields{page} ? "#$fields{page}" : '');
 die "unexpected route: $route" unless exists $responses->{$route};
 my $response = $responses->{$route};
+my $barrier;
+if ($ENV{TEST_BARRIER} && $endpoint =~ m{/owner/(alpha|beta)/actions/runs$}) {
+    my $mode = $1 eq 'alpha' ? '<' : '>';
+    alarm 10;
+    open $barrier, $mode, $ENV{TEST_BARRIER} or die $!;
+    if ($mode eq '<') { local $/; <$barrier>; }
+    alarm 0;
+}
 if (ref($response) eq 'HASH' && exists $response->{error}) {
     print STDERR $response->{error}; exit 7;
 }
@@ -138,7 +148,10 @@ sub selects_latest_workflows_on_default_heads {
     like( $calls->[0]{fields}{query}, qr/isFork:\s*false/, 'repository query excludes forks' );
     is_deeply( $calls->[0]{options}, [ '--paginate', '--slurp' ], 'repository pages are collected' );
     is_deeply(
-        [ map { [ $_->{endpoint}, $_->{method}, $_->{fields}, $_->{options} ] } @$calls[ 1 .. $#$calls ] ],
+        [
+            map  { [ $_->{endpoint}, $_->{method}, $_->{fields}, $_->{options} ] }
+            sort { $a->{endpoint} cmp $b->{endpoint} } @$calls[ 1 .. $#$calls ]
+        ],
         [
             [
                 'repos/owner/alpha/actions/runs',
@@ -152,6 +165,30 @@ sub selects_latest_workflows_on_default_heads {
             ],
         ],
         'runs use each default branch and exact head; empty repositories are skipped'
+    );
+}
+
+sub repository_requests_overlap {
+    my ($self) = @_;
+    $self->{env}{TEST_BARRIER} = "$self->{temporary}/barrier";
+    mkfifo( $self->{env}{TEST_BARRIER}, 0600 ) or die $!;
+    responses(
+        $self,
+        {
+            graphql => [
+                page( repository( 'owner/beta', 'main', 'bbb' ), repository( 'owner/alpha', 'main', 'aaa' ) )
+            ],
+            'repos/owner/alpha/actions/runs' => [ { workflow_runs => [ workflow( 1, 1, 'failure' ) ] } ],
+            'repos/owner/beta/actions/runs'  => [ { workflow_runs => [ workflow( 2, 2, 'failure' ) ] } ],
+        }
+    );
+    my $result = run($self);
+    is( $result->{returncode}, 0, $result->{stderr} );
+    is(
+        $result->{stdout},
+        "owner/alpha [Workflow 1]: failure https://runs/1\n"
+          . "owner/beta [Workflow 2]: failure https://runs/2\n",
+        'repository requests overlap while output remains sorted'
     );
 }
 
@@ -226,7 +263,9 @@ sub help_and_invalid_arguments_do_not_query {
 
 sub api_failures_are_reported {
     my ($self) = @_;
-    for my $endpoint ( 'graphql', 'repos/owner/repo/actions/workflows/1/runs#1' ) {
+    for my $endpoint ( 'graphql', 'repos/owner/repo/actions/runs',
+        'repos/owner/repo/actions/workflows/1/runs#1' )
+    {
         my $pending = { %{ workflow( 100, 1, undef ) }, status => 'queued' };
         my $routes  = {
             graphql                         => [ page( repository( 'owner/repo', 'main', 'head' ) ) ],
@@ -255,6 +294,7 @@ FISH
 run_cases(
     {
         selects_latest_workflows_on_default_heads => \&selects_latest_workflows_on_default_heads,
+        repository_requests_overlap               => \&repository_requests_overlap,
         pending_runs_show_previous_results        => \&pending_runs_show_previous_results,
         help_and_invalid_arguments_do_not_query   => \&help_and_invalid_arguments_do_not_query,
         api_failures_are_reported                 => \&api_failures_are_reported,
