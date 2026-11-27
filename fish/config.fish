@@ -436,7 +436,7 @@ bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
 
 for mode in default insert
-    bind -M "$mode" alt-e rendezvous_init edit_command_buffer rendezvous
+    bind -M "$mode" alt-e 'rendezvous edit_command_buffer'
 end
 
 function aqsnow_postexec --on-event fish_postexec --argument-names cmdline

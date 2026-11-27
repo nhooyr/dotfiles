@@ -304,6 +304,41 @@ FISH
     );
 }
 
+sub command_editor_status_controls_rendezvous {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+function edit_command_buffer
+    test -z "$test_request"; or printf '%s' "$test_request" > "$RENDEZVOUS_FISH"
+    return "$test_editor_status"
+end
+function commandline
+    set -g executed yes
+end
+function _fzf
+    return 1
+end
+for mode in default insert
+    for request in '' exec path-widget
+        for editor_status in 0 7
+            set -g test_request "$request"
+            set -g test_editor_status "$editor_status"
+            set -g fish_bind_mode "$mode"
+            set -g executed no
+            rendezvous edit_command_buffer
+            printf '%s:%s:%s\n' "$status" "$fish_bind_mode" "$executed"
+        end
+    end
+end
+FISH
+    is(
+        $result->{stdout},
+        "0:insert:no\n7:default:no\n0:insert:yes\n7:default:no\n1:default:no\n7:default:no\n"
+          . "0:insert:no\n7:insert:no\n0:insert:yes\n7:insert:no\n1:insert:no\n7:insert:no\n",
+        'editor success enters Insert mode while editor and picker failures preserve the mode'
+    );
+    is( $result->{stderr}, '', 'command editing reports no diagnostics' );
+}
+
 sub aliases_added_after_initialization_are_exported {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -746,6 +781,7 @@ run_cases(
         find_names_respect_ignores                      => \&find_names_respect_ignores,
         rendezvous_routes_both_file_pickers             => \&rendezvous_routes_both_file_pickers,
         failed_rendezvous_preserves_mode                => \&failed_rendezvous_preserves_mode,
+        command_editor_status_controls_rendezvous       => \&command_editor_status_controls_rendezvous,
         sshv_preserves_remote_paths                     => \&sshv_preserves_remote_paths,
         sshv_stops_on_ssh_failure                       => \&sshv_stops_on_ssh_failure,
         sshv_expands_only_remote_home_prefixes          => \&sshv_expands_only_remote_home_prefixes,
