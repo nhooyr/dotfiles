@@ -23,6 +23,9 @@ for my $name (qw(fd fdg)) {
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 $helpers .= read_file("$root/fish/functions/sshv.fish");
 $helpers .= read_file("$root/fish/functions/rendezvous.fish");
+my ($editor_binding) = $config =~ /^\s*bind -M "\$mode" alt-e '([^'\n]+)'$/m;
+die "Missing Alt-e binding\n" unless defined $editor_binding;
+$helpers .= "\nfunction test_editor_binding\n    $editor_binding\nend\n";
 my $startup = join "\n", map {
     my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
     die "Missing Fish function $_\n" unless defined $function;
@@ -290,7 +293,8 @@ for mode in default insert
     rendezvous
     printf '%s:%s\n' "$status" "$fish_bind_mode"
     for request in '' unknown path-widget recent-widget
-        printf '%s\n' "$request" > "$RENDEZVOUS_FISH"
+        set -g fish_bind_mode "$mode"
+        printf '%s' "$request" > "$RENDEZVOUS_FISH"
         rendezvous
         printf '%s:%s\n' "$status" "$fish_bind_mode"
     end
@@ -299,8 +303,8 @@ end
 FISH
     is(
         $result->{stdout},
-        ( "1:default\n" x 5 ) . ( "1:insert\n" x 5 ),
-        'missing, empty, unknown and cancelled requests preserve the previous mode'
+        "0:insert\n0:insert\n" . ( "1:default\n" x 3 ) . "0:insert\n0:insert\n" . ( "1:insert\n" x 3 ),
+        'missing and empty requests enter Insert mode; unknown and cancelled requests preserve the mode'
     );
 }
 
@@ -324,7 +328,7 @@ for mode in default insert
             set -g test_editor_status "$editor_status"
             set -g fish_bind_mode "$mode"
             set -g executed no
-            rendezvous edit_command_buffer
+            test_editor_binding
             printf '%s:%s:%s\n' "$status" "$fish_bind_mode" "$executed"
         end
     end
@@ -350,7 +354,7 @@ end
 for code in 7 0
     set -g editor_status "$code"
     set -g fish_bind_mode default
-    rendezvous edit_command_buffer
+    test_editor_binding
     printf '%s:%s:%s\n' "$status" "$fish_bind_mode" "$fish_cursor_end_mode"
 end
 FISH
