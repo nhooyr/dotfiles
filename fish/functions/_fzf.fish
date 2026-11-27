@@ -23,7 +23,9 @@ function _fzf --argument-names widget
         or return 1
         rendezvous
     end
-    set -g fish_bind_mode insert
+    if test "$fish_bind_mode" != insert
+        set -g fish_bind_mode insert
+    end
     return 0
 end
 

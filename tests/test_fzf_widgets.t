@@ -14,7 +14,7 @@ sub setup {
 }
 
 sub pick {
-    my ( $self, $widget, $selection, $mode, $wrapped, $execute ) = @_;
+    my ( $self, $widget, $selection, $mode, $wrapped, $execute, $count_events ) = @_;
     my $result = run_command(
         [ 'fish', '--no-config', '-c', <<'FISH' ],
 source "$TEST_DOTFILES/fish/functions/_fzf.fish"
@@ -22,6 +22,10 @@ source "$TEST_DOTFILES/fish/functions/rendezvous.fish"
 set -g aqsnow_fzf_diralis
 set -g CDPATH .
 set -g fish_bind_mode "$TEST_MODE"
+set -g mode_events 0
+function mode_changed --on-variable fish_bind_mode
+    set -g mode_events $(math "$mode_events + 1")
+end
 set -g inserted ''
 set -g executed 0
 function rendezvous_init
@@ -90,19 +94,23 @@ set -l code "$status"
 set -l changed no
 test -n "$inserted"; and set changed yes
 printf '%s:%s:%s:%s\n' "$code" "$fish_bind_mode" "$changed" "$executed"
+if test "$TEST_COUNT_EVENTS" = 1
+    printf '%s\n' "$mode_events"
+end
 FISH
         {
             cwd => $self->{root},
             env => {
                 %ENV,
-                TEST_ROOT      => $self->{root},
-                TEST_DOTFILES  => $root,
-                TEST_WIDGET    => $widget,
-                TEST_SELECTION => $selection,
-                TEST_MODE      => $mode,
-                TEST_WRAPPED   => $wrapped // 0,
-                TEST_EXECUTE   => $execute // 0,
-                XDG_DATA_HOME  => "$self->{root}/data",
+                TEST_ROOT         => $self->{root},
+                TEST_DOTFILES     => $root,
+                TEST_WIDGET       => $widget,
+                TEST_SELECTION    => $selection,
+                TEST_MODE         => $mode,
+                TEST_WRAPPED      => $wrapped      // 0,
+                TEST_EXECUTE      => $execute      // 0,
+                TEST_COUNT_EVENTS => $count_events // 0,
+                XDG_DATA_HOME     => "$self->{root}/data",
             },
             check => 1,
         }
@@ -150,11 +158,26 @@ sub selected_execution_request_runs_once {
         "0:insert:yes:1\n", 'Alt-Enter selection queues execution and enters Insert mode' );
 }
 
+sub mode_assignments_only_run_for_changes {
+    my ($self) = @_;
+    for my $mode (qw(default insert)) {
+        for my $execute ( 0, 1 ) {
+            my $events = $mode eq 'default' ? 1 : 0;
+            is(
+                pick( $self, 'fzf-path-widget', 'selected', $mode, 1, $execute, 1 ),
+                "0:insert:yes:$execute\n$events\n",
+                'picker and rendezvous avoid redundant mode-change events'
+            );
+        }
+    }
+}
+
 run_cases(
     {
         widgets_report_selection                  => \&widgets_report_selection,
         wrapper_changes_mode_only_after_selection => \&wrapper_changes_mode_only_after_selection,
         selected_execution_request_runs_once      => \&selected_execution_request_runs_once,
+        mode_assignments_only_run_for_changes     => \&mode_assignments_only_run_for_changes,
     },
     \&setup
 );

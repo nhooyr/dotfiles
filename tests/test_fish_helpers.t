@@ -339,6 +339,29 @@ FISH
     is( $result->{stderr}, '', 'command editing reports no diagnostics' );
 }
 
+sub command_editor_preserves_insertion_positions {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+fish_vi_key_bindings
+function edit_command_buffer
+    printf '%s:%s\n' "$fish_bind_mode" "$fish_cursor_end_mode"
+    return "$editor_status"
+end
+for code in 7 0
+    set -g editor_status "$code"
+    set -g fish_bind_mode default
+    rendezvous edit_command_buffer
+    printf '%s:%s:%s\n' "$status" "$fish_bind_mode" "$fish_cursor_end_mode"
+end
+FISH
+    is(
+        $result->{stdout},
+        "default:exclusive\n7:default:inclusive\ndefault:exclusive\n0:insert:exclusive\n",
+        'editing permits insertion positions and restores the proper cursor rule afterward'
+    );
+    is( $result->{stderr}, '', 'temporary cursor mode has no diagnostics' );
+}
+
 sub aliases_added_after_initialization_are_exported {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -782,6 +805,7 @@ run_cases(
         rendezvous_routes_both_file_pickers             => \&rendezvous_routes_both_file_pickers,
         failed_rendezvous_preserves_mode                => \&failed_rendezvous_preserves_mode,
         command_editor_status_controls_rendezvous       => \&command_editor_status_controls_rendezvous,
+        command_editor_preserves_insertion_positions    => \&command_editor_preserves_insertion_positions,
         sshv_preserves_remote_paths                     => \&sshv_preserves_remote_paths,
         sshv_stops_on_ssh_failure                       => \&sshv_stops_on_ssh_failure,
         sshv_expands_only_remote_home_prefixes          => \&sshv_expands_only_remote_home_prefixes,
