@@ -100,16 +100,22 @@ sub report {
         my $pending = $run->{status} ne 'completed';
         my $status  = $pending ? $run->{status} : $run->{conclusion} // 'unknown';
         next unless $pending || unsuccessful($status);
-        printf "%s [%s]: %s %s\n", $name, $run->{name} // $id, $status, $run->{html_url};
+        my $prefix = sprintf '%s [%s]: ', $name, $run->{name} // $id;
+        printf "%s%s %s\n", $prefix, $status, $run->{html_url};
         next unless $pending;
+        my $label    = sprintf '%*s', length($prefix), 'last completed: ';
         my $previous = previous_run( $name, $branch, $run );
+
         if ($previous) {
             my $conclusion = $previous->{conclusion} // 'unknown';
-            printf "  last completed: %s%s\n", $conclusion,
-              unsuccessful($conclusion) ? " $previous->{html_url}" : '';
+            my $display    = $conclusion eq 'failure' ? 'fail' : $conclusion;
+            printf "%s%s\n", $label,
+              unsuccessful($conclusion)
+              ? sprintf( '%-*s %s', length($status), $display, $previous->{html_url} )
+              : $display;
         }
         else {
-            print "  last completed: none\n";
+            print "${label}none\n";
         }
     }
 }

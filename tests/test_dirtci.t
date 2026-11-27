@@ -221,9 +221,9 @@ sub pending_runs_show_previous_results {
     is(
         $result->{stdout},
         "owner/repo [Workflow 1]: in_progress https://runs/100\n"
-          . "  last completed: failure https://runs/90\n"
-          . "owner/repo [Workflow 2]: queued https://runs/200\n  last completed: success\n"
-          . "owner/repo [Workflow 3]: queued https://runs/300\n  last completed: none\n",
+          . "         last completed: fail        https://runs/90\n"
+          . "owner/repo [Workflow 2]: queued https://runs/200\n         last completed: success\n"
+          . "owner/repo [Workflow 3]: queued https://runs/300\n         last completed: none\n",
         'pending output links unsuccessful history, omits successful URLs and reports missing history'
     );
     my @history = grep { $_->{endpoint} =~ m{/workflows/} } @{ calls($self) };
@@ -245,6 +245,30 @@ sub pending_runs_show_previous_results {
         [ map { [ 'GET', 'main', 'completed', 100 ] } @history ],
         'history is restricted to completed runs on the branch'
     );
+}
+
+sub previous_run_columns {
+    my ($self) = @_;
+    my $pending = { %{ workflow( 200, 1, undef ) }, name => 'ci', status => 'queued' };
+    for my $case ( [ failure => 'fail   ' ], [ cancelled => 'cancelled ' ] ) {
+        responses(
+            $self,
+            {
+                graphql => [ page( repository( 'nhooyr/dotfiles', 'main', 'head' ) ) ],
+                'repos/nhooyr/dotfiles/actions/runs'               => [ { workflow_runs => [$pending] } ],
+                'repos/nhooyr/dotfiles/actions/workflows/1/runs#1' =>
+                  { workflow_runs => [ workflow( 100, 1, $case->[0] ) ] },
+            }
+        );
+        my $result = run($self);
+        is( $result->{returncode}, 0, $result->{stderr} );
+        is(
+            $result->{stdout},
+            "nhooyr/dotfiles [ci]: queued https://runs/200\n"
+              . "      last completed: $case->[1]https://runs/100\n",
+            'previous status aligns with the current status without truncating longer conclusions'
+        );
+    }
 }
 
 sub help_and_invalid_arguments_do_not_query {
@@ -296,6 +320,7 @@ run_cases(
         selects_latest_workflows_on_default_heads => \&selects_latest_workflows_on_default_heads,
         repository_requests_overlap               => \&repository_requests_overlap,
         pending_runs_show_previous_results        => \&pending_runs_show_previous_results,
+        previous_run_columns                      => \&previous_run_columns,
         help_and_invalid_arguments_do_not_query   => \&help_and_invalid_arguments_do_not_query,
         api_failures_are_reported                 => \&api_failures_are_reported,
         completions_load_only_when_requested      => \&completions_load_only_when_requested
