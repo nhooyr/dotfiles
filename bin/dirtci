@@ -32,21 +32,16 @@ if (@ARGV) {
 binmode STDOUT, ':encoding(UTF-8)';
 $| = 1;
 
-sub start_api {
+sub request {
     my ( $endpoint, @arguments ) = @_;
     open my $pipe, '-|', 'gh', 'api', $endpoint, @arguments or die "dirtci: gh: $!\n";
-    return [ $endpoint, $pipe ];
+    return sub {
+        local $/;
+        my $json = <$pipe>;
+        close $pipe or die "dirtci: GitHub API request failed ($endpoint)\n";
+        return decode_json($json);
+    };
 }
-
-sub finish_api {
-    my ( $endpoint, $pipe ) = @{ $_[0] };
-    local $/;
-    my $json = <$pipe>;
-    close $pipe or die "dirtci: GitHub API request failed ($endpoint)\n";
-    return decode_json($json);
-}
-
-sub api { return finish_api( start_api(@_) ); }
 
 sub branch_run {
     return $_[0]{event} !~ /\A(?:pull_request|merge_group)/;
@@ -59,9 +54,9 @@ sub unsuccessful {
 sub previous_run {
     my ( $repository, $branch, $current ) = @_;
     for ( my $page = 1 ; ; $page++ ) {
-        my $result = api( "repos/$repository/actions/workflows/$current->{workflow_id}/runs",
+        my $result = request( "repos/$repository/actions/workflows/$current->{workflow_id}/runs",
             '--method', 'GET',          '-f', "branch=$branch", '-f', 'status=completed',
-            '-F',       'per_page=100', '-F', "page=$page" );
+            '-F',       'per_page=100', '-F', "page=$page" )->();
         for my $run ( @{ $result->{workflow_runs} } ) {
             return $run if $run->{id} != $current->{id} && branch_run($run);
         }
@@ -79,13 +74,13 @@ query($endCursor: String) {
   }
 }
 GRAPHQL
-my $pages        = api( 'graphql', '--paginate', '--slurp', '-f', "query=$query" );
+my $pages        = request( 'graphql', '--paginate', '--slurp', '-f', "query=$query" )->();
 my @repositories = map { @{ $_->{data}{viewer}{repositories}{nodes} } } @$pages;
 my @pending;
 for my $repository ( sort { $a->{nameWithOwner} cmp $b->{nameWithOwner} } @repositories ) {
     my $ref = $repository->{defaultBranchRef} or next;
     my ( $name, $branch, $sha ) = ( $repository->{nameWithOwner}, $ref->{name}, $ref->{target}{oid} );
-    my $request = start_api( "repos/$name/actions/runs", '--method', 'GET', '-f', "branch=$branch",
+    my $request = request( "repos/$name/actions/runs", '--method', 'GET', '-f', "branch=$branch",
         '-f', "head_sha=$sha", '-F', 'per_page=100', '--paginate', '--slurp' );
     push @pending, [ $name, $branch, $request ];
     report( @{ shift @pending } ) if @pending == 8;
@@ -94,7 +89,7 @@ report( @{ shift @pending } ) while @pending;
 
 sub report {
     my ( $name, $branch, $request ) = @_;
-    my $results = finish_api($request);
+    my $results = $request->();
     my %latest;
     for my $run ( sort { $b->{id} <=> $a->{id} } map { @{ $_->{workflow_runs} } } @$results ) {
         next unless branch_run($run);
