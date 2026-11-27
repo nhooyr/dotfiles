@@ -583,9 +583,8 @@ for _, filetype in ipairs({ 'gitcommit', 'diff' }) do
     })
     vim.bo.filetype = filetype
     for _, case in ipairs({
-        { ']d', { 2, 7, 2 } }, { '[d', { 7, 2, 7 } },
-        { ']h', { 2, 3, 7, 8, 2 } }, { '[h', { 8, 7, 3, 2, 8 } },
-        { ']c', { 4, 6, 9, 4 } }, { '[c', { 9, 6, 4, 9 } },
+        { ']f', { 2, 7, 2 } }, { '[f', { 7, 2, 7 } },
+        { ']c', { 2, 3, 7, 8, 2 } }, { '[c', { 8, 7, 3, 2, 8 } },
     }) do
         vim.api.nvim_win_set_cursor(0, { 1, 0 })
         for _, row in ipairs(case[2]) do
