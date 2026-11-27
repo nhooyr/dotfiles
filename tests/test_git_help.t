@@ -15,6 +15,11 @@ sub setup {
         write_file( "$self->{temporary}/bin/$name", '#!' . perl_executable() . "\n" . <<'PERL' );
 use File::Basename qw(basename);
 use JSON::PP;
+if (basename($0) eq 'perl' && @ARGV == 2 && $ARGV[0] eq "$ENV{TEST_ROOT}/fish/functions/fair.pl"
+    && ($ARGV[1] eq '-h' || $ARGV[1] eq '--help')) {
+    exec $^X, @ARGV;
+    die $!;
+}
 open my $log, '>>', $ENV{TEST_CALLS} or die $!;
 print {$log} encode_json([basename($0), @ARGV]), "\n";
 PERL
@@ -35,6 +40,7 @@ sub fish {
         [ 'fish', '--no-config', '-c', <<'FISH' . $body ],
 set -p fish_function_path "$TEST_ROOT/fish/functions"
 set -p fish_complete_path "$TEST_ROOT/fish/completions"
+set -g dotfiles "$TEST_ROOT"
 FISH
         { cwd => $self->{temporary}, env => $self->{env}, check => 1 }
     );

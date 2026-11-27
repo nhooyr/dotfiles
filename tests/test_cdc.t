@@ -55,9 +55,19 @@ FISH
     );
 }
 
-sub fair_and_tex_can_autoload_cdc {
+sub fair_and_tex_preserve_cwd_and_status {
     my ($self) = @_;
     write_file( "$self->{directory}/target/main.tex", 'document' );
+    make_path("$self->{directory}/bin");
+    $self->{env}{TEST_REAL_GIT} = which('git');
+    write_file( "$self->{directory}/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
+use Cwd qw(getcwd);
+if ($ARGV[0] eq 'show') { print "count: 4\n"; exit 0; }
+if ($ARGV[0] eq 'commit') { print 'commit:', getcwd(), "\n"; exit 23; }
+exec $ENV{TEST_REAL_GIT}, @ARGV;
+die $!;
+PERL
+    chmod 0755, "$self->{directory}/bin/git" or die $!;
     my $result = fish( $self, <<'FISH' );
 set -g dotfiles "$TEST_DOTFILES"
 set -g fair "$TEST_ROOT/target"
@@ -69,17 +79,7 @@ set -lx GIT_COMMITTER_NAME "$GIT_AUTHOR_NAME"
 set -lx GIT_COMMITTER_EMAIL "$GIT_AUTHOR_EMAIL"
 command git init --quiet "$fair"; or exit
 command git -C "$fair" commit --quiet --allow-empty -m fixture; or exit
-function git
-    switch "$argv[1]"
-        case show
-            printf 'count: 4\n'
-        case commit
-            printf 'commit:%s\n' "$PWD"
-            return 23
-        case '*'
-            return 99
-    end
-end
+set -p PATH "$TEST_ROOT/bin"
 fair 1
 printf 'fair:%s:%s\n' "$status" "$PWD"
 function latexmk
@@ -96,14 +96,14 @@ FISH
     is(
         $result->{stdout},
 "commit:$self->{directory}/target\nfair:23:$self->{directory}\nlatexmk:$self->{directory}/target\ntex:0:$self->{directory}\n",
-        'fair and tex use cdc in an unconfigured noninteractive Fish'
+        'fair and tex preserve cwd and command status in an unconfigured Fish'
     );
 }
 
 run_cases(
     {
         autoload_restores_cwd_and_command_status => \&autoload_restores_cwd_and_command_status,
-        fair_and_tex_can_autoload_cdc            => \&fair_and_tex_can_autoload_cdc,
+        fair_and_tex_preserve_cwd_and_status     => \&fair_and_tex_preserve_cwd_and_status,
     },
     \&setup
 );

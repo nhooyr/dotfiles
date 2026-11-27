@@ -11,7 +11,7 @@ my $FISH     = which("fish");
 my $GIT      = which("git");
 my $PERL     = which("perl");
 my $DOTFILES = ancestors( absolute_path(__FILE__) )->[1];
-my $DATES    = join_path( join_path( $DOTFILES, "fish" ), "fair_dates.pl" );
+my $FAIR     = join_path( $DOTFILES, 'fish/functions/fair.pl' );
 
 sub setUp {
     my ($self) = @_;
@@ -19,7 +19,20 @@ sub setUp {
     $self->{temporary} = tempdir( "fair-tests-" . "XXXXXX", TMPDIR => 1, CLEANUP => 1 );
     $self->{root}      = absolute_path( $self->{temporary} );
     $self->{repo}      = join_path( $self->{root}, "repo" );
-    $self->{env}       = {
+    make_path("$self->{root}/bin");
+    write_file( "$self->{root}/bin/git", <<'SH' );
+#!/bin/sh
+if [ "$1" = push ]; then
+    exit 0
+fi
+if [ "$1" = commit ] && [ -n "${TEST_COMMIT_STATUS-}" ]; then
+    printf '%s\n' "$@"
+    exit "$TEST_COMMIT_STATUS"
+fi
+exec "$TEST_REAL_GIT" "$@"
+SH
+    chmod 0755, "$self->{root}/bin/git" or die $!;
+    $self->{env} = {
         map { my $key = ($_)->[0]; my $value = ($_)->[1]; ( $key => $value ) }
         grep {
             my $key   = ($_)->[0];
@@ -42,6 +55,8 @@ sub setUp {
             "XDG_CACHE_HOME"      => join_path( $self->{root}, "cache" ),
             "TEST_FAIR_REPO"      => $self->{repo},
             "TEST_DOTFILES"       => $DOTFILES,
+            "TEST_REAL_GIT"       => $GIT,
+            "PATH"                => "$self->{root}/bin:$ENV{PATH}",
             "TZ"                  => "UTC"
         };
         @{ $self->{env} }{ keys %$updates } = values %$updates;
@@ -71,20 +86,6 @@ sub fair {
     $script = (
         (
             'set -p fish_function_path "$TEST_DOTFILES/fish/functions"
-function git
-    if test "$argv[1]" = push
-        return 0
-    end
-    command git $argv
-end
-function cdc
-    set -l previous_dir "$PWD"
-    cd -- "$argv[1]"; or return
-    $argv[2..-1]
-    set -l code "$status"
-    cd -- "$previous_dir"; or return
-    return "$code"
-end
 set -g fair "$TEST_FAIR_REPO"
 set -g dotfiles "$TEST_DOTFILES"
 set -l starting_dir "$PWD"
@@ -370,8 +371,13 @@ sub test_default_schedule_preserves_inherited_dates {
 sub test_default_schedule_has_varied_activity {
     my ($self) = @_;
     my $before = time;
-    my $result = run_command( [ $PERL, $DATES, '--recent', '1000' ],
-        { cwd => $self->{repo}, env => $self->{env}, check => 1, timeout => 10 } );
+    my $result = run_command(
+        [
+            $PERL, '-e',       q{my $file = shift; require $file; print "$_\n" for generate_dates(@ARGV);},
+            $FAIR, '--recent', '1000'
+        ],
+        { cwd => $self->{repo}, env => $self->{env}, check => 1, timeout => 10 }
+    );
     my @dates = split /\n/, $result->{stdout};
     is( scalar @dates, 1000, 'the recent schedule contains the requested count' );
     cmp_ok( $dates[-1], '<=', time, 'the schedule stays within its captured current time' );
@@ -528,8 +534,13 @@ sub generate {
     my ($env);
     $env = { %{ $self->{env} }, "TZ" => $tz };
     return run_command(
-        [ $PERL, "-e", "srand(shift); do shift; die \$\@ if \$\@;", $seed, $DATES, $start, $end, $count ],
-        { "cwd" => $self->{repo}, "env" => $env, "timeout" => 10 } );
+        [
+            $PERL, '-e',
+            q{srand shift; my $file = shift; require $file; print "$_\n" for generate_dates(@ARGV);},
+            $seed, $FAIR, $start, $end, $count
+        ],
+        { "cwd" => $self->{repo}, "env" => $env, "timeout" => 10 }
+    );
 }
 
 sub dates {
@@ -636,13 +647,7 @@ sub test_maximum_count {
 set -p fish_function_path "$TEST_DOTFILES/fish/functions"
 set -g fair "$TEST_FAIR_REPO"
 set -g dotfiles "$TEST_DOTFILES"
-function git
-    if test "$argv[1]" = commit
-        printf '%s\n' $argv
-        return 73
-    end
-    command git $argv
-end
+set -lx TEST_COMMIT_STATUS 73
 fair 99999
 FISH
         { cwd => $self->{repo}, env => $self->{env}, timeout => 10 }
@@ -751,9 +756,11 @@ sub test_only_yyyy_mm_dd_dates_are_accepted {
 sub test_flexible_schedules_avoid_existing_busy_days {
     my ($self) = @_;
     my $result = run_command(
-        [ $PERL, '-I', "$DOTFILES/fish", '-MFairSchedule=schedule', '-e', <<'SCRIPT' ],
+        [ $PERL, '-e', <<'SCRIPT', $FAIR ],
 use strict;
 use warnings;
+my $file = shift;
+require $file;
 srand 42;
 $SIG{__WARN__} = sub { die @_ };
 for my $load (50, 128) {
@@ -772,8 +779,31 @@ SCRIPT
     assert_success( $self, $result );
 }
 
+sub test_helper_help_and_completions {
+    my ($self) = @_;
+    for my $flag ( '-h', '--help' ) {
+        my $result = run_command( [ $FAIR, $flag ], { cwd => $self->{root}, env => $self->{env} } );
+        is( $result->{returncode}, 0, $result->{stderr} );
+        like( $result->{stdout}, qr/^Usage: fair/, 'the combined helper documents its usage' );
+    }
+    my $result = run_command( [ $FISH, '--no-config', '-c', <<'FISH' ], { env => $self->{env} } );
+set -p fish_function_path "$TEST_DOTFILES/fish/functions"
+set -p fish_complete_path "$TEST_DOTFILES/fish/completions"
+test -z "$(complete -c fair)"; or exit 1
+complete -C 'fair --he'
+complete -C 'fair --s'
+complete -C 'fair --date'
+FISH
+    is( $result->{returncode}, 0, $result->{stderr} );
+    like( $result->{stdout}, qr/^--help\t/m,  'help is completed' );
+    like( $result->{stdout}, qr/^--sort\t/m,  'history sorting is completed on demand' );
+    like( $result->{stdout}, qr/^--date1\t/m, 'the first date is completed' );
+    like( $result->{stdout}, qr/^--date2\t/m, 'the last date is completed' );
+}
+
 run_cases(
     {
+        test_helper_help_and_completions                              => \&test_helper_help_and_completions,
         "test_dated_commits_stay_ordered_in_range_and_set_both_dates" =>
           \&test_dated_commits_stay_ordered_in_range_and_set_both_dates,
         "test_date_flags_before_count"                 => \&test_date_flags_before_count,
