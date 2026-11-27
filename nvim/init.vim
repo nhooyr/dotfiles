@@ -308,8 +308,11 @@ nnoremap <M-f> :Findg<Space>**<Left>
 nnoremap <Leader>f :Find<Space>
 nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
 command -bar Lvim lclose | lvim // % | lopen
-nnoremap <Leader>l <Cmd>execute getloclist(0, {'winid': 0}).winid ? 'lclose'
-            \ : getloclist(0, {'id': 0}).id ? 'lopen' : 'Lvim'<CR>
+function s:toggle_location_list() abort
+	let list = getloclist(0, {'winid': 0, 'id': 0})
+	execute list.winid ? 'lclose' : list.id ? 'lopen' : 'Lvim'
+endfunction
+nnoremap <Leader>l <Cmd>call <SID>toggle_location_list()<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
 nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
 let &quickfixtextfunc = "v:lua.require'quickfix'.fmt"
