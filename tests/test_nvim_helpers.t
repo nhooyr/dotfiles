@@ -597,6 +597,44 @@ end
 LUA
 }
 
+sub location_list_toggle {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local file = vim.fn.fnamemodify(vim.env.TEST_ORIGINAL, ':h') .. '/search target.txt'
+vim.fn.writefile({ 'needle one', 'other', 'needle two' }, file)
+vim.cmd.edit(vim.fn.fnameescape(file))
+vim.fn.setreg('/', 'needle')
+local owner = vim.api.nvim_get_current_win()
+local function list() return vim.fn.getloclist(owner, { id = 0, items = 0, winid = 0 }) end
+eq(list().id, 0, 'the window starts without a location list')
+feed('<Leader>l')
+local first = list().id
+assert(first > 0 and list().winid ~= 0, 'the toggle creates and opens a location list')
+eq(vim.tbl_map(function(item) return item.lnum end, list().items), { 1, 3 },
+    'the list searches the current file with the last pattern')
+feed('<Leader>l')
+eq(list().winid, 0, 'the toggle closes the list')
+feed('<Leader>l')
+eq(list().id, first, 'reopening preserves the existing list')
+feed('<Leader>l')
+vim.fn.setloclist(owner, {}, ' ', { title = 'Existing empty list', items = {} })
+local empty = list().id
+feed('<Leader>l')
+eq(list().id, empty, 'an existing empty list is preserved')
+eq(#list().items, 0, 'the toggle does not search again for an empty list')
+vim.cmd.Lvim()
+local second = list().id
+assert(second ~= empty, 'Lvim creates a new list even while the previous list is open')
+eq(vim.tbl_map(function(item) return item.lnum end, list().items), { 1, 3 },
+    'Lvim searches the owning file from the location-list window')
+vim.fn.setreg('/', 'other')
+vim.cmd.Lvim()
+assert(list().id ~= second, 'each Lvim invocation creates a new list')
+eq(vim.tbl_map(function(item) return item.lnum end, list().items), { 2 },
+    'Lvim uses the current search pattern')
+LUA
+}
+
 sub list_toggle {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -2075,6 +2113,7 @@ run_cases(
         coalesced_config_reload                 => \&coalesced_config_reload,
         config_reload_preserves_options         => \&config_reload_preserves_options,
         list_toggle                             => \&list_toggle,
+        location_list_toggle                    => \&location_list_toggle,
         conflict_navigation                     => \&conflict_navigation,
         conceal_toggle                          => \&conceal_toggle,
         nested_module_reload                    => \&nested_module_reload,

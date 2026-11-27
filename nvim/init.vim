@@ -307,7 +307,9 @@ command -nargs=+ Findf lua require('find').run(<q-args>, 'F')
 nnoremap <M-f> :Findg<Space>**<Left>
 nnoremap <Leader>f :Find<Space>
 nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
-nnoremap <Leader>l <Cmd>execute getloclist(0, {'winid': 0}).winid ? 'lclose' : 'lopen'<CR>
+command -bar Lvim lclose | lvim // % | lopen
+nnoremap <Leader>l <Cmd>execute getloclist(0, {'winid': 0}).winid ? 'lclose'
+            \ : getloclist(0, {'id': 0}).id ? 'lopen' : 'Lvim'<CR>
 nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
 nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
 let &quickfixtextfunc = "v:lua.require'quickfix'.fmt"
