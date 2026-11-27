@@ -1,4 +1,5 @@
-function vcs_identity --argument-names root
+# Shared cache operations, sourced by the Fish prompt and Neovim when needed.
+function git_prompt_identity --argument-names root
     test -n "$root"; or return
     command perl -e '
         my $git = "$ARGV[0]/.git";
@@ -14,7 +15,7 @@ function vcs_identity --argument-names root
     ' "$root"
 end
 
-function vcs_cache --argument-names root value identity
+function git_prompt_cache --argument-names root value identity
     if test -z "$root"
         return
     end
@@ -33,7 +34,7 @@ function vcs_cache --argument-names root value identity
         end
     end
     set -l code 0
-    if test -n "$identity"; and test "$identity" != "$(vcs_identity "$root")"
+    if test -n "$identity"; and test "$identity" != "$(git_prompt_identity "$root")"
         set code 75
     else if test "$ready" -eq 1
         command mv -f -- "$temporary/.fish_git_prompt" "$cache"

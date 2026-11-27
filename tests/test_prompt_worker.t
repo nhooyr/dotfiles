@@ -7,7 +7,7 @@ use Test::More;
 use POSIX       qw(WNOHANG);
 use Time::HiRes qw(time sleep);
 
-my $helper = absolute_path("$FindBin::Bin/../fish/git_prompt_worker.pl");
+my $helper = absolute_path("$FindBin::Bin/../fish/git_prompt_job.pl");
 my $fish   = which('fish');
 
 {
@@ -46,6 +46,18 @@ sub setup {
     $self->{notifications} = 0;
     $SIG{USR1} = sub { ++$self->{notifications}; };
     write_file( "$self->{rendezvous}/vcs-alive", "$self->{token}\n" );
+}
+
+sub help_does_not_start_job {
+    my ($self) = @_;
+    for my $flag ( '-h', '--help' ) {
+        my $result = run_command( [ $helper, $flag ], { env => $self->{env}, cwd => $self->{work} } );
+        is( $result->{returncode}, 0, $result->{stderr} );
+        like( $result->{stdout}, qr/^Usage: git_prompt_job\.pl/, 'help describes the one-shot job' );
+        is( $result->{stderr}, '', 'help does not report an error' );
+    }
+    ok( !-e $self->{result}, 'help does not create a prompt result' );
+    is( $self->{notifications}, 0, 'help does not signal the parent' );
 }
 
 sub exec_helper {
@@ -331,6 +343,7 @@ FISH
 
 run_cases(
     {
+        help_does_not_start_job                         => \&help_does_not_start_job,
         immediate_completion_and_optional_locks         => \&immediate_completion_and_optional_locks,
         failed_worker_notifies_with_failure_status      => \&failed_worker_notifies_with_failure_status,
         failed_exec_notifies_with_failure_status        => \&failed_exec_notifies_with_failure_status,

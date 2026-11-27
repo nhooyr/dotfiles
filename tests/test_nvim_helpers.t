@@ -1301,7 +1301,7 @@ local calls, now, hrtime = {}, 0, vim.uv.hrtime
 vim.uv.hrtime = function() return hrtime() + now * 1000000 end
 vim.system = function(command, options, callback)
     local output = ''
-    if not command[4]:find('vcs_cache', 1, true) then
+    if not command[4]:find('git_prompt_cache', 1, true) then
         calls[#calls + 1] = options.cwd
         output = ' (' .. vim.fn.fnamemodify(options.cwd, ':t') .. ')'
     end
@@ -1381,7 +1381,7 @@ end
 vim.fn.timer_stop = function(id) timers[id] = nil end
 local system = vim.system
 vim.system = function(command, options, callback)
-    if command[4]:find('vcs_cache', 1, true) then
+    if command[4]:find('git_prompt_cache', 1, true) then
         local process = system(command, options)
         callback(process:wait())
         return process

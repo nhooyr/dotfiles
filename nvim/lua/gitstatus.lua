@@ -129,8 +129,8 @@ local function update(root, cached)
 				end
 				local saved, writer = pcall(vim.system, {
 					'fish', '--no-config', '-c',
-					'source "$argv[1]"; and vcs_cache "$argv[2]" "$argv[3]" "$argv[4]"',
-					vim.env.dotfiles .. '/fish/functions/vcs_cache.fish',
+					'source "$argv[1]"; and git_prompt_cache "$argv[2]" "$argv[3]" "$argv[4]"',
+					vim.env.dotfiles .. '/fish/git_prompt_cache.fish',
 					directory, result.stdout:gsub('[\r\n]+$', ''), identity.dev .. ':' .. identity.ino,
 				}, { detach = true }, vim.schedule_wrap(publish))
 				if saved then

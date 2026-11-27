@@ -25,7 +25,7 @@ local function replace_repository()
     vim.fn.writefile({ 'replacement' }, vim.env.TEST_REPO .. '/.fish_git_prompt', 'b')
 end
 vim.system = function(args, options, callback)
-    if args[4]:find('vcs_cache', 1, true) then
+    if args[4]:find('git_prompt_cache', 1, true) then
         if vim.env.TEST_REPLACE == '1' then replace_repository() end
         return system(args, options, function(result)
             local expected = vim.env.TEST_REPLACE == '1' and 75 or 0

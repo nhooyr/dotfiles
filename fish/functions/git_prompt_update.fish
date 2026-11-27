@@ -1,4 +1,5 @@
-source "$(status dirname)/vcs_cache.fish"
+# Load the prompt lifecycle on its first update; share cache operations with Neovim.
+source "$(status dirname)/../git_prompt_cache.fish"
 
 set -g __aqsnow_vcs_directory ''
 set -g __aqsnow_vcs_dirty 1
@@ -129,7 +130,7 @@ function aqsnow_vcs_prompt_done --on-signal USR1
     end
     set -l value "$(string collect < "$__aqsnow_vcs_file")"
     set -l current_root "$(aqsnow_vcs_prompt_root "$__aqsnow_vcs_request_directory")"
-    set -l current_identity "$(vcs_identity "$current_root")"
+    set -l current_identity "$(git_prompt_identity "$current_root")"
     if test "$__aqsnow_vcs_request_generation" != "$__aqsnow_vcs_generation"
         or test "$current_root" != "$__aqsnow_vcs_request_root"
         or test "$identity" != "$current_identity"
@@ -138,7 +139,7 @@ function aqsnow_vcs_prompt_done --on-signal USR1
         set -g __aqsnow_vcs_dirty 1
         set -e __aqsnow_vcs_checked_generation
     else if test "$code" = 0; and test -n "$value"
-        vcs_cache "$__aqsnow_vcs_request_root" "$value" "$identity" 2>/dev/null
+        git_prompt_cache "$__aqsnow_vcs_request_root" "$value" "$identity" 2>/dev/null
         if test "$status" -eq 75
             set -g __aqsnow_vcs_dirty 1
             set -e __aqsnow_vcs_checked_generation
@@ -150,14 +151,14 @@ function aqsnow_vcs_prompt_done --on-signal USR1
     end
     command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
     if status is-interactive; and test "$__aqsnow_prompt_active" = 1
-        vcs_update
+        git_prompt_update
         if test "$previous" != "$__aqsnow_vcs_prompt"
             commandline -f repaint
         end
     end
 end
 
-function vcs_update
+function git_prompt_update
     aqsnow_vcs_prompt_restore
     if set -q __aqsnow_vcs_pending
         if not set -q __aqsnow_vcs_process
@@ -196,7 +197,7 @@ function vcs_update
     end
     set -e __aqsnow_vcs_dirty
     set -l interpreter "$(status fish-path)"
-    command "$dotfiles/fish/git_prompt_worker.pl" "$interpreter" "$dotfiles/fish/prompt.fish" \
+    command "$dotfiles/fish/git_prompt_job.pl" "$interpreter" "$dotfiles/fish/prompt.fish" \
         "$__aqsnow_rendezvous_dir" "$__aqsnow_vcs_token" "$fish_pid" "$__aqsnow_vcs_root" >/dev/null 2>&1 &
     set -l code "$status"
     if test "$code" -ne 0
