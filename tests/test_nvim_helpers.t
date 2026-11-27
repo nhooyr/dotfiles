@@ -17,19 +17,19 @@ sub setup {
     write_file( "$tmp/original.txt", "original\n" );
     $self->{env} = {
         %ENV,
-        PATH                   => "$root/bin:$ENV{PATH}",
-        HOME                   => "$tmp/home",
-        XDG_CONFIG_HOME        => "$tmp/config",
-        XDG_DATA_HOME          => "$tmp/data",
-        XDG_STATE_HOME         => "$tmp/state",
-        XDG_CACHE_HOME         => "$tmp/cache",
-        NVIM_LOG_FILE          => "$tmp/nvim.log",
-        AQSNOW_DIRALIS         => 'HOME',
-        AQSNOW_FISH_RENDEZVOUS => "$tmp/request",
-        dotfiles               => $root,
-        TEST_DOTFILES          => $root,
-        TEST_ORIGINAL          => "$tmp/original.txt",
-        TEST_SCRIPT            => "$tmp/case.lua",
+        PATH            => "$root/bin:$ENV{PATH}",
+        HOME            => "$tmp/home",
+        XDG_CONFIG_HOME => "$tmp/config",
+        XDG_DATA_HOME   => "$tmp/data",
+        XDG_STATE_HOME  => "$tmp/state",
+        XDG_CACHE_HOME  => "$tmp/cache",
+        NVIM_LOG_FILE   => "$tmp/nvim.log",
+        AQSNOW_DIRALIS  => 'HOME',
+        RENDEZVOUS_FISH => "$tmp/request",
+        dotfiles        => $root,
+        TEST_DOTFILES   => $root,
+        TEST_ORIGINAL   => "$tmp/original.txt",
+        TEST_SCRIPT     => "$tmp/case.lua",
     };
     write_file( "$tmp/init.vim", <<'VIM' );
 let $MYVIMRC = expand('<sfile>:p')
@@ -1835,7 +1835,7 @@ vim.fn['copilot#Accept'] = function(fallback)
     accepted = accepted + 1
     return 'accepted'
 end
-local request = vim.env.AQSNOW_FISH_RENDEZVOUS
+local request = vim.env.RENDEZVOUS_FISH
 feed('<M-CR>')
 assert(package.loaded.rendezvous ~= nil, 'the first run mapping loads its helper')
 eq(vim.fn.readfile(request), { 'exec' }, 'the original nonempty file requests execution')
@@ -2027,7 +2027,7 @@ vim.cmd.qall = function() quit = true end
 feed('i<M-CR><Esc>')
 assert(saved and quit, 'Insert mode can save and quit without Copilot')
 eq(vim.api.nvim_get_current_line(), 'original', 'the file text is unchanged')
-eq(vim.fn.readfile(vim.env.AQSNOW_FISH_RENDEZVOUS), { 'exec' }, 'the original file requests execution')
+eq(vim.fn.readfile(vim.env.RENDEZVOUS_FISH), { 'exec' }, 'the original file requests execution')
 LUA
 }
 
@@ -2044,7 +2044,7 @@ for _, action in ipairs({
 }) do
     local ok, err = pcall(action)
     assert(not ok and err:find('E37', 1, true), 'a failed quit preserves the original error')
-    eq(vim.fn.filereadable(vim.env.AQSNOW_FISH_RENDEZVOUS), 0, 'a failed quit removes its request')
+    eq(vim.fn.filereadable(vim.env.RENDEZVOUS_FISH), 0, 'a failed quit removes its request')
 end
 LUA
 }
@@ -2058,16 +2058,16 @@ vim.cmd.qall = function() quit = true end
 local ok, err = pcall(helper.quit_and_run)
 assert(not ok and err:find('save failed', 1, true), 'save errors are propagated')
 assert(not quit, 'save failure prevents quitting')
-eq(vim.fn.filereadable(vim.env.AQSNOW_FISH_RENDEZVOUS), 0, 'save failure sends no request')
+eq(vim.fn.filereadable(vim.env.RENDEZVOUS_FISH), 0, 'save failure sends no request')
 
 vim.cmd.wall = function() saved = saved + 1 end
-vim.env.AQSNOW_FISH_RENDEZVOUS = vim.env.TEST_ORIGINAL .. '/missing/request'
+vim.env.RENDEZVOUS_FISH = vim.env.TEST_ORIGINAL .. '/missing/request'
 ok = pcall(helper.fzf_widget_request, 'path-widget')
 assert(not ok, 'request write errors are propagated')
 eq(saved, 1, 'the buffer is saved before attempting the request')
 assert(not quit, 'request failure prevents quitting')
 
-vim.env.AQSNOW_FISH_RENDEZVOUS = nil
+vim.env.RENDEZVOUS_FISH = nil
 helper.fzf_widget_request('recent-widget')
 eq(saved, 2, 'without a rendezvous path the helper still saves')
 assert(quit, 'without a rendezvous path the helper still quits')

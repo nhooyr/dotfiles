@@ -11,7 +11,7 @@ my $helpers = join "\n", map {
     my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
     die "Missing Fish function $_\n" unless defined $function;
     $function;
-} qw(aqsnow_fzf_diralis_add aqsnow_init_rendezvous aqsnow_run_requested);
+} qw(aqsnow_fzf_diralis_add rendezvous_init);
 $helpers .= qq{
 set -p fish_function_path "\$TEST_FUNCTIONS"
 };
@@ -22,11 +22,14 @@ for my $name (qw(fd fdg)) {
 }
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 $helpers .= read_file("$root/fish/functions/sshv.fish");
+$helpers .= read_file("$root/fish/functions/rendezvous.fish");
 my $startup = join "\n", map {
     my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
     die "Missing Fish function $_\n" unless defined $function;
     $function;
 } qw(abbrali cd);
+my ($save_cd) = $config =~ /^(type -q _cd; or functions -c cd _cd)$/m;
+$startup = "$save_cd\n$startup";
 $startup .= join( "\n", $config =~ /^(abbrali (?:dt|tabt) .*)$/mg ) . "\n";
 
 sub setup {
@@ -254,23 +257,24 @@ FISH
 sub rendezvous_routes_both_file_pickers {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
-set -gx AQSNOW_FISH_RENDEZVOUS "$TEST_ROOT/request"
+set -gx RENDEZVOUS_FISH "$TEST_ROOT/request"
 function _fzf
     printf '%s\n' $argv
 end
-aqsnow_run_requested
-printf '%s\n' "$status"
+function commandline
+    printf 'commandline:%s\n' "$(string join , -- $argv)"
+end
 for request in path-widget recent-widget exec
-    printf '%s\n' "$request" > "$AQSNOW_FISH_RENDEZVOUS"
-    aqsnow_run_requested
-    printf '%s\n' "$status"
-    test ! -e "$AQSNOW_FISH_RENDEZVOUS"; or exit 1
+    set -g fish_bind_mode default
+    printf '%s\n' "$request" > "$RENDEZVOUS_FISH"
+    rendezvous
+    printf '%s:%s\n' "$status" "$fish_bind_mode"
 end
 FISH
     is(
         $result->{stdout},
-        "1\nfzf-path-widget\n1\nfzf-recent-widget\n1\n0\n",
-        'normal and recent pickers consume their requests without executing the command'
+        "fzf-path-widget\n0:insert\nfzf-recent-widget\n0:insert\ncommandline:-f,execute\n0:insert\n",
+        'successful picker and execution requests enter Insert mode'
     );
 }
 
@@ -279,14 +283,14 @@ sub aliases_added_after_initialization_are_exported {
     my $result = fish( $self, <<'FISH' );
 set -eg aqsnow_fzf_diralis
 aqsnow_fzf_diralis_add HOME
-aqsnow_init_rendezvous; or exit 1
-set -l original "$__aqsnow_rendezvous_dir"
+rendezvous_init; or exit 1
+set -l original "$__rendezvous_dir"
 set -g project "$TEST_ROOT"
 aqsnow_fzf_diralis_add project; or exit 2
 aqsnow_fzf_diralis_add project; or exit 3
 fish --no-config -c 'printf "%s\n%s\n" "$AQSNOW_DIRALIS" "$project"'
-aqsnow_init_rendezvous; or exit 4
-test "$original" = "$__aqsnow_rendezvous_dir"; or exit 5
+rendezvous_init; or exit 4
+test "$original" = "$__rendezvous_dir"; or exit 5
 FISH
     is(
         $result->{stdout},
@@ -562,9 +566,9 @@ set -g aqsnow_fzf_diralis
 functions -q __fzf_defaults; and exit 1
 dirali "$PWD" >/dev/null; or exit 2
 functions -q __fzf_defaults; and exit 3
-function aqsnow_init_rendezvous
+function rendezvous_init
 end
-function aqsnow_rendezvous
+function rendezvous
 end
 function test_widget
 end
@@ -648,8 +652,8 @@ function value_changed --on-variable aqsnow_test_exported
 end
 aqsnow_fzf_diralis_add HOME aqsnow_test_exported
 aqsnow_fzf_diralis_add aqsnow_test_exported
-aqsnow_init_rendezvous
-aqsnow_init_rendezvous
+rendezvous_init
+rendezvous_init
 printf '%s\n' "$changes"
 FISH
     is( $result->{stdout}, "0\n", 'registration and initialization do not rewrite exported names or values' );

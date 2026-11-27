@@ -54,9 +54,8 @@ end
 function gcm-extra
     return 0
 end
-function aqsnow_run_requested
-    return 0
-end
+set -gx RENDEZVOUS_FISH "$TEST_ROOT/request"
+printf exec > "$RENDEZVOUS_FISH"
 set -l index 0
 while set -q argv[1]
     cd "$TEST_ROOT"
