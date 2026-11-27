@@ -451,6 +451,9 @@ abbrali gcpc git cherry-pick --continue
 abbrali gcps git cherry-pick --skip
 abbrali gcpa git cherry-pick --abort
 abbrali gmb git merge-base HEAD origin
+abbrali gclean git clean -fdXn
+abbrali gcleanu git clean -fdn
+abbrali gcleana git clean -fdxn
 
 bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
