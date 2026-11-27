@@ -1,0 +1,89 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use POSIX qw(WNOHANG SIG_BLOCK SIG_SETMASK SIGHUP SIGINT SIGTERM sigprocmask);
+use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
+use Errno qw(EINTR);
+
+my $usage = <<'HELP';
+Usage: super [-h|--help] [--] COMMAND [ARG ...]
+
+Run a command whose lifetime is tied to the calling process.
+Use `super COMMAND ... &` to run it in the background. Arguments, environment,
+and standard streams are passed through unchanged; no shell is involved.
+
+When the calling process exits or super receives HUP, INT, or TERM, kill the
+command and its remaining descendants. Also clean up descendants when the
+command finishes. Descendants must remain in the command's process group.
+Return the command's exit status, or 128 plus the terminating signal number.
+Parent exit is treated as HUP (129).
+
+  -h, --help  Show this help.
+HELP
+if ( @ARGV && ( $ARGV[0] eq '-h' || $ARGV[0] eq '--help' ) ) {
+    print $usage;
+    exit 0;
+}
+shift @ARGV if @ARGV && $ARGV[0] eq '--';
+@ARGV or die $usage;
+
+my $parent = getppid();
+my ( $child, $reaped );
+
+END {
+    if ($child) {
+        kill 'KILL', -$child;
+        kill 'KILL', $child unless $reaped;
+    }
+}
+$SIG{HUP}  = sub { exit 129 };
+$SIG{INT}  = sub { exit 130 };
+$SIG{TERM} = sub { exit 143 };
+pipe my $events, my $notify or die "super: pipe: $!\n";
+fcntl( $notify, F_SETFL, fcntl( $notify, F_GETFL, 0 ) | O_NONBLOCK )
+  or die "super: fcntl: $!\n";
+$SIG{CHLD} = sub { syswrite $notify, '.', 1 };
+
+# Wait for the child to establish its group before handling termination.
+pipe my $group_ready, my $group_notify or die "super: pipe: $!\n";
+my $blocked  = POSIX::SigSet->new( SIGHUP, SIGINT, SIGTERM );
+my $previous = POSIX::SigSet->new;
+sigprocmask( SIG_BLOCK, $blocked, $previous ) or die "super: block signals: $!\n";
+$child = fork();
+defined $child or die "super: fork: $!\n";
+if ( !$child ) {
+    close $group_ready;
+    setpgrp( 0, 0 ) or die "super: setpgrp: $!\n";
+    close $group_notify;
+    $SIG{HUP} = $SIG{INT} = $SIG{TERM} = $SIG{CHLD} = 'DEFAULT';
+    close $events;
+    close $notify;
+    sigprocmask( SIG_SETMASK, $previous ) or die "super: restore signals: $!\n";
+    exec { $ARGV[0] } @ARGV or do {
+        print STDERR "super: exec $ARGV[0]: $!\n";
+        exit 127;
+    };
+}
+close $group_notify;
+my $ready;
+do { $ready = sysread( $group_ready, my $ignored, 1 ) } while !defined($ready) && $! == EINTR;
+defined $ready or die "super: group readiness: $!\n";
+close $group_ready;
+sigprocmask( SIG_SETMASK, $previous ) or die "super: restore signals: $!\n";
+
+while (1) {
+    exit 129 if getppid() != $parent;
+    my $finished = waitpid( $child, WNOHANG );
+    if ( $finished == $child ) {
+        my $status = $?;
+        $reaped = 1;
+        exit( ( $status & 127 ) ? 128 + ( $status & 127 ) : $status >> 8 );
+    }
+    $finished == -1 and die "super: waitpid: $!\n";
+
+    # A pipe retains SIGCHLD even if it arrives just before select().
+    my $readable = '';
+    vec( $readable, fileno($events), 1 ) = 1;
+    select $readable, undef, undef, 2;
+    sysread $events, my $ignored, 4096 if vec( $readable, fileno($events), 1 );
+}

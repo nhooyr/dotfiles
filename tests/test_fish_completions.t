@@ -130,6 +130,17 @@ sub native_wrapper_completions {
     ok( contains_value( completions( $self, 'touch -' ),   '-a' ),     'touch inherits its native options' );
 }
 
+sub supervisor_completions {
+    my ($self) = @_;
+    ok( contains_value( completions( $self, 'super --' ), '--help' ), 'super completes its own help' );
+    for my $prefix ( 'super', 'super --' ) {
+        ok( contains_value( completions( $self, "$prefix git --ver" ), '--version' ),
+            "$prefix delegates command options" );
+        ok( contains_value( completions( $self, "$prefix cat " ), 'readme.txt' ),
+            "$prefix delegates file completion" );
+    }
+}
+
 sub installer_wiring {
     my ($self) = @_;
     like( read_file("$root/install.sh"),
@@ -168,6 +179,7 @@ run_cases(
         no_arguments_or_pattern    => \&no_arguments_or_pattern,
         custom_argument_types      => \&custom_argument_types,
         native_wrapper_completions => \&native_wrapper_completions,
+        supervisor_completions     => \&supervisor_completions,
         installer_wiring           => \&installer_wiring,
     },
     \&setup
