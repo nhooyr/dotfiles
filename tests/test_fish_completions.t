@@ -154,7 +154,7 @@ sub installer_wiring {
         'preserves an existing config symlink'
     );
     unlike(
-        read_file("$root/fish/cd.fish"),
+        read_file("$root/fish/config.fish"),
         qr/^\s*complete\b[^\n]*\bcdf\b/m,
         'cdf completion is not registered eagerly during startup'
     );

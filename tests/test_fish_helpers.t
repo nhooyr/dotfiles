@@ -22,6 +22,12 @@ for my $name (qw(fd fdg)) {
 }
 $helpers .= read_file("$root/fish/functions/rootimg.fish");
 $helpers .= read_file("$root/fish/functions/sshv.fish");
+my $startup = join "\n", map {
+    my ($function) = $config =~ /^(function \Q$_\E\b.*?^end\n)/msg;
+    die "Missing Fish function $_\n" unless defined $function;
+    $function;
+} qw(abbrali cd);
+$startup .= join( "\n", $config =~ /^(abbrali (?:dt|tabt) .*)$/mg ) . "\n";
 
 sub setup {
     my ($self) = @_;
@@ -43,8 +49,6 @@ SH
         TEST_HPATH       => "$root/bin/hpath",
         TEST_PBC         => "$root/bin/pbc",
         TEST_GREP        => which('grep'),
-        TEST_CD          => "$root/fish/cd.fish",
-        TEST_GIT         => "$root/fish/git.fish",
         TEST_FUNCTIONS   => "$root/fish/functions",
         TEST_COMPLETIONS => "$root/fish/completions",
         TERM             => 'dumb',
@@ -402,15 +406,9 @@ sub occasional_helpers_load_lazily {
     write_file( "$self->{root}/lines", "a\nlong\n" );
     make_path( "$self->{root}/config/fish", "$self->{root}/repo", "$self->{root}/super" );
     write_file( "$self->{root}/config/fish/config.fish", "set -g loaded yes\n" );
-    my $result = fish( $self, <<'FISH' );
+    my $result = fish( $self, $startup . <<'FISH' );
 set -l autoload_path $fish_function_path
 set fish_function_path $(string match -v -- "$TEST_FUNCTIONS" $fish_function_path)
-function abbrali --argument-names name
-    abbr -a "$name" $argv[2..]
-    alias "$name" "$argv[2..]"
-end
-source "$TEST_GIT"; or exit 1
-source "$TEST_CD"; or exit 2
 for name in gbp gbins up mcd biglines dirt _dirt realpathc reload noti colors gcd scd papp multicd cdf
     functions -q "$name"; and exit 3
 end
@@ -660,7 +658,7 @@ FISH
 sub relative_directory_aliases_are_rejected {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
-source "$(path dirname -- "$TEST_CD")/functions/dirali.fish"
+source "$TEST_FUNCTIONS/dirali.fish"
 set -g aqsnow_fzf_diralis
 set -g project relative
 aqsnow_fzf_diralis_add project 2> "$TEST_ROOT/registration-error"
@@ -691,7 +689,7 @@ sub alias_reregistration_refreshes_resolved_paths {
     make_path( "$self->{root}/first", "$self->{root}/second" );
     symlink 'first', "$self->{root}/logical" or die $!;
     my $result = fish( $self, <<'FISH' );
-source "$(path dirname -- "$TEST_CD")/functions/dirali.fish"
+source "$TEST_FUNCTIONS/dirali.fish"
 set -g aqsnow_fzf_diralis
 set -g project "$TEST_ROOT/logical"
 aqsnow_fzf_diralis_add project

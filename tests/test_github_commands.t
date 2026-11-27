@@ -325,18 +325,6 @@ end
 ';
             $command = "ghe";
         }
-        if ( ( ( $command eq "gbp" ) ) ) {
-            $script .= (
-                (
-                    'function abbrali
-end
-source '
-                      . fish_quote( join_path( ancestors( absolute_path(__FILE__) )->[1], "fish/git.fish" ) )
-                )
-                . '; or exit
-'
-            );
-        }
         $script .= (
             ( ( $command . " " ) . join( " ", @{ [ map { my $arg = $_; fish_quote($arg) } @{$args} ] } ) ) . '
 '
@@ -465,7 +453,10 @@ sub test_help_lists_modes_without_side_effects {
                 [ "ghc", "ghc", [ "OWNER/REPO", "private", "already exists", "--help" ] ],
                 [
                     "gho", "gho",
-                    [ "PATH", "SYMLINK", "OWNER/REPO", "GITHUB_URL", "SSH_REPOSITORY_URL", "never check" ]
+                    [
+                        "PATH", "SYMLINK", "OWNER/REPO", "GITHUB_URL", "SSH_REPOSITORY_URL",
+                        "explicit targets and --copy stay offline"
+                    ]
                 ],
                 [
                     "ghe_dispatch",

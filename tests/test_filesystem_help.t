@@ -14,7 +14,7 @@ sub setup {
     $self->{temporary} = tempdir( 'filesystem-help-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     make_path( "$self->{temporary}/bin", "$self->{temporary}/config/fish" );
     write_file( "$self->{temporary}/config/fish/config.fish", 'touch "$TEST_CALLED"' . "\n" );
-    my ($cdpath_add) = read_file("$root/fish/cd.fish") =~ /^(function cdpath_add\b.*?^end\n)/msg;
+    my ($cdpath_add) = read_file("$root/fish/config.fish") =~ /^(function cdpath_add\b.*?^end\n)/msg;
     write_file( "$self->{temporary}/definitions.fish", $cdpath_add );
     $self->{env} = {
         %ENV,

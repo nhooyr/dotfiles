@@ -16,7 +16,6 @@ sub setup {
     my $config = read_file("$root/fish/config.fish");
     $config =~ s{\Q/opt/homebrew\E}{$self->{brew}}g;
     write_file( "$temp/dotfiles/fish/config.fish", $config );
-    symlink "$root/fish/$_.fish", "$temp/dotfiles/fish/$_.fish" or die $! for qw(git prompt cd);
 
     for my $command (qw(brew tabs)) {
         write_file( "$self->{brew}/bin/$command", <<'SH' );
@@ -43,16 +42,14 @@ SH
 }
 
 sub startup {
-    my ( $self, $interactive ) = @_;
+    my ($self) = @_;
     my $script = <<'FISH';
 source "$TEST_CONFIG"; or exit "$status"
 source "$TEST_CONFIG"; or exit "$status"
 command "$TEST_PERL" -MJSON::PP -e 'print encode_json({map {$_ => $ENV{$_}} qw(HOMEBREW_PREFIX HOMEBREW_CELLAR HOMEBREW_REPOSITORY MANPATH INFOPATH PATH LESS)})' > "$TEST_OUTPUT"
 FISH
-    my $result = run_command(
-        [ 'fish', '--no-config', ( $interactive ? ('-i') : () ), '-c', $script ],
-        { cwd => $self->{temporary}, env => $self->{env}, check => 1 }
-    );
+    my $result = run_command( [ 'fish', '--no-config', '-c', $script ],
+        { cwd => $self->{temporary}, env => $self->{env}, check => 1 } );
     is( $result->{stderr}, '', 'startup has no diagnostics' );
     ok( !-e $self->{env}{TEST_CALLS}, 'startup does not invoke brew or tabs' );
     return decode_json( read_file( $self->{env}{TEST_OUTPUT} ) );

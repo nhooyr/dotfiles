@@ -12,11 +12,13 @@ sub setup {
     $self->{temporary} = tempdir( 'ghop-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $dir = $self->{temporary};
     make_path("$dir/bin");
+    my ($ghep) = read_file("$root/fish/config.fish") =~ /^(abbrali ghep .*)$/m;
+    write_file( "$dir/ghep.fish", "$ghep\n" );
     $self->{env} = {
         %ENV,
         PATH               => "$dir/bin:$ENV{PATH}",
         TEST_ROOT          => $dir,
-        TEST_CONFIG        => "$root/fish/git.fish",
+        TEST_CONFIG        => "$dir/ghep.fish",
         TEST_FUNCTIONS     => "$root/fish/functions",
         TEST_COMPLETIONS   => "$root/fish/completions",
         TEST_VIEW_STATUS   => 0,

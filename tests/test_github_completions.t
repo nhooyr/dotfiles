@@ -15,6 +15,8 @@ sub setup {
     my $temporary = $self->{temporary};
     $self->{repo} = "$temporary/home/code/owner/repository";
     make_path( $self->{repo}, "$temporary/bin", "$temporary/functions" );
+    my @wrappers = read_file("$root/fish/config.fish") =~ /^(function gacm(?:a|p)?\b.*?^end\n)/msg;
+    write_file( "$temporary/wrappers.fish", join '', @wrappers );
     $self->{env} = {
         ( map { $_ => $ENV{$_} } grep { !/^GIT_/ } keys %ENV ),
         HOME                => "$temporary/home",
@@ -28,7 +30,7 @@ sub setup {
         TEST_COMPLETIONS    => "$root/fish/completions",
         TEST_FUNCTIONS      => "$root/fish/functions",
         TEST_TEMPORARY      => $temporary,
-        TEST_GIT_CONFIG     => "$root/fish/git.fish",
+        TEST_WRAPPERS       => "$temporary/wrappers.fish",
     };
     run_command( [ $git, 'init', '-q', $self->{repo} ], { env => $self->{env}, check => 1 } );
     write_file( "$self->{repo}/deleted file", 'tracked' );
@@ -103,10 +105,7 @@ FISH
 sub native_git_wrappers {
     my ($self) = @_;
     my $output = fish( $self, <<'FISH' );
-function abbrali --argument-names name
-    alias "$name" "$argv[2..]"
-end
-source "$TEST_GIT_CONFIG"
+source "$TEST_WRAPPERS"
 for query in 'git_log --oneline' 'git_rebase --interactive' 'gg --recurse-submodules' 'gacm --amend' 'gacma --no-edit' 'gacmp --amend'
     printf '%s\n' "$(complete -C "$query")"
 end
