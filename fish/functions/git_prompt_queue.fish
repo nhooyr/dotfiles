@@ -8,7 +8,6 @@ if set -q __aqsnow_vcs_generation
 else
     set -g __aqsnow_vcs_generation 0
 end
-set -q __aqsnow_vcs_serial; or set -g __aqsnow_vcs_serial 0
 
 function aqsnow_vcs_prompt_display --argument-names value
     set -g __aqsnow_vcs_prompt "$value"
@@ -103,16 +102,17 @@ end
 function aqsnow_vcs_prompt_cancel
     functions --erase aqsnow_vcs_prompt_finished
     aqsnow_vcs_prompt_cleanup
-    if set -q __aqsnow_vcs_file
-        command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
-    end
-    set -e __aqsnow_vcs_pending __aqsnow_vcs_process __aqsnow_vcs_token
+    set -e __aqsnow_vcs_pending __aqsnow_vcs_process
     set -g __aqsnow_vcs_dirty 1
 end
 
 function aqsnow_vcs_prompt_cleanup --on-event fish_exit
     if set -q __aqsnow_vcs_process
         command kill -TERM "$__aqsnow_vcs_process" 2>/dev/null
+    end
+    if set -q __aqsnow_vcs_dir
+        command rm -rf -- "$__aqsnow_vcs_dir"
+        set -e __aqsnow_vcs_dir __aqsnow_vcs_file
     end
 end
 
@@ -150,7 +150,7 @@ function aqsnow_vcs_prompt_done
     else if test "$code" = 0; and test -z "$__aqsnow_vcs_root"; and test "$__aqsnow_vcs_request_directory" = "$PWD"
         aqsnow_vcs_prompt_display ''
     end
-    command rm -f -- "$__aqsnow_vcs_file" "$__aqsnow_vcs_file.status"
+    aqsnow_vcs_prompt_cleanup
     if status is-interactive; and test "$__aqsnow_prompt_active" = 1
         git_prompt_queue
         if test "$previous" != "$__aqsnow_vcs_prompt"
@@ -173,10 +173,8 @@ function git_prompt_queue
         end
     end
     set -q __aqsnow_vcs_dirty; or return
-    aqsnow_init_rendezvous; or return
-    set -g __aqsnow_vcs_serial "$(math "$__aqsnow_vcs_serial + 1")"
-    set -g __aqsnow_vcs_token "$fish_pid-$__aqsnow_vcs_serial"
-    set -g __aqsnow_vcs_file "$__aqsnow_rendezvous_dir/vcs-prompt-$__aqsnow_vcs_token"
+    set -g __aqsnow_vcs_dir "$(mktemp -d)"; or return
+    set -g __aqsnow_vcs_file "$__aqsnow_vcs_dir/result"
     set -g __aqsnow_vcs_pending 1
     set -g __aqsnow_vcs_request_directory "$PWD"
     set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"

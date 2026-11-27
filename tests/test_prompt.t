@@ -48,10 +48,6 @@ sub shell {
     my $script = <<'FISH';
 set -g dotfiles "$TEST_DOTFILES"
 source "$TEST_SOURCE"
-function aqsnow_init_rendezvous
-    set -g __aqsnow_rendezvous_dir "$TEST_ROOT/rendezvous"
-    command mkdir -p -- "$__aqsnow_rendezvous_dir"
-end
 FISH
     return run_command( [ $fish, '--no-config', '-c', $script . $body ],
         { cwd => $cwd // $self->{repo}, env => $self->{env}, timeout => 10 } );
@@ -70,7 +66,8 @@ sub stage_completion {
         'set -g __aqsnow_vcs_request_directory "$PWD"' . "\n"
       . 'set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"' . "\n"
       . 'set -g __aqsnow_vcs_request_generation "$__aqsnow_vcs_generation"' . "\n"
-      . 'set -g __aqsnow_vcs_file "$TEST_ROOT/result"' . "\n"
+      . 'set -q __aqsnow_vcs_dir; or set -g __aqsnow_vcs_dir "$(mktemp -d)"' . "\n"
+      . 'set -g __aqsnow_vcs_file "$__aqsnow_vcs_dir/result"' . "\n"
       . 'printf %s '
       . shell_quote($value)
       . ' > "$__aqsnow_vcs_file"' . "\n"
@@ -81,7 +78,11 @@ sub stage_completion {
 }
 
 sub fake_completion {
-    return stage_completion(@_) . "aqsnow_vcs_prompt_done\n";
+    return stage_completion(@_) . <<'FISH';
+set -l completed_directory "$__aqsnow_vcs_dir"
+aqsnow_vcs_prompt_done
+test ! -e "$completed_directory"; or exit 5
+FISH
 }
 
 sub wait_for_refresh {
@@ -140,7 +141,7 @@ set -p fish_function_path "$XDG_CONFIG_HOME/fish/functions"
 source "$TEST_DOTFILES/fish/prompt.fish"
 set -q __aqsnow_vcs_generation; and exit 1
 functions -q git_prompt_cache git_prompt_identity; and exit 1
-function aqsnow_init_rendezvous
+function mktemp
     return 1
 end
 git_prompt_queue
@@ -291,7 +292,8 @@ git_prompt_queue
 set -g __aqsnow_vcs_request_directory "$PWD"
 set -g __aqsnow_vcs_request_root "$__aqsnow_vcs_root"
 set -g __aqsnow_vcs_request_generation "$__aqsnow_vcs_generation"
-set -g __aqsnow_vcs_file "$TEST_ROOT/result"
+set -g __aqsnow_vcs_dir "$(mktemp -d)"
+set -g __aqsnow_vcs_file "$__aqsnow_vcs_dir/result"
 cd -- "$TEST_OTHER"
 git_prompt_queue
 printf '%s\n' "$__aqsnow_vcs_prompt"
@@ -533,10 +535,14 @@ FISH
           . wait_for_marker('old-worker')
           . <<'FISH' . wait_for_refresh() . <<'FISH' . wait_for_retired_process() . "exit 0\n" );
 set -l retired_process "$__aqsnow_vcs_process"
+set -l retired_directory "$__aqsnow_vcs_dir"
 aqsnow_vcs_prompt_preexec
 cd -- "$TEST_OTHER"
 aqsnow_vcs_prompt_invalidate
 git_prompt_queue
+test -d "$__aqsnow_vcs_dir"; or exit 7
+test "$__aqsnow_vcs_dir" != "$retired_directory"; or exit 5
+test ! -e "$retired_directory"; or exit 6
 test "$__aqsnow_vcs_process" != "$retired_process"
 printf 'new-worker=%s\n%s\n' "$status" "$AQSNOW_FISH_GIT_PROMPT"
 FISH
@@ -752,7 +758,6 @@ sub successful_refresh_is_atomic {
     is( read_file("$self->{repo}/.fish_git_prompt"), $fresh, 'successful result is persisted' );
     ok( !grep( /\.fish_git_prompt\..*\.tmp\z/, @{ directory_entries( $self->{repo} ) } ),
         'atomic write leaves no temporary files' );
-    ok( !-e "$self->{root}/result" && !-e "$self->{root}/result.status", 'rendezvous results are cleaned' );
 }
 
 sub unchanged_cache_is_not_rewritten {
@@ -823,6 +828,8 @@ end
 FISH
     my $result = shell( $self, <<'FISH' );
 git_prompt_queue
+set -l worker_directory "$__aqsnow_vcs_dir"
+test -d "$worker_directory"; or exit 3
 printf '%s\n' "$__aqsnow_vcs_prompt"
 for i in $(seq 1 100)
     set -q __aqsnow_vcs_pending; or break
@@ -830,6 +837,9 @@ for i in $(seq 1 100)
 end
 printf '%s\n%s\n' "$__aqsnow_vcs_prompt" "$AQSNOW_FISH_GIT_PROMPT"
 set -q __aqsnow_vcs_pending; and exit 2
+test ! -e "$worker_directory"; or exit 5
+set -q __aqsnow_vcs_dir; and exit 6
+set -q __aqsnow_vcs_file; and exit 7
 exit 0
 FISH
     is(
@@ -842,7 +852,6 @@ FISH
         ' (async-refreshed)',
         'real worker completion persists the result'
     );
-    is_deeply( directory_entries("$self->{root}/rendezvous"), [], 'completion cleans result files' );
 }
 
 sub cancellation_immediately_stops_worker_group {
@@ -868,7 +877,12 @@ end
 FISH
     my $result = shell( $self, "git_prompt_queue\n" . wait_for_marker('heartbeat') . <<'FISH' );
 set -l worker "$__aqsnow_vcs_process"
+set -l worker_directory "$__aqsnow_vcs_dir"
+test -d "$worker_directory"; or exit 7
 aqsnow_vcs_prompt_cancel
+test ! -e "$worker_directory"; or exit 4
+set -q __aqsnow_vcs_dir; and exit 5
+set -q __aqsnow_vcs_file; and exit 6
 command "$TEST_PERL" -MTime::HiRes=time,sleep -e '
     my $deadline = time + 1;
     while (kill 0, $ARGV[0]) {
@@ -885,6 +899,24 @@ FISH
     select undef, undef, undef, 0.15;
     is( read_file("$self->{root}/heartbeat"), $heartbeat,
         'cancellation stops TERM-ignoring descendants too' );
+}
+
+sub shell_exit_cleans_worker_directory {
+    my ($self) = @_;
+    fake_dotfiles( $self, <<'FISH' );
+function aqsnow_vcs_prompt
+    printf ready > "$TEST_ROOT/ready"
+    command sleep 20
+end
+FISH
+    my $result = shell( $self, "git_prompt_queue\n" . wait_for_marker('ready') . <<'FISH' );
+test -d "$__aqsnow_vcs_dir"; or exit 1
+printf '%s\n' "$__aqsnow_vcs_dir" > "$TEST_ROOT/worker-directory"
+exit 0
+FISH
+    is( output($result), '', 'shell exits with a live prompt worker' );
+    my $directory = trim( read_file("$self->{root}/worker-directory") );
+    ok( !-e $directory, 'shell exit removes the active worker directory' );
 }
 
 sub real_git_refresh {
@@ -1034,6 +1066,7 @@ run_cases(
         staging_file_uses_cache_ignore_pattern          => \&staging_file_uses_cache_ignore_pattern,
         real_async_refresh                              => \&real_async_refresh,
         cancellation_immediately_stops_worker_group     => \&cancellation_immediately_stops_worker_group,
+        shell_exit_cleans_worker_directory              => \&shell_exit_cleans_worker_directory,
         real_git_refresh                                => \&real_git_refresh,
         unwritable_cache_keeps_display                  => \&unwritable_cache_keeps_display,
     },

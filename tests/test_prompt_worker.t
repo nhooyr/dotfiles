@@ -39,10 +39,6 @@ sub run_prompt {
     my $script = <<'FISH';
 set -g dotfiles "$TEST_DOTFILES"
 source "$TEST_SOURCE"
-function aqsnow_init_rendezvous
-    set -g __aqsnow_rendezvous_dir "$TEST_ROOT/rendezvous"
-    command mkdir -p -- "$__aqsnow_rendezvous_dir"
-end
 functions --copy aqsnow_vcs_prompt_done complete_prompt
 function aqsnow_vcs_prompt_done
     set -g reported_status "$argv[1]"
@@ -55,14 +51,21 @@ function wait_for_ready
     end
     exit 2
 end
+function start_prompt
+    block --local
+    git_prompt_queue
+    printf '%s\n' "$__aqsnow_vcs_dir" >> "$TEST_ROOT/worker-directories"
+end
 FISH
-    $script .= "\ngit_prompt_queue\n" . ( $during // '' ) . <<'FISH';
+    $script .= "\nstart_prompt\n" . ( $during // '' ) . <<'FISH';
 
 for i in $(seq 1 150)
     set -q __aqsnow_vcs_pending; or break
     command sleep 0.01
 end
 set -q __aqsnow_vcs_pending; and exit 3
+set -q __aqsnow_vcs_dir; and exit 4
+set -q __aqsnow_vcs_file; and exit 5
 printf '%s\n' "$__aqsnow_vcs_prompt" "$reported_status"
 set -q __aqsnow_vcs_dirty; and printf 'dirty\n'
 true
@@ -77,6 +80,8 @@ FISH
     );
     is( $result->{returncode}, 0,  $result->{stderr} );
     is( $result->{stderr},     '', 'prompt supervisor has no diagnostics' );
+    my @directories = split /\n/, read_file("$self->{root}/worker-directories");
+    ok( !grep( { -e $_ } @directories ), 'finished request removes its temporary directory' );
     return $result->{stdout};
 }
 
