@@ -312,8 +312,9 @@ end
 abbrali g git
 abbrali grv 'git rev-parse --abbrev-ref HEAD | pbc'
 abbrali grvs 'git rev-parse --short HEAD | pbc'
-abbrali gsh git show
+abbrali gsh git show --stat --patch
 abbrali gshs git show --stat
+abbrali gsha git show --stat --patch --format=fuller
 abbrali gsht 'git show -s --format=%s | pbc'
 abbrali gshb 'git show -s --format=%b | pbc'
 abbrali ga git add -A
@@ -360,6 +361,7 @@ abbrali grmc git rm --cached
 abbrali grmcr git rm --cached -r
 abbrali grmcrf git rm --cached -rf
 abbrali gl git_log
+abbrali gla git_log --format=fuller
 abbrali glp git_log -p
 abbrali glo git_log --oneline
 abbrali glol git_log --oneline \| wc -l
