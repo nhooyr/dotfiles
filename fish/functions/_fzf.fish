@@ -2,27 +2,29 @@ source "$(status dirname)/../fzf_upstream.fish"; or return
 
 function _fzf --argument-names widget
     if test "$widget" = fzf-path-first-widget
-        fzf_path_widget "$widget"
-        return
+        fzf_path_widget "$widget"; or return 1
     else if test "$widget" = fzf-history-first-widget
-        fzf-history-widget --first
-        return
-    end
-    rendezvous_init; or return
-    # Indices preserve fzf's empty-selection guard without copying filenames.
-    set -l action "alt-enter:execute-silent(test -n '{+n}'; and printf exec > $(string escape -- "$RENDEZVOUS_FISH"))+accept"
-    set -l option "--bind=$(string escape -- "$action")"
-
-    for name in FZF_CTRL_R_OPTS FZF_CTRL_T_OPTS FZF_ALT_C_OPTS FZF_COMPLETION_OPTS FZF_EXPANSION_OPTS
-        set --function --export "$name" "$$name $option"
-    end
-
-    if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget fzf-recent-widget
-        fzf_path_widget "$widget"
+        fzf-history-widget --first; or return 1
     else
-        $widget
+        rendezvous_init; or return
+        # Indices preserve fzf's empty-selection guard without copying filenames.
+        set -l action "alt-enter:execute-silent(test -n '{+n}'; and printf exec > $(string escape -- "$RENDEZVOUS_FISH"))+accept"
+        set -l option "--bind=$(string escape -- "$action")"
+
+        for name in FZF_CTRL_R_OPTS FZF_CTRL_T_OPTS FZF_ALT_C_OPTS FZF_COMPLETION_OPTS FZF_EXPANSION_OPTS
+            set --function --export "$name" "$$name $option"
+        end
+
+        if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget fzf-recent-widget
+            fzf_path_widget "$widget"
+        else
+            $widget
+        end
+        or return 1
+        rendezvous
     end
-    and rendezvous
+    set -g fish_bind_mode insert
+    return 0
 end
 
 function _fzf_select --argument-names widget query
@@ -222,6 +224,7 @@ function fzf_path_widget --argument-names widget
         commandline -rt -- "$(string join -- ' ' $parsed[3]$escaped) "
     end
     commandline -f repaint
+    set -q result[1]
 end
 
 function aqsnow_fzf_path_quote --argument-names target prefix

@@ -122,7 +122,8 @@ function fzf-history-widget -d "Show command history"
     if test "$argv[1]" = --first
         set finder "_fzf_select fzf-history-first-widget $fzf_query"
     end
-    if set -l result (eval $FZF_DEFAULT_COMMAND \| "$finder" | string split0)
+    set -l result $(eval $FZF_DEFAULT_COMMAND \| "$finder" | string split0)
+    if set -q result[1]
         if test "$total_lines" -eq 1
             commandline -- $result
         else
@@ -138,6 +139,7 @@ function fzf-history-widget -d "Show command history"
     end
 
     commandline -f repaint
+    set -q result[1]
 end
 
 function fzf_complete -w fzf -d 'fzf command completion and wildcard expansion search'
@@ -275,6 +277,7 @@ function fzf_complete -w fzf -d 'fzf command completion and wildcard expansion s
     end
 
     commandline -f repaint
+    test -n "$result"
 end
 
 function _fzf_complete

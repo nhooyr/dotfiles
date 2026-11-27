@@ -278,6 +278,32 @@ FISH
     );
 }
 
+sub failed_rendezvous_preserves_mode {
+    my ($self) = @_;
+    my $result = fish( $self, <<'FISH' );
+set -gx RENDEZVOUS_FISH "$TEST_ROOT/request"
+function _fzf
+    return 1
+end
+for mode in default insert
+    set -g fish_bind_mode "$mode"
+    rendezvous
+    printf '%s:%s\n' "$status" "$fish_bind_mode"
+    for request in '' unknown path-widget recent-widget
+        printf '%s\n' "$request" > "$RENDEZVOUS_FISH"
+        rendezvous
+        printf '%s:%s\n' "$status" "$fish_bind_mode"
+    end
+    command rm "$RENDEZVOUS_FISH"
+end
+FISH
+    is(
+        $result->{stdout},
+        ( "1:default\n" x 5 ) . ( "1:insert\n" x 5 ),
+        'missing, empty, unknown and cancelled requests preserve the previous mode'
+    );
+}
+
 sub aliases_added_after_initialization_are_exported {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
@@ -719,6 +745,7 @@ run_cases(
         fd_defaults_respect_ignores_and_follow_symlinks => \&fd_defaults_respect_ignores_and_follow_symlinks,
         find_names_respect_ignores                      => \&find_names_respect_ignores,
         rendezvous_routes_both_file_pickers             => \&rendezvous_routes_both_file_pickers,
+        failed_rendezvous_preserves_mode                => \&failed_rendezvous_preserves_mode,
         sshv_preserves_remote_paths                     => \&sshv_preserves_remote_paths,
         sshv_stops_on_ssh_failure                       => \&sshv_stops_on_ssh_failure,
         sshv_expands_only_remote_home_prefixes          => \&sshv_expands_only_remote_home_prefixes,

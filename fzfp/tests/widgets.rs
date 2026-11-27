@@ -135,6 +135,38 @@ fn first_path_result_uses_the_same_insertion_rules() {
 }
 
 #[test]
+fn path_widgets_report_whether_a_selection_was_inserted() {
+    let script = r#"
+function fzfp
+    printf 'picked\0'
+end
+function fzf
+    cat >/dev/null
+    switch "$selection"
+        case picked
+            printf 'picked\0'
+        case cancelled
+            return 130
+    end
+end
+for widget in fzf-file-widget fzf-path-widget fzf-cd-widget fzf-path-first-widget
+    for selected in cancelled empty picked
+        set -g selection "$selected"
+        set -g inserted unchanged
+        fzf_path_widget "$widget"
+        set -l code "$status"
+        if test "$selection" = picked
+            test "$code" -eq 0; and test "$inserted" = '-- picked '; or exit 1
+        else
+            test "$code" -eq 1; and test "$inserted" = unchanged; or exit 2
+        end
+    end
+end
+"#;
+    assert!(path_case(script, ".").is_empty());
+}
+
+#[test]
 fn recent_files_use_the_same_insertion_rules() {
     for (commandline, selection) in [
         ("", "./script"),
@@ -505,6 +537,7 @@ end
 set -g TEST_TOKEN "$PWD/external/"
 set -g current_widget fzf-file-widget
 fzf_path_widget "$current_widget"
+test "$status" -eq 1; or exit 8
 "#;
     assert!(path_case(script, "/").is_empty());
 }
