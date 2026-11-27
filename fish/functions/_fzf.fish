@@ -16,16 +16,13 @@ function _fzf --argument-names widget
         end
 
         if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget fzf-recent-widget
-            fzf_path_widget "$widget"
+            fzf_path_widget "$widget"; or return 1
         else
-            $widget
+            $widget; or return 1
         end
-        or return 1
         rendezvous
     end
-    if test "$fish_bind_mode" != insert
-        set -g fish_bind_mode insert
-    end
+    test "$fish_bind_mode" != insert; and set -g fish_bind_mode insert
     return 0
 end
 
