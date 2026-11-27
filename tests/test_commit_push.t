@@ -12,7 +12,7 @@ die "Missing Fish function aqsnow_postexec\n" unless defined $postexec;
 sub setup {
     my ($self) = @_;
     $self->{temporary} = absolute_path( tempdir( 'commit-push-XXXXXX', TMPDIR => 1, CLEANUP => 1 ) );
-    $self->{target}    = "$self->{temporary}/target space";
+    $self->{target}    = "$self->{temporary}/target space \$cash 'quoted'";
     make_path( $self->{target} );
     for my $directory ( $self->{temporary}, $self->{target} ) {
         write_file( "$directory/commit", "#!/bin/sh\nexit \"\${TEST_STATUS:-0}\"\n" );
@@ -71,16 +71,11 @@ end
 function return_status
     return "$argv[1]"
 end
-function target
-    set -g target_calls "$(math "$target_calls + 1")"
-    printf '%s\n' "$TEST_TARGET"
-end
-set -g target_calls 0
 eval "$argv[1]"
 set -l code "$status"
 return_status "$code"
 aqsnow_postexec "$argv[1]"
-printf 'outside:%s\ntarget-calls:%s\n' "$PWD" "$target_calls"
+printf 'outside:%s\n' "$PWD"
 FISH
         { cwd => $self->{temporary}, env => $self->{env} }
     );
@@ -119,15 +114,11 @@ sub plain_and_wrapped_commit_forms {
     }
 }
 
-sub wrapped_sequences_reuse_the_raw_prefix {
+sub wrapped_sequences_use_expanded_paths {
     my ($self) = @_;
     pushed( $self, 'true; and cdc "$TEST_TARGET" git commit', 'push', $self->{target} );
     pushed( $self, 'false; or cdc "$TEST_TARGET" git commit -m "literal ; and gcma"',
         'push', $self->{target} );
-    my $result =
-      pushed( $self, 'cdc "$(target)" git commit -m "message with spaces"', 'push', $self->{target} );
-    like( $result->{stdout}, qr/^target-calls:2$/m,
-        'the reused cdc prefix evaluates the target expression again' );
     pushed( $self, 'cdc "$TEST_TARGET" true; and git commit', 'push', $self->{temporary} );
 }
 
@@ -181,7 +172,7 @@ sub only_command_tokens_trigger_a_push {
 run_cases(
     {
         plain_and_wrapped_commit_forms           => \&plain_and_wrapped_commit_forms,
-        wrapped_sequences_reuse_the_raw_prefix   => \&wrapped_sequences_reuse_the_raw_prefix,
+        wrapped_sequences_use_expanded_paths     => \&wrapped_sequences_use_expanded_paths,
         amend_flags_work_in_any_position         => \&amend_flags_work_in_any_position,
         failed_or_unrelated_commands_do_not_push => \&failed_or_unrelated_commands_do_not_push,
         only_command_tokens_trigger_a_push       => \&only_command_tokens_trigger_a_push,

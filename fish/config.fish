@@ -470,26 +470,24 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     test "$code" -eq 0; or return 0
 
     set cmdline "$(string replace -r '[;[:space:]]+$' '' -- "$cmdline")"
-    printf '%s\0' "$(commandline --input="$cmdline" --current-process)" |
-        read --null --tokenize-raw --local --array last_command
-    contains -- "$last_command[1]" and or; and set -e last_command[1]
-    set -l prefix ''
-    while test "$last_command[1]" = cdc
-        set prefix "$prefix$(string join -- ' ' $last_command[1..2]) "
-        set -e last_command[1..2]
+    set -l command $(commandline --input="$cmdline" --current-process --tokens-expanded)
+    contains -- "$command[1]" and or; and set -e command[1]
+    set -l push
+    while test "$command[1]" = cdc
+        set -a push $command[1..2]
+        set -e command[1..2]
     end
-    set -q last_command[1]; or return 0
-    set -l command $(string unescape -- $last_command)
     test "$command[1]" = command; and set -e command[1]
     if test "$command[1]" = git; and test "$command[2]" = commit
         set command gcm $command[3..]
     end
     contains -- "$command[1]" gcm gacm gacmp gcmf gcma gacma ./commit; or return 0
-    set -l push 'git push'
     if contains -- "$command[1]" gcma gacma; or contains -- --amend $command[2..]
-        set push gpf
+        set -a push gpf
+    else
+        set -a push git push
     end
-    eval "$prefix $push"
+    $push
 end
 # Always disable bracketed paste queries. https://github.com/junegunn/fzf/issues/4963
 alias fzf='TERM_PROGRAM=Apple_Terminal command fzf'
