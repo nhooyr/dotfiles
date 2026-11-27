@@ -13,7 +13,7 @@ sub setup {
     my ($self) = @_;
     $self->{temporary} = absolute_path( tempdir( 'commit-push-XXXXXX', TMPDIR => 1, CLEANUP => 1 ) );
     $self->{target}    = "$self->{temporary}/target space \$cash 'quoted'";
-    make_path( $self->{target} );
+    make_path( $self->{target}, "$self->{temporary}/pushes" );
     for my $directory ( $self->{temporary}, $self->{target} ) {
         write_file( "$directory/commit", "#!/bin/sh\nexit \"\${TEST_STATUS:-0}\"\n" );
         chmod 0755, "$directory/commit" or die $!;
@@ -22,17 +22,16 @@ sub setup {
         %ENV,
         TEST_TARGET  => $self->{target},
         TEST_CDC     => "$root/fish/functions/cdc.fish",
-        TEST_LOG     => "$self->{temporary}/pushes",
-        TEST_STATUS  => 0,
+        TEST_ROOT    => $self->{temporary},
         TERM_PROGRAM => '',
         CMD_DURATION => 0,
     };
 }
 
-sub run_line {
-    my ( $self, $line ) = @_;
-    return run_command(
-        [ 'fish', '--no-config', '-c', $postexec . <<'FISH', '--', $line ],
+sub check_commands {
+    my ( $self, @cases ) = @_;
+    my $result = run_command(
+        [ 'fish', '--no-config', '-c', $postexec . <<'FISH', '--', map { ( $_->[0], $_->[3] // 0 ) } @cases ],
 source "$TEST_CDC"
 function git
     if test "$argv[1]" = push
@@ -44,23 +43,10 @@ end
 function gpf
     printf 'force\t%s\n' "$PWD" >> "$TEST_LOG"
 end
-function gcm
-    git commit $argv
-end
-function gacm
-    git commit $argv
-end
-function gcma
-    git commit --amend $argv
-end
-function gacma
-    git commit --amend $argv
-end
-function gacmp
-    git commit $argv
-end
-function gcmf
-    git commit --fixup $argv
+for name in gcm gacm gcma gacma gacmp gcmf
+    function $name
+        git commit $argv
+    end
 end
 function gcm-extra
     return 0
@@ -68,31 +54,35 @@ end
 function aqsnow_run_requested
     return 0
 end
-function return_status
-    return "$argv[1]"
+set -l index 0
+while set -q argv[1]
+    cd "$TEST_ROOT"
+    set -gx TEST_LOG "$TEST_ROOT/pushes/$index"
+    set -gx TEST_STATUS "$argv[2]"
+    eval "$argv[1]" >/dev/null
+    aqsnow_postexec "$argv[1]" >/dev/null
+    printf '%s\t%s\n' "$status" "$PWD"
+    set index "$(math "$index + 1")"
+    set -e argv[1..2]
 end
-eval "$argv[1]"
-set -l code "$status"
-return_status "$code"
-aqsnow_postexec "$argv[1]"
-printf 'outside:%s\n' "$PWD"
 FISH
         { cwd => $self->{temporary}, env => $self->{env} }
     );
-}
-
-sub pushed {
-    my ( $self, $line, $kind, $directory ) = @_;
-    unlink $self->{env}{TEST_LOG};
-    my $result = run_line( $self, $line );
-    is( $result->{returncode},               0,                     $result->{stderr} );
-    is( read_file( $self->{env}{TEST_LOG} ), "$kind\t$directory\n", "$line pushes in the right directory" );
-    like( $result->{stdout}, qr/^outside:\Q$self->{temporary}\E$/m, 'the caller directory is restored' );
-    return $result;
+    is( $result->{returncode}, 0, $result->{stderr} );
+    my @results = split /\n/, $result->{stdout};
+    is( scalar @results, scalar @cases, 'every command ran' );
+    for my $index ( 0 .. $#cases ) {
+        my ( $line, $kind, $directory ) = @{ $cases[$index] };
+        $directory //= $self->{temporary};
+        is( $results[$index], "0\t$self->{temporary}", "$line completes and restores cwd" );
+        my $log = "$self->{temporary}/pushes/$index";
+        is( -e $log ? read_file($log) : '', $kind ? "$kind\t$directory\n" : '', "$line push" );
+    }
 }
 
 sub plain_and_wrapped_commit_forms {
     my ($self) = @_;
+    my @cases;
     for my $case (
         [ 'git commit',                   'push' ],
         [ 'git commit;',                  'push' ],
@@ -109,21 +99,24 @@ sub plain_and_wrapped_commit_forms {
         [ './commit',                     'push' ],
       )
     {
-        pushed( $self, $case->[0],                         $case->[1], $self->{temporary} );
-        pushed( $self, 'cdc "$TEST_TARGET" ' . $case->[0], $case->[1], $self->{target} );
+        push @cases, $case, [ 'cdc "$TEST_TARGET" ' . $case->[0], $case->[1], $self->{target} ];
     }
+    check_commands( $self, @cases );
 }
 
 sub wrapped_sequences_use_expanded_paths {
     my ($self) = @_;
-    pushed( $self, 'true; and cdc "$TEST_TARGET" git commit', 'push', $self->{target} );
-    pushed( $self, 'false; or cdc "$TEST_TARGET" git commit -m "literal ; and gcma"',
-        'push', $self->{target} );
-    pushed( $self, 'cdc "$TEST_TARGET" true; and git commit', 'push', $self->{temporary} );
+    check_commands(
+        $self,
+        [ 'true; and cdc "$TEST_TARGET" git commit',                         'push', $self->{target} ],
+        [ 'false; or cdc "$TEST_TARGET" git commit -m "literal ; and gcma"', 'push', $self->{target} ],
+        [ 'cdc "$TEST_TARGET" true; and git commit',                         'push' ],
+    );
 }
 
 sub amend_flags_work_in_any_position {
     my ($self) = @_;
+    my @cases;
     for my $line (
         'git commit --no-edit --amend',
         'git commit -m message --amend',
@@ -131,42 +124,35 @@ sub amend_flags_work_in_any_position {
         'gacm path --amend',
       )
     {
-        pushed( $self, $line,                         'force', $self->{temporary} );
-        pushed( $self, 'cdc "$TEST_TARGET" ' . $line, 'force', $self->{target} );
+        push @cases, [ $line, 'force' ], [ 'cdc "$TEST_TARGET" ' . $line, 'force', $self->{target} ];
     }
+    check_commands( $self, @cases );
 }
 
 sub failed_or_unrelated_commands_do_not_push {
     my ($self) = @_;
-    $self->{env}{TEST_STATUS} = 23;
-    for my $line ( 'git commit', 'cdc "$TEST_TARGET" git commit', 'cdc "$TEST_TARGET" gcma' ) {
-        my $result = run_line( $self, $line );
-        is( $result->{returncode}, 0, $result->{stderr} );
-        ok( !-e $self->{env}{TEST_LOG}, 'a failed commit does not push' );
-        like( $result->{stdout}, qr/outside:\Q$self->{temporary}\E/,
-            'failure restores the caller directory' );
-    }
-    $self->{env}{TEST_STATUS} = 0;
-    my $result = run_line( $self, 'cdc "$TEST_TARGET" git commit; and true' );
-    is( $result->{returncode}, 0, $result->{stderr} );
-    ok( !-e $self->{env}{TEST_LOG}, 'an unrelated final command does not reuse the wrapped commit' );
+    check_commands(
+        $self,
+        [ 'git commit',                    '', undef, 23 ],
+        [ 'cdc "$TEST_TARGET" git commit', '', undef, 23 ],
+        [ 'cdc "$TEST_TARGET" gcma',       '', undef, 23 ],
+        ['cdc "$TEST_TARGET" git commit; and true'],
+    );
 }
 
 sub only_command_tokens_trigger_a_push {
     my ($self) = @_;
-    for my $line (
-        q{echo 'git commit'},
-        q{printf '%s\n' gcm},
-        q{git status 'git commit'},
-        q{git commitment},
-        q{gcm-extra}, q{cdc "$TEST_TARGET" gcm-extra},
-        q{true;},     q{# comment}, '',
-      )
-    {
-        my $result = run_line( $self, $line );
-        is( $result->{returncode}, 0, $result->{stderr} );
-        ok( !-e $self->{env}{TEST_LOG}, "$line does not push" );
-    }
+    check_commands(
+        $self,
+        map { [$_] } (
+            q{echo 'git commit'},
+            q{printf '%s\n' gcm},
+            q{git status 'git commit'},
+            q{git commitment},
+            q{gcm-extra}, q{cdc "$TEST_TARGET" gcm-extra},
+            q{true;},     q{# comment}, '',
+        )
+    );
 }
 
 run_cases(
