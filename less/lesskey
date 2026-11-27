@@ -3,6 +3,8 @@
 ^Y noaction 2k
 ]c forw-search ^K\^diff\ --\nn
 [c back-search ^K\^diff\ --\nn
+]g forw-search ^K\^commit\ \nn
+[g back-search ^K\^commit\ \nn
 ]h forw-search ^K\^@@\nn
 [h back-search ^K\^@@\nn
 \\h undo-hilite
