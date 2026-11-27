@@ -135,6 +135,7 @@ sub selects_latest_workflows_on_default_heads {
     );
     like( $calls->[0]{fields}{query},
         qr/isArchived:\s*false/, 'repository query excludes archived repositories' );
+    like( $calls->[0]{fields}{query}, qr/isFork:\s*false/, 'repository query excludes forks' );
     is_deeply( $calls->[0]{options}, [ '--paginate', '--slurp' ], 'repository pages are collected' );
     is_deeply(
         [ map { [ $_->{endpoint}, $_->{method}, $_->{fields}, $_->{options} ] } @$calls[ 1 .. $#$calls ] ],

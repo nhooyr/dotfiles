@@ -13,6 +13,7 @@ Usage: dirtci [-h|--help]
 
 Report GitHub Actions failures and pending runs for the latest commit on
 each default branch in your owned, non-archived GitHub repositories.
+Forks are excluded.
 Uses the GitHub API through gh; no local clones are needed.
 
 Report each workflow separately, with its status and run URL. For pending
@@ -64,7 +65,7 @@ sub previous_run {
 my $query = <<'GRAPHQL';
 query($endCursor: String) {
   viewer {
-    repositories(first: 100, after: $endCursor, ownerAffiliations: OWNER, isArchived: false) {
+    repositories(first: 100, after: $endCursor, ownerAffiliations: OWNER, isArchived: false, isFork: false) {
       nodes { nameWithOwner defaultBranchRef { name target { oid } } }
       pageInfo { hasNextPage endCursor }
     }
