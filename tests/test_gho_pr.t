@@ -126,6 +126,22 @@ sub required_remotes_must_exist {
     falls_back($self);
 }
 
+sub main_and_master_open_urls {
+    my ($self) = @_;
+    for my $branch (qw(main master)) {
+        git( $self, 'checkout', '--quiet', '-B', $branch );
+        git( $self, 'update-ref', "refs/remotes/origin/$branch", 'HEAD' );
+        for my $directory ( $self->{repo}, "$self->{repo}/sub" ) {
+            my $result = gho( $self, $directory );
+            is( $result->{returncode}, 0, $result->{stderr} );
+            my $url = 'https://github.com/example/fork';
+            $url .= "/tree/$branch/sub" if $directory ne $self->{repo};
+            is( read_file( $self->{env}{TEST_LOG} ),
+                "open\t$url\n", "$branch opens its ordinary URL from the root or a subdirectory" );
+        }
+    }
+}
+
 sub unpublished_detached_and_unborn_use_urls {
     my ($self) = @_;
     git( $self, 'update-ref', '-d', 'refs/remotes/origin/topic' );
@@ -153,6 +169,7 @@ run_cases(
     {
         published_topic_uses_ghop                => \&published_topic_uses_ghop,
         required_remotes_must_exist              => \&required_remotes_must_exist,
+        main_and_master_open_urls                => \&main_and_master_open_urls,
         unpublished_detached_and_unborn_use_urls => \&unpublished_detached_and_unborn_use_urls,
         explicit_targets_and_copy_never_use_ghop => \&explicit_targets_and_copy_never_use_ghop,
     },

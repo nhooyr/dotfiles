@@ -29,6 +29,7 @@ Issue and PR numbers always use /issues/NUMBER; GitHub redirects PRs.
 
 With no target, when origin and upstream remotes exist and the current branch
 has a cached origin branch, run ghop to open the PR or its creation form.
+Branches named main or master always open their ordinary repository URL.
 This mode uses the GitHub API; explicit targets and --copy stay offline.
 
 Local paths use the configured upstream branch, otherwise the local branch.
@@ -225,6 +226,7 @@ function __gho
         and contains -- origin $remotes
         and contains -- upstream $remotes
         and set -l branch "$(git symbolic-ref --quiet --short HEAD 2>/dev/null)"
+        and not contains -- "$branch" main master
         and git show-ref --verify --quiet "refs/remotes/origin/$branch" 2>/dev/null
         ghop
         return
