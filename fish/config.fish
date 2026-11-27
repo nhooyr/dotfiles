@@ -457,8 +457,10 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
             end
         end
     end
-    rendezvous; and return
     test "$code" -ne 0; and return
+    if test "$(test -s "$RENDEZVOUS_FISH"; and cat "$RENDEZVOUS_FISH")" != exec
+        return
+    end
 
     set cmdline "$(string replace -r '[;[:space:]]+$' '' -- "$cmdline")"
     set -l command $(commandline --input="$cmdline" --current-process --tokens-expanded)
@@ -528,7 +530,10 @@ end
 aqsnow_fzf_diralis_add HOME TMPDIR nhooyr dotfiles notes noise fair
 
 function rendezvous_init --on-event fish_preexec
-    set -q __rendezvous_dir; and return
+    if set -q RENDEZVOUS_FISH
+        echo -n >"$RENDEZVOUS_FISH"
+        return
+    end
     set -e RENDEZVOUS_FISH
     set -l rendezvous_dir "$(mktemp -d)"; or return
     set -g __rendezvous_dir "$rendezvous_dir"

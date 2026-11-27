@@ -1,13 +1,13 @@
 function rendezvous
     set -g fish_bind_mode insert
-    test -s "$RENDEZVOUS_FISH"; or return 1
-    set -l request "$(cat "$RENDEZVOUS_FISH")"
-    rm -- "$RENDEZVOUS_FISH"
+    set -l request "$(test -s "$RENDEZVOUS_FISH"; and cat "$RENDEZVOUS_FISH")"
     switch "$request"
         case exec
             commandline -f execute
         case path-widget recent-widget
             _fzf "fzf-$request"
+        case *
+            return 1
     end
     return 0
 end

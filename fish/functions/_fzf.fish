@@ -10,7 +10,7 @@ function _fzf --argument-names widget
     end
     rendezvous_init; or return
     # Indices preserve fzf's empty-selection guard without copying filenames.
-    set -l action "alt-enter:execute-silent(test -n '{+n}'; and printf exec > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
+    set -l action "alt-enter:execute-silent(test -n '{+n}'; and printf exec > $(string escape -- "$RENDEZVOUS_FISH"))+accept"
     set -l option "--bind=$(string escape -- "$action")"
 
     for name in FZF_CTRL_R_OPTS FZF_CTRL_T_OPTS FZF_ALT_C_OPTS FZF_COMPLETION_OPTS FZF_EXPANSION_OPTS
@@ -22,7 +22,7 @@ function _fzf --argument-names widget
     else
         $widget
     end
-    rendezvous
+    and rendezvous
 end
 
 function _fzf_select --argument-names widget query

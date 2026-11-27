@@ -1,5 +1,5 @@
 local function quit_with_request(request)
-	local path = request and vim.env.AQSNOW_FISH_RENDEZVOUS
+	local path = request and vim.env.RENDEZVOUS_FISH
 	if path and path ~= '' then vim.fn.writefile({ request }, path) end
 	local ok, err = pcall(vim.cmd.qall)
 	if not ok then
