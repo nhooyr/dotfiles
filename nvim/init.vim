@@ -143,15 +143,16 @@ command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell
 let g:termfeatures = get(g:, 'termfeatures', {})
 let g:termfeatures.osc52 = v:false
 
-noremap ; :
-noremap : ;
-noremap 0 ^
-noremap ^ 0
+nnoremap ; :
+xnoremap ; :
+nnoremap : ;
+xnoremap : ;
+nnoremap 0 ^
+xnoremap 0 ^
+nnoremap ^ 0
+xnoremap ^ 0
+nnoremap $ $l
 xnoremap % o
-sunmap ;
-sunmap :
-sunmap 0
-sunmap ^
 inoremap <M-BS> <C-w>
 cnoremap <M-BS> <C-w>
 cnoremap <M-v> <C-r>"
