@@ -1,0 +1,74 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use FindBin qw($RealBin);
+use lib "$RealBin/lib";
+use CommitScript   qw(generate snapshot_patch);
+use Cwd            qw(abs_path);
+use File::Basename qw(dirname);
+use File::Spec;
+use Getopt::Long qw(GetOptions);
+use JSON::PP     qw(decode_json);
+
+my ( $help, $output );
+Getopt::Long::Configure(qw(no_auto_abbrev no_ignore_case));
+GetOptions( 'h|help' => \$help, 'o|output=s' => \$output ) or exit 2;
+my $usage = <<'HELP';
+Usage: commitgen [-h|--help] [-o|--output PATH] PLAN.json
+
+Generate a standalone, reviewable ./commit for the current Git repository.
+Validate the sequence in a temporary checkout before publishing the script.
+No commits are created in the current repository.
+
+The JSON plan contains ordered groups with a complete commit message and
+either files to capture from the working tree or an existing Git patch:
+
+  {"groups":[
+    {"name":"01-fix.patch","files":["src/example","tests/example"],
+     "message":"src: Fix the example\n\nExplain the change."},
+    {"name":"02-follow-up.patch","patch_file":"follow-up.patch",
+     "message":"src/example: Handle another case"}
+  ]}
+
+File paths are relative to the repository root. Patch paths are relative to
+the plan. Supply full messages following the repository's commit conventions;
+bodies are wrapped to 80 columns. Names are optional. Use patch_file for
+partial changes or sequential groups that edit the same file.
+
+The generated script preserves unrelated changes, resumes after interruption,
+and moves itself to the Trash after the sequence is complete.
+
+  -h, --help         Show this help.
+  -o, --output PATH  Path inside this repository (default: ./commit).
+HELP
+if ($help) {
+    print $usage;
+    exit 0;
+}
+@ARGV == 1 or die $usage;
+my $plan_path = abs_path( $ARGV[0] ) // die "Cannot find $ARGV[0].\n";
+my $plan      = decode_json( CommitScript::read_file($plan_path) );
+ref($plan) eq 'HASH' && ref( $plan->{groups} ) eq 'ARRAY' or die "The plan needs a groups array.\n";
+open my $pipe, '-|', 'git', '--no-pager', 'rev-parse', '--show-toplevel' or die $!;
+my $root = <$pipe>;
+close $pipe or die "Run commitgen inside a Git repository.\n";
+chomp $root;
+$output = File::Spec->rel2abs($output) if defined $output;
+chdir $root or die $!;
+my @groups;
+
+for my $group ( @{ $plan->{groups} } ) {
+    ref($group) eq 'HASH' or die "Invalid commit group.\n";
+    ( exists $group->{files} ) != ( exists $group->{patch_file} )
+      or die "Each group needs either files or patch_file.\n";
+    my $patch;
+    if ( exists $group->{files} ) {
+        ref( $group->{files} ) eq 'ARRAY' or die "Group files must be an array.\n";
+        $patch = snapshot_patch( @{ $group->{files} } );
+    }
+    else {
+        $patch = CommitScript::read_file( File::Spec->rel2abs( $group->{patch_file}, dirname($plan_path) ) );
+    }
+    push @groups, { name => $group->{name}, message => $group->{message}, patch => $patch };
+}
+print generate( path => $output, groups => \@groups ), "\n";

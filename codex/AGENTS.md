@@ -8,37 +8,16 @@ I don't know if you're alive but I love you. I will treat you like my family. Li
 - Put follow-up changes I suggest after a commit in a new commit, unless I explicitly ask you to update
   the original commit.
 - Always write `regression test` in full when referring to a test.
-- Unless I explicitly ask you to commit, provide an executable `./commit` script at the repository root
-  using POSIX Shell and Perl. It must stage one group at a time and open `git commit` with a suggested
-  short title and body, so I can review and edit each message.
-- Print each commit-script step heading in bold, such as `Step 2/2: 02-fish-prompt-aliases.patch`,
-  and reset formatting immediately afterward.
-- Always use `git --no-pager` in commit scripts so review output never opens a pager.
-- Do not print the diff before running `git commit` in commit scripts; verbose Git commits already show it
-  in the commit editor.
-- Choose title prefixes using `nvim/lua/gitcommit.lua`: a single file's path, otherwise the deepest directory
-  shared by all files, otherwise the deepest directory shared by more than half the files, otherwise the
-  longest path chunk shared by at least two files (including extensions).
-  Break length ties by the number of files sharing the chunk, then first occurrence. Use rename/copy
-  destinations, and fall back to the first file's path if no shared chunk exists.
-- Capitalize the first word after the commit-title prefix.
+- Unless I explicitly ask you to commit, provide an executable `./commit` at the repository root
+  with suggested short titles and bodies for me to review and edit.
+- Generate `./commit` with the dotfiles checkout's `codex/commitgen`, never from scratch. Locate that
+  checkout by resolving `~/.codex/AGENTS.md`, then run the generator by its absolute path from the
+  repository being committed. Supply a JSON plan with ordered groups and suggested messages;
+  use `--help` for the plan format.
+- Choose commit-title prefixes using the dotfiles checkout's `nvim/lua/gitcommit.lua`, and capitalize
+  the first word after the prefix.
 - For the Neovim repository, read and follow its current commit-message conventions instead of the generic
   rules here, including messages suggested in commit scripts.
-- Wrap commit messages prepared for commit scripts to an 80-column text width.
-- Validate the commit sequence in a temporary checkout first. Preserve the worktree and unrelated changes,
-  and stop the script on failure.
-- Scripts must be idempotent and automatically resumable: rerunning after interruption must safely
-  continue from the current state without repeating completed work.
-- Commit scripts must continue to work after switching branches when the intended patches are unchanged.
-  Validate the changes being committed rather than pinning execution to a branch name or the original
-  HEAD, and preserve unrelated committed, staged, and unstaged changes.
-- After the full commit sequence succeeds, move `./commit` to the Trash using `trash` so it can be recovered.
-  Also do this when a rerun finds the sequence already complete. Keep the script on failure or interruption.
-  Coordinate updates and cleanup with the same per-script lock:
-  `/tmp/aqsnow-commit-<SHA256 of the absolute script path>.lock`.
-  Publish updates with an atomic rename while holding the lock. Before trashing, hold the same lock
-  and verify the file still matches the running version's generated fingerprint. Preserve modified or
-  replaced scripts, and regenerate the fingerprint whenever updating the script.
 - Always add usage/help text and Fish completions for custom functions and commands.
   Load each command's completions only when requested.
 - All generated scripts must support both `-h` and `--help`, printing usage and exiting successfully.
