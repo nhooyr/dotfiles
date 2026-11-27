@@ -8,7 +8,7 @@ function _fzf --argument-names widget
         fzf-history-widget --first
         return
     end
-    aqsnow_init_rendezvous; or return
+    rendezvous_init; or return
     # Indices preserve fzf's empty-selection guard without copying filenames.
     set -l action "alt-enter:execute-silent(test -n '{+n}'; and printf exec > $(string escape -- "$AQSNOW_FISH_RENDEZVOUS"))+accept"
     set -l option "--bind=$(string escape -- "$action")"
@@ -22,7 +22,7 @@ function _fzf --argument-names widget
     else
         $widget
     end
-    aqsnow_rendezvous
+    rendezvous
 end
 
 function _fzf_select --argument-names widget query

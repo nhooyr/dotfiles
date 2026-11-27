@@ -433,7 +433,7 @@ bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
 
 for mode in default insert
-    bind -M "$mode" alt-e 'aqsnow_init_rendezvous; and edit_command_buffer' 'set -g fish_bind_mode insert' aqsnow_rendezvous
+    bind -M "$mode" alt-e rendezvous_init edit_command_buffer rendezvous
 end
 
 function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
@@ -454,8 +454,8 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
             end
         end
     end
-    aqsnow_run_requested; or return 0
-    test "$code" -eq 0; or return 0
+    rendezvous; and return
+    test "$code" -ne 0; and return
 
     set cmdline "$(string replace -r '[;[:space:]]+$' '' -- "$cmdline")"
     set -l command $(commandline --input="$cmdline" --current-process --tokens-expanded)
@@ -524,33 +524,15 @@ function aqsnow_fzf_diralis_add
 end
 aqsnow_fzf_diralis_add HOME TMPDIR nhooyr dotfiles notes noise fair
 
-# Initialize the handoff path inherited by child processes.
-function aqsnow_init_rendezvous --on-event fish_preexec
-    set -q __aqsnow_rendezvous_dir; and return
-    set -e AQSNOW_FISH_RENDEZVOUS
+function rendezvous_init --on-event fish_preexec
+    set -q __rendezvous_dir; and return
+    set -e RENDEZVOUS_FISH
     set -l rendezvous_dir "$(mktemp -d)"; or return
-    set -g __aqsnow_rendezvous_dir "$rendezvous_dir"
-    set -gx AQSNOW_FISH_RENDEZVOUS "$rendezvous_dir/rendezvous"
+    set -g __rendezvous_dir "$rendezvous_dir"
+    set -gx RENDEZVOUS_FISH "$rendezvous_dir/rendezvous"
     function aqsnow_rm_rendezvous --on-event fish_exit --inherit-variable rendezvous_dir
         rm -rf -- "$rendezvous_dir"
     end
-end
-function aqsnow_run_requested
-    test -s "$AQSNOW_FISH_RENDEZVOUS"; or return 1
-    set -l request "$(cat "$AQSNOW_FISH_RENDEZVOUS")"
-    rm -- "$AQSNOW_FISH_RENDEZVOUS"
-    switch "$request"
-        case exec
-            return 0
-        case path-widget recent-widget
-            _fzf "fzf-$request"
-    end
-    return 1
-end
-function aqsnow_rendezvous
-    aqsnow_run_requested; or return 0
-    commandline -f execute
-    set -g fish_bind_mode insert
 end
 
 abbrali vsce NO_COLOR=1 command vsce
