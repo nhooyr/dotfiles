@@ -408,6 +408,7 @@ abbrali grssw git restore -SW
 abbrali gcln git clean -ndX
 abbrali gclx git clean -fdX
 
+abbrali .c 'gcd && ./commit'
 abbrali .co 'gcd && ./commit'
 abbrali .fmt 'gcd && ./ci/fmt.sh'
 abbrali .lint 'gcd && ./ci/lint.sh'
