@@ -47,7 +47,10 @@ plugins = {
 }
 
 local config_dir = vim.fn.fnamemodify(debug.getinfo(1, 'S').source:sub(2), ':p:h:h')
+if vim.api.nvim_list_runtime_paths()[1] ~= config_dir then
+	vim.opt.runtimepath:prepend({ vim.fn.escape(config_dir, ',') })
+end
 vim.o.packlockfile = config_dir .. '/pack-lock.json'
-update_parsers = dofile(config_dir .. '/lua/treesitter.lua')
+update_parsers = require('treesitter')
 
 if installing then vim.cmd.Plug() end

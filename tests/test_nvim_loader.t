@@ -10,7 +10,7 @@ my $root = absolute_path("$FindBin::Bin/..");
 sub config_reload_refreshes_lua_modules {
     my $nvim   = which('nvim') or die 'Neovim is required';
     my $temp   = tempdir( 'nvim-loader-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
-    my $config = "$temp/nvim";
+    my $config = "$temp/nvim config,copy";
     make_path("$config/lua");
     copy_preserve( "$root/nvim/$_", "$config/$_" ) for qw(init.vim highlights.vim);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
@@ -19,7 +19,6 @@ sub config_reload_refreshes_lua_modules {
     write_file( "$config/lua/loader_existing.lua", "return 'old'\n" );
     write_file( "$temp/init.vim",                  <<'VIM' );
 let g:loaded_copilot = 1
-execute 'set runtimepath^=' . fnameescape($TEST_CONFIG)
 execute 'source' fnameescape($TEST_CONFIG . '/init.vim')
 lua << EOF
 vim.api.nvim_create_autocmd('VimEnter', { callback = function()
@@ -34,10 +33,15 @@ VIM
     write_file( "$temp/case.lua", <<'LUA' );
 local config = vim.env.TEST_CONFIG
 assert(vim.loader.enabled, 'the Lua loader is enabled during startup')
+assert(package.loaded.init and package.loaded.plugins and package.loaded.treesitter,
+    'the configuration loads its entry points as modules')
 assert(require('loader_existing') == 'old')
+vim.fn.writefile({ 'vim.g.test_init_reloaded = true' }, config .. '/lua/init.lua', 'a')
+vim.fn.writefile({ 'vim.g.test_plugins_reloaded = true' }, config .. '/lua/plugins.lua', 'a')
 vim.fn.writefile({ "return 'new'" }, config .. '/lua/loader_new.lua')
 assert(not pcall(require, 'loader_new'), 'the loader index starts without the new module')
 vim.cmd.source(config .. '/init.vim')
+assert(vim.g.test_init_reloaded and vim.g.test_plugins_reloaded, 'reload runs both edited entry points')
 assert(require('loader_new') == 'new', 'reload discovers new Lua modules')
 vim.fn.writefile({ "return 'updated value'" }, config .. '/lua/loader_existing.lua')
 assert(vim.uv.fs_rename(config .. '/lua/loader_new.lua', config .. '/lua/loader_renamed.lua'))

@@ -14,8 +14,20 @@ if !empty(filter(keys(environ()), {_, name -> name =~# '^GIT_'}))
 endif
 
 let s:config_dir = fnamemodify(s:config_file, ':h')
-execute 'luafile' fnameescape(s:config_dir . '/lua/init.lua')
-execute 'luafile' fnameescape(s:config_dir . '/lua/plugins.lua')
+call luaeval('vim.opt.runtimepath:prepend({vim.fn.escape(_A, ",")})', s:config_dir)
+if v:vim_did_enter
+	lua vim.loader.reset()
+	silent doautocmd <nomodeline> User AqsnowGitStatusStop
+	for s:lua_file in globpath(escape(s:config_dir . '/lua', ','), '**/*.lua', 0, 1)
+		let s:module = substitute(strpart(s:lua_file, strlen(s:config_dir) + 5)[:-5], '/', '.', 'g')
+		call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module)
+		if s:module =~# '\.init$'
+			call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
+		endif
+	endfor
+endif
+lua require('init')
+lua require('plugins')
 
 set notermguicolors
 " Reload defaults without resetting existing filetype and window settings.
@@ -357,15 +369,6 @@ augroup aqsnow
 	autocmd filetype netrw nnoremap <buffer> <nowait> q <Cmd>quit<CR>
 augroup END
 if v:vim_did_enter
-	lua vim.loader.reset()
-	silent doautocmd <nomodeline> User AqsnowGitStatusStop
-	for s:lua_file in globpath(s:config_dir . '/lua', '**/*.lua', 0, 1)
-		let s:module = substitute(strpart(s:lua_file, strlen(s:config_dir) + 5)[:-5], '/', '.', 'g')
-		call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module)
-		if s:module =~# '\.init$'
-			call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
-		endif
-	endfor
 	silent doautoall <nomodeline> aqsnow FileType
 	silent doautoall <nomodeline> aqsnow_treesitter FileType
 	lua require('gitstatus').setup()
