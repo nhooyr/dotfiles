@@ -479,7 +479,7 @@ function aqsnow_postexec --on-event fish_postexec --argument-names cmdline
     if test "$command[1]" = git; and test "$command[2]" = commit
         set command gcm $command[3..]
     end
-    contains -- "$command[1]" gcm gacm gcmf gcma gacma ./commit; or return 0
+    contains -- "$command[1]" git_commit gcm gacm gcmf gcma gacma ./commit; or return 0
     if contains -- "$command[1]" gcma gacma; or contains -- --amend $command[2..]
         set -a push gpf
     else
