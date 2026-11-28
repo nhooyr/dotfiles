@@ -8,7 +8,7 @@ end
 
 local function tick()
 	local line = api.nvim_get_current_line()
-	local marker, checkbox = line:match('()[-+*.)][ \t]+()%[[ \t]%]%f[%s%z]')
+	local marker, checkbox, state = line:match('()[-+*.)][ \t]+()%[([ \txX])%]%f[%s%z]')
 	if not marker then return end
 	local cursor = api.nvim_win_get_cursor(0)
 	local row = cursor[1] - 1
@@ -17,7 +17,13 @@ local function tick()
 	local item = root:named_descendant_for_range(row, marker - 1, row, checkbox + 1)
 	if not item or item:type() ~= 'list_item' then return end
 
-	local checked = line:sub(1, checkbox) .. 'x' .. line:sub(checkbox + 2)
+	local reopening = state:lower() == 'x'
+	local updated = line:sub(1, checkbox) .. (reopening and ' ' or 'x') .. line:sub(checkbox + 2)
+	if reopening then
+		api.nvim_set_current_line(updated)
+		return
+	end
+
 	local _, item_col = item:start()
 	local prefix = line:sub(1, item_col)
 	local _, quote_depth = prefix:gsub('>', '')
@@ -33,7 +39,7 @@ local function tick()
 		last_item = sibling
 	end
 	if last_item == item then
-		api.nvim_set_current_line(checked)
+		api.nvim_set_current_line(updated)
 		return
 	end
 
@@ -46,11 +52,11 @@ local function tick()
 	-- Keep a shared parent marker on the first item of the nested list.
 	if prefix:find('[^ \t>]') then
 		local next_line = lines[next_index]
-		checked = next_line:sub(1, next_col) .. checked:sub(item_col + 1)
+		updated = next_line:sub(1, next_col) .. updated:sub(item_col + 1)
 		lines[next_index] = prefix .. next_line:sub(next_col + 1)
 		cursor[2] = next_col + math.max(cursor[2] - item_col, 0)
 	end
-	lines[1] = checked
+	lines[1] = updated
 
 	local replacement = vim.list_slice(lines, next_index, last)
 	vim.list_extend(replacement, lines, 1, next_index - 1)

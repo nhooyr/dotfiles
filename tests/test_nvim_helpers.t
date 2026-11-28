@@ -1624,6 +1624,10 @@ eq(get_lines(), {
 }, 'the mapping moves the checked task with its details to the bottom of its group')
 eq(vim.api.nvim_win_get_cursor(0), { 5, 6 }, 'the cursor follows the moved task')
 local after = get_lines()
+after[5] = '- [ ] first'
+feed('<Leader>x')
+eq(get_lines(), after, 'the mapping reopens a checked task in place')
+eq(vim.api.nvim_win_get_cursor(0), { 5, 6 }, 'reopening keeps the cursor position')
 vim.api.nvim_win_set_cursor(0, { 16, 0 })
 vim.cmd.Mdtick()
 eq(get_lines(), after, 'a checkbox inside a code fence is left alone')
@@ -1642,6 +1646,9 @@ vim.api.nvim_set_current_line('>   - [ ]')
 vim.cmd.Mdtick()
 eq(vim.api.nvim_get_current_line(), '>   - [x]', 'the last task can be checked in place without a label')
 eq(vim.fn.line('.'), 3, 'the last task in a group stays on its line')
+vim.api.nvim_set_current_line('>   - [X]')
+vim.cmd.Mdtick()
+eq(vim.api.nvim_get_current_line(), '>   - [ ]', 'Mdtick reopens an uppercase checkbox')
 
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
     '- 1. [ ] first', '     details', '  1. [ ] next', '- other parent',
