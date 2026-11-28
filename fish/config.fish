@@ -432,10 +432,10 @@ abbrali gclean git clean -fdXn
 abbrali gcleanu git clean -fdn
 abbrali gcleana git clean -fdxn
 
-set -l preset "$(bind --silent --preset -M insert alt-enter)"; or return 0
-string replace --filter 'bind --preset -M insert alt-enter ' 'bind -M insert alt-r ' "$preset" | source
 bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
+bind -M insert alt-r 'commandline -i \n $(commandline --search-field >/dev/null; and printf --search-field)' expand-abbr
+bind -M default backspace 'fish_vi_start_operator delete'
 
 for mode in default insert
     bind -M "$mode" alt-e 'rendezvous_init; and fish_cursor_end_mode=exclusive edit_command_buffer; and rendezvous'
