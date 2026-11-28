@@ -4,7 +4,7 @@ function fish_prompt
     git_prompt_ensure
     set -l normal "$(set_color --reset)"
     set -l cwd_color "$(set_color $fish_color_cwd)"
-    set -l prompt_status_color "$(set_color cyan)"
+    set -l prompt_status_color "$(set_color --italics cyan)"
     set -l suffix_color "$(set_color --bold)"
 
     set -l suffix '$'
@@ -13,7 +13,7 @@ function fish_prompt
     end
 
     if test "$last_status" -ne 0
-        set prompt_status_color "$(set_color --underline yellow)"
+        set prompt_status_color "$(set_color --underline --italics yellow)"
         set suffix "$(set_color --underline yellow)$suffix$normal"
     end
     set prompt_status "=$prompt_status_color$last_status$normal"
@@ -34,7 +34,7 @@ if fish_is_root_user
     set -g fish_color_user --bold red
 end
 set -g fish_color_cwd blue
-set -g fish_color_host
+set -g fish_color_host --italics
 set -g fish_color_host_remote magenta
 function prompt_hostname
     if set -q SSH_TTY
