@@ -10,9 +10,9 @@ end
 
 local function lvim()
 	vim.cmd.lclose()
-	local file = display_path(vim.api.nvim_buf_get_name(0), true)
-	local title = ('lvim /%s/ %s'):format(fn.getreg('/'), file)
-	vim.cmd('lvim // %')
+	local file = require('dirali').shorten(vim.api.nvim_buf_get_name(0))
+	local title = (':lvim /%s/ %s'):format(fn.getreg('/'), file)
+	vim.cmd('silent lvim // %')
 	fn.setloclist(0, {}, 'a', { title = title })
 	vim.cmd.lopen()
 end
@@ -48,7 +48,7 @@ end
 local function title()
 	local text = vim.w.quickfix_title
 	-- Lvim already formatted the filename and saved the regex verbatim.
-	if not text or vim.startswith(text, 'lvim /') then return text or '' end
+	if not text or vim.startswith(text, ':lvim /') then return text or '' end
 	text = text:gsub('^:vgrep(%s)', ':grep%1'):gsub('^Find([gf]?%s)', ':Find%1')
 	local shorten = require('dirali').shorten
 	text = text:gsub([[(['"])(.-)%1]], function(quote, path)

@@ -639,7 +639,7 @@ vim.fn.setreg('/', pattern)
 local owner = vim.api.nvim_get_current_win()
 local function list() return vim.fn.getloclist(owner, { id = 0, items = 0, winid = 0 }) end
 local title = require('quickfix').title
-local first_title = 'lvim /' .. pattern .. '/ $notes' .. name
+local first_title = ':lvim /' .. pattern .. '/ $notes' .. name
 eq(list().id, 0, 'the window starts without a location list')
 feed('<Leader>l')
 local first = list().id
@@ -674,14 +674,22 @@ vim.cmd.Lvim()
 assert(list().id ~= second, 'each Lvim invocation creates a new list')
 eq(vim.tbl_map(function(item) return item.lnum end, list().items), { 2 },
     'Lvim uses the current search pattern')
-local other_title = 'lvim /other/ $notes' .. name
+local other_title = ':lvim /other/ $notes' .. name
 eq(title(), other_title, 'a new list shows the new regex')
 local literal_pattern = [[\V]] .. literal
 vim.fn.setreg('/', literal_pattern)
 vim.cmd.Lvim()
-eq(title(), 'lvim /' .. literal_pattern .. '/ $notes' .. name, 'directory aliases leave the regex intact')
+eq(title(), ':lvim /' .. literal_pattern .. '/ $notes' .. name, 'directory aliases leave the regex intact')
 vim.cmd.lolder()
 eq(title(), other_title, 'location-list history retains each search title')
+vim.cmd.lclose()
+vim.cmd.cd(vim.fn.fnameescape(vim.env.notes))
+vim.fn.setreg('/', pattern)
+vim.cmd.Lvim()
+eq(title(), first_title, 'the title uses the full path for relative results')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), {
+    name:sub(2) .. '|1| needle one', name:sub(2) .. '|3| needle two',
+}, 'entries use relative paths when the file is inside the working directory')
 LUA
 }
 
