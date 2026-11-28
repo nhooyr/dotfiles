@@ -18,7 +18,8 @@ function fish_prompt
         set suffix "$status_color$(set_color --underline)$suffix$(set_color --reset)"
     end
 
-    printf '%s %s%s\n' "$(prompt_login)" "$cwd_color$(aqsnow_prompt_pwd)$normal" "$__aqsnow_vcs_prompt$prompt_status"
+    printf '%s %s%s [%s]\n' "$(prompt_login)" "$cwd_color$(aqsnow_prompt_pwd)$normal" \
+        "$__aqsnow_vcs_prompt$prompt_status" "$(set_color cyan)$(date '+%X')$normal"
     printf '%s[%s%s]%s ' "$suffix_color" "$suffix" "$suffix_color" "$normal"
 end
 set -g fish_prompt_pwd_dir_length 0
@@ -38,11 +39,6 @@ function prompt_hostname
     else
         string replace -r -- '\..*' '' "$hostname"
     end
-end
-function fish_right_prompt
-    set_color magenta
-    date '+%X'
-    set_color --reset
 end
 function fish_title
     set -l ssh
