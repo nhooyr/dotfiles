@@ -396,9 +396,26 @@ sub directory_without_majority {
 sub shared_word {
     my ($self) = @_;
     seed($self);
-    put( $self, $_, "new\n" ) for qw(nvim/lua/gitcommit.lua tests/test-nvim-commit.t);
+    put( $self, $_, "new\n" ) for qw(nvim/lua/gitcommit.lua scripts/check-nvim-commit.sh);
     git( $self, 'add', '.' );
     prefixed( edit( $self, 'commit' ), 'nvim' );
+}
+
+sub prefer_paths_without_test {
+    my ($self) = @_;
+    seed($self);
+    put( $self, $_, "new\n" )
+      for
+      qw(nvim/lua/gitcommit.lua nvim/lua/gitstatus_test.lua tests/prefix.t tests/rules.t tests/snippets.t);
+    git( $self, 'add', '.' );
+    prefixed( edit( $self, 'commit' ), 'nvim/lua/gitcommit.lua' );
+
+    put( $self, 'nvim/lua/quickfix.lua', "new\n" );
+    git( $self, 'add', 'nvim/lua/quickfix.lua' );
+    prefixed( edit( $self, 'commit' ), 'nvim/lua' );
+
+    git( $self, 'restore', '--staged', '--', 'nvim/lua/gitcommit.lua', 'nvim/lua/quickfix.lua' );
+    prefixed( edit( $self, 'commit' ), 'tests' );
 }
 
 sub most_common_word {
@@ -421,7 +438,7 @@ sub underscores_stay_within_words {
 sub shared_underscore_chunk {
     my ($self) = @_;
     seed($self);
-    put( $self, $_, "new\n" ) for qw(alpha/cache_writer.lua beta/cache_writer.test.lua);
+    put( $self, $_, "new\n" ) for qw(alpha/cache_writer.lua beta/cache_writer.spec.lua);
     git( $self, 'add', '.' );
     prefixed( edit( $self, 'commit' ), 'cache_writer' );
 }
@@ -600,6 +617,7 @@ run_cases(
         mostly_shared_directory                => \&mostly_shared_directory,
         directory_without_majority             => \&directory_without_majority,
         shared_word                            => \&shared_word,
+        prefer_paths_without_test              => \&prefer_paths_without_test,
         most_common_word                       => \&most_common_word,
         underscores_stay_within_words          => \&underscores_stay_within_words,
         shared_underscore_chunk                => \&shared_underscore_chunk,

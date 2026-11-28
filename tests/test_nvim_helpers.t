@@ -765,25 +765,25 @@ local function title(entries)
     helper.prefill_title()
     return expansion
 end
-eq(title({ 'modified: src/nvim/bufwrite.c', 'modified: test/functional/ex_cmds/cd_spec.lua' }),
+eq(title({ 'modified: src/nvim/bufwrite.c', 'modified: examples/functional/ex_cmds/cd_spec.lua' }),
     'src/nvim/bufwrite.c: ${1:Update}', 'unrelated files use the first path')
-eq(title({ 'modified: test/functional/ex_cmds/cd_spec.lua', 'modified: src/nvim/bufwrite.c' }),
-    'test/functional/ex_cmds/cd_spec.lua: ${1:Update}', 'fallback respects file order')
+eq(title({ 'modified: examples/functional/ex_cmds/cd_spec.lua', 'modified: src/nvim/bufwrite.c' }),
+    'examples/functional/ex_cmds/cd_spec.lua: ${1:Update}', 'fallback respects file order')
 eq(title({ 'modified: nvim/init.vim' }),
     'nvim/init.vim: ${1:Update}', 'one file uses its full path')
 eq(title({ 'modified: nvim/lua/one.lua', 'modified: nvim/lua/two.lua' }),
     'nvim/lua: ${1:Update}', 'a common directory takes priority')
-eq(title({ 'modified: autoload/copilot.vim', 'modified: test/copilot_partial_accept.lua' }),
+eq(title({ 'modified: autoload/copilot.vim', 'modified: examples/copilot_partial_accept.lua' }),
     'autoload/copilot.vim: ${1:Update}', 'underscores keep separate words from matching')
 eq(title({ 'modified: index.html', 'modified: more/links.html' }),
     'html: ${1:Update}', 'file extensions count as shared path words')
-eq(title({ 'modified: a/foo-bar.js', 'modified: b/foo-bar.test.js' }),
+eq(title({ 'modified: a/foo-bar.js', 'modified: b/foo-bar.spec.js' }),
     'foo-bar: ${1:Update}', 'shared chunks retain their internal separators')
 eq(title({ 'modified: a/foo_bar-one.lua', 'modified: b/foo_bar-two.lua' }),
     'foo_bar: ${1:Update}', 'splitting narrows only as far as the shared chunk')
 eq(title({ 'modified: a/init.vim', 'modified: b/init.vim' }),
     'init.vim: ${1:Update}', 'whole shared path components take priority over their words')
-eq(title({ 'modified: a/component.js', 'modified: b/component.test.js', 'modified: c/other.js' }),
+eq(title({ 'modified: a/component.js', 'modified: b/component.spec.js', 'modified: c/other.js' }),
     'component: ${1:Update}', 'longer shared chunks take priority over more frequent short words')
 eq(title({ 'modified: a/alpha-beta.js', 'modified: b/alpha-beta.lua' }),
     'alpha-beta: ${1:Update}', 'compound words stay intact across different extensions')

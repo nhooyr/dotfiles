@@ -64,7 +64,7 @@ function prefill_title()
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 	if lines[1] ~= '' then return end
 
-	local files, staged = {}, false
+	local files, non_test_files, staged = {}, {}, false
 	local original = vim.b.gitcommit_stat_rows or {}
 	for _, line in ipairs(lines) do
 		line = original[line] or line
@@ -80,11 +80,15 @@ function prefill_title()
 				path = target
 			end
 			files[#files + 1] = path
+			if not path:find('test', 1, true) then
+				non_test_files[#non_test_files + 1] = path
+			end
 		elseif line:find('%S') and line:sub(1, 1) ~= '#' then
 			return
 		end
 	end
 	if #files == 0 then return end
+	if #non_test_files > 0 then files = non_test_files end
 
 	local prefix = files[1]
 	if #files > 1 then prefix = vim.fs.dirname(prefix) end
