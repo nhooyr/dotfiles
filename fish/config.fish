@@ -31,7 +31,8 @@ set -gx LESS -RXF -ix4 --use-color -DBK -DCK -DEks -DMcd -Dd- -DNK -DPks -DRKs -
 set -gx PAGER pager
 set -g fish_greeting
 set -gx MANPAGER nvim +Man!
-set -gx EDITOR nvim
+set -gx VISUAL nvim
+set -gx EDITOR "$VISUAL"
 function abbrali --argument-names name
     abbr -a "$name" $argv[2..]
     alias "$name" "$argv[2..]"
