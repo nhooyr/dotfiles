@@ -218,6 +218,7 @@ fn git_status(scanner: &Scanner, directory: &Path) -> io::Result<GitOutput> {
             "--porcelain=v1",
             "-z",
             "--no-renames",
+            "--ignore-submodules=all",
             "--untracked-files=all",
             "--",
             ".",

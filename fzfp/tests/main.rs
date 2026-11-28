@@ -3442,6 +3442,63 @@ fn recents_rank_worktree_changes_before_neovim_files_and_fish_directories() {
 }
 
 #[test]
+fn submodule_changes_do_not_set_picker_priorities() {
+    let fixture = Fixture::new();
+    let module = fixture.root.join("submodule-source");
+    let module_path = module.to_str().unwrap();
+    fixture.git(&["init", "-q", module_path]);
+    write(&module, "tracked");
+    let commit = |directory: &Path| {
+        fixture.git(&[
+            "-C",
+            directory.to_str().unwrap(),
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "Initial files",
+        ]);
+    };
+    fixture.git(&["-C", module_path, "add", "--", "tracked"]);
+    commit(&module);
+    fixture.git(&[
+        "-c",
+        "protocol.file.allow=always",
+        "submodule",
+        "add",
+        "--",
+        module_path,
+        "module",
+    ]);
+    fixture.git(&["add", "--all"]);
+    commit(&fixture.repo);
+
+    write(&fixture.repo, "module/untracked");
+    fs::write(fixture.repo.join("module/tracked"), "changed").unwrap();
+    write(&fixture.repo, "loose/file");
+    fs::write(fixture.repo.join("tracked"), "changed").unwrap();
+    let paths = from_input(
+        fixture
+            .command(&fixture.repo, Path::new(""), "-fd", &[])
+            .env("FZFP_PREFER", "1"),
+        &[],
+    );
+    let preferred = ["tracked", "loose/file", "loose"].map(OsString::from);
+    assert_eq!(paths[..preferred.len()], preferred);
+    assert!(paths.contains(&"module/tracked".into()));
+
+    let recents = from_input(
+        fixture
+            .command_with_flags(&["--read0"], &fixture.repo, Path::new(""), "-fd", &[])
+            .env("FZFP_RECENTS", "1"),
+        &[],
+    );
+    assert_eq!(recents, preferred);
+}
+
+#[test]
 fn recents_outside_a_worktree_do_not_need_git() {
     let fixture = Fixture::new();
     let paths = from_input(
