@@ -184,7 +184,6 @@ xnoremap <M-r> :s###g<Left><Left>
 
 nnoremap q <Cmd>quit<CR>
 nnoremap <M-x> <Cmd>cq<CR>
-nnoremap <Leader>x <Cmd>cq<CR>
 nnoremap <M-q> q
 noremap <C-q> <Cmd>qall!<CR>
 inoremap <C-q> <Esc>:qall!<CR>
@@ -359,6 +358,8 @@ augroup aqsnow
 	autocmd filetype html,json,jsonc,json5,css setlocal et ts=2
 	autocmd filetype markdown setlocal et ts=3 sts=-1 sw=0
 	autocmd FileType markdown inoreabbrev <buffer> -[ - [ ]
+	autocmd FileType markdown command! -buffer Mdtick lua require('markdown').tick()
+	autocmd FileType markdown nnoremap <buffer> <Leader>x <Cmd>Mdtick<CR>
 	autocmd filetype fish setlocal et formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd FileType help setlocal concealcursor=nc number

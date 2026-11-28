@@ -47,7 +47,11 @@ package.preload['nvim-treesitter'] = function()
         end,
     }
 end
-vim.treesitter.language.add = function(language) return language == 'go' end
+local add_language = vim.treesitter.language.add
+vim.treesitter.language.add = function(language, opts)
+    if language == 'go' then return true end
+    return add_language(language, opts)
+end
 EOF
 execute 'source' fnameescape($TEST_DOTFILES . '/nvim/init.vim')
 lua << EOF
@@ -159,7 +163,7 @@ eq(vim.fn.exists(':Findr'), 0, 'the separate basic-regex command is removed')
 eq(vim.fn.exists(':Finde'), 0, 'the separate extended-regex command is removed')
 eq(vim.fn.maparg([[\g]], 'n'), vim.fn.maparg('<M-g>', 'n'), 'Leader-g and Alt-g open the same grep prompt')
 eq(vim.fn.maparg('<M-x>', 'n'), '<Cmd>cq<CR>', 'Alt-x quits with an error status')
-eq(vim.fn.maparg([[\x]], 'n'), '<Cmd>cq<CR>', 'Leader-x retains the error exit mapping')
+eq(vim.fn.maparg([[\x]], 'n'), '', 'Leader-x has no global mapping')
 local name = assert(vim.fn.maparg([[\s]], 'n'):match('<SNR>%d+_is_config_file'))
 local is_config = vim.fn[name]
 local config = vim.env.TEST_DOTFILES .. '/nvim'
@@ -1557,15 +1561,55 @@ vim.bo.filetype = 'markdown'
 vim.schedule(function()
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(' <Esc>', true, false, true), 't', false)
 end)
-vim.api.nvim_feedkeys('i[]', 'xt!', false)
-eq(vim.api.nvim_get_current_line(), '- [ ] ', 'Markdown expands an empty bracket pair to a checkbox')
+vim.api.nvim_feedkeys('i-[', 'xt!', false)
+eq(vim.api.nvim_get_current_line(), '- [ ] ', 'Markdown expands -[ to a checkbox')
 vim.cmd.enew({ bang = true })
 vim.bo.filetype = 'text'
 vim.schedule(function()
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(' <Esc>', true, false, true), 't', false)
 end)
-vim.api.nvim_feedkeys('i[]', 'xt!', false)
-eq(vim.api.nvim_get_current_line(), '[] ', 'other filetypes keep literal brackets')
+vim.api.nvim_feedkeys('i-[', 'xt!', false)
+eq(vim.api.nvim_get_current_line(), '-[ ', 'other filetypes keep the literal text')
+LUA
+}
+
+sub markdown_tick {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+eq(vim.fn.exists(':Mdtick'), 0, 'the command is absent outside Markdown')
+vim.cmd.enew()
+vim.bo.filetype = 'markdown'
+assert(package.loaded.markdown == nil, 'the Markdown helper loads on demand')
+local get_lines = function() return vim.api.nvim_buf_get_lines(0, 0, -1, false) end
+vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+    '# Tasks', '', '- [ ] first', '  details', '  - [ ] child', '', '- [ ] next', '- [x] done',
+    '', '# Separate list', '- [ ] separate', '',
+    '```', '- [ ] example', '```',
+})
+vim.api.nvim_win_set_cursor(0, { 3, 6 })
+feed('<Leader>x')
+eq(get_lines(), {
+    '# Tasks', '', '- [ ] next', '- [x] done', '', '- [x] first', '  details', '  - [ ] child',
+    '', '# Separate list', '- [ ] separate', '',
+    '```', '- [ ] example', '```',
+}, 'the mapping moves the checked task with its details to the bottom of its list')
+eq(vim.api.nvim_win_get_cursor(0), { 6, 6 }, 'the cursor follows the moved task')
+local after = get_lines()
+vim.api.nvim_win_set_cursor(0, { 14, 0 })
+vim.cmd.Mdtick()
+eq(get_lines(), after, 'a checkbox inside a code fence is left alone')
+
+vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+    '> - [ ] parent', '>   - [ ] first', '>', '>   - [ ] second', '> - [ ] other parent',
+})
+vim.api.nvim_win_set_cursor(0, { 2, 0 })
+vim.cmd.Mdtick()
+eq(get_lines(), {
+    '> - [ ] parent', '>   - [ ] second', '>', '>   - [x] first', '> - [ ] other parent',
+}, 'a nested task stays within its parent list')
+vim.api.nvim_set_current_line('>   - [ ]')
+vim.cmd.Mdtick()
+eq(vim.api.nvim_get_current_line(), '>   - [x]', 'the last task can be checked in place without a label')
 LUA
 }
 
@@ -2140,6 +2184,7 @@ run_cases(
         ripgrep_quickfix                        => \&ripgrep_quickfix,
         find_files_quickfix                     => \&find_files_quickfix,
         markdown_checkbox_abbreviation          => \&markdown_checkbox_abbreviation,
+        markdown_tick                           => \&markdown_tick,
         find_files_async_results                => \&find_files_async_results,
         find_files_config_reload                => \&find_files_config_reload,
         find_files_preserve_insert_mode         => \&find_files_preserve_insert_mode,
