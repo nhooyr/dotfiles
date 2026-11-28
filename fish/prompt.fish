@@ -13,7 +13,7 @@ function fish_prompt
     end
 
     if test "$last_status" -ne 0
-        set -l status_color "$(set_color brred)"
+        set -l status_color "$(set_color yellow)"
         set prompt_status " =$status_color$last_status$normal"
         set suffix "$status_color$(set_color --underline)$suffix$(set_color --reset)"
     end
@@ -28,7 +28,7 @@ function aqsnow_prompt_pwd
 end
 set -g fish_color_user --reset
 if fish_is_root_user
-    set -g fish_color_user brred --underline --bold
+    set -g fish_color_user yellow --underline --bold
 end
 set -g fish_color_cwd blue
 set -g fish_color_host --underline
