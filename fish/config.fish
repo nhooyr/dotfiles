@@ -333,12 +333,12 @@ abbrali grbs git_rebase --skip
 abbrali grba git_rebase --abort
 abbrali gs git status
 abbrali gd git diff --patch-with-stat
+abbrali gdc git diff --patch-with-stat --cached
+abbr -a --command git diffc diff --patch-with-stat --cached
+abbrali gdi git diff --patch-with-stat --no-index
 abbrali grt git reset
 abbrali grtp git reset -p
 abbrali grth git reset --hard
-abbrali gdc git diff --patch-with-stat --cached
-abbr -a --command git diffc diff --patch-with-stat --cached
-abbrali gdcs git diff --cached --patch-with-stat
 abbrali grm git rm
 abbrali grmr git rm -r
 abbrali grmf git rm -f
