@@ -138,7 +138,7 @@ function prefill_title()
 	end
 
 	vim.api.nvim_win_set_cursor(0, { 1, 0 })
-	vim.snippet.expand(prefix:gsub('[\\$}]', '\\%0') .. ': ${1:Updates}')
+	vim.snippet.expand(prefix:gsub('[\\$}]', '\\%0') .. ': ${1:Update}')
 end
 
 return { setup = setup, prefill_title = prefill_title }
