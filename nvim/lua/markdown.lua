@@ -6,6 +6,7 @@ local function setup()
 	vim.bo.softtabstop = -1
 	vim.bo.shiftwidth = 0
 	vim.cmd('inoreabbrev <buffer> -[ - [ ]')
+	vim.cmd('inoreabbrev <buffer> [] - [ ]')
 	api.nvim_buf_create_user_command(0, 'Mdtick', "lua require('markdown').tick()", {})
 	vim.keymap.set('n', '<Leader>x', '<Cmd>Mdtick<CR>', { buffer = true })
 end
