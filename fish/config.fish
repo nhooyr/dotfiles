@@ -350,6 +350,7 @@ abbrali gl git_log
 abbrali gla git_log --format=fuller
 abbrali glp git_log -p
 abbrali glo git_log --oneline
+abbrali glot git_log --format=%s
 abbrali glol git_log --oneline \| wc -l
 abbrali glss git_log --show-signature
 abbrali gls git ls-files
@@ -378,6 +379,7 @@ abbrali gst git stash push -u
 abbrali gstk git stash push -u --keep-index
 abbrali gsta git stash apply
 abbrali gsts git stash show
+abbrali gstsp git stash show -p
 abbrali gstp git stash pop
 abbrali gstl git stash list
 abbrali gstd git diff stash@{0}
