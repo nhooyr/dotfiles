@@ -1634,9 +1634,11 @@ sub markdown_tick {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
 eq(vim.fn.exists(':Mdtick'), 0, 'the command is absent outside Markdown')
+assert(package.loaded.markdown == nil, 'the Markdown helper loads only for Markdown')
 vim.cmd.enew()
 vim.bo.filetype = 'markdown'
-assert(package.loaded.markdown == nil, 'the Markdown helper loads on demand')
+eq({ vim.bo.expandtab, vim.bo.tabstop, vim.bo.softtabstop, vim.bo.shiftwidth },
+    { true, 3, -1, 0 }, 'Markdown setup applies the buffer-local indentation options')
 local get_lines = function() return vim.api.nvim_buf_get_lines(0, 0, -1, false) end
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
     '# Tasks', '', '- [ ] first', '  details', '', '  ```', '  first', '', '  second', '  ```',

@@ -1,5 +1,15 @@
 local api = vim.api
 
+local function setup()
+	vim.bo.expandtab = true
+	vim.bo.tabstop = 3
+	vim.bo.softtabstop = -1
+	vim.bo.shiftwidth = 0
+	vim.cmd('inoreabbrev <buffer> -[ - [ ]')
+	api.nvim_buf_create_user_command(0, 'Mdtick', "lua require('markdown').tick()", {})
+	vim.keymap.set('n', '<Leader>x', '<Cmd>Mdtick<CR>', { buffer = true })
+end
+
 local function last_content_line(lines, index, quote_depth)
 	while not lines[index]:find('[^ \t>]') do
 		local _, depth = lines[index]:gsub('>', '')
@@ -53,4 +63,4 @@ local function tick()
 	api.nvim_win_set_cursor(0, cursor)
 end
 
-return { tick = tick }
+return { setup = setup, tick = tick }
