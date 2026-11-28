@@ -4,7 +4,7 @@ function fish_prompt
     git_prompt_ensure_enqueue
     set -l normal "$(set_color --reset)"
     set -l cwd_color "$(set_color $fish_color_cwd)"
-    set -l prompt_status ''
+    set -l prompt_status_color "$(set_color --italics)"
     set -l suffix_color "$(set_color --bold)"
 
     set -l suffix '$'
@@ -13,12 +13,12 @@ function fish_prompt
     end
 
     if test "$last_status" -ne 0
-        set -l status_color "$(set_color --underline --italics yellow)"
-        set prompt_status " =$status_color$last_status$normal"
+        set prompt_status_color "$(set_color --underline --italics yellow)"
         set suffix "$(set_color --underline yellow)$suffix$normal"
     end
+    set prompt_status "=$prompt_status_color$last_status$normal"
 
-    printf '%s %s%s [%s]%s\n' "$(prompt_login)" "$cwd_color$(aqsnow_prompt_pwd)$normal" \
+    printf '%s %s%s [%s] %s\n' "$(prompt_login)" "$cwd_color$(aqsnow_prompt_pwd)$normal" \
         "$__aqsnow_vcs_prompt" "$(set_color cyan)$(date '+%X')$normal" "$prompt_status"
     printf '%s[%s%s]%s ' "$suffix_color" "$suffix" "$suffix_color" "$normal"
 end
