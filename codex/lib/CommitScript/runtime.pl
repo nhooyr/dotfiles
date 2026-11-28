@@ -214,7 +214,7 @@ sub save_pending {
 sub candidate_commit {
     my ($state) = @_;
     local %ENV = %ENV;
-    $ENV{GIT_DIR}        = "$state->{attempt}/git";
+    $ENV{GIT_DIR}        = $state->{attempt};
     $ENV{GIT_COMMON_DIR} = $common_dir;
     $ENV{GIT_INDEX_FILE} = "$state->{attempt}/index";
     return capture( 'rev-parse', 'HEAD' );
@@ -237,8 +237,8 @@ sub preserve_attempt {
         }
         write_file( message_path($group), capture( 'show', '-s', '--format=%B', $candidate ) . "\n" );
     }
-    elsif ( -f "$state->{attempt}/git/COMMIT_EDITMSG" ) {
-        write_file( message_path($group), read_file("$state->{attempt}/git/COMMIT_EDITMSG") );
+    elsif ( -f "$state->{attempt}/COMMIT_EDITMSG" ) {
+        write_file( message_path($group), read_file("$state->{attempt}/COMMIT_EDITMSG") );
     }
     save_pending($state);
 }
@@ -439,8 +439,7 @@ GROUP: for my $i ( 0 .. $#groups ) {
         git( 'read-tree', $expected );
     }
     my $attempt = tempdir( 'XXXX', DIR => $progress );
-    make_path("$attempt/git");
-    write_file( "$attempt/git/HEAD", "$head\n" );
+    write_file( "$attempt/HEAD", "$head\n" );
     copy( $commit_index, "$attempt/index" ) or die "Cannot retain the prepared index: $!\n";
     my $message = "$attempt/message";
     write_file( $message, review_message($group) );
@@ -457,7 +456,7 @@ GROUP: for my $i ( 0 .. $#groups ) {
     my $success = eval {
         {
             local %ENV = %ENV;
-            $ENV{GIT_DIR}        = "$attempt/git";
+            $ENV{GIT_DIR}        = $attempt;
             $ENV{GIT_COMMON_DIR} = $common_dir;
             $ENV{GIT_WORK_TREE}  = $repository;
             $ENV{GIT_INDEX_FILE} = "$attempt/index";

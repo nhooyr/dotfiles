@@ -240,8 +240,8 @@ sub commits_groups_and_cleans_up {
     my ($review) = split /\n/, read_file("$self->{temporary}/editor-calls");
     like(
         decode_json($review)->{args}[0],
-        qr{/\.git/commitgen/\w{4}/git/COMMIT_EDITMSG\z},
-        'editor opens the message in a four-character review directory'
+        qr{/\.git/commitgen/\w{4}/COMMIT_EDITMSG\z},
+        'editor opens the message directly in the review directory'
     );
     is(
         git( $self, 'log', '--reverse', '--format=%s', "$self->{base}..HEAD" ),
