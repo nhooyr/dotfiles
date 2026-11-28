@@ -70,7 +70,7 @@ abbrali rpc. realpathc .
 abbrali realpc realpathc
 abbrali realpc. realpathc .
 fish_hybrid_key_bindings
-set -g fish_color_error red --underline
+set -g fish_color_error yellow
 set -g fish_color_quote green
 set -g fish_color_search_match black --background=bryellow
 set -g fish_color_selection black --background=bryellow

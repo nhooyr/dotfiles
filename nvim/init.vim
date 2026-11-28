@@ -85,7 +85,8 @@ highlight LineNr ctermfg=8
 highlight Constant ctermfg=5
 highlight Type ctermfg=5
 highlight PreProc ctermfg=6
-highlight Error ctermfg=1 ctermbg=none cterm=underline
+highlight Error ctermfg=3 ctermbg=none
+highlight ErrorMsg ctermfg=3
 highlight WarningMsg ctermfg=6
 highlight! link DiagnosticWarn WarningMsg
 highlight RedrawDebugClear ctermbg=6

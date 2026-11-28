@@ -92,4 +92,4 @@ set -g __fish_git_prompt_showstashstate 1
 set -g __fish_git_prompt_color_branch --underline
 set -g __fish_git_prompt_color_flags cyan
 set -g __fish_git_prompt_color_upstream cyan
-set -g __fish_git_prompt_color_merging --italic
+set -g __fish_git_prompt_color_merging --italics

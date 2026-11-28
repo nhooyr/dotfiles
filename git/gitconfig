@@ -61,7 +61,7 @@
 	commit = bold
 	meta = magenta
 	frag = magenta
-	whitespace = white red
+	whitespace = white yellow
 	oldMoved = red italic
 	newMoved = green italic
 [color "diff-highlight"]
@@ -75,7 +75,7 @@
 	prompt = bold
 	header = cyan bold
 	help = brightblack italic
-	error = red
+	error = yellow
 [color "grep"]
 	filename = cyan
 	lineNumber = magenta
