@@ -10,13 +10,10 @@ local function setup()
 	vim.keymap.set('n', '<Leader>x', '<Cmd>Mdtick<CR>', { buffer = true })
 end
 
-local function last_content_line(lines, index, quote_depth)
-	while not lines[index]:find('[^ \t>]') do
-		local _, depth = lines[index]:gsub('>', '')
-		if depth > quote_depth then break end
-		index = index - 1
-	end
-	return index
+local function is_blank(line, quote_depth)
+	if line:find('[^ \t>]') then return false end
+	local _, depth = line:gsub('>', '')
+	return depth <= quote_depth
 end
 
 local function tick()
@@ -32,17 +29,32 @@ local function tick()
 
 	local reopening = state:lower() == 'x'
 	local updated = line:sub(1, checkbox) .. (reopening and ' ' or 'x') .. line:sub(checkbox + 2)
+	local _, item_col = item:start()
+	local prefix = line:sub(1, item_col)
+	local _, quote_depth = prefix:gsub('>', '')
+
 	local next_item = not reopening and item:next_named_sibling()
-	if not next_item then
+	local last_item = item
+	local sibling = next_item
+	-- Only look directly before siblings so blank lines inside an item stay with it.
+	while sibling do
+		local sibling_row = sibling:start()
+		local previous_line = api.nvim_buf_get_lines(0, sibling_row - 1, sibling_row, false)[1]
+		if is_blank(previous_line, quote_depth) then break end
+		last_item = sibling
+		sibling = sibling:next_named_sibling()
+	end
+	if last_item == item then
 		api.nvim_set_current_line(updated)
 		return
 	end
 
-	local lines = api.nvim_buf_get_lines(0, row, item:parent():end_(), false)
+	local lines = api.nvim_buf_get_lines(0, row, last_item:end_(), false)
+	local last = #lines
+	while is_blank(lines[last], quote_depth) do last = last - 1 end
+
 	local next_row, next_col = next_item:start()
 	local next_index = next_row - row + 1
-	local _, item_col = item:start()
-	local prefix = line:sub(1, item_col)
 	-- Keep a shared parent marker on the first item of the nested list.
 	if prefix:find('[^ \t>]') then
 		local next_line = lines[next_index]
@@ -52,14 +64,10 @@ local function tick()
 	end
 	lines[1] = updated
 
-	local _, quote_depth = prefix:gsub('>', '')
-	local item_end = last_content_line(lines, next_index - 1, quote_depth)
-	local last = last_content_line(lines, #lines, quote_depth)
 	local replacement = vim.list_slice(lines, next_index, last)
-	vim.list_extend(replacement, lines, item_end + 1, next_index - 1)
-	vim.list_extend(replacement, lines, 1, item_end)
+	vim.list_extend(replacement, lines, 1, next_index - 1)
 	api.nvim_buf_set_lines(0, row, row + last, false, replacement)
-	cursor[1] = cursor[1] + last - item_end
+	cursor[1] = cursor[1] + last - next_index + 1
 	api.nvim_win_set_cursor(0, cursor)
 end
 

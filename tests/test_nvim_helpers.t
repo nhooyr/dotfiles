@@ -1642,42 +1642,40 @@ eq({ vim.bo.expandtab, vim.bo.tabstop, vim.bo.softtabstop, vim.bo.shiftwidth },
 local get_lines = function() return vim.api.nvim_buf_get_lines(0, 0, -1, false) end
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
     '# Tasks', '', '- [ ] first', '  details', '', '  ```', '  first', '', '  second', '  ```',
-    '  - [ ] child', '', '- [ ] next', '- [x] done', '', '<!-- -->', '', '- [x] separate', '',
-    '# Example',
-    '```', '- [ ] example', '```',
+    '  - [ ] child', '- [ ] next', '- [x] done', '  \t', '- [x] separate', '',
+    '# Example', '```', '- [ ] example', '```',
 })
 vim.api.nvim_win_set_cursor(0, { 3, 6 })
 feed('<Leader>x')
 eq(get_lines(), {
-    '# Tasks', '', '- [ ] next', '- [x] done', '', '- [x] first',
+    '# Tasks', '', '- [ ] next', '- [x] done', '- [x] first',
     '  details', '', '  ```', '  first', '', '  second', '  ```', '  - [ ] child',
-    '', '<!-- -->', '', '- [x] separate', '', '# Example',
-    '```', '- [ ] example', '```',
-}, 'the task moves across a blank line with its code and stays before the next list')
-eq(vim.api.nvim_win_get_cursor(0), { 6, 6 }, 'the cursor follows the moved task')
+    '  \t', '- [x] separate', '', '# Example', '```', '- [ ] example', '```',
+}, 'the task moves with its code and stops before the next blank-line group')
+eq(vim.api.nvim_win_get_cursor(0), { 5, 6 }, 'the cursor follows the moved task')
 local after = get_lines()
-after[6] = '- [ ] first'
+after[5] = '- [ ] first'
 feed('<Leader>x')
 eq(get_lines(), after, 'the mapping reopens a checked task in place')
-eq(vim.api.nvim_win_get_cursor(0), { 6, 6 }, 'reopening keeps the cursor position')
-vim.api.nvim_win_set_cursor(0, { 22, 0 })
+eq(vim.api.nvim_win_get_cursor(0), { 5, 6 }, 'reopening keeps the cursor position')
+vim.api.nvim_win_set_cursor(0, { 19, 0 })
 vim.cmd.Mdtick()
 eq(get_lines(), after, 'a checkbox inside a code fence is left alone')
 
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
-    '> - [ ] parent', '>   - [ ] first', '>', '>   - [ ] second',
-    '>', '>   <!-- -->', '>', '>   - [ ] separate', '> - [ ] other parent',
+    '> - [ ] parent', '>   - [ ] first', '>   - [ ] second',
+    '>', '>   - [ ] separate', '> - [ ] other parent',
 })
 vim.api.nvim_win_set_cursor(0, { 2, 0 })
 vim.cmd.Mdtick()
 eq(get_lines(), {
-    '> - [ ] parent', '>   - [ ] second', '>', '>   - [x] first',
-    '>', '>   <!-- -->', '>', '>   - [ ] separate', '> - [ ] other parent',
-}, 'a nested task stays within its Markdown list inside a block quote')
+    '> - [ ] parent', '>   - [ ] second', '>   - [x] first',
+    '>', '>   - [ ] separate', '> - [ ] other parent',
+}, 'a nested task stops at the blank line inside a block quote')
 vim.api.nvim_set_current_line('>   - [ ]')
 vim.cmd.Mdtick()
 eq(vim.api.nvim_get_current_line(), '>   - [x]', 'the last task can be checked in place without a label')
-eq(vim.fn.line('.'), 4, 'the last task in the list stays on its line')
+eq(vim.fn.line('.'), 3, 'the last task in the group stays on its line')
 vim.api.nvim_set_current_line('>   - [X]')
 vim.cmd.Mdtick()
 eq(vim.api.nvim_get_current_line(), '>   - [ ]', 'Mdtick reopens an uppercase checkbox')
