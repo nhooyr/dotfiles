@@ -14,6 +14,7 @@ if !empty(filter(keys(environ()), {_, name -> name =~# '^GIT_'}))
 endif
 
 let s:config_dir = fnamemodify(s:config_file, ':h')
+execute 'luafile' fnameescape(s:config_dir . '/lua/init.lua')
 execute 'luafile' fnameescape(s:config_dir . '/lua/plugins.lua')
 
 set notermguicolors
