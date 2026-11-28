@@ -17,6 +17,6 @@ Lowercase patterns ignore case. Original files are saved with a .bak suffix.'
         set ignore_case -i
         set flags gi
     end
-    gg -lz $ignore_case -e "$pattern" -- $argv[3..] |
+    git grep -IE -lz --recurse-submodules $ignore_case -e "$pattern" -- $argv[3..] |
         xargs -0 -r sed -i.bak -Ee 's'\x1F"$pattern"\x1F"$replacement"\x1F"$flags" --
 end

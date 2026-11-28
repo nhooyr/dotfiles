@@ -101,7 +101,7 @@ sub fish {
 sub test_autoload_wrappers_preserve_arguments {
     my ($self) = @_;
     for my $wrapper ( [ 'grep', 'ggrep', '--color', '-nI' ],
-        [ 'gg', 'git', 'grep', '-IE', '--recurse-submodules' ] )
+        [ 'gg', 'git', 'grep', '-IE', '--untracked', '--no-recurse-submodules' ] )
     {
         my ( $name, $backend, @prefix ) = @$wrapper;
         my $command = "function $backend; printf '%s\\0' \$argv; end\n$name";
@@ -282,6 +282,10 @@ sub test_git_grep_uses_the_pattern_case {
         { "env" => $self->{env}, "check" => 1 } );
     run_command( [ $GIT, "-C", $self->{directory}, "add", "case.txt" ],
         { "env" => $self->{env}, "check" => 1 } );
+    run_command( [ $GIT, '-C', $self->{directory}, 'config', 'submodule.recurse', 'true' ],
+        { env => $self->{env}, check => 1 } );
+    is( fish( $self, 'gg', [ 'error', '--', 'lower-patterns' ], undef ),
+        "lower-patterns:error\n", 'gg searches untracked files when recursive submodules are configured' );
     for my $item_120 (
         @{
             [
@@ -374,7 +378,7 @@ case.txt:error
     $args     = [ "--audit-unsupported-option", "ERROR", "--", "case.txt" ];
     $actual   = run_fish( $self, "gg", $args, undef, undef );
     $expected = run_command(
-        [ $GIT, "grep", "-IE", "--recurse-submodules", @{$args} ],
+        [ $GIT, "grep", "-IE", "--untracked", "--no-recurse-submodules", @{$args} ],
         { "cwd" => $self->{directory}, "env" => $self->{env}, "timeout" => 10 }
     );
     (
@@ -391,6 +395,7 @@ sub test_ggr_uses_the_pattern_case {
     my $directory = $self->{directory};
     write_file( "$directory/uppercase only.txt", "ERROR\n" );
     write_file( "$directory/outside.txt",        "error\n" );
+    write_file( "$directory/untracked.txt",      "error\n" );
     my $options = { cwd => $directory, env => $self->{env}, check => 1 };
     run_command( [ $GIT, 'init', '-q' ], $options );
     run_command( [ $GIT, 'add', '--', 'case.txt', 'uppercase only.txt', 'outside.txt' ], $options );
@@ -400,11 +405,12 @@ sub test_ggr_uses_the_pattern_case {
     is( read_file("$directory/uppercase only.txt"), "ERROR\n",        'pathspecs limit the replacement' );
 
     write_file( "$directory/case.txt", "ERROR\nerror\n" );
-    fish( $self, 'ggr', [ 'error', 'FIXED', 'case.txt', 'uppercase only.txt' ], undef );
+    fish( $self, 'ggr', [ 'error', 'FIXED', 'case.txt', 'uppercase only.txt', 'untracked.txt' ], undef );
     is( read_file("$directory/case.txt"),           "FIXED\nFIXED\n", 'lowercase patterns match both cases' );
     is( read_file("$directory/uppercase only.txt"), "FIXED\n",        'Git selects uppercase-only matches' );
     is( read_file("$directory/uppercase only.txt.bak"), "ERROR\n",    'sed keeps the original as a backup' );
     is( read_file("$directory/outside.txt"),            "error\n",    'other paths are untouched' );
+    is( read_file("$directory/untracked.txt"),          "error\n",    'ggr only replaces tracked files' );
 }
 
 sub test_macos_fallback_preserves_regex_modes {
