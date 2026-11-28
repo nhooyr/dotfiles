@@ -10,11 +10,15 @@ use std::os::fd::AsRawFd;
 use std::os::unix::{ffi::OsStrExt, ffi::OsStringExt, fs::MetadataExt, process::CommandExt};
 use std::path::{Path, PathBuf};
 use std::process::{self, Child, ChildStdout, Command, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use std::sync::mpsc::{self, RecvTimeoutError, SyncSender};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+
+mod priority;
+
+const PRIORITY_LIMIT: usize = 2048;
 
 fn print_help(name: &str) {
     println!(
@@ -284,6 +288,25 @@ fn run(
         output: BufWriter::new(CancellableStdout::new(io::stdout().as_raw_fd())?),
     };
     let (sender, receiver) = mpsc::sync_channel(256);
+    let ranked = !read0 && env::var_os("FZFP_PREFER").is_some();
+    let (local_sender, local_receiver) = ranked.then(|| mpsc::sync_channel(256)).unzip();
+    let directories = if ranked && args[2] != "-f" {
+        priority::read_recent_dirs()?
+    } else {
+        Vec::new()
+    };
+    let (recent, recent_receiver) = (!directories.is_empty())
+        .then(|| {
+            let (sender, receiver) = mpsc::channel();
+            (
+                RecentDirs {
+                    paths: &directories,
+                    sender,
+                },
+                receiver,
+            )
+        })
+        .unzip();
     let git = Arc::new(Mutex::new(GitScans::default()));
     let cancelled = Arc::new(AtomicBool::new(false));
     let scanner = Scanner {
@@ -299,81 +322,58 @@ fn run(
         classify,
         colors,
         sender,
+        prefix: None,
         git: Arc::clone(&git),
         cancelled: Arc::clone(&cancelled),
     };
     thread::scope(|scope| {
-        let local = scanner.clone();
+        let mut local = scanner.clone();
+        local.prefix = local_sender.map(|sender| {
+            Arc::new(LocalPrefix {
+                sender,
+                sent: AtomicUsize::new(0),
+            })
+        });
+        let local_recent = recent.clone();
         let mut scans = vec![scope.spawn(move || {
             local.scan(|local| {
                 if read0 {
                     local.input_paths()
                 } else {
-                    local.walk(PathBuf::from(&args[0]))
+                    local.walk(PathBuf::from(&args[0]), local_recent)
                 }
             })
         })];
         if let Some(global_dir) = global_dir.filter(|_| !read0) {
             let global = scanner.clone();
-            scans.push(scope.spawn(move || global.scan(|global| global.global_paths(global_dir))));
+            let recent = recent.clone();
+            scans.push(
+                scope.spawn(move || global.scan(|global| global.global_paths(global_dir, recent))),
+            );
         }
         if let Some(cdpath) =
             cdpath.filter(|value| !read0 && !value.is_empty() && !scanner.files_only)
         {
             let cd = scanner.clone();
-            scans.push(scope.spawn(move || cd.scan(|cd| cd.cdpath(cdpath))));
+            let recent = recent.clone();
+            scans.push(scope.spawn(move || cd.scan(|cd| cd.cdpath(cdpath, recent))));
         }
+        drop(recent);
         drop(scanner);
         let result: io::Result<()> = (|| {
-            let mut last_reap = Instant::now();
-            loop {
-                check_signal()?;
-                // Registering a new Git process also reaps finished children;
-                // this periodic sweep handles idle readers without locking for
-                // every small output batch.
-                if last_reap.elapsed() >= Duration::from_millis(50) {
-                    if output_closed() {
-                        return Err(io::ErrorKind::BrokenPipe.into());
-                    }
-                    let mut git = git.lock().unwrap();
-                    git.reap_finished()?;
-                    git.check_failed()?;
-                    last_reap = Instant::now();
-                }
-                let candidate = match receiver.recv_timeout(Duration::from_millis(50)) {
-                    Ok(candidate) => candidate,
-                    Err(RecvTimeoutError::Disconnected) => break,
-                    Err(RecvTimeoutError::Timeout) if output_closed() => {
-                        return Err(io::ErrorKind::BrokenPipe.into());
-                    }
-                    Err(RecvTimeoutError::Timeout) => continue,
-                };
-                for candidate in std::iter::once(candidate)
-                    .chain(receiver.try_iter())
-                    .take(256)
-                {
-                    check_signal()?;
-                    match candidate? {
-                        Candidate::Path { path, local, style } => {
-                            picker.emit_path(path, local, style)?;
-                        }
-                        Candidate::Cdpath(path, style) => {
-                            picker.emit(
-                                [b"$CDPATH/", path.as_os_str().as_bytes()].concat(),
-                                false,
-                                &style,
-                            )?;
-                        }
-                    }
-                }
-                // Never wait for a slower scan with local results still buffered.
-                picker.output.flush()?;
+            if let Some(local) = &local_receiver {
+                picker.drain(local, PRIORITY_LIMIT, &git)?;
             }
-            Ok(())
+            if let Some(recent) = &recent_receiver {
+                picker.drain_recent(recent, &git)?;
+            }
+            picker.drain(&receiver, usize::MAX, &git)
         })();
         cancelled.store(true, Ordering::Relaxed);
         // Release blocked senders before joining cancelled scans.
         drop(receiver);
+        drop(local_receiver);
+        drop(recent_receiver);
         if result.is_err() {
             git.lock().unwrap().cancel();
         }
@@ -658,6 +658,18 @@ fn ignored(path: &Path, directory: bool, ignores: &LocalIgnores) -> bool {
     false
 }
 
+fn local_entry_allowed(
+    path: &Path,
+    directory: bool,
+    ignores: &LocalIgnores,
+    configured: &Gitignore,
+) -> bool {
+    !ignored(path, directory, ignores)
+        && !configured
+            .matched_path_or_any_parents(path, directory)
+            .is_ignore()
+}
+
 fn add_ignore_file(directory: &Path, ignores: &mut LocalIgnores) {
     let path = directory.join(".gitignore");
     if !path
@@ -848,7 +860,94 @@ struct Picker {
     output: BufWriter<CancellableStdout>,
 }
 
+fn receive<T>(
+    receiver: &Receiver<T>,
+    git: &Mutex<GitScans>,
+    last_reap: &mut Instant,
+) -> io::Result<Option<T>> {
+    loop {
+        check_signal()?;
+        // Keep idle scans cancellable without locking for every output batch.
+        if last_reap.elapsed() >= Duration::from_millis(50) {
+            if output_closed() {
+                return Err(io::ErrorKind::BrokenPipe.into());
+            }
+            let mut git = git.lock().unwrap();
+            git.reap_finished()?;
+            git.check_failed()?;
+            *last_reap = Instant::now();
+        }
+        match receiver.recv_timeout(Duration::from_millis(50)) {
+            Ok(candidate) => return Ok(Some(candidate)),
+            Err(RecvTimeoutError::Disconnected) => return Ok(None),
+            Err(RecvTimeoutError::Timeout) => {}
+        }
+    }
+}
+
 impl Picker {
+    fn drain(
+        &mut self,
+        receiver: &Receiver<io::Result<Candidate>>,
+        mut remaining: usize,
+        git: &Mutex<GitScans>,
+    ) -> io::Result<()> {
+        let mut last_reap = Instant::now();
+        while remaining != 0 {
+            let Some(candidate) = receive(receiver, git, &mut last_reap)? else {
+                break;
+            };
+            for candidate in std::iter::once(candidate)
+                .chain(receiver.try_iter())
+                .take(remaining.min(256))
+            {
+                check_signal()?;
+                self.emit_candidate(candidate?)?;
+                remaining -= 1;
+            }
+            self.output.flush()?;
+        }
+        Ok(())
+    }
+
+    fn drain_recent(
+        &mut self,
+        receiver: &Receiver<DirectoryMatches>,
+        git: &Mutex<GitScans>,
+    ) -> io::Result<()> {
+        let mut matches = Vec::new();
+        let mut last_reap = Instant::now();
+        while let Some(batch) = receive(receiver, git, &mut last_reap)? {
+            matches.extend(batch);
+        }
+        matches.sort_unstable_by_key(|(rank, candidate)| {
+            (
+                *rank,
+                match candidate {
+                    Candidate::Path { local: true, .. } => 0,
+                    Candidate::Path { .. } => 1,
+                    Candidate::Cdpath(..) => 2,
+                },
+            )
+        });
+        for (_, candidate) in matches {
+            check_signal()?;
+            self.emit_candidate(candidate)?;
+        }
+        self.output.flush()
+    }
+
+    fn emit_candidate(&mut self, candidate: Candidate) -> io::Result<()> {
+        match candidate {
+            Candidate::Path { path, local, style } => self.emit_path(path, local, style),
+            Candidate::Cdpath(path, style) => self.emit(
+                [b"$CDPATH/", path.as_os_str().as_bytes()].concat(),
+                false,
+                &style,
+            ),
+        }
+    }
+
     fn emit(&mut self, mut path: Vec<u8>, literal: bool, style: &PathStyle) -> io::Result<()> {
         if literal && matches!(path.first(), Some(b'$' | b'~' | b'-')) {
             path.splice(..0, b"./".iter().copied());
@@ -948,6 +1047,28 @@ enum Candidate {
     Cdpath(PathBuf, PathStyle),
 }
 
+type CandidateSender = SyncSender<io::Result<Candidate>>;
+type DirectoryMatches = Vec<(usize, Candidate)>;
+
+#[derive(Clone)]
+struct RecentDirs<'a> {
+    paths: &'a [PathBuf],
+    sender: mpsc::Sender<DirectoryMatches>,
+}
+
+impl RecentDirs<'_> {
+    fn report(self, matches: DirectoryMatches) -> io::Result<()> {
+        self.sender
+            .send(matches)
+            .map_err(|_| io::ErrorKind::BrokenPipe.into())
+    }
+}
+
+struct LocalPrefix {
+    sender: CandidateSender,
+    sent: AtomicUsize,
+}
+
 #[derive(Clone)]
 struct Scanner {
     cwd: PathBuf,
@@ -957,7 +1078,8 @@ struct Scanner {
     directories_only: bool,
     classify: bool,
     colors: Option<Arc<LsColors>>,
-    sender: SyncSender<io::Result<Candidate>>,
+    sender: CandidateSender,
+    prefix: Option<Arc<LocalPrefix>>,
     git: Arc<Mutex<GitScans>>,
     cancelled: Arc<AtomicBool>,
 }
@@ -965,49 +1087,61 @@ struct Scanner {
 impl Scanner {
     fn scan(&self, scan: impl FnOnce(&Self) -> io::Result<()>) {
         if let Err(error) = scan(self) {
-            let _ = self.sender.send(Err(error));
+            let _ = self.send_result(Err(error));
         }
     }
 
     fn input_paths(&self) -> io::Result<()> {
         let physical_cwd = env::current_dir()?;
         let mut parents = HashMap::new();
-        let mut input = io::stdin().lock();
-        let mut pending = Vec::new();
-        let mut buffer = [0; 8192];
-        loop {
-            self.check_cancelled()?;
-            let mut fd = libc::pollfd {
-                fd: input.as_raw_fd(),
-                events: libc::POLLIN,
-                revents: 0,
-            };
-            match unsafe { libc::poll(&mut fd, 1, 50) } {
-                0 => continue,
-                -1 => {
-                    let error = io::Error::last_os_error();
-                    if error.kind() == io::ErrorKind::Interrupted {
-                        continue;
-                    }
-                    return Err(error);
+        read_input_paths(
+            || self.check_cancelled(),
+            |bytes| self.input_path(bytes, &physical_cwd, &mut parents),
+        )
+    }
+}
+
+fn read_input_paths(
+    check: impl Fn() -> io::Result<()>,
+    mut read_path: impl FnMut(&[u8]) -> io::Result<()>,
+) -> io::Result<()> {
+    let mut input = io::stdin().lock();
+    let mut pending = Vec::new();
+    let mut buffer = [0; 8192];
+    loop {
+        check()?;
+        let mut fd = libc::pollfd {
+            fd: input.as_raw_fd(),
+            events: libc::POLLIN,
+            revents: 0,
+        };
+        match unsafe { libc::poll(&mut fd, 1, 50) } {
+            0 => continue,
+            -1 => {
+                let error = io::Error::last_os_error();
+                if error.kind() == io::ErrorKind::Interrupted {
+                    continue;
                 }
-                _ => {}
+                return Err(error);
             }
-            let length = input.read(&mut buffer)?;
-            if length == 0 {
-                return self.input_path(&pending, &physical_cwd, &mut parents);
-            }
-            for part in buffer[..length].split_inclusive(|byte| *byte == 0) {
-                pending.extend_from_slice(part);
-                if pending.last() == Some(&0) {
-                    pending.pop();
-                    self.input_path(&pending, &physical_cwd, &mut parents)?;
-                    pending.clear();
-                }
+            _ => {}
+        }
+        let length = input.read(&mut buffer)?;
+        if length == 0 {
+            return read_path(&pending);
+        }
+        for part in buffer[..length].split_inclusive(|byte| *byte == 0) {
+            pending.extend_from_slice(part);
+            if pending.last() == Some(&0) {
+                pending.pop();
+                read_path(&pending)?;
+                pending.clear();
             }
         }
     }
+}
 
+impl Scanner {
     fn input_path(
         &self,
         bytes: &[u8],
@@ -1075,6 +1209,17 @@ impl Scanner {
         directory: &Path,
         args: impl IntoIterator<Item = impl AsRef<OsStr>>,
     ) -> io::Result<Vec<u8>> {
+        let mut stdout = self.spawn_git(directory, args)?;
+        let mut output = Vec::new();
+        stdout.read_to_end(&mut output)?;
+        Ok(output)
+    }
+
+    fn spawn_git(
+        &self,
+        directory: &Path,
+        args: impl IntoIterator<Item = impl AsRef<OsStr>>,
+    ) -> io::Result<GitOutput> {
         self.check_cancelled()?;
         let child = Command::new("git")
             .arg("-C")
@@ -1084,10 +1229,7 @@ impl Scanner {
             .stdout(Stdio::piped())
             .process_group(0)
             .spawn()?;
-        let mut stdout = self.git.lock().unwrap().register(child)?;
-        let mut output = Vec::new();
-        stdout.read_to_end(&mut output)?;
-        Ok(output)
+        self.git.lock().unwrap().register(child)
     }
 
     fn local_ignores(&self, directory: &Path) -> io::Result<LocalIgnores> {
@@ -1160,14 +1302,36 @@ impl Scanner {
         Ok(ignores)
     }
 
-    fn send(&self, candidate: Candidate) -> io::Result<()> {
-        self.sender
-            .send(Ok(candidate))
-            .map_err(|_| io::ErrorKind::BrokenPipe.into())
+    fn subdirectory_ignores(
+        &self,
+        absolute: &Path,
+        ignores: &LocalIgnores,
+    ) -> io::Result<LocalIgnores> {
+        if absolute.join(".git").exists() {
+            self.local_ignores(absolute)
+        } else {
+            let mut ignores = ignores.clone();
+            add_ignore_file(absolute, &mut ignores);
+            Ok(ignores)
+        }
     }
 
-    fn emit_path(&self, path: PathBuf, local: bool, style: PathStyle) -> io::Result<()> {
-        self.send(Candidate::Path { path, local, style })
+    fn send(&self, candidate: Candidate) -> io::Result<()> {
+        self.send_result(Ok(candidate))
+    }
+
+    fn send_result(&self, candidate: io::Result<Candidate>) -> io::Result<()> {
+        let sender = self
+            .prefix
+            .as_ref()
+            .filter(|prefix| {
+                prefix.sent.load(Ordering::Relaxed) < PRIORITY_LIMIT
+                    && prefix.sent.fetch_add(1, Ordering::Relaxed) < PRIORITY_LIMIT
+            })
+            .map_or(&self.sender, |prefix| &prefix.sender);
+        sender
+            .send(candidate)
+            .map_err(|_| io::ErrorKind::BrokenPipe.into())
     }
 
     fn style(&self, path: &Path, info: &FileInfo) -> PathStyle {
@@ -1190,9 +1354,19 @@ impl Scanner {
     }
 
     fn candidate(&self, path: PathBuf, local: bool, info: Option<FileInfo>) -> io::Result<()> {
-        let Some(info) = info.or_else(|| FileInfo::new(&path)) else {
-            return Ok(());
-        };
+        if let Some(candidate) = self.path_candidate(path, local, info) {
+            self.send(candidate)?;
+        }
+        Ok(())
+    }
+
+    fn path_candidate(
+        &self,
+        path: PathBuf,
+        local: bool,
+        info: Option<FileInfo>,
+    ) -> Option<Candidate> {
+        let info = info.or_else(|| FileInfo::new(&path))?;
         let metadata = info.followed();
         let wanted = if metadata.is_dir() {
             !self.files_only
@@ -1200,13 +1374,13 @@ impl Scanner {
             !self.directories_only
         };
         if !wanted {
-            return Ok(());
+            return None;
         }
         let mut style = self.style(&path, &info);
         if local && style.executable {
             style.binary_executable = !has_shebang(&path).unwrap_or(false);
         }
-        self.emit_path(path, local, style)
+        Some(Candidate::Path { path, local, style })
     }
 
     fn global_candidate(
@@ -1215,26 +1389,36 @@ impl Scanner {
         absolute: PathBuf,
         ignores: &Gitignore,
     ) -> io::Result<()> {
+        if let Some(candidate) = self.global_path_candidate(path, &absolute, ignores) {
+            self.send(candidate)?;
+        }
+        Ok(())
+    }
+
+    fn global_path_candidate(
+        &self,
+        path: PathBuf,
+        absolute: &Path,
+        ignores: &Gitignore,
+    ) -> Option<Candidate> {
         if self
             .local_root
             .as_ref()
             .is_some_and(|root| absolute.starts_with(root))
         {
-            return Ok(());
+            return None;
         }
-        let Some(info) = FileInfo::new(&path) else {
-            return Ok(());
-        };
+        let info = FileInfo::new(&path)?;
         if ignores
             .matched_path_or_any_parents(&path, info.followed().is_dir())
             .is_ignore()
         {
-            return Ok(());
+            return None;
         }
-        self.candidate(path, false, Some(info))
+        self.path_candidate(path, false, Some(info))
     }
 
-    fn walk(&self, path: PathBuf) -> io::Result<()> {
+    fn walk(&self, path: PathBuf, recent: Option<RecentDirs<'_>>) -> io::Result<()> {
         let Ok(metadata) = path.metadata() else {
             return Ok(());
         };
@@ -1246,8 +1430,31 @@ impl Scanner {
             return Ok(());
         };
         let configured = configured_ignores(&absolute, self.ignore_file.as_deref(), false)?;
+        let changes = if self.prefix.is_some() {
+            priority::start_changes(self, &absolute)?
+        } else {
+            None
+        };
         let ignores = self.local_ignores(&absolute)?;
         let ancestors = vec![(metadata.dev(), metadata.ino())];
+        let mut preferred = HashSet::new();
+        if recent.is_some() || changes.is_some() {
+            let mut paths = priority::LocalPaths::new(
+                self,
+                &path,
+                &absolute,
+                &ignores,
+                &configured,
+                &ancestors,
+            );
+            if let Some(recent) = recent {
+                let matches = paths.recent(recent.paths)?;
+                recent.report(matches)?;
+            }
+            if let Some(changes) = changes {
+                preferred = paths.emit_changes(changes)?;
+            }
+        }
         parallel(
             vec![(path, absolute, ancestors, ignores)],
             parallelism(),
@@ -1274,25 +1481,17 @@ impl Scanner {
                     };
                     let metadata = info.followed();
                     let is_directory = metadata.is_dir();
-                    if ignored(&absolute, is_directory, &ignores)
-                        || configured
-                            .matched_path_or_any_parents(&absolute, is_directory)
-                            .is_ignore()
-                    {
+                    if !local_entry_allowed(&absolute, is_directory, &ignores, &configured) {
                         continue;
                     }
                     let identity = (metadata.dev(), metadata.ino());
-                    self.candidate(path.clone(), true, Some(info))?;
+                    if !preferred.contains(&absolute) {
+                        self.candidate(path.clone(), true, Some(info))?;
+                    }
                     if is_directory && !ancestors.contains(&identity) {
                         let mut ancestors = ancestors.clone();
                         ancestors.push(identity);
-                        let ignores = if absolute.join(".git").exists() {
-                            self.local_ignores(&absolute)?
-                        } else {
-                            let mut ignores = ignores.clone();
-                            add_ignore_file(&absolute, &mut ignores);
-                            ignores
-                        };
+                        let ignores = self.subdirectory_ignores(&absolute, &ignores)?;
                         directories.push((path, absolute, ancestors, ignores));
                     }
                 }
@@ -1301,19 +1500,27 @@ impl Scanner {
         )
     }
 
-    fn cdpath(&self, cdpath: OsString) -> io::Result<()> {
-        let mut roots = HashSet::new();
+    fn cdpath(&self, cdpath: OsString, recent: Option<RecentDirs<'_>>) -> io::Result<()> {
+        let mut seen = HashSet::new();
+        let mut roots = Vec::new();
         for root in env::split_paths(&cdpath) {
             self.check_cancelled()?;
             if root.as_os_str().is_empty() || root == Path::new(".") {
                 continue;
             }
-            let Ok(root) = self.cwd.join(root).canonicalize() else {
+            let logical = self.cwd.join(root);
+            let Ok(root) = logical.canonicalize() else {
                 continue;
             };
-            if !roots.insert(root.clone()) {
-                continue;
+            if seen.insert(root.clone()) {
+                roots.push((logical, root));
             }
+        }
+        if let Some(recent) = recent {
+            let matches = priority::cdpath(self, &roots, recent.paths)?;
+            recent.report(matches)?;
+        }
+        for (_, root) in roots {
             let mut directories = vec![(root, PathBuf::new())];
             while let Some((directory, relative)) = directories.pop() {
                 let Ok(entries) = fs::read_dir(directory) else {
@@ -1362,19 +1569,30 @@ impl Scanner {
         Ok(())
     }
 
-    fn global_paths(&self, global_dir: PathBuf) -> io::Result<()> {
+    fn global_paths(&self, global_dir: PathBuf, recent: Option<RecentDirs<'_>>) -> io::Result<()> {
         if !global_dir.is_dir() {
             return Ok(());
         }
-        let global_dir = global_dir.canonicalize()?;
-        let ignores = configured_ignores(&global_dir, self.ignore_file.as_deref(), true)?;
-        let repos: Vec<_> = fs::read_dir(&global_dir)?
+        let physical_dir = global_dir.canonicalize()?;
+        let ignores = configured_ignores(&physical_dir, self.ignore_file.as_deref(), true)?;
+        let repos: Vec<_> = fs::read_dir(&physical_dir)?
             .flatten()
             .filter(|entry| !entry.file_name().as_bytes().starts_with(b"."))
             .map(|entry| entry.path())
             .filter(|repo| repo.join(".git").exists())
             .filter(|repo| !ignores.matched_path_or_any_parents(repo, true).is_ignore())
             .collect();
+        if let Some(recent) = recent {
+            let matches = priority::global(
+                self,
+                &repos,
+                &global_dir,
+                &physical_dir,
+                &ignores,
+                recent.paths,
+            )?;
+            recent.report(matches)?;
+        }
         let workers = parallelism().min(repos.len());
         parallel(repos, workers, |repo| {
             self.check_cancelled()?;
@@ -1392,38 +1610,7 @@ impl Scanner {
             let mut parents = HashSet::new();
             // --recurse-submodules cannot be combined with --others.
             for tracked in [true, false] {
-                let indexed_modes = tracked && self.directories_only;
-                let mut git = Command::new("git");
-                git.arg("-C")
-                    .arg(&repo)
-                    .args(["ls-files", "--sparse", "-z"]);
-                if tracked {
-                    git.arg("--recurse-submodules");
-                    if indexed_modes {
-                        git.arg("--format=%(objectmode) %(path)");
-                    }
-                } else {
-                    git.args(["--others", "--exclude-standard"]);
-                }
-                let child = git
-                    .stdin(Stdio::null())
-                    .stdout(Stdio::piped())
-                    .process_group(0)
-                    .spawn()?;
-                let stdout = self.git.lock().unwrap().register(child)?;
-                for file in BufReader::new(stdout).split(0) {
-                    self.check_cancelled()?;
-                    let file = file?;
-                    // Git's indexed modes let directory scans skip regular files.
-                    let regular_file = indexed_modes && file.starts_with(b"100");
-                    let path = if indexed_modes {
-                        file.splitn(2, |&byte| byte == b' ')
-                            .nth(1)
-                            .unwrap_or_default()
-                    } else {
-                        &file
-                    };
-                    let file = Path::new(OsStr::from_bytes(path));
+                self.repo_files(&repo, tracked, &[], |file, regular_file| {
                     if !regular_file {
                         self.global_candidate(repo.join(file), physical_repo.join(file), &ignores)?;
                     }
@@ -1443,10 +1630,58 @@ impl Scanner {
                             )?;
                         }
                     }
-                }
+                    Ok(())
+                })?;
             }
             Ok(Vec::new())
         })
+    }
+
+    fn repo_files(
+        &self,
+        repo: &Path,
+        tracked: bool,
+        paths: &[PathBuf],
+        mut visit: impl FnMut(&Path, bool) -> io::Result<()>,
+    ) -> io::Result<()> {
+        let indexed_modes = tracked && self.directories_only;
+        let mut args = Vec::new();
+        if !paths.is_empty() {
+            args.push("--literal-pathspecs");
+        }
+        args.extend(["ls-files", "--sparse", "-z"]);
+        if tracked {
+            args.push("--recurse-submodules");
+            if indexed_modes {
+                args.push("--format=%(objectmode) %(path)");
+            }
+        } else {
+            args.extend(["--others", "--exclude-standard"]);
+        }
+        if !paths.is_empty() {
+            args.push("--");
+        }
+        let stdout = self.spawn_git(
+            repo,
+            args.into_iter()
+                .map(OsStr::new)
+                .chain(paths.iter().map(|path| path.as_os_str())),
+        )?;
+        for file in BufReader::new(stdout).split(0) {
+            self.check_cancelled()?;
+            let file = file?;
+            // Git's indexed modes let directory scans skip regular files.
+            let regular_file = indexed_modes && file.starts_with(b"100");
+            let path = if indexed_modes {
+                file.splitn(2, |&byte| byte == b' ')
+                    .nth(1)
+                    .unwrap_or_default()
+            } else {
+                &file
+            };
+            visit(Path::new(OsStr::from_bytes(path)), regular_file)?;
+        }
+        Ok(())
     }
 }
 

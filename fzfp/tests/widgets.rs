@@ -412,24 +412,38 @@ cat query
 }
 
 #[test]
-fn recent_files_only_pass_absolute_filenames_to_the_scanner() {
+fn each_path_widget_supplies_its_own_priority_input() {
     let script = r#"
 set -lx TEST_NVIM "$(command -s nvim)"
 set -lx TEST_OLDFILES '["man://ls(1)","/second file","relative","scp://host/file","/first file"]'
+set -g dirprev /previous '/latest directory'
 mkdir bin
 printf '%s\n' '#!/bin/sh' 'exec "$TEST_NVIM" -i NONE --cmd "lua vim.v.oldfiles = vim.json.decode(vim.env.TEST_OLDFILES)" "$@"' > bin/nvim
 chmod +x bin/nvim
 set -lx PATH "$PWD/bin" $PATH
 function fzfp
-    cat > input
+    if contains -- --read0 $argv
+        printf 'read0\0' >> input
+    else if test "$FZFP_PREFER" = 1
+        printf 'prefer %s\0' "$argv[-1]" >> input
+    else
+        printf 'scan\0' >> input
+        return 0
+    end
+    cat >> input
 end
 function fzf
     cat >/dev/null
 end
-fzf_path_widget fzf-recent-widget
+for widget in fzf-recent-widget fzf-path-widget fzf-file-widget fzf-cd-widget fzf-path-first-widget
+    fzf_path_widget "$widget"
+end
 cat input
 "#;
-    assert_eq!(path_case(script, ""), b"/second file\0/first file\0");
+    assert_eq!(
+        path_case(script, ""),
+        b"read0\0/second file\0/first file\0prefer -fd\0/latest directory\0/previous\0prefer -f\0prefer -d\0/latest directory\0/previous\0scan\0"
+    );
 }
 
 #[test]

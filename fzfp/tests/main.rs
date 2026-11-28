@@ -2037,6 +2037,59 @@ fn cdpath_adds_two_directory_levels_from_all_roots() {
 }
 
 #[test]
+fn directory_stack_promotes_global_and_unambiguous_cdpath_choices_after_local_paths() {
+    let fixture = Fixture::new();
+    let first = fixture.root.join("first");
+    let second = fixture.root.join("second");
+    for dir in [
+        first.join("duplicate"),
+        second.join("duplicate"),
+        first.join("old"),
+        first.join("newer/child"),
+    ] {
+        fs::create_dir_all(dir).unwrap();
+    }
+    let cdpath = env::join_paths([&first, &second]).unwrap();
+    let directories = [
+        second.join("duplicate"),
+        fixture.repo.join("nested"),
+        fixture.local.join("linked"),
+        fixture.repo.join("untracked"),
+        first.join("newer/child"),
+        first.join("old"),
+    ];
+    let recent: Vec<_> = directories.iter().map(PathBuf::as_path).collect();
+    let local = fixture.run(&mut fixture.command(&fixture.local, Path::new(""), "-d", &[]));
+    let paths = from_input(
+        fixture
+            .command_with_cdpath(
+                &[],
+                &fixture.local,
+                &fixture.global_dir,
+                Some(&cdpath),
+                "-d",
+                &[],
+            )
+            .env("FZFP_PREFER", "1"),
+        &recent,
+    );
+    assert_eq!(
+        paths[..local.len()].iter().collect::<HashSet<_>>(),
+        local.iter().collect(),
+    );
+    assert_eq!(
+        &paths[local.len()..][..3],
+        [
+            "$global/project/nested",
+            "$CDPATH/newer/child",
+            "$CDPATH/old"
+        ]
+        .map(OsString::from),
+    );
+    assert!(paths.contains(&"$CDPATH/duplicate".into()));
+}
+
+#[test]
 fn current_directory_cdpath_entries_use_only_the_local_scan() {
     let fixture = Fixture::new();
     let other = fixture.root.join("other");
@@ -3084,6 +3137,107 @@ fn escaped_gitignore_patterns_are_respected() {
             .any(|path| Path::new(path).starts_with("build output"))
     );
     assert!(paths.contains(&"visible".into()));
+}
+
+#[test]
+fn git_changes_count_toward_each_local_prefix() {
+    let fixture = Fixture::new();
+    let local = fixture.local.join("scope");
+    for name in ["01 unstaged/file", "02 staged/sub/file"] {
+        write(&local, name);
+    }
+    for i in 0..2048 {
+        write(&local, &format!("ordinary/{i}/file"));
+    }
+    fs::write(local.join(".gitignore"), "ignored/\n").unwrap();
+    write(&local, "ignored/child");
+    let git = |args: &[&str]| {
+        checked(
+            Command::new("git")
+                .current_dir(&fixture.local)
+                .env("GIT_CONFIG_GLOBAL", "/dev/null")
+                .env("GIT_CONFIG_NOSYSTEM", "1")
+                .args([
+                    "-c",
+                    "user.name=Fixture",
+                    "-c",
+                    "user.email=fixture@example.invalid",
+                ])
+                .args(args),
+        );
+    };
+    git(&["init", "-q"]);
+    git(&["add", "--", "scope"]);
+    git(&["commit", "-qm", "Initial files"]);
+    for name in ["01 unstaged/file", "02 staged/sub/file"] {
+        fs::write(local.join(name), "modified").unwrap();
+    }
+    git(&["add", "--", "scope/02 staged"]);
+    write(&local, "03 untracked/file");
+    let cdroot = fixture.root.join("cdroot");
+    let visited = cdroot.join("visited");
+    fs::create_dir_all(&visited).unwrap();
+
+    let command = |kind| {
+        let mut command = fixture.command_with_cdpath(
+            &[],
+            &local,
+            &fixture.global_dir,
+            Some(cdroot.as_os_str()),
+            kind,
+            &[],
+        );
+        command
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1");
+        command
+    };
+    let changes = [
+        "01 unstaged/file",
+        "01 unstaged",
+        "02 staged/sub/file",
+        "02 staged/sub",
+        "02 staged",
+        "03 untracked/file",
+        "03 untracked",
+    ];
+    let recent: &[&Path] = &[&visited, &fixture.repo.join("nested")];
+    for kind in ["-fd", "-d", "-f"] {
+        let paths = from_input(
+            command(kind).env("FZFP_PREFER", "1"),
+            if kind == "-f" { &[] } else { recent },
+        );
+        let expected: Vec<_> = changes
+            .iter()
+            .filter(|path| match kind {
+                "-f" => path.ends_with("/file"),
+                "-d" => !path.ends_with("/file"),
+                _ => true,
+            })
+            .map(OsString::from)
+            .collect();
+        assert_eq!(&paths[..expected.len()], expected, "{kind}");
+        assert!(
+            paths[expected.len()..2048]
+                .iter()
+                .all(|path| { Path::new(path).starts_with("ordinary") || path == ".gitignore" }),
+            "{kind}"
+        );
+        if kind != "-f" {
+            assert_eq!(
+                &paths[2048..2050],
+                ["$CDPATH/visited", "$global/project/nested"].map(OsString::from),
+                "{kind}",
+            );
+        }
+        let set = paths.iter().collect::<HashSet<_>>();
+        assert_eq!(
+            set,
+            fixture.run(&mut command(kind)).iter().collect(),
+            "{kind}"
+        );
+        assert_eq!(paths.len(), set.len(), "{kind}");
+    }
 }
 
 #[test]

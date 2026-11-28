@@ -97,6 +97,11 @@ function fzf_path_widget --argument-names widget
             -c 'lua for _, path in ipairs(vim.v.oldfiles) do if path:sub(1, 1) == "/" then io.write(path, "\0") end end; vim.o.shadafile = "NONE"' -c 'qa!' \
             | fzfp --read0 --color --classify $flags $dirs -- . '' -f \
             | _fzf_select "$widget" "$query" | string split0)
+    else if contains -- "$widget" fzf-path-widget fzf-cd-widget fzf-file-widget
+        set result $(begin
+            test "$type" = -f; or string join0 -- $dirprev[-1..1]
+        end | FZFP_PREFER=1 fzfp --color --classify $flags $dirs -- "$dir" "$global_alias" "$type" \
+            | _fzf_select "$widget" "$query" | string split0)
     else
         set result $(fzfp --color --classify $flags $dirs -- "$dir" "$global_alias" "$type" | _fzf_select "$widget" "$query" | string split0)
     end
