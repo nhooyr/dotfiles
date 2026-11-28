@@ -374,9 +374,9 @@ augroup END
 if v:vim_did_enter
 	silent doautoall <nomodeline> aqsnow FileType
 	silent doautoall <nomodeline> aqsnow_treesitter FileType
-	lua require('gitprompt').setup()
+	lua require('gitstatus').setup()
 else
-	autocmd aqsnow VimEnter * ++once lua require('gitprompt').setup()
+	autocmd aqsnow VimEnter * ++once lua require('gitstatus').setup()
 endif
 
 function s:restore_cursor() abort
