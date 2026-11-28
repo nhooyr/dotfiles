@@ -299,6 +299,62 @@ sub unrelated_new_commit_does_not_pin_head {
     );
 }
 
+sub partially_committed_group_commits_only_the_remainder {
+    my ($self) = @_;
+    my @original = map { "line $_\n" } 1 .. 30;
+    write_file( "$self->{repo}/one.txt", join '', @original );
+    git( $self, 'add', 'one.txt' );
+    git( $self, 'commit', '--quiet', '-m', 'Long fixture' );
+    my @partial = @original;
+    $partial[2] = "already committed line\n";
+    my @prepared = @partial;
+    $prepared[5] = "remaining line\n";
+    write_file( "$self->{repo}/one.txt", join '', @prepared );
+    write_file( "$self->{repo}/two.txt", "two prepared\n" );
+    my $result = generate( $self, [ { %{ groups()->[0] }, files => [qw(one.txt two.txt)] } ] );
+    is( $result->{returncode}, 0, $result->{stderr} );
+
+    write_file( "$self->{repo}/one.txt", join '', @partial );
+    git( $self, 'add', 'one.txt', 'two.txt' );
+    git( $self, 'commit', '--quiet', '-m', 'Part of the group' );
+    write_file( "$self->{repo}/one.txt", join '', @prepared );
+    write_file( "$self->{repo}/unrelated.txt", "unrelated staged\n" );
+    git( $self, 'add', 'unrelated.txt' );
+    $result = run_commit($self);
+    is( $result->{returncode}, 0, $result->{stderr} );
+    is( git( $self, 'diff-tree', '--no-commit-id', '-r', '--name-only', 'HEAD' ),
+        'one.txt', 'the already committed file is absent from the review commit' );
+    is(
+        git( $self, 'show', 'HEAD:one.txt' ),
+        trim( join '', @prepared ),
+        'only the outstanding hunk is added to the partially committed file'
+    );
+    is( git( $self, 'diff', '--cached', '--name-only' ),
+        'unrelated.txt', 'the original staging is preserved' );
+    is( git( $self, 'show', ':unrelated.txt' ), 'unrelated staged', 'staged content is unchanged' );
+}
+
+sub conflicting_later_group_stops_before_review {
+    my ($self) = @_;
+    prepare_two($self);
+    write_file( "$self->{repo}/two.txt", "two conflicting\n" );
+    git( $self, 'add', 'two.txt' );
+    git( $self, 'commit', '--quiet', '-m', 'Conflicting change' );
+    write_file( "$self->{repo}/two.txt",       "two prepared\n" );
+    write_file( "$self->{repo}/unrelated.txt", "unrelated staged\n" );
+    git( $self, 'add', 'unrelated.txt' );
+    my $head   = git( $self, 'rev-parse', 'HEAD' );
+    my $index  = read_file("$self->{repo}/.git/index");
+    my $result = run_commit($self);
+    isnt( $result->{returncode}, 0, 'the conflicting step stops the sequence' );
+    like( $result->{stderr}, qr/conflict with HEAD/, 'the helper reports the conflict' );
+    ok( !-e "$self->{temporary}/editor-calls", 'the conflict is found before review starts' );
+    is( git( $self, 'rev-parse', 'HEAD' ),     $head,            'HEAD is unchanged' );
+    is( read_file("$self->{repo}/.git/index"), $index,           'the index is unchanged' );
+    is( read_file("$self->{repo}/two.txt"),    "two prepared\n", 'prepared content is unchanged' );
+    ok( -x "$self->{repo}/commit", 'the helper remains available' );
+}
+
 sub same_file_staged_and_unstaged_changes_survive {
     my ($self) = @_;
     my @original = map { "line $_\n" } 1 .. 80;
@@ -390,11 +446,15 @@ sub mode_only_change_commits_once {
 
 sub interrupted_overlapping_groups_resume_from_journal {
     my ($self) = @_;
-    write_file( "$self->{repo}/one.txt", "one intermediate\n" );
+    write_file( "$self->{repo}/one.txt", "one original\ncontext\nlast line\n" );
+    git( $self, 'add', 'one.txt' );
+    git( $self, 'commit', '--quiet', '-m', 'Long fixture' );
+    my $base = git( $self, 'rev-parse', 'HEAD' );
+    write_file( "$self->{repo}/one.txt", "one intermediate\ncontext\nlast line\n" );
     write_file( "$self->{temporary}/first.patch",
         git( $self, 'diff', '--binary', '--full-index', '--', 'one.txt' ) . "\n" );
     git( $self, 'add', 'one.txt' );
-    write_file( "$self->{repo}/one.txt", "one final\n" );
+    write_file( "$self->{repo}/one.txt", "one final\ncontext\nlast line\n" );
     write_file( "$self->{temporary}/second.patch",
         git( $self, 'diff', '--binary', '--full-index', '--', 'one.txt' ) . "\n" );
     git( $self, 'reset', '--quiet', 'HEAD' );
@@ -408,6 +468,10 @@ sub interrupted_overlapping_groups_resume_from_journal {
         ]
     );
     is( $result->{returncode}, 0, $result->{stderr} );
+    write_file( "$self->{repo}/one.txt", "one original\ncontext\nnew last line\n" );
+    git( $self, 'add', 'one.txt' );
+    git( $self, 'commit', '--quiet', '-m', 'Change nearby context' );
+    write_file( "$self->{repo}/one.txt",      "one final\ncontext\nnew last line\n" );
     write_file( "$self->{temporary}/bin/git", '#!' . perl_executable() . "\n" . <<'PERL' );
 use strict;
 use warnings;
@@ -429,16 +493,16 @@ PERL
     $result = run_commit($self);
     isnt( $result->{returncode}, 0, 'interruption occurs after the second commit succeeds' );
     is(
-        git( $self, 'log', '--reverse', '--format=%s', "$self->{base}..HEAD" ),
-        "one.txt: Apply first change\none.txt: Apply second change",
+        git( $self, 'log', '--reverse', '--format=%s', "$base..HEAD" ),
+        "Change nearby context\none.txt: Apply first change\none.txt: Apply second change",
         'overlapping commits survive interruption'
     );
     ok( -x "$self->{repo}/commit", 'interruption preserves the helper' );
     $result = run_commit($self);
     is( $result->{returncode}, 0, $result->{stderr} );
     is(
-        git( $self, 'log', '--reverse', '--format=%s', "$self->{base}..HEAD" ),
-        "one.txt: Apply first change\none.txt: Apply second change\ntwo.txt: Update two",
+        git( $self, 'log', '--reverse', '--format=%s', "$base..HEAD" ),
+"Change nearby context\none.txt: Apply first change\none.txt: Apply second change\ntwo.txt: Update two",
         'journal recovers the completed overlapping group and commits only the remainder'
     );
     ok( !-e "$self->{repo}/commit", 'recovered sequence trashes the helper' );
@@ -1005,7 +1069,10 @@ run_cases(
         commits_groups_and_cleans_up                     => \&commits_groups_and_cleans_up,
         interrupted_sequence_resumes_after_branch_switch =>
           \&interrupted_sequence_resumes_after_branch_switch,
-        unrelated_new_commit_does_not_pin_head         => \&unrelated_new_commit_does_not_pin_head,
+        unrelated_new_commit_does_not_pin_head               => \&unrelated_new_commit_does_not_pin_head,
+        partially_committed_group_commits_only_the_remainder =>
+          \&partially_committed_group_commits_only_the_remainder,
+        conflicting_later_group_stops_before_review    => \&conflicting_later_group_stops_before_review,
         same_file_staged_and_unstaged_changes_survive  => \&same_file_staged_and_unstaged_changes_survive,
         changed_prepared_content_stops_without_staging => \&changed_prepared_content_stops_without_staging,
         replaced_running_helper_is_preserved           => \&replaced_running_helper_is_preserved,

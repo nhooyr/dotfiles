@@ -119,7 +119,8 @@ sub applies {
     defined $pid or die "Cannot fork: $!\n";
     if ( !$pid ) {
         open STDERR, '>', File::Spec->devnull or die $!;
-        exec 'git', '--no-pager', '-C', $checkout, 'apply', '--check', '--index', @args;
+        exec 'git', '--no-pager', '-C', $checkout, 'apply', '--check', '--index', '--whitespace=nowarn',
+          @args;
         die "Cannot run Git: $!\n";
     }
     waitpid( $pid, 0 );
@@ -173,7 +174,6 @@ sub generate {
     };
     git( 'clone', '--quiet', '--shared', '--no-checkout', $root,      $checkout );
     git( '-C',    $checkout, 'checkout', '--quiet',       '--detach', $head );
-    my $base = git_line( '-C', $checkout, 'rev-parse', 'HEAD' );
     my ( @prepared, @snapshots );
 
     for my $i ( 0 .. $#$groups ) {
@@ -209,17 +209,18 @@ sub generate {
 
         # Applying a mode-only patch in either direction can pass --check.
         my $before = git_line( '-C', $checkout, 'write-tree' );
-        git( '-C', $checkout, 'apply', '--index', ( $forward ? () : '--reverse' ), $patch_path );
+        git( '-C', $checkout, 'apply', '--index', '--whitespace=nowarn', ( $forward ? () : '--reverse' ),
+            $patch_path );
         my $after = git_line( '-C', $checkout, 'write-tree' );
         if ( $before eq $after && $reverse ) {
-            git( '-C', $checkout, 'apply', '--index', '--reverse', $patch_path );
+            git( '-C', $checkout, 'apply', '--index', '--whitespace=nowarn', '--reverse', $patch_path );
             $after   = git_line( '-C', $checkout, 'write-tree' );
             $forward = 0;
         }
         $before ne $after or die "$name contains no tree changes.\n";
         my @files = split /\0/,
           git( '-C', $checkout, 'diff', '--cached', '--no-renames', '--name-only', '-z', 'HEAD' );
-        git( '-C', $checkout, 'apply', '--index', $patch_path ) unless $forward;
+        git( '-C', $checkout, 'apply', '--index', '--whitespace=nowarn', $patch_path ) unless $forward;
         if ($forward) {
             my $message_path = "$temporary/message";
             open my $file, '>:raw', $message_path or die $!;
@@ -235,19 +236,17 @@ sub generate {
                 '--file', $message_path
             );
         }
-        my $checkpoint =
-          git( '-C', $checkout, 'diff', '--binary', '--full-index', '--no-ext-diff', $base, 'HEAD' );
         push @prepared,
           {
-            name       => $name,
-            patch      => $patch,
-            message    => $message,
-            files      => [ sort @files ],
-            checkpoint => length($checkpoint) ? $checkpoint : $patch
+            name    => $name,
+            patch   => $patch,
+            message => $message,
+            files   => \@files,
+            reverse => $forward ? 0 : 1,
           };
     }
     my $runtime = read_file( dirname(__FILE__) . '/CommitScript/runtime.pl' );
-    my $json    = JSON::PP->new->canonical->ascii->encode( { groups => \@prepared } );
+    my $json    = JSON::PP->new->canonical->ascii->encode( { base => $head, groups => \@prepared } );
     $runtime =~ s/^__COMMIT_MANIFEST__$/$json/m or die "Missing runtime manifest marker.\n";
     my $source =
         '#!/bin/sh' . "\n"

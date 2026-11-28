@@ -245,8 +245,7 @@ sub publish_index {
     }
     else {
         unlink "$index_path.lock" if $owns_lock;
-        die
-"The index changed before publication; preserving it and recovery files at $state->{attempt}.\n";
+        die "The index changed before publication; preserving it and recovery files at $state->{attempt}.\n";
     }
     undef $index_lock;
     unlink "$state->{attempt}/index.lock";
@@ -283,46 +282,87 @@ sub recover_pending {
       && join( ':', @lock[ 0, 1 ] ) eq $state->{lock_identity};
     rename $pending, "$state->{attempt}/state.json" or die "Cannot preserve the interrupted attempt: $!\n";
 }
-recover_pending();
-%completed = ();
-{
-    local $ENV{GIT_INDEX_FILE} = "$work/progress-index";
-    git( 'read-tree', 'HEAD' );
-    for my $i ( reverse 0 .. $#groups ) {
-        next unless -f receipt( $groups[$i] );
-        my $checkpoint = $groups[$i]{checkpoint};
-        write_file( "$work/checkpoint.patch", $checkpoint );
-        next if length($checkpoint) && !applies( 1, '--reverse', "$work/checkpoint.patch" );
-        $completed{ receipt( $groups[$_] ) } = 1 for 0 .. $i;
-        last;
+
+sub plan_trees {
+    local $ENV{GIT_INDEX_FILE} = "$work/plan-index";
+    git( 'read-tree', $manifest->{base} );
+    my $plan_base = capture('write-tree');
+    my $before    = $plan_base;
+    my $path      = "$work/plan.patch";
+    my @trees;
+
+    # Replay the validated plan to recover each patch's original preimage.
+    for my $group (@groups) {
+        write_file( $path, $group->{patch} );
+        git( 'apply', '--cached', '--whitespace=nowarn', ( $group->{reverse} ? '--reverse' : () ), $path );
+        my $after = capture('write-tree');
+        if ( $group->{reverse} ) {
+            push @trees, [ $after, $before ];
+            git( 'read-tree', $before );
+        }
+        else {
+            push @trees, [ $before, $after ];
+            $before = $after;
+        }
     }
+    return ( $plan_base, @trees );
 }
 
-sub verify_remaining {
-    my ($start) = @_;
-    my ( $net_patch, $tree );
-    {
-        local $ENV{GIT_INDEX_FILE} = "$work/series-index";
-        git( 'read-tree', 'HEAD' );
-        for my $group ( @groups[ $start .. $#groups ] ) {
-            next if completed($group);
-            my $path = "$work/series.patch";
-            write_file( $path, $group->{patch} );
-            my $forward = applies( 1, $path );
-            my $reverse = applies( 1, '--reverse', $path );
-            next if $reverse && !$forward;
-            $forward && !$reverse or die "The remaining changes conflict with HEAD; nothing was staged.\n";
-            git( 'apply', '--cached', '--whitespace=nowarn', $path );
+sub merge_trees {
+    my ( $base, $current, $target ) = @_;
+    return $target  if $current eq $base;
+    return $current if $current eq $target || $base eq $target;
+    my ( $clean, $merged ) =
+      capture_result( 'merge-tree', '--write-tree', '--no-messages', "--merge-base=$base", $current,
+        $target );
+    return $clean ? $merged : undef;
+}
+
+recover_pending();
+%completed = ();
+my ( $plan_base, @plan_trees ) = plan_trees();
+my $head_tree = capture( 'rev-parse', 'HEAD^{tree}' );
+for my $i ( reverse 0 .. $#groups ) {
+    next unless -f receipt( $groups[$i] );
+    my ( $before, $after ) = @{ $plan_trees[$i] };
+
+    # Check the cumulative result because later groups may edit earlier changes.
+    my $base   = $after eq $plan_base ? $before : $plan_base;
+    my $merged = merge_trees( $base, $head_tree, $after );
+    next unless defined($merged) && $merged eq $head_tree;
+    $completed{ receipt( $groups[$_] ) } = 1 for 0 .. $i;
+    last;
+}
+
+sub prepare_remaining {
+    my ( $start, $head ) = @_;
+    my $head_tree = capture( 'rev-parse', "$head^{tree}" );
+    my $tree      = $head_tree;
+    my $expected;
+    for my $i ( $start .. $#groups ) {
+        my $group = $groups[$i];
+        next if completed($group);
+        my ( $before, $after ) = @{ $plan_trees[$i] };
+        my $merged = merge_trees( $before, $tree, $after )
+          // die "The remaining changes conflict with HEAD in $group->{name}; nothing was staged.\n";
+        if ( $merged ne $tree && $tree ne $before ) {
+            my %allowed = map { $_ => 1 } @{ $group->{files} };
+            my @changed = split /\0/, capture( 'diff', '--no-renames', '--name-only', '-z', $tree, $merged );
+            !grep( { !$allowed{$_} } @changed )
+              or die "$group->{name} changes unexpected paths; nothing was staged.\n";
         }
-        $net_patch = capture( 'diff', '--cached', '--binary', '--full-index', 'HEAD' );
-        $tree      = capture('write-tree');
+        $expected = $merged if $i == $start && $merged ne $tree;
+        $tree     = $merged;
     }
-    return $tree unless length $net_patch;
-    my $path = "$work/final.patch";
-    write_file( $path, "$net_patch\n" );
-    ( applies( 0, '--reverse', $path ) || applies( 1, '--reverse', $path ) )
-      or die "The working tree and index do not contain the final prepared changes; nothing was staged.\n";
-    return $tree;
+    if ( $tree ne $head_tree ) {
+        my $net_patch = capture( 'diff', '--binary', '--full-index', '--no-ext-diff', $head_tree, $tree );
+        my $path      = "$work/final.patch";
+        write_file( $path, "$net_patch\n" );
+        ( applies( 0, '--reverse', $path ) || applies( 1, '--reverse', $path ) )
+          or die
+          "The working tree and index do not contain the final prepared changes; nothing was staged.\n";
+    }
+    return ( $expected, $tree );
 }
 
 sub publish_commit {
@@ -372,27 +412,17 @@ GROUP: for my $i ( 0 .. $#groups ) {
     next GROUP if completed($group);
     my $head_content = read_file("$git_dir/HEAD");
     my $head         = capture( 'rev-parse', 'HEAD' );
-    my $final        = verify_remaining($i);
+    my ( $expected, $final ) = prepare_remaining( $i, $head );
     read_file("$git_dir/HEAD") eq $head_content && capture( 'rev-parse', 'HEAD' ) eq $head
       or die "HEAD changed during preparation; rerun ./commit.\n";
-    my @files        = @{ $group->{files} };
-    my $patch        = "$work/change.patch";
+    if ( !defined $expected ) {
+        record_completion( $group, $head );
+        next GROUP;
+    }
     my $commit_index = "$work/commit-index";
-    write_file( $patch, $group->{patch} );
-    my $expected;
     {
         local $ENV{GIT_INDEX_FILE} = $commit_index;
-        git( 'read-tree', $head );
-        my $forward = applies( 1, $patch );
-        my $reverse = applies( 1, '--reverse', $patch );
-        if ( $reverse && !$forward ) { record_completion($group); next GROUP; }
-        $forward && !$reverse
-          or die "The prepared patch does not apply unambiguously to HEAD; no files were staged.\n";
-        git( 'apply', '--cached', '--whitespace=nowarn', $patch );
-        $expected = capture('write-tree');
-        my $changed = capture( 'diff', '--cached', '--no-renames', '--name-only', $head );
-        $changed eq join( "\n", sort @files )
-          or die "The prepared patch changes unexpected paths; no files were staged.\n";
+        git( 'read-tree', $expected );
     }
     my $attempt = tempdir( "attempt-$script_key-XXXXXXXX", DIR => $progress );
     make_path("$attempt/git");
