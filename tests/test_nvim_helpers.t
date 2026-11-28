@@ -748,7 +748,7 @@ sub nested_module_reload {
     my ($self) = @_;
     my $copy = "$self->{temporary}/config-copy";
     make_path("$copy/nvim/lua/nested");
-    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim pack-lock.json);
+    copy_preserve( "$root/nvim/$_", "$copy/nvim/$_" ) for qw(init.vim highlights.vim pack-lock.json);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
         copy_preserve( $source, "$copy/nvim/lua/" . basename($source) );
     }

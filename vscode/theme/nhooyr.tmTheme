@@ -24,7 +24,7 @@
 				<key>gutter</key>
 				<string>#FFFFFF</string>
 				<key>gutterForeground</key>
-				<string>#767676</string>
+				<string>#5C5C5C</string>
 				<key>invisibles</key>
 				<string>#00000026</string>
 				<key>lineHighlight</key>
@@ -48,7 +48,7 @@
 		</dict>
 		<dict>
 			<key>name</key>
-			<string>Italic grey comments, matching nvim/init.vim</string>
+			<string>Comments</string>
 			<key>scope</key>
 			<string>comment, punctuation.definition.comment</string>
 			<key>settings</key>
@@ -199,7 +199,7 @@
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
-				<string>#6E066E</string>
+				<string>#0A4045</string>
 			</dict>
 		</dict>
 		<dict>
@@ -283,13 +283,24 @@
 		</dict>
 		<dict>
 			<key>name</key>
-			<string>Diff deletions and invalid syntax</string>
+			<string>Diff deletions</string>
 			<key>scope</key>
-			<string>markup.deleted, invalid</string>
+			<string>markup.deleted</string>
 			<key>settings</key>
 			<dict>
 				<key>foreground</key>
 				<string>#B60000</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key>
+			<string>Invalid syntax</string>
+			<key>scope</key>
+			<string>invalid</string>
+			<key>settings</key>
+			<dict>
+				<key>foreground</key>
+				<string>#CC0077</string>
 			</dict>
 		</dict>
 		<dict>

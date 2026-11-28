@@ -12,7 +12,7 @@ sub config_reload_refreshes_lua_modules {
     my $temp   = tempdir( 'nvim-loader-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $config = "$temp/nvim";
     make_path("$config/lua");
-    copy_preserve( "$root/nvim/init.vim", "$config/init.vim" );
+    copy_preserve( "$root/nvim/$_", "$config/$_" ) for qw(init.vim highlights.vim);
     for my $source ( grep { /\.lua$/ } @{ directory_entries("$root/nvim/lua") } ) {
         copy_preserve( $source, "$config/lua/" . basename($source) );
     }

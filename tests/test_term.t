@@ -17,6 +17,8 @@ sub setup {
     make_path( $self->{term}, $self->{theme} );
     copy_preserve( "$root/term/$_", "$self->{term}/$_" )
       for qw(generate.pl theme.json.in 0nhooyr.terminal README.md);
+    make_path("$self->{temporary}/nvim");
+    copy_preserve( "$root/nvim/highlights.vim", "$self->{temporary}/nvim/highlights.vim" );
 }
 
 sub generate {
@@ -48,6 +50,8 @@ sub palette_drives_both_themes {
     $profile =~ s{(<key>ANSIBlueColor</key>\s*<data>).*?(</data>)}{$1$red$2}s;
     $profile =~ s{(<key>ANSIBrightYellowColor</key>\s*<data>).*?(</data>)}{$1$green$2}s;
     write_file( "$self->{term}/0nhooyr.terminal", $profile );
+    my $highlights = "$self->{temporary}/nvim/highlights.vim";
+    write_file( $highlights, read_file($highlights) . "highlight Error ctermfg=2\n" );
     generate($self);
     my $theme = theme($self);
     is( $theme->{colors}{'terminal.ansiBlue'}, '#B60000', 'regular ANSI slot follows its palette entry' );
@@ -55,6 +59,9 @@ sub palette_drives_both_themes {
     is( $theme->{colors}{'textLink.foreground'},        '#B60000', 'semantic colors follow the palette' );
     is( $theme->{colors}{'editor.findMatchBackground'}, '#0A5C07', 'match backgrounds use bright yellow' );
     is( $theme->{colors}{'editor.findMatchForeground'}, '#000000', 'matches retain black text' );
+    is( $theme->{colors}{'editor.selectionBackground'}, '#0A5C07', 'selection follows Visual' );
+    is( $theme->{colors}{errorForeground}, '#CC0077', 'error messages use the Neovim ErrorMsg color' );
+    is( $theme->{colors}{'editorError.foreground'}, '#0A5C07', 'diagnostics follow changes to Neovim Error' );
     is( $theme->{colors}{'terminal.ansiYellow'}, '#CC0077',
         'regular yellow stays independent of highlights' );
     is( $theme->{colors}{'widget.shadow'},      '#00000018', 'alpha suffixes are preserved' );
@@ -64,6 +71,8 @@ sub palette_drives_both_themes {
             { check => 1 } )->{stdout}
     );
     is( $mate->{settings}[0]{settings}{findHighlight}, '#0A5C07', 'TextMate uses the same match color' );
+    my ($invalid) = grep { ( $_->{scope} // '' ) eq 'invalid' } @{ $mate->{settings} };
+    is( $invalid->{settings}{foreground}, '#0A5C07', 'TextMate invalid syntax follows Neovim Error' );
     my @tokens = map { +{ %$_, scope => join( ', ', @{ $_->{scope} } ) } } @{ $theme->{tokenColors} };
     is_deeply( [ @{ $mate->{settings} }[ 1 .. $#{ $mate->{settings} } ] ],
         \@tokens, 'both themes share all token rules' );
