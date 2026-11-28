@@ -432,6 +432,8 @@ abbrali gclean git clean -fdXn
 abbrali gcleanu git clean -fdn
 abbrali gcleana git clean -fdxn
 
+set -l preset "$(bind --silent --preset -M insert alt-enter)"; or return 0
+string replace --filter 'bind --preset -M insert alt-enter ' 'bind -M insert alt-r ' "$preset" | source
 bind -M default -m insert alt-enter accept-autosuggestion execute
 bind -M insert alt-enter accept-autosuggestion execute
 
