@@ -309,6 +309,9 @@ abbrali gai git add -i
 abbrali gp git push
 abbrali gps git push
 abbrali gpf git push --force-with-lease
+function git_commit --wraps 'git commit'
+    git -c status.relativePaths=false commit $argv
+end
 abbrali gcm git_commit
 abbr -a gacm 'ga; and gcm'
 function gacm
