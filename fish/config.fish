@@ -227,6 +227,7 @@ abbrali ymp3 yt-dlp --audio-format mp3 -x --embed-thumbnail
 abbrali num random 1 999
 
 abbrali n noti
+abbrali nfg noti fg
 abbr -a --command noti e eval
 abbrali bell printf '\a'
 abbrali beep printf '\a'
