@@ -135,11 +135,11 @@ sub without_stat {
 
 sub prefixed {
     my ( $snapshot, $path ) = @_;
-    my $title = "$path: desc";
+    my $title = "$path: Update";
     is( $snapshot->{lines}[0], $title, 'title uses the expected prefix' );
     is( $snapshot->{mode},     's',    'description is in Select mode' );
     ok( $snapshot->{snippet_active}, 'native snippet is active' );
-    is_deeply( $snapshot->{selection}, ['desc'], 'only the description is selected' );
+    is_deeply( $snapshot->{selection}, ['Update'], 'only the description is selected' );
     is( $snapshot->{original}[0], '', 'Git supplied a blank title' );
     is_deeply(
         [ @{ without_stat($snapshot) }[ 1 .. $#{ $snapshot->{original} } ] ],
@@ -317,7 +317,7 @@ vim.system, vim.uv.spawn = unexpected, unexpected
 vim.fn.system, vim.fn.systemlist, vim.fn.jobstart = unexpected, unexpected, unexpected
 os.execute, io.popen = unexpected, unexpected
 require('gitcommit').prefill_title()
-assert(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == 'one.txt: desc', 'Missing buffer-derived title')
+assert(vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == 'one.txt: Update', 'Missing buffer-derived title')
 vim.cmd.quit({ bang = true })
 LUA
     my $result = run_command(
@@ -532,7 +532,7 @@ sub description_replacement {
     is(
         $snapshot->{lines}[0],
         "$path: Describe this change",
-        'typing replaces desc and preserves the literal prefix'
+        'typing replaces the default description and preserves the literal prefix'
     );
     is_deeply(
         [ @{ without_stat($snapshot) }[ 1 .. $#{ $snapshot->{original} } ] ],
