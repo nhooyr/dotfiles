@@ -11,9 +11,25 @@ end
 local function lvim()
 	vim.cmd.lclose()
 	local file = require('dirali').shorten(vim.api.nvim_buf_get_name(0))
-	local title = (':lvim /%s/ %s'):format(fn.getreg('/'), file)
-	vim.cmd('silent lvim // %')
-	fn.setloclist(0, {}, 'a', { title = title })
+	local pattern = fn.getreg('/')
+	-- lvimgrep creates a list even on failure. Search with a separate window's list.
+	local win = vim.api.nvim_open_win(0, false, {
+		relative = 'editor', row = 0, col = 0, width = 1, height = 1, hide = true, noautocmd = true,
+	})
+	local ok, result = pcall(vim.api.nvim_win_call, win, function()
+		vim.cmd('silent noautocmd lvim //j %')
+		return fn.getloclist(0, { items = 0 }).items
+	end)
+	vim.api.nvim_win_close(win, true)
+	if not ok then
+		local code, message = result:match('(E%d+): ([^\n]+)')
+		if code == 'E480' then message = ('No matches for /%s/ in %s'):format(pattern, file) end
+		vim.api.nvim_echo({ { ':lvim: ' .. (message or 'Search failed'), 'ErrorMsg' } }, true, {})
+		return
+	end
+	local title = (':lvim /%s/ %s'):format(pattern, file)
+	fn.setloclist(0, {}, ' ', { items = result, title = title })
+	vim.cmd('silent lfirst')
 	vim.cmd.lopen()
 end
 

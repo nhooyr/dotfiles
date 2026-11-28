@@ -693,6 +693,30 @@ eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), {
 LUA
 }
 
+sub location_list_failed_search {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local owner = vim.api.nvim_get_current_win()
+local file = vim.api.nvim_buf_get_name(0)
+local function list() return vim.fn.getloclist(owner, { id = 0, nr = '$', items = 0, winid = 0 }) end
+vim.fn.setreg('/', 'missing[+6]')
+feed('<Leader>l')
+eq(list().id, 0, 'a failed search does not create a location list')
+eq(vim.api.nvim_list_wins(), { owner }, 'a failed search leaves no temporary window open')
+local message = vim.fn.execute('messages')
+assert(message:find(':lvim: No matches for /missing[+6]/ in ' .. file, 1, true), message)
+assert(not message:find('E5108', 1, true), message)
+vim.fn.setreg('/', 'original')
+feed('<Leader>l')
+assert(list().winid ~= 0 and #list().items == 1, 'the toggle retries after a failed search')
+vim.cmd.lclose()
+local previous = list()
+vim.fn.setreg('/', 'missing')
+vim.cmd.Lvim()
+eq(list(), previous, 'a failed Lvim preserves the existing location list and history')
+LUA
+}
+
 sub list_toggle {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -2263,6 +2287,7 @@ run_cases(
         config_reload_preserves_options         => \&config_reload_preserves_options,
         list_toggle                             => \&list_toggle,
         location_list_toggle                    => \&location_list_toggle,
+        location_list_failed_search             => \&location_list_failed_search,
         location_list_navigation                => \&location_list_navigation,
         conflict_navigation                     => \&conflict_navigation,
         conceal_toggle                          => \&conceal_toggle,
