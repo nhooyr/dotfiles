@@ -1639,6 +1639,16 @@ eq(get_lines(), {
 vim.api.nvim_set_current_line('>   - [ ]')
 vim.cmd.Mdtick()
 eq(vim.api.nvim_get_current_line(), '>   - [x]', 'the last task can be checked in place without a label')
+
+vim.api.nvim_buf_set_lines(0, 0, -1, false, {
+    '- 1. [ ] first', '     details', '  1. [ ] next', '- other parent',
+})
+vim.api.nvim_win_set_cursor(0, { 1, 9 })
+vim.cmd.Mdtick()
+eq(get_lines(), {
+    '- 1. [ ] next', '  1. [x] first', '     details', '- other parent',
+}, 'a nested ordered list keeps its parent marker on the first line')
+eq(vim.api.nvim_win_get_cursor(0), { 2, 9 }, 'the cursor follows the nested task')
 LUA
 }
 
