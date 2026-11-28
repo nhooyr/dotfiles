@@ -186,11 +186,11 @@ nnoremap q <Cmd>quit<CR>
 nnoremap <M-x> <Cmd>cq<CR>
 nnoremap <Leader>x <Cmd>cq<CR>
 nnoremap <M-q> q
-nnoremap <C-q> <Cmd>qall!<CR>
+noremap <C-q> <Cmd>qall!<CR>
 inoremap <C-q> <Esc>:qall!<CR>
-nnoremap <M-s> <Cmd>write<CR>
+noremap <M-s> <Cmd>write<CR>
 inoremap <M-s> <Esc>:write<CR>
-nnoremap <C-s> <Cmd>xit<CR>
+noremap <C-s> <Cmd>xit<CR>
 inoremap <C-s> <Esc>:xit<CR>
 
 let g:aqsnow_orig_file = get(g:, 'aqsnow_orig_file', resolve(expand('%:p')))
