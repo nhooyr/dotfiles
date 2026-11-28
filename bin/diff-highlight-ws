@@ -1,0 +1,28 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+if (@ARGV) {
+    my $help = @ARGV == 1 && ( $ARGV[0] eq '-h' || $ARGV[0] eq '--help' );
+    print { $help ? \*STDOUT : \*STDERR } "Usage: diff-highlight-ws\n";
+    print "Highlight changes in a diff from stdin and preserve Git's whitespace error colors.\n" if $help;
+    exit( $help ? 0 : 2 );
+}
+
+my $whitespace = qx/git config --get-color color.diff.whitespace 'normal red'/;
+die "diff-highlight-ws: cannot read Git's whitespace color\n" if $?;
+chomp $whitespace;
+exec 'diff-highlight' or die "diff-highlight: $!\n" unless length $whitespace;
+
+# Git ends each colored whitespace span with a full reset. Remove only the
+# styles that diff-highlight inserts between the whitespace color and reset.
+my $style = qr/\e\[[0-9;]+m/;
+my $span  = qr/\Q$whitespace\E((?:[^\S\n]|$style)+)(?=\e\[m)/;
+
+open my $diff, '-|', 'diff-highlight' or die "diff-highlight: $!\n";
+while (<$diff>) {
+    s{$span}{$whitespace . ($1 =~ s/$style//gr)}ge;
+    print;
+    local $| = 1 if $_ eq "\n";
+}
+close $diff or exit 1;

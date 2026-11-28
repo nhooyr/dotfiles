@@ -29,12 +29,12 @@
 	recurseSubmodules = on-demand
 
 [pager]
-	log = diff-highlight | $PAGER
-	show = diff-highlight | $PAGER
-	diff = diff-highlight | $PAGER
+	log = diff-highlight-ws | $PAGER
+	show = diff-highlight-ws | $PAGER
+	diff = diff-highlight-ws | $PAGER
 	grep = false
 [interactive]
-	diffFilter = diff-highlight
+	diffFilter = diff-highlight-ws
 [merge]
 	conflictstyle = zdiff3
 [diff]
