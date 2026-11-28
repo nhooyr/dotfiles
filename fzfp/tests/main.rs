@@ -3190,6 +3190,51 @@ fn local_directory_version_sort_places_directories_first() {
 }
 
 #[test]
+fn deleted_git_files_do_not_promote_parent_directories() {
+    let fixture = Fixture::new();
+    for name in [
+        "a-staged/deleted",
+        "a-staged/kept",
+        "b-unstaged/deleted",
+        "b-unstaged/kept",
+        "modified",
+    ] {
+        write(&fixture.repo, name);
+    }
+    fixture.git(&["add", "--all"]);
+    fixture.git(&[
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-qm",
+        "Initial files",
+    ]);
+    fixture.git(&["rm", "--", "a-staged/deleted"]);
+    fs::remove_file(fixture.repo.join("b-unstaged/deleted")).unwrap();
+    fs::write(fixture.repo.join("modified"), "changed").unwrap();
+
+    let paths = from_input(
+        fixture
+            .command(&fixture.repo, Path::new(""), "-fd", &[])
+            .env("FZFP_PREFER", "1"),
+        &[],
+    );
+    assert_eq!(paths[0], "modified");
+    assert!(paths.contains(&"a-staged".into()));
+    assert!(paths.contains(&"b-unstaged".into()));
+
+    let recents = from_input(
+        fixture
+            .command_with_flags(&["--read0"], &fixture.repo, Path::new(""), "-fd", &[])
+            .env("FZFP_RECENTS", "1"),
+        &[],
+    );
+    assert_eq!(recents, ["modified"].map(OsString::from));
+}
+
+#[test]
 fn git_changes_count_toward_each_local_prefix() {
     let fixture = Fixture::new();
     let local = fixture.local.join("scope");

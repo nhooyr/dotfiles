@@ -226,8 +226,12 @@ fn git_status(scanner: &Scanner, directory: &Path) -> io::Result<GitOutput> {
 }
 
 fn status_path(row: &[u8]) -> Option<&Path> {
-    // Porcelain v1 starts each record with two status bytes and a space.
-    (row.len() > 3).then(|| Path::new(OsStr::from_bytes(&row[3..])))
+    // Skip deletions in either porcelain status column before adding parents.
+    match row {
+        [b'D', _, ..] | [_, b'D', ..] => None,
+        [_, _, b' ', path @ ..] if !path.is_empty() => Some(Path::new(OsStr::from_bytes(path))),
+        _ => None,
+    }
 }
 
 pub(super) fn git_recents(
