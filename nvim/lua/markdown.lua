@@ -21,23 +21,27 @@ local function tick()
 	local _, item_col = item:start()
 	local prefix = line:sub(1, item_col)
 	local _, quote_depth = prefix:gsub('>', '')
-	local list_end = item:parent():end_()
-	local next_item = item:next_named_sibling()
-	local lines = next_item and api.nvim_buf_get_lines(0, row, list_end, false)
-	local following = next_item
+
+	local last_item = item
 	-- Only look directly before siblings so blank lines inside an item stay with it.
-	while following and not is_blank(lines[following:start() - row], quote_depth) do
-		following = following:next_named_sibling()
+	while true do
+		local sibling = last_item:next_named_sibling()
+		if not sibling then break end
+		local sibling_row = sibling:start()
+		local previous_line = api.nvim_buf_get_lines(0, sibling_row - 1, sibling_row, false)[1]
+		if is_blank(previous_line, quote_depth) then break end
+		last_item = sibling
 	end
-	if following == next_item then
+	if last_item == item then
 		api.nvim_set_current_line(checked)
 		return
 	end
 
-	local last = (following and following:start() or list_end) - row
+	local lines = api.nvim_buf_get_lines(0, row, last_item:end_(), false)
+	local last = #lines
 	while is_blank(lines[last], quote_depth) do last = last - 1 end
 
-	local next_row, next_col = next_item:start()
+	local next_row, next_col = item:next_named_sibling():start()
 	local next_index = next_row - row + 1
 	-- Keep a shared parent marker on the first item of the nested list.
 	if prefix:find('[^ \t>]') then
