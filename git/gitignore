@@ -2,3 +2,4 @@
 .fish_git_prompt
 nvim.log
 **/.claude/.cc-writes/
+.commitgen-backup-*/
