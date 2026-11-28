@@ -273,8 +273,9 @@ eq(format({ quickfix = 1, id = 0, start_idx = 1, end_idx = #items }), expected,
 eq(vim.api.nvim_buf_get_name(vim.fn.getqflist()[1].bufnr), project .. '/code.lua',
     'relative display paths do not change the file opened by quickfix')
 vim.fn.setloclist(0, {}, ' ', { items = items })
+expected[2] = '~/notes.txt|5| home'
 eq(format({ quickfix = 0, winid = vim.api.nvim_get_current_win(), id = 0, start_idx = 1, end_idx = #items }),
-    expected, 'location lists use the same relative paths')
+    expected, 'location lists prefer relative paths and abbreviate absolute paths')
 LUA
 }
 
@@ -602,29 +603,48 @@ LUA
 
 sub location_list_toggle {
     my ($self) = @_;
+    my $notes = "$self->{temporary}/notes";
+    make_path( "$notes/2026/11", "$self->{temporary}/project" );
+    $self->{env}{notes}          = absolute_path($notes);
+    $self->{env}{TEST_PROJECT}   = absolute_path("$self->{temporary}/project");
+    $self->{env}{AQSNOW_DIRALIS} = 'HOME:notes';
     run_script( $self, <<'LUA' );
-local file = vim.fn.fnamemodify(vim.env.TEST_ORIGINAL, ':h') .. '/search target.txt'
-vim.fn.writefile({ 'needle one', 'other', 'needle two' }, file)
+local name = '/2026/11/search target.txt'
+local file = vim.env.notes .. name
+local literal = vim.env.notes .. '/literal'
+vim.cmd.cd(vim.fn.fnameescape(vim.env.TEST_PROJECT))
+vim.fn.writefile({ 'needle one', 'other', 'needle two', literal }, file)
 vim.cmd.edit(vim.fn.fnameescape(file))
-vim.fn.setreg('/', 'needle')
+local pattern = 'needl[e]'
+vim.fn.setreg('/', pattern)
 local owner = vim.api.nvim_get_current_win()
 local function list() return vim.fn.getloclist(owner, { id = 0, items = 0, winid = 0 }) end
+local title = require('quickfix').title
+local first_title = 'lvim /' .. pattern .. '/ $notes' .. name
 eq(list().id, 0, 'the window starts without a location list')
 feed('<Leader>l')
 local first = list().id
 assert(first > 0 and list().winid ~= 0, 'the toggle creates and opens a location list')
 eq(vim.tbl_map(function(item) return item.lnum end, list().items), { 1, 3 },
     'the list searches the current file with the last pattern')
+eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), {
+    '$notes' .. name .. '|1| needle one', '$notes' .. name .. '|3| needle two',
+}, 'an aliased absolute filename appears in the location list')
+local statusline = vim.api.nvim_eval_statusline(vim.wo.statusline, { maxwidth = 200 }).str
+eq(statusline:sub(1, #first_title), first_title, 'the statusline starts with the actual regex and file')
 feed('<Leader>l')
 eq(list().winid, 0, 'the toggle closes the list')
+vim.fn.setreg('/', 'other')
 feed('<Leader>l')
 eq(list().id, first, 'reopening preserves the existing list')
+eq(title(), first_title, 'reopening preserves the regex used to create the list')
 feed('<Leader>l')
 vim.fn.setloclist(owner, {}, ' ', { title = 'Existing empty list', items = {} })
 local empty = list().id
 feed('<Leader>l')
 eq(list().id, empty, 'an existing empty list is preserved')
 eq(#list().items, 0, 'the toggle does not search again for an empty list')
+vim.fn.setreg('/', pattern)
 vim.cmd.Lvim()
 local second = list().id
 assert(second ~= empty, 'Lvim creates a new list even while the previous list is open')
@@ -635,6 +655,14 @@ vim.cmd.Lvim()
 assert(list().id ~= second, 'each Lvim invocation creates a new list')
 eq(vim.tbl_map(function(item) return item.lnum end, list().items), { 2 },
     'Lvim uses the current search pattern')
+local other_title = 'lvim /other/ $notes' .. name
+eq(title(), other_title, 'a new list shows the new regex')
+local literal_pattern = [[\V]] .. literal
+vim.fn.setreg('/', literal_pattern)
+vim.cmd.Lvim()
+eq(title(), 'lvim /' .. literal_pattern .. '/ $notes' .. name, 'directory aliases leave the regex intact')
+vim.cmd.lolder()
+eq(title(), other_title, 'location-list history retains each search title')
 LUA
 }
 

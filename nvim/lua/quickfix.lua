@@ -1,9 +1,31 @@
 local fn = vim.fn
 local kinds = { e = 'error', w = 'warning', i = 'info', n = 'note' }
 
+local function display_path(path, abbreviate)
+	if path:sub(1, 1) ~= '/' then return path end
+	path = fn.fnamemodify(path, ':.')
+	if not abbreviate or path:sub(1, 1) ~= '/' then return path end
+	return require('dirali').shorten(path)
+end
+
+local function lvim()
+	vim.cmd.lclose()
+	local file = display_path(vim.api.nvim_buf_get_name(0), true)
+	local title = ('lvim /%s/ %s'):format(fn.getreg('/'), file)
+	vim.cmd('lvim // %')
+	fn.setloclist(0, {}, 'a', { title = title })
+	vim.cmd.lopen()
+end
+
 local function toggle_location_list()
 	local list = fn.getloclist(0, { winid = 0, id = 0 })
-	vim.cmd(list.winid ~= 0 and 'lclose' or list.id ~= 0 and 'lopen' or 'Lvim')
+	if list.winid ~= 0 then
+		vim.cmd.lclose()
+	elseif list.id ~= 0 then
+		vim.cmd.lopen()
+	else
+		lvim()
+	end
 end
 
 local function range(first, last)
@@ -25,7 +47,8 @@ end
 
 local function title()
 	local text = vim.w.quickfix_title
-	if not text then return '' end
+	-- Lvim already formatted the filename and saved the regex verbatim.
+	if not text or vim.startswith(text, 'lvim /') then return text or '' end
 	text = text:gsub('^:vgrep(%s)', ':grep%1'):gsub('^Find([gf]?%s)', ':Find%1')
 	local shorten = require('dirali').shorten
 	text = text:gsub([[(['"])(.-)%1]], function(quote, path)
@@ -37,8 +60,8 @@ end
 
 local function fmt(info)
 	local request = { id = info.id, items = 0 }
-	local items = (info.quickfix == 1 and fn.getqflist(request)
-		or fn.getloclist(info.winid, request)).items
+	local location = info.quickfix == 0
+	local items = (location and fn.getloclist(info.winid, request) or fn.getqflist(request)).items
 	local names, help_names, lines = {}, {}, {}
 	for i = info.start_idx, info.end_idx do
 		local item = items[i]
@@ -51,7 +74,7 @@ local function fmt(info)
 			if not name then
 				name = item.bufnr == 0 and '' or fn.bufname(item.bufnr)
 				if help then name = fn.fnamemodify(name, ':t')
-				elseif name:sub(1, 1) == '/' then name = fn.fnamemodify(name, ':.') end
+				else name = display_path(name, location) end
 				cache[item.bufnr] = name
 			end
 			local position = range(item.lnum, item.end_lnum)
@@ -68,4 +91,10 @@ local function fmt(info)
 	return lines
 end
 
-return { fmt = fmt, title = title, directory = directory, toggle_location_list = toggle_location_list }
+return {
+	fmt = fmt,
+	title = title,
+	directory = directory,
+	lvim = lvim,
+	toggle_location_list = toggle_location_list,
+}
