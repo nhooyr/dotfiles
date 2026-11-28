@@ -11,11 +11,16 @@ sub setup {
     my ($self)    = @_;
     my $temporary = tempdir( 'note-tests-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
     my $editor    = "$temporary/editor with spaces";
+    my $bin       = "$temporary/bin";
+    make_path($bin);
+    symlink "$FindBin::Bin/../bin/editor", "$bin/editor" or die $!;
     $self->{note} = "$temporary/notes ' \$literal; [work]/2026/11/25.md";
     $self->{log}  = "$temporary/editor.json";
     $self->{env}  = {
         %ENV,
-        EDITOR   => $editor,
+        PATH     => "$bin:$ENV{PATH}",
+        EDITOR   => 'false',
+        VISUAL   => $editor,
         notes    => dirname( dirname( dirname( $self->{note} ) ) ),
         NOTE_LOG => $self->{log},
     };

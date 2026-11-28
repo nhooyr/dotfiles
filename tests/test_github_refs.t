@@ -60,6 +60,9 @@ sub setUp {
     $wrapper = join_path( $self->{bin}, "git" );
     write_file( $wrapper, replace_literal( $GIT_WRAPPER, "\@REWRITES\@", "" ) );
     chmod( 493, $wrapper );
+    my $editor = join_path( $self->{bin}, "editor" );
+    write_file( $editor, "#!/bin/sh\nexit 0\n" );
+    chmod 0755, $editor or die $!;
     $self->{log}     = join_path( $self->{directory}, "transport.log" );
     $self->{urls}    = {};
     $self->{counter} = 0;
@@ -298,7 +301,7 @@ sub fish {
         %{
             {
                 "GITHUB_TEST_OFFLINE" => ( $offline ? "1" : "0" ),
-                "EDITOR"              => "__test_editor"
+                "EDITOR"              => "false"
             }
         }
     };
@@ -315,9 +318,6 @@ source "$argv[1]/gho.fish"; or exit
             ) . '
 set -e argv[1]
 set -lx 0 test
-function __test_editor
-    return 0
-end
 function open
     return 0
 end

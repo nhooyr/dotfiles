@@ -85,7 +85,7 @@ sub setUp {
     };
     _make_mocks($self);
     $self->{env}->{"PATH"}   = ( ( $self->{bin} . ":" ) . ( \%ENV )->{"PATH"} );
-    $self->{env}->{"EDITOR"} = join_path( $self->{bin}, "editor" );
+    $self->{env}->{"EDITOR"} = "false";
     git( $self, undef, [ "init", "--bare", "--initial-branch=main", $self->{remote} ], 1 );
     git( $self, undef, [ "init", "--initial-branch=main", $self->{seed} ], 1 );
     make_path( join_path( $self->{seed}, "dir" ) );
@@ -3152,7 +3152,7 @@ sub test_missing_path_pull_does_not_merge_diverged_history {
 
 sub test_line_column_and_selection_arguments_reach_the_editor {
     my ($self) = @_;
-    my ( $cases, $editor, $position, $positions, $result );
+    my ( $cases, $position, $positions, $result );
     $cases = [
         [ [ "2", "",  "", "" ], "+2" ],
         [ [ "2", "3", "", "" ], "+call cursor(2, 3)" ],
@@ -3169,32 +3169,27 @@ sub test_line_column_and_selection_arguments_reach_the_editor {
             "+set selection=inclusive | call cursor(2, 1) | execute 'normal! v' | call cursor(4, 3)"
         ]
     ];
-    $editor = [ join_path( $self->{bin}, "editor" ), "--wait", "two words" ];
     for my $item_1494 ( @{$cases} ) {
         $positions = ($item_1494)->[0];
         $position  = ($item_1494)->[1];
         {
             $result = run_fish( $self, "ghe", [ ( $self->{url} . "/blob/main/file.txt" ) ],
-                undef, 0, $editor, undef, $positions );
+                undef, 0, undef, undef, $positions );
             assert_success( $self, $result );
             (
                 is_deeply( calls( $self, "editor" )->[0]->{"args"},
-                    [ "--wait", "two words", $position, join_path( $self->{checkout}, "file.txt" ) ] )
+                    [ $position, join_path( $self->{checkout}, "file.txt" ) ] )
                   or die "assertion failed\n"
             );
         }
     }
 }
 
-sub test_editor_list_is_preserved_when_position_arguments_are_appended {
+sub test_editor_on_path_receives_position_and_literal_path {
     my ($self) = @_;
-    my ( $editor, $editor_dir, $executable, $result, $script, $target );
-    $editor_dir = join_path( $self->{root}, "editor dir" );
-    make_path($editor_dir);
-    $executable = join_path( $editor_dir, "editor" );
-    copy_preserve( join_path( $self->{bin}, "editor" ), $executable );
-    $editor = [ $executable, "--wait", "two words" ];
-    $target = join_path( $self->{checkout}, "file.txt" );
+    my ( $editor, $result, $script, $target );
+    $editor = [ "false", "--wait", "two words" ];
+    $target = join_path( $self->{checkout}, "a b#.txt" );
     $script = (
         ( "__ghe_open " . fish_quote($target) ) . ' 2
 '
@@ -3204,11 +3199,8 @@ printf "%s\\n" $EDITOR
 test "$opened" -eq 0';
     $result = run_fish( $self, $script, [], undef, 0, $editor, undef, [ "", "", "", "" ] );
     assert_success( $self, $result );
-    (
-        is_deeply( calls( $self, "editor" )->[0]->{"args"}, [ "--wait", "two words", "+2", $target ] )
-          or die "assertion failed\n"
-    );
-    ( is_deeply( [ split( /\n/, $result->{stdout} ) ], $editor ) or die "assertion failed\n" );
+    ( is_deeply( calls( $self, "editor" )->[0]->{"args"}, [ "+2", $target ] ) or die "assertion failed\n" );
+    ( is_deeply( [ split( /\n/, $result->{stdout} ) ],    $editor )           or die "assertion failed\n" );
 }
 
 sub test_public_ghe_dispatches_destination_and_normalized_anchors_without_writing {
@@ -4098,8 +4090,8 @@ run_cases(
           \&test_missing_path_pull_does_not_merge_diverged_history,
         "test_line_column_and_selection_arguments_reach_the_editor" =>
           \&test_line_column_and_selection_arguments_reach_the_editor,
-        "test_editor_list_is_preserved_when_position_arguments_are_appended" =>
-          \&test_editor_list_is_preserved_when_position_arguments_are_appended,
+        "test_editor_on_path_receives_position_and_literal_path" =>
+          \&test_editor_on_path_receives_position_and_literal_path,
         "test_public_ghe_dispatches_destination_and_normalized_anchors_without_writing" =>
           \&test_public_ghe_dispatches_destination_and_normalized_anchors_without_writing,
         "test_raw_edit_release_and_archive_routes"           => \&test_raw_edit_release_and_archive_routes,

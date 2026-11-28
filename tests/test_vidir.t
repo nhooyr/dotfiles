@@ -23,6 +23,7 @@ sub setup {
     symlink 'nested', "$self->{directory}/link"   or die $!;
     symlink 'absent', "$self->{directory}/broken" or die $!;
     my $editor = "$root/editor bin/editor";
+    symlink "$FindBin::Bin/../bin/editor", "$root/bin/editor" or die $!;
     write_file( $editor, '#!' . perl_executable() . "\n" . <<'PERL' );
 use strict;
 use warnings;
@@ -75,7 +76,8 @@ PERL
         %ENV,
         PATH                => "$root/bin:$ENV{PATH}",
         TEST_VIDIR_ROOT     => $root,
-        EDITOR              => shell_quote($editor) . ' --test-option',
+        EDITOR              => 'false',
+        VISUAL              => $editor,
         TMPDIR              => "$root/temp files",
         HOME                => $root,
         AQSNOW_DIRALIS      => 'HOME:TEST_PROJECT',
@@ -125,8 +127,7 @@ sub invoke_with_paths {
 }
 
 sub script_path {
-    my ( $self, $result, $options ) = @_;
-    $options //= ['--test-option'];
+    my ( $self, $result ) = @_;
     is( $result->{returncode}, 0, $result->{stderr} );
     my $expanded = run_command(
         [ 'sh', '-c', q{printf '%s\0' } . $result->{stdout} ],
@@ -141,10 +142,9 @@ sub script_path {
         'scripts use the vidir temporary directory'
     );
     my @arguments = @{ decode_json( read_file( $self->{env}{TEST_EDITOR_LOG} ) ) };
-    my $path      = pop @arguments;
-    is_deeply( \@arguments, $options, 'the editor receives its configured arguments' );
+    is( scalar @arguments, 1, 'the editor receives only the generated script path' );
     is(
-        absolute_path($path),
+        absolute_path( $arguments[0] ),
         absolute_path( $command[0] ),
         'the printed command resolves to the edited script'
     );
@@ -541,10 +541,10 @@ sub clipboard_failures_are_reported {
     like( $result->{stderr}, qr/pbc failed/, 'the failing clipboard command is identified' );
 }
 
-sub editor_without_options {
+sub editor_uses_visual_without_editor {
     my ($self) = @_;
-    $self->{env}{EDITOR} = shell_quote("$self->{root}/editor bin/editor");
-    script_path( $self, invoke($self), [] );
+    delete $self->{env}{EDITOR};
+    script_path( $self, invoke($self) );
 }
 
 sub empty_alias_does_not_change_script_directory {
@@ -562,7 +562,7 @@ sub empty_alias_does_not_change_script_directory {
     is( read_file("$other/original"),            'unrelated', 'the invocation directory is untouched' );
 }
 
-sub usage_and_missing_editor {
+sub usage_and_invalid_directory {
     my ($self) = @_;
     my $result = invoke( $self, '--help' );
     is( $result->{returncode}, 0, 'help succeeds' );
@@ -580,10 +580,6 @@ sub usage_and_missing_editor {
         qr{cd -- "\$TEST_PROJECT/-dash"},
         '-- accepts a directory whose name starts with a dash'
     );
-    delete $self->{env}{EDITOR};
-    $result = invoke($self);
-    isnt( $result->{returncode}, 0, 'missing EDITOR is rejected' );
-    like( $result->{stderr}, qr/EDITOR is not set/, 'missing EDITOR is explained' );
 }
 
 run_cases(
@@ -594,13 +590,13 @@ run_cases(
         recursion_keeps_parents_before_children          => \&recursion_keeps_parents_before_children,
         editor_changes_wait_for_manual_execution         => \&editor_changes_wait_for_manual_execution,
         editor_failure_keeps_script_without_command      => \&editor_failure_keeps_script_without_command,
-        editor_without_options                           => \&editor_without_options,
+        editor_uses_visual_without_editor                => \&editor_uses_visual_without_editor,
         script_is_executable_inside_editor               => \&script_is_executable_inside_editor,
         script_command_is_copied_before_and_after_editor =>
           \&script_command_is_copied_before_and_after_editor,
         clipboard_failures_are_reported              => \&clipboard_failures_are_reported,
         empty_alias_does_not_change_script_directory => \&empty_alias_does_not_change_script_directory,
-        usage_and_missing_editor                     => \&usage_and_missing_editor,
+        usage_and_invalid_directory                  => \&usage_and_invalid_directory,
         ordering_matches_ls                          => \&ordering_matches_ls,
         directory_markers_keep_move_commands_usable  => \&directory_markers_keep_move_commands_usable,
         piped_paths_preserve_selection_and_order     => \&piped_paths_preserve_selection_and_order,

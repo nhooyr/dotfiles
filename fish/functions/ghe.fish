@@ -5,7 +5,7 @@ function ghe --description 'Clone a GitHub repository and open its referenced pa
 
 Clone into ~/code/OWNER/REPO when needed, then enter the checkout.
 Existing checkouts without remotes get the requested URL as origin.
-Files open in $EDITOR; directories change the current directory.
+Files open with editor. Directory targets change the current directory.
 
 Inputs (URL paths below follow https://github.com/OWNER/REPO):
   OWNER/REPO or repository URL     Enter the repository.
@@ -1352,11 +1352,7 @@ function __ghe_open --argument-names target line column end_line end_column
         return
     end
     cd -- "$(path dirname -- "$target")"; or return
-    set -l EDITOR $EDITOR
-    if test -z "$EDITOR[1]"
-        printf '%s: EDITOR is not set\n' "$0" >&2
-        return 1
-    end
+    set -l editor_args
     if test -n "$end_line"
         set -l selection V
         if test -n "$column$end_column"
@@ -1366,13 +1362,13 @@ function __ghe_open --argument-names target line column end_line end_column
             set end_column 1
         end
         test -n "$column"; or set column 1
-        set -a EDITOR "+set selection=inclusive | call cursor($line, $column) | execute 'normal! $selection' | call cursor($end_line, $end_column)"
+        set -a editor_args "+set selection=inclusive | call cursor($line, $column) | execute 'normal! $selection' | call cursor($end_line, $end_column)"
     else if test -n "$column"
-        set -a EDITOR "+call cursor($line, $column)"
+        set -a editor_args "+call cursor($line, $column)"
     else if test -n "$line"
-        set -a EDITOR "+$line"
+        set -a editor_args "+$line"
     end
-    $EDITOR "$target"
+    command editor $editor_args "$target"
 end
 
 function __ghe_switch --argument-names remote destination full_ref ref revision refs_dir
