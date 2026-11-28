@@ -180,6 +180,21 @@ make_path("$progress/messages");
 sub message_path {
     return "$progress/messages/$script_key-" . sha256_hex( $_[0]{patch} . "\0" . $_[0]{message} );
 }
+
+sub review_message {
+    my ($group) = @_;
+    my $path = message_path($group);
+    return $group->{message} unless -f $path;
+    my $message = read_file($path);
+
+    # Git's scissors line identifies both the verbose diff and its comment prefix.
+    if ( $message =~ s/^([^\n]+) -{24} >8 -{24}(?:\n|\z).*//ms ) {
+        my $comment = $1;
+        $message =~ s/(?:^\Q$comment\E[^\n]*\n)+\z//m;
+    }
+    return $message =~ /\S/ ? $message : $group->{message};
+}
+
 sub receipt { return "$progress/" . sha256_hex( $_[0]{patch} ); }
 my %completed;
 sub completed { return $completed{ receipt( $_[0] ) }; }
@@ -428,8 +443,8 @@ GROUP: for my $i ( 0 .. $#groups ) {
     make_path("$attempt/git");
     write_file( "$attempt/git/HEAD", "$head\n" );
     copy( $commit_index, "$attempt/index" ) or die "Cannot retain the prepared index: $!\n";
-    my $message = message_path($group);
-    write_file( $message, $group->{message} ) unless -f $message;
+    my $message = "$attempt/message";
+    write_file( $message, review_message($group) );
     my $state = {
         patch        => sha256_hex( $group->{patch} ),
         base         => $head,

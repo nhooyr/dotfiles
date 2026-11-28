@@ -43,7 +43,7 @@ open my $calls, '>>', $log or die $!;
 print {$calls} encode_json({text => $text, args => \@ARGV}), "\n";
 close $calls;
 if ($ENV{TEST_EDITOR_ACTION}) {
-    system $^X, $ENV{TEST_EDITOR_ACTION};
+    system $^X, $ENV{TEST_EDITOR_ACTION}, $ARGV[0];
     die "editor action failed\n" if $?;
 }
 if ($ENV{TEST_REPLACE_SCRIPT}) {
@@ -276,6 +276,53 @@ sub interrupted_sequence_resumes_after_branch_switch {
     ok( !-e "$self->{repo}/commit", 'already-complete rerun trashes the helper again' );
     is( git( $self, 'rev-list', '--count', "$self->{base}..HEAD" ),
         2, 'already-complete rerun creates no commits' );
+}
+
+sub retry_restores_only_the_commit_message {
+    my ($self) = @_;
+    git( $self, 'config', 'core.commentString', '//' );
+    prepare_one($self);
+    editor_action( $self, <<'PERL' );
+my $path = shift;
+open my $file, '<', $path or die $!;
+my $text = do { local $/; <$file> };
+close $file or die $!;
+$text =~ s{\A.*?(?=^// Please enter the commit message)}{$ENV{TEST_DRAFT}}ms;
+$text =~ s{^(// Changes to be committed:\n)}{$1//\tstat:       1 file changed\n}m;
+write_file($path, $text);
+PERL
+    $self->{env}{TEST_DRAFT}       = '';
+    $self->{env}{TEST_FAIL_EDITOR} = 1;
+    my $result = run_commit($self);
+    isnt( $result->{returncode}, 0, 'cancel a review with an empty message' );
+
+    $self->{env}{TEST_DRAFT}       = "Edited title\n\nEdited body.\n\n// Editor note.\n\n";
+    $self->{env}{TEST_FAIL_EDITOR} = 2;
+    $result                        = run_commit($self);
+    isnt( $result->{returncode}, 0, 'cancel a review with a saved message' );
+
+    delete @{ $self->{env} }{qw(TEST_EDITOR_ACTION TEST_FAIL_EDITOR TEST_DRAFT)};
+    $result = run_commit($self);
+    is( $result->{returncode}, 0, $result->{stderr} );
+    my @reviews = map { decode_json($_)->{text} } split /\n/, read_file("$self->{temporary}/editor-calls");
+    like( $reviews[1], qr/\Aone\.txt: Update one\n\nChange one\.\n/, 'empty draft restores the suggestion' );
+    like(
+        $reviews[2],
+        qr{\AEdited title\n\nEdited body\.\n\n// Editor note\.\n},
+        'the edited message survives a retry'
+    );
+
+    for my $review ( @reviews[ 1, 2 ] ) {
+        my @lines = split /\n/, $review;
+        is( scalar( grep { $_ eq '// Changes to be committed:' } @lines ), 1, 'review has one status block' );
+        is( scalar( grep { /^diff --git / } @lines ),                      1, 'review has one diff' );
+        unlike( $review, qr{^//\tstat:}m, 'old stat decoration is discarded' );
+    }
+    is(
+        git( $self, 'log', '-1', '--format=%B' ),
+        "Edited title\n\nEdited body.",
+        'Git commits the saved draft'
+    );
 }
 
 sub unrelated_new_commit_does_not_pin_head {
@@ -1069,6 +1116,7 @@ run_cases(
         commits_groups_and_cleans_up                     => \&commits_groups_and_cleans_up,
         interrupted_sequence_resumes_after_branch_switch =>
           \&interrupted_sequence_resumes_after_branch_switch,
+        retry_restores_only_the_commit_message               => \&retry_restores_only_the_commit_message,
         unrelated_new_commit_does_not_pin_head               => \&unrelated_new_commit_does_not_pin_head,
         partially_committed_group_commits_only_the_remainder =>
           \&partially_committed_group_commits_only_the_remainder,
