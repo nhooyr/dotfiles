@@ -979,6 +979,9 @@ end
 function prompt_login
     printf login
 end
+function date
+    printf '%s\n' '12:34:56'
+end
 function git_prompt_ensure_enqueue
 end
 source "$TEST_DOTFILES/fish/prompt.fish"
@@ -994,7 +997,7 @@ FISH
     printf '\n'
 end
 FISH
-    my $expected = join '', map { "login $_->[1]\n[\$] \neditor $_->[1]\n" } @cases;
+    my $expected = join '', map { "login $_->[1] [12:34:56]\n[\$] \neditor $_->[1]\n" } @cases;
     is( output( shell( $self, $body ) ),
         $expected, 'prompt and title share longest directory aliases and home fallback' );
 }
@@ -1014,6 +1017,9 @@ end
 function prompt_login
     printf login
 end
+function date
+    printf '%s\n' '12:34:56'
+end
 function git_prompt_ensure_enqueue
 end
 source "$TEST_DOTFILES/fish/prompt.fish"
@@ -1029,7 +1035,7 @@ end
 FISH
     is(
         output( shell( $self, $body ) ),
-        "login \$TMPDIR/child\n[\$] \neditor \$TMPDIR/child\n" x 2,
+        "login \$TMPDIR/child [12:34:56]\n[\$] \neditor \$TMPDIR/child\n" x 2,
         'logical and resolved directories use the same alias in prompts and titles'
     );
 }
