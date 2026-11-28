@@ -13,13 +13,13 @@ function fish_prompt
     end
 
     if test "$last_status" -ne 0
-        set -l status_color "$(set_color yellow)"
+        set -l status_color "$(set_color --underline --italics yellow)"
         set prompt_status " =$status_color$last_status$normal"
-        set suffix "$status_color$(set_color --underline)$suffix$(set_color --reset)"
+        set suffix "$(set_color --underline yellow)$suffix$normal"
     end
 
-    printf '%s %s%s [%s]\n' "$(prompt_login)" "$cwd_color$(aqsnow_prompt_pwd)$normal" \
-        "$__aqsnow_vcs_prompt$prompt_status" "$(set_color cyan)$(date '+%X')$normal"
+    printf '%s %s%s [%s]%s\n' "$(prompt_login)" "$cwd_color$(aqsnow_prompt_pwd)$normal" \
+        "$__aqsnow_vcs_prompt" "$(set_color cyan)$(date '+%X')$normal" "$prompt_status"
     printf '%s[%s%s]%s ' "$suffix_color" "$suffix" "$suffix_color" "$normal"
 end
 set -g fish_prompt_pwd_dir_length 0
