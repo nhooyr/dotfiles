@@ -1,5 +1,3 @@
-set -g fish_transient_prompt 1
-
 function fish_prompt
     set -l last_status "$status"
     set -g __aqsnow_prompt_active 1
