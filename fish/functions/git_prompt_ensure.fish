@@ -152,14 +152,14 @@ function aqsnow_vcs_prompt_done
     end
     aqsnow_vcs_prompt_cleanup
     if status is-interactive; and test "$__aqsnow_prompt_active" = 1
-        git_prompt_ensure_enqueue
+        git_prompt_ensure
         if test "$previous" != "$__aqsnow_vcs_prompt"
             commandline -f repaint
         end
     end
 end
 
-function git_prompt_ensure_enqueue
+function git_prompt_ensure
     aqsnow_vcs_prompt_restore
     if set -q __aqsnow_vcs_pending
         if not set -q __aqsnow_vcs_process
@@ -184,8 +184,8 @@ function git_prompt_ensure_enqueue
     GIT_OPTIONAL_LOCKS=0 command "$dotfiles/bin/super" "$interpreter" --no-config -c '
         source "$argv[1]/fish/git_prompt_cache.fish"; or exit
         set -l identity "$(git_prompt_identity "$argv[3]")"
-        source "$argv[1]/fish/prompt.fish"; or exit
-        aqsnow_vcs_prompt
+        source "$argv[1]/fish/functions/git_prompt.fish"; or exit
+        git_prompt
         set -l code "$status"
         printf "%s %s\n" "$code" "$identity" >"$argv[2].status"; or exit
         exit "$code"

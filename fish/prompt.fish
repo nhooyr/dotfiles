@@ -1,7 +1,7 @@
 function fish_prompt
     set -l last_status "$status"
     set -g __aqsnow_prompt_active 1
-    git_prompt_ensure_enqueue
+    git_prompt_ensure
     set -l normal "$(set_color --reset)"
     set -l cwd_color "$(set_color $fish_color_cwd)"
     set -l prompt_status_color "$(set_color --italics cyan)"
@@ -80,16 +80,3 @@ function fish_mode_prompt
     set_color --reset
     printf ' '
 end
-function aqsnow_vcs_prompt
-    # Inspect the worktree when browsing its Git metadata.
-    cd -- "$(string replace -r '/\.git(/.*)?$' / -- "$PWD")"; or return
-    fish_vcs_prompt
-end
-set -g __fish_git_prompt_showdirtystate 1
-set -g __fish_git_prompt_showuntrackedfiles 1
-set -g __fish_git_prompt_showupstream informative
-set -g __fish_git_prompt_showstashstate 1
-set -g __fish_git_prompt_color_branch --underline
-set -g __fish_git_prompt_color_flags cyan
-set -g __fish_git_prompt_color_upstream cyan
-set -g __fish_git_prompt_color_merging --italics

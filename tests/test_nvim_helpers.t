@@ -1187,7 +1187,7 @@ sub gitstatus_native_directory {
     $self->{env}{TEST_STATUS_DIRECTORY} = $directory;
     run_script( $self, <<'LUA' );
 vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
-package.loaded.gitstatus, package.loaded['gitstatus.state'] = nil, nil
+package.loaded.gitprompt, package.loaded['gitprompt.state'] = nil, nil
 local calls = {}
 vim.system = function(_, options, callback)
     calls[#calls + 1] = options.cwd
@@ -1197,7 +1197,7 @@ end
 vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_DIRECTORY))
 eq(vim.bo.filetype, 'directory', 'fixture opens the native directory viewer')
 assert(vim.bo.buftype ~= '', 'directory browser is a special buffer')
-require('gitstatus').setup()
+require('gitprompt').setup()
 assert(vim.wait(1000, function() return vim.b.vcs_prompt == ' (directory-main)' end, 1),
     'the native directory receives its repository status')
 eq(#calls, 1, 'the native directory requests status once')
@@ -1212,7 +1212,7 @@ sub gitstatus_remote_buffers {
 vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
 local stat = vim.uv.fs_stat
 for _, kind in ipairs({ 'file', 'netrw', 'directory' }) do
-    package.loaded.gitstatus, package.loaded['gitstatus.state'] = nil, nil
+    package.loaded.gitprompt, package.loaded['gitprompt.state'] = nil, nil
     vim.cmd.enew()
     vim.api.nvim_buf_set_name(0, kind == 'netrw' and vim.env.TEST_ORIGINAL .. '.netrw'
         or 'scp://example.test//remote/' .. kind)
@@ -1222,13 +1222,13 @@ for _, kind in ipairs({ 'file', 'netrw', 'directory' }) do
     elseif kind == 'directory' then
         vim.b.nvim_dir = true
     end
-    local gitstatus = require('gitstatus')
+    local gitprompt = require('gitprompt')
     local probes = 0
     vim.uv.fs_stat = function(...)
         probes = probes + 1
         return stat(...)
     end
-    gitstatus.setup()
+    gitprompt.setup()
     vim.uv.fs_stat = stat
     eq(probes, 0, kind .. ' remote buffers never inspect the local filesystem for Git status')
     eq(vim.b.vcs_prompt, '', kind .. ' remote buffers do not show a local branch')
@@ -1369,22 +1369,22 @@ local function timers()
     return ids
 end
 local function handlers()
-    return #vim.api.nvim_get_autocmds({ group = 'aqsnow.gitstatus' })
+    return #vim.api.nvim_get_autocmds({ group = 'aqsnow.gitprompt' })
 end
-local helper = require('gitstatus')
+local helper = require('gitprompt')
 local registered = handlers()
 assert(registered > 0, 'Git status registers its handlers at startup')
 eq(timers(), {}, 'Git status does not poll on a repeating timer')
 helper.setup()
 eq(handlers(), registered, 'repeated setup does not duplicate handlers')
-local state = package.loaded['gitstatus.state']
+local state = package.loaded['gitprompt.state']
 vim.bo.buftype = 'nofile'
 local target = vim.api.nvim_create_buf(true, false)
 local directory = vim.fs.dirname(vim.env.TEST_ORIGINAL) .. '/write target'
 vim.api.nvim_buf_set_name(target, directory .. '/file.txt')
 for _, event in ipairs({ 'BufWritePost', 'FileWritePost' }) do
     state.pending[directory] = nil
-    vim.api.nvim_exec_autocmds(event, { group = 'aqsnow.gitstatus', buffer = target })
+    vim.api.nvim_exec_autocmds(event, { group = 'aqsnow.gitprompt', buffer = target })
     eq(state.pending[directory], true, event .. ' invalidates the written buffer directory')
 end
 vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
@@ -1392,7 +1392,7 @@ eq(handlers(), 0, 'stop removes its handlers')
 helper.setup()
 eq(handlers(), registered, 'setup restores its handlers once')
 vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))
-assert(package.loaded['gitstatus.state'] == state, 'config reload preserves cached Git status')
+assert(package.loaded['gitprompt.state'] == state, 'config reload preserves cached Git status')
 eq(timers(), {}, 'config reload does not introduce a polling timer')
 eq(handlers(), registered, 'config reload leaves one set of handlers')
 LUA
@@ -1408,7 +1408,7 @@ sub gitstatus_quickfix_context {
     }
     run_script( $self, <<'LUA' );
 vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
-package.loaded.gitstatus, package.loaded['gitstatus.state'] = nil, nil
+package.loaded.gitprompt, package.loaded['gitprompt.state'] = nil, nil
 local calls, now, hrtime = {}, 0, vim.uv.hrtime
 vim.uv.hrtime = function() return hrtime() + now * 1000000 end
 vim.system = function(command, options, callback)
@@ -1420,7 +1420,7 @@ vim.system = function(command, options, callback)
     vim.schedule(function() callback({ code = 0, stdout = output }) end)
     return { is_closing = function() return true end }
 end
-require('gitstatus').setup()
+require('gitprompt').setup()
 local first, second = vim.fn.resolve(vim.env.TEST_FIRST), vim.fn.resolve(vim.env.TEST_SECOND)
 local function wait_for(prompt)
     assert(vim.wait(1000, function() return vim.b.vcs_prompt == prompt end),
@@ -1480,7 +1480,7 @@ sub gitstatus_event_queue {
     $self->{env}{TEST_STATUS_OTHER} = "$repo-other";
     run_script( $self, <<'LUA' );
 vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
-package.loaded.gitstatus = nil
+package.loaded.gitprompt = nil
 vim.cmd('edit ' .. vim.fn.fnameescape(vim.env.TEST_STATUS_REPO .. '/file.txt'))
 local now, serial, calls, timers = 0, 0, {}, {}
 vim.uv.hrtime = function() return now * 1e6 end
@@ -1508,7 +1508,7 @@ local function timer_count()
     return vim.tbl_count(timers)
 end
 local function event(name)
-    vim.api.nvim_exec_autocmds(name, { group = 'aqsnow.gitstatus' })
+    vim.api.nvim_exec_autocmds(name, { group = 'aqsnow.gitprompt' })
 end
 local function finish(index, result)
     calls[index].done(result or { code = 0, stdout = ' (result-' .. index .. ')' })
@@ -1529,7 +1529,7 @@ local function advance(time)
         end
     end
 end
-local helper = require('gitstatus')
+local helper = require('gitprompt')
 helper.setup()
 wait_for(function() return #calls == 1 end, 'startup refreshes once')
 eq(vim.fn.resolve(calls[1].cwd), vim.fn.resolve(vim.env.TEST_STATUS_REPO),
@@ -1600,14 +1600,14 @@ eq(disk_prompt(vim.env.TEST_STATUS_OTHER .. '/nested'), 'previous nested status'
     'empty status leaves the cache intact')
 
 now = 16100
-vim.api.nvim_exec_autocmds('CmdlineLeave', { group = 'aqsnow.gitstatus', pattern = ':' })
+vim.api.nvim_exec_autocmds('CmdlineLeave', { group = 'aqsnow.gitprompt', pattern = ':' })
 eq(timer_count(), 0, 'a command waits until it has executed')
-vim.api.nvim_exec_autocmds('SafeState', { group = 'aqsnow.gitstatus' })
+vim.api.nvim_exec_autocmds('SafeState', { group = 'aqsnow.gitprompt' })
 wait_for(function() return timer_count() == 1 end, 'a completed command queues a refresh')
-vim.api.nvim_exec_autocmds('CmdlineLeave', { group = 'aqsnow.gitstatus', pattern = ':' })
+vim.api.nvim_exec_autocmds('CmdlineLeave', { group = 'aqsnow.gitprompt', pattern = ':' })
 vim.api.nvim_exec_autocmds('User', { pattern = 'AqsnowGitStatusStop' })
 eq(timer_count(), 0, 'stopping clears a queued refresh')
-eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow.gitstatus', event = 'SafeState' }), 0,
+eq(#vim.api.nvim_get_autocmds({ group = 'aqsnow.gitprompt', event = 'SafeState' }), 0,
     'stopping clears deferred command refreshes')
 advance(20000)
 eq(#calls, 6, 'a stopped instance cannot refresh later')

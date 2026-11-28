@@ -34,6 +34,7 @@ vim.system = function(args, options, callback)
             finished = true
         end)
     end
+    assert(args[4]:find('/fish/functions/git_prompt.fish', 1, true), 'load the standalone Git prompt')
     vim.schedule(function()
         if vim.env.TEST_REPLACE == '2' then replace_repository() end
         callback({ code = 0, stdout = ' (old)' })
@@ -41,12 +42,12 @@ vim.system = function(args, options, callback)
     end)
     return { is_closing = function() return true end }
 end
-require('gitstatus').setup()
+require('gitprompt').setup()
 assert(vim.wait(3000, function() return finished end), 'cache writer finishes')
 local expected = vim.env.TEST_REPLACE ~= '0' and 'replacement' or ' (old)'
 assert(table.concat(vim.fn.readfile(vim.env.TEST_REPO .. '/.fish_git_prompt', 'b')) == expected)
 if vim.env.TEST_REPLACE ~= '0' then
-    local cached = package.loaded['gitstatus.state'].prompts[vim.fn.resolve(vim.env.TEST_REPO)]
+    local cached = package.loaded['gitprompt.state'].prompts[vim.fn.resolve(vim.env.TEST_REPO)]
     assert(cached.prompt ~= ' (old)', 'a replaced repository rejects the in-memory result')
     assert(vim.b.vcs_prompt ~= ' (old)', 'a replaced repository never displays the old result')
 end

@@ -13,7 +13,7 @@ sub setup {
     $self->{root}    = absolute_path( tempdir( 'prompt-worker-XXXXXX', TMPDIR => 1, CLEANUP => 1 ) );
     $self->{work}    = "$self->{root}/work";
     $self->{fixture} = "$self->{root}/dotfiles";
-    make_path( "$self->{work}/.git", "$self->{fixture}/fish", "$self->{fixture}/bin" );
+    make_path( "$self->{work}/.git", "$self->{fixture}/fish/functions", "$self->{fixture}/bin" );
     write_file( "$self->{work}/.git/HEAD", "ref: refs/heads/main\n" );
     symlink "$dotfiles/bin/super", "$self->{fixture}/bin/super" or die $!;
     symlink "$dotfiles/fish/git_prompt_cache.fish", "$self->{fixture}/fish/git_prompt_cache.fish"
@@ -21,7 +21,7 @@ sub setup {
     $self->{env} = {
         %ENV,
         TEST_ROOT          => $self->{root},
-        TEST_SOURCE        => "$dotfiles/fish/functions/git_prompt_ensure_enqueue.fish",
+        TEST_SOURCE        => "$dotfiles/fish/functions/git_prompt_ensure.fish",
         TEST_DOTFILES      => $self->{fixture},
         GIT_OPTIONAL_LOCKS => '1',
         XDG_CONFIG_HOME    => "$self->{root}/config",
@@ -31,7 +31,7 @@ sub setup {
 
 sub prompt {
     my ( $self, $body ) = @_;
-    write_file( "$self->{fixture}/fish/prompt.fish", "function aqsnow_vcs_prompt\n$body\nend\n" );
+    write_file( "$self->{fixture}/fish/functions/git_prompt.fish", "function git_prompt\n$body\nend\n" );
 }
 
 sub run_prompt {
@@ -53,7 +53,7 @@ function wait_for_ready
 end
 function start_prompt
     block --local
-    git_prompt_ensure_enqueue
+    git_prompt_ensure
     printf '%s\n' "$__aqsnow_vcs_dir" >> "$TEST_ROOT/worker-directories"
 end
 FISH
@@ -105,7 +105,7 @@ sub failed_prompt_keeps_previous_value {
 
 sub source_failure_finishes_request {
     my ($self) = @_;
-    write_file( "$self->{fixture}/fish/prompt.fish", "function aqsnow_vcs_prompt\n" );
+    write_file( "$self->{fixture}/fish/functions/git_prompt.fish", "function git_prompt\n" );
     is(
         run_prompt($self),
         " (main)\n\ndirty\n",

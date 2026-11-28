@@ -1,7 +1,7 @@
 local uv = vim.uv
 -- Keep data across config reloads; timers and processes belong to each module instance.
-local state = package.loaded['gitstatus.state'] or { prompts = {}, directories = {}, pending = {} }
-package.loaded['gitstatus.state'] = state
+local state = package.loaded['gitprompt.state'] or { prompts = {}, directories = {}, pending = {} }
+package.loaded['gitprompt.state'] = state
 local prompts, directories, pending = state.prompts, state.directories, state.pending
 local active, queued_timer, job, loading
 local interval = 2000
@@ -110,7 +110,7 @@ local function update(root, cached)
 		refresh()
 	end
 	local ok, process = pcall(vim.system, {
-		'fish', '--no-config', '-c', 'source "$argv[1]/fish/prompt.fish"; and aqsnow_vcs_prompt', vim.env.dotfiles,
+		'fish', '--no-config', '-c', 'source "$argv[1]/fish/functions/git_prompt.fish"; and git_prompt', vim.env.dotfiles,
 	}, { text = true, detach = true, cwd = directory, env = { GIT_OPTIONAL_LOCKS = '0' } }, vim.schedule_wrap(function(result)
 		if job ~= request then return end
 		if request.obsolete or not same_file(identity, git_identity(directory)) then
@@ -198,7 +198,7 @@ end
 
 local function stop()
 	active = false
-	vim.api.nvim_clear_autocmds({ group = 'aqsnow.gitstatus' })
+	vim.api.nvim_clear_autocmds({ group = 'aqsnow.gitprompt' })
 	if queued_timer then vim.fn.timer_stop(queued_timer) end
 	queued_timer = nil
 	loading = nil
@@ -213,7 +213,7 @@ end
 local function setup()
 	if active then return end
 	active = true
-	local group = vim.api.nvim_create_augroup('aqsnow.gitstatus', { clear = true })
+	local group = vim.api.nvim_create_augroup('aqsnow.gitprompt', { clear = true })
 	vim.api.nvim_create_autocmd({ 'BufEnter', 'BufFilePost', 'DirChanged' }, { group = group, callback = refresh })
 	vim.api.nvim_create_autocmd({
 		'BufReadPost', 'FileReadPost', 'FocusGained', 'FocusLost', 'WinEnter', 'WinLeave', 'BufWinEnter', 'BufWinLeave',
