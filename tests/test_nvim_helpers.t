@@ -650,6 +650,35 @@ eq(vim.wo.list, false, 'the mapping disables list again')
 LUA
 }
 
+sub location_list_navigation {
+    my ($self) = @_;
+    run_script( $self, <<'LUA' );
+local owner = vim.api.nvim_get_current_win()
+local buf = vim.api.nvim_get_current_buf()
+vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'first', 'second', 'third' })
+local items = vim.tbl_map(function(line) return { bufnr = buf, lnum = line } end, { 1, 2, 3 })
+for i = 1, 3 do
+    vim.fn.setqflist({}, ' ', { items = { items[i] } })
+end
+vim.fn.setloclist(owner, {}, ' ', { items = items })
+vim.cmd.lopen()
+for _, case in ipairs({
+    { '<Leader>]', 2 }, { '<Leader>[', 1 }, { '2<Leader>]', 3 }, { '2<Leader>[', 1 },
+}) do
+    feed(case[1])
+    eq(vim.api.nvim_get_current_win(), owner, 'navigation jumps to the owning window')
+    eq(vim.fn.line('.'), case[2], 'navigation jumps to the expected line')
+    eq(vim.fn.getloclist(owner, { idx = 0 }).idx, case[2], 'location list selects the entry')
+    eq(vim.fn.getqflist({ nr = 0 }).nr, 3, 'quickfix history is unchanged')
+end
+vim.cmd.lclose()
+feed('2<Leader>[')
+eq(vim.fn.getqflist({ nr = 0 }).nr, 1, 'Leader-[ goes back in quickfix history')
+feed('2<Leader>]')
+eq(vim.fn.getqflist({ nr = 0 }).nr, 3, 'Leader-] goes forward in quickfix history')
+LUA
+}
+
 sub conceal_toggle {
     my ($self) = @_;
     run_script( $self, <<'LUA' );
@@ -2157,6 +2186,7 @@ run_cases(
         config_reload_preserves_options         => \&config_reload_preserves_options,
         list_toggle                             => \&list_toggle,
         location_list_toggle                    => \&location_list_toggle,
+        location_list_navigation                => \&location_list_navigation,
         conflict_navigation                     => \&conflict_navigation,
         conceal_toggle                          => \&conceal_toggle,
         nested_module_reload                    => \&nested_module_reload,

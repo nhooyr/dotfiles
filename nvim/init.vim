@@ -309,8 +309,8 @@ nnoremap <Leader>f :Find<Space>
 nnoremap <Leader>q <Cmd>execute getqflist({'winid': 0}).winid ? 'cclose' : 'copen'<CR>
 command -bar Lvim lclose | lvim // % | lopen
 nnoremap <Leader>l <Cmd>lua require('quickfix').toggle_location_list()<CR>
-nnoremap <Leader>[ <Cmd>execute 'colder' v:count1<CR>
-nnoremap <Leader>] <Cmd>execute 'cnewer' v:count1<CR>
+nnoremap <Leader>[ <Cmd>execute (getloclist(0, {'winid': 0}).winid ? 'lprevious' : 'colder') v:count1<CR>
+nnoremap <Leader>] <Cmd>execute (getloclist(0, {'winid': 0}).winid ? 'lnext' : 'cnewer') v:count1<CR>
 let &quickfixtextfunc = "v:lua.require'quickfix'.fmt"
 highlight link qfLineNr Type
 highlight QuickFixLine ctermfg=0 ctermbg=11
