@@ -56,7 +56,7 @@ for action in cd cdc ga gcm gcma gp
     end
 end
 set -l previous "$PWD"
-for name in gbp gbins gbigdirs gcd scd fair ghg ghss ghe ghc gho
+for name in bigfiles gbp gbins gbigdirs gbigfiles gcd scd fair ghg ghss ghe ghc gho
     for flag in --help -h
         set -l output "$($name $flag)"; or exit 1
         string match -q "Usage: $name*" -- "$output"; or exit 2
@@ -66,7 +66,7 @@ end
 test "$PWD" = "$previous"; or exit 3
 FISH
     is( $result->{stderr},                       '', 'help has no errors outside a repository' );
-    is( scalar( split /\n/, $result->{stdout} ), 11, 'every custom Git helper accepts both help spellings' );
+    is( scalar( split /\n/, $result->{stdout} ), 13, 'each custom command accepts both help spellings' );
     ok( !-e $self->{env}{TEST_CALLS},
         'help does not invoke Git, clipboard reads, directory changes, or commit actions' );
 }
@@ -75,7 +75,7 @@ sub completion_offers_help {
     my ($self) = @_;
     my $result = fish( $self, <<'FISH' );
 test -z "$(complete -c gbins)"; or exit 1
-for name in gbp gbins gbigdirs gcd scd fair
+for name in bigfiles gbp gbins gbigdirs gbigfiles gcd scd fair
     complete -C "$name --he" | string match -qr '^--help\t'; or exit 2
 end
 FISH
