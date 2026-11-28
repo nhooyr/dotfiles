@@ -386,6 +386,27 @@ case.txt:error
     );
 }
 
+sub test_ggr_uses_the_pattern_case {
+    my ($self) = @_;
+    my $directory = $self->{directory};
+    write_file( "$directory/uppercase only.txt", "ERROR\n" );
+    write_file( "$directory/outside.txt",        "error\n" );
+    my $options = { cwd => $directory, env => $self->{env}, check => 1 };
+    run_command( [ $GIT, 'init', '-q' ], $options );
+    run_command( [ $GIT, 'add', '--', 'case.txt', 'uppercase only.txt', 'outside.txt' ], $options );
+
+    fish( $self, 'ggr', [ 'ERROR', 'fixed', 'case.txt' ], undef );
+    is( read_file("$directory/case.txt"),           "fixed\nerror\n", 'uppercase patterns match exactly' );
+    is( read_file("$directory/uppercase only.txt"), "ERROR\n",        'pathspecs limit the replacement' );
+
+    write_file( "$directory/case.txt", "ERROR\nerror\n" );
+    fish( $self, 'ggr', [ 'error', 'FIXED', 'case.txt', 'uppercase only.txt' ], undef );
+    is( read_file("$directory/case.txt"),           "FIXED\nFIXED\n", 'lowercase patterns match both cases' );
+    is( read_file("$directory/uppercase only.txt"), "FIXED\n",        'Git selects uppercase-only matches' );
+    is( read_file("$directory/uppercase only.txt.bak"), "ERROR\n",    'sed keeps the original as a backup' );
+    is( read_file("$directory/outside.txt"),            "error\n",    'other paths are untouched' );
+}
+
 sub test_macos_fallback_preserves_regex_modes {
     my ($self) = @_;
     plan skip_all => 'The fallback uses macOS grep' unless $^O eq 'darwin';
@@ -569,6 +590,7 @@ run_cases(
         "test_pattern_files_do_not_enable_implicit_ignore_case" =>
           \&test_pattern_files_do_not_enable_implicit_ignore_case,
         "test_git_grep_uses_the_pattern_case"       => \&test_git_grep_uses_the_pattern_case,
+        "test_ggr_uses_the_pattern_case"            => \&test_ggr_uses_the_pattern_case,
         "test_macos_fallback_preserves_regex_modes" => \&test_macos_fallback_preserves_regex_modes,
         "test_native_grep_backends_preserve_complex_calls_and_errors" =>
           \&test_native_grep_backends_preserve_complex_calls_and_errors,

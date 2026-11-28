@@ -79,6 +79,16 @@ sub paths_and_commands {
     );
 }
 
+sub ggr_paths_and_help {
+    my ($self) = @_;
+    for my $option ( '-h', '--help' ) {
+        like( fish( $self, 'ggr "$argv[1]"', $option )->{stdout}, qr/^Usage: ggr /, 'ggr prints usage' );
+    }
+    ok( contains_value( completions( $self, 'ggr --' ), '--help' ), 'ggr offers help' );
+    is_deeply( completions( $self, 'ggr error ' ), [], 'the replacement does not complete files' );
+    ok( contains_value( completions( $self, 'ggr error fixed ' ), 'readme.txt' ), 'ggr completes paths' );
+}
+
 sub typed_files_and_stdin {
     my ($self) = @_;
     is( completions( $self, 'rootimg ' )->[0], 'image.png', 'rootimg prioritizes image files' );
@@ -175,6 +185,7 @@ run_cases(
     {
         lazy_loading               => \&lazy_loading,
         paths_and_commands         => \&paths_and_commands,
+        ggr_paths_and_help         => \&ggr_paths_and_help,
         typed_files_and_stdin      => \&typed_files_and_stdin,
         no_arguments_or_pattern    => \&no_arguments_or_pattern,
         custom_argument_types      => \&custom_argument_types,
