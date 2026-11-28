@@ -309,7 +309,7 @@ abbrali gai git add -i
 abbrali gp git push
 abbrali gps git push
 abbrali gpf git push --force-with-lease
-abbrali gcm git commit
+abbrali gcm git_commit
 abbr -a gacm 'ga; and gcm'
 function gacm
     ga; and gcm $argv
@@ -318,13 +318,13 @@ abbr -a gacmp 'ga; and gcm; and gp'
 function gacmp
     ga; and gcm $argv; and gp
 end
-abbrali gcma git commit --amend
+abbrali gcma git_commit --amend
 abbr -a gacma 'ga; and gcma'
 abbr -a fcm 'ga; and gcma'
 function gacma
     ga; and gcma $argv
 end
-abbrali gcmf git commit --fixup
+abbrali gcmf git_commit --fixup
 abbrali grb git_rebase
 abbrali grbi git_rebase -i
 abbrali grbr git_rebase -i --root
