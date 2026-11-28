@@ -78,6 +78,7 @@ nnoremap <M-u> <Cmd>execute 'earlier' v:count1.'f'<CR>
 nnoremap <Leader>i <Cmd>Inspect<CR>
 highlight Comment ctermfg=8 cterm=italic
 highlight Search ctermfg=0 ctermbg=11
+highlight StatusLineRemote ctermfg=cyan
 highlight! link CurSearch Search
 highlight! link Visual Search
 highlight LineNr ctermfg=8
