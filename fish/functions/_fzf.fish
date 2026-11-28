@@ -15,7 +15,7 @@ function _fzf --argument-names widget
             set --function --export "$name" "$$name $option"
         end
 
-        if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget fzf-recent-widget
+        if contains -- "$widget" fzf-file-widget fzf-cd-widget fzf-path-widget fzf-recents-widget
             fzf_path_widget "$widget"; or return 1
         else
             $widget; or return 1
@@ -55,11 +55,10 @@ function fzf_path_widget --argument-names widget
     set -l type -fd
     set -l flags
     set -l opts "--multi $FZF_CTRL_T_OPTS"
-    if contains -- "$widget" fzf-file-widget fzf-recent-widget
+    if test "$widget" = fzf-recents-widget
+        set opts "$opts --no-sort"
+    else if test "$widget" = fzf-file-widget
         set type -f
-        if test "$widget" = fzf-recent-widget
-            set opts "$opts --no-sort"
-        end
     else if test "$widget" = fzf-cd-widget
         set type -d
         set opts "$FZF_ALT_C_OPTS --no-multi"
@@ -85,17 +84,21 @@ function fzf_path_widget --argument-names widget
     set -lx FZF_DEFAULT_OPTS_FILE
     set -l query "$parsed[2]"
     # Path widgets keep ./ in the query to select explicit local paths.
-    if test "$widget" != fzf-recent-widget; and string match -q -- './*' "$token"
+    if test "$widget" != fzf-recents-widget; and string match -q -- './*' "$token"
         contains -- "$widget" fzf-path-widget fzf-path-first-widget; and set query "$token"
         set global_alias ''
-    else if not contains -- "$widget" fzf-file-widget fzf-recent-widget
+    else if not contains -- "$widget" fzf-file-widget fzf-recents-widget
         set -a flags --cdpath "$CDPATH"
     end
     set -l result
-    if test "$widget" = fzf-recent-widget
-        set result $(command nvim --headless -u NONE -n \
-            -c 'lua for _, path in ipairs(vim.v.oldfiles) do if path:sub(1, 1) == "/" then io.write(path, "\0") end end; vim.o.shadafile = "NONE"' -c 'qa!' \
-            | fzfp --read0 --color --classify $flags $dirs -- . '' -f \
+    if test "$widget" = fzf-recents-widget
+        set result $(begin
+            command nvim --headless -u NONE -n \
+                -c 'lua for _, path in ipairs(vim.v.oldfiles) do if path:sub(1, 1) == "/" then io.write(path, "\0") end end; vim.o.shadafile = "NONE"' -c 'qa!'
+            # An empty record separates Neovim's files from Fish's directories.
+            printf '\0'
+            string join0 -- $dirprev[-1..1]
+        end | FZFP_RECENTS=1 fzfp --read0 --color --classify $flags $dirs -- . '' -fd \
             | _fzf_select "$widget" "$query" | string split0)
     else if contains -- "$widget" fzf-path-widget fzf-cd-widget fzf-file-widget
         set result $(begin

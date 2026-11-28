@@ -7,7 +7,7 @@ function rendezvous
         case exec
             test "$fish_bind_mode" != insert; and set -g fish_bind_mode insert
             commandline -f execute
-        case path-widget recent-widget
+        case path-widget recents-widget
             _fzf "fzf-$request"
         case '*'
             return 1

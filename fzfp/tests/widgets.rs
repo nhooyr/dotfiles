@@ -176,7 +176,7 @@ fn recent_files_use_the_same_insertion_rules() {
         ("nvim ", "script"),
     ] {
         assert_eq!(
-            run_widget("fzf-recent-widget", commandline, selection),
+            run_widget("fzf-recents-widget", commandline, selection),
             run(commandline, selection)
         );
     }
@@ -405,7 +405,7 @@ function fzf
     cat >/dev/null
     printf '%s' $argv > query
 end
-fzf_path_widget fzf-recent-widget
+fzf_path_widget fzf-recents-widget
 cat query
 "#;
     assert_eq!(path_case(script, "link/../tar"), b"--query=tar");
@@ -423,7 +423,8 @@ chmod +x bin/nvim
 set -lx PATH "$PWD/bin" $PATH
 function fzfp
     if contains -- --read0 $argv
-        printf 'read0\0' >> input
+        test "$FZFP_RECENTS" = 1; or return 1
+        printf 'recents %s\0' "$argv[-1]" >> input
     else if test "$FZFP_PREFER" = 1
         printf 'prefer %s\0' "$argv[-1]" >> input
     else
@@ -435,14 +436,14 @@ end
 function fzf
     cat >/dev/null
 end
-for widget in fzf-recent-widget fzf-path-widget fzf-file-widget fzf-cd-widget fzf-path-first-widget
+for widget in fzf-recents-widget fzf-path-widget fzf-file-widget fzf-cd-widget fzf-path-first-widget
     fzf_path_widget "$widget"
 end
 cat input
 "#;
     assert_eq!(
         path_case(script, ""),
-        b"read0\0/second file\0/first file\0prefer -fd\0/latest directory\0/previous\0prefer -f\0prefer -d\0/latest directory\0/previous\0scan\0"
+        b"recents -fd\0/second file\0/first file\0\0/latest directory\0/previous\0prefer -fd\0/latest directory\0/previous\0prefer -f\0prefer -d\0/latest directory\0/previous\0scan\0"
     );
 }
 
@@ -594,19 +595,19 @@ function fzf
 end
 for name in script.sh link.sh
     set -lx TEST_OLDFILE "$PWD/$name"
-    fzf_path_widget fzf-recent-widget
+    fzf_path_widget fzf-recents-widget
     test "$inserted" = '$project/'"$name "; or exit 1
 end
 set -gx TEST_OLDFILE "$PWD/script.sh"
 set -g aqsnow_fzf_diralis
-fzf_path_widget fzf-recent-widget
+fzf_path_widget fzf-recents-widget
 test "$inserted" = "$PWD/script.sh "; or exit 2
 set -g TEST_TOKEN ./
 set -g expected_paths 2
-fzf_path_widget fzf-recent-widget
+fzf_path_widget fzf-recents-widget
 test "$inserted" = 'nvim -- script.sh '; or exit 3
 set -g selected_path 2
-fzf_path_widget fzf-recent-widget
+fzf_path_widget fzf-recents-widget
 test "$inserted" = './script.sh '; or exit 4
 set -g TEST_TOKEN /
 set -g expected_paths 1
@@ -615,7 +616,7 @@ set -g aqsnow_fzf_diralis project
 printf 'binary' > binary
 chmod +x binary
 set -gx TEST_OLDFILE "$PWD/binary"
-fzf_path_widget fzf-recent-widget
+fzf_path_widget fzf-recents-widget
 test "$inserted" = '$project/binary '; or exit 5
 "#;
     assert!(path_case(script, "/").is_empty());

@@ -1047,6 +1047,13 @@ enum Candidate {
     Cdpath(PathBuf, PathStyle),
 }
 
+#[derive(Clone, Copy)]
+enum InputPathKind {
+    File,
+    Directory,
+    GitChange,
+}
+
 type CandidateSender = SyncSender<io::Result<Candidate>>;
 type DirectoryMatches = Vec<(usize, Candidate)>;
 
@@ -1094,9 +1101,25 @@ impl Scanner {
     fn input_paths(&self) -> io::Result<()> {
         let physical_cwd = env::current_dir()?;
         let mut parents = HashMap::new();
+        let recents = env::var_os("FZFP_RECENTS").is_some();
+        if recents {
+            priority::git_recents(self, &physical_cwd, |path| {
+                self.input_path(path, InputPathKind::GitChange, &physical_cwd, &mut parents)
+            })?;
+        }
+        let mut kind = InputPathKind::File;
         read_input_paths(
             || self.check_cancelled(),
-            |bytes| self.input_path(bytes, &physical_cwd, &mut parents),
+            |bytes| {
+                if bytes.is_empty() {
+                    if recents {
+                        kind = InputPathKind::Directory;
+                    }
+                    return Ok(());
+                }
+                let path = PathBuf::from(OsStr::from_bytes(bytes));
+                self.input_path(path, kind, &physical_cwd, &mut parents)
+            },
         )
     }
 }
@@ -1144,14 +1167,11 @@ fn read_input_paths(
 impl Scanner {
     fn input_path(
         &self,
-        bytes: &[u8],
+        absolute: PathBuf,
+        kind: InputPathKind,
         physical_cwd: &Path,
         parents: &mut HashMap<PathBuf, PathBuf>,
     ) -> io::Result<()> {
-        if bytes.is_empty() {
-            return Ok(());
-        }
-        let absolute = PathBuf::from(OsStr::from_bytes(bytes));
         if !absolute.is_absolute() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -1161,7 +1181,12 @@ impl Scanner {
         let Some(info) = FileInfo::new(&absolute) else {
             return Ok(());
         };
-        if !info.followed().is_file() {
+        let wanted = match kind {
+            InputPathKind::File => info.followed().is_file(),
+            InputPathKind::Directory => info.followed().is_dir(),
+            InputPathKind::GitChange => true,
+        };
+        if !wanted {
             return Ok(());
         }
         let relative = absolute
@@ -1194,6 +1219,9 @@ impl Scanner {
             });
         let local = relative.is_some();
         let path = relative.unwrap_or(absolute);
+        if path.as_os_str().is_empty() {
+            return Ok(());
+        }
         self.candidate(path, local, Some(info))
     }
 

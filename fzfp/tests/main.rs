@@ -3264,6 +3264,106 @@ fn local_file_variants_preserve_order_and_markers() {
 }
 
 #[test]
+fn recents_rank_worktree_changes_before_neovim_files_and_fish_directories() {
+    let fixture = Fixture::new();
+    let root = fixture.root.join("worktree");
+    let cwd = root.join("here");
+    for path in ["here/changed file", "here/recent file", "other/staged"] {
+        write(&root, path);
+    }
+    let git = |args: &[&str]| {
+        checked(
+            Command::new("git")
+                .current_dir(&root)
+                .env("GIT_CONFIG_NOSYSTEM", "1")
+                .env("GIT_CONFIG_GLOBAL", "/dev/null")
+                .args([
+                    "-c",
+                    "user.name=Fixture",
+                    "-c",
+                    "user.email=fixture@example.invalid",
+                ])
+                .args(args),
+        );
+    };
+    git(&["init", "-q"]);
+    git(&["add", "--", "."]);
+    git(&["commit", "-qm", "Initial files"]);
+    fs::write(cwd.join("changed file"), "modified").unwrap();
+    fs::write(root.join("other/staged"), "staged").unwrap();
+    git(&["add", "--", "other/staged"]);
+    for i in 0..2049 {
+        write(&root, &format!("untracked/sub/file-{i:04}"));
+    }
+    let visited = cwd.join("visited");
+    fs::create_dir(&visited).unwrap();
+    let paths = from_input(
+        fixture
+            .command_with_flags(
+                &["--read0"],
+                &cwd,
+                Path::new(""),
+                "-fd",
+                &[("$worktree", &root), ("$other", &fixture.repo)],
+            )
+            .env("FZFP_RECENTS", "1")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", "/dev/null"),
+        &[
+            &cwd.join("changed file"),
+            &visited,
+            &cwd.join("recent file"),
+            Path::new(""),
+            &visited,
+            &root.join("untracked/sub"),
+            &root.join("other/staged"),
+            &fixture.repo,
+            &cwd,
+        ],
+    );
+    assert_eq!(
+        &paths[..6],
+        [
+            "changed file",
+            "$worktree/other/staged",
+            "$worktree/other",
+            "$worktree/untracked/sub/file-0000",
+            "$worktree/untracked/sub",
+            "$worktree/untracked",
+        ]
+        .map(OsString::from),
+    );
+    assert_eq!(paths.len(), 2049 + 5 + 3);
+    assert_eq!(
+        &paths[paths.len() - 4..],
+        [
+            "$worktree/untracked/sub/file-2048",
+            "recent file",
+            "visited",
+            "$other"
+        ]
+        .map(OsString::from),
+    );
+}
+
+#[test]
+fn recents_outside_a_worktree_do_not_need_git() {
+    let fixture = Fixture::new();
+    let paths = from_input(
+        fixture
+            .command_with_flags(&["--read0"], &fixture.local, Path::new(""), "-fd", &[])
+            .env("FZFP_RECENTS", "1")
+            .env("PATH", fixture.root.join("no-commands")),
+        &[
+            &fixture.local.join("file"),
+            Path::new(""),
+            &fixture.local.join("dir"),
+        ],
+    );
+    assert_eq!(paths, ["file", "dir"].map(OsString::from));
+}
+
+#[test]
 fn input_paths_preserve_order_and_share_executable_rules() {
     let fixture = Fixture::new();
     let script = fixture.local.join("executable");

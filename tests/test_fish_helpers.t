@@ -267,7 +267,7 @@ end
 function commandline
     printf 'commandline:%s\n' "$(string join , -- $argv)"
 end
-for request in path-widget recent-widget exec
+for request in path-widget recents-widget exec
     set -g fish_bind_mode default
     printf '%s\n' "$request" > "$RENDEZVOUS_FISH"
     rendezvous
@@ -276,8 +276,8 @@ end
 FISH
     is(
         $result->{stdout},
-        "fzf-path-widget\n0:insert\nfzf-recent-widget\n0:insert\ncommandline:-f,execute\n0:insert\n",
-        'successful picker and execution requests enter Insert mode'
+        "fzf-path-widget\n0:default\nfzf-recents-widget\n0:default\ncommandline:-f,execute\n0:insert\n",
+        'rendezvous routes each picker request and enters Insert mode for execution'
     );
 }
 
@@ -292,7 +292,7 @@ for mode in default insert
     set -g fish_bind_mode "$mode"
     rendezvous
     printf '%s:%s\n' "$status" "$fish_bind_mode"
-    for request in '' unknown path-widget recent-widget
+    for request in '' unknown path-widget recents-widget
         set -g fish_bind_mode "$mode"
         printf '%s' "$request" > "$RENDEZVOUS_FISH"
         rendezvous
@@ -317,6 +317,7 @@ function edit_command_buffer
 end
 function commandline
     set -g executed yes
+    return 0
 end
 function _fzf
     return 1

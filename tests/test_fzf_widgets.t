@@ -136,7 +136,7 @@ sub widgets_report_selection {
 sub wrapper_changes_mode_only_after_selection {
     my ($self) = @_;
     for my $widget (
-        qw(fzf-path-widget fzf-recent-widget fzf-history-widget fzf_complete fzf-path-first-widget fzf-history-first-widget)
+        qw(fzf-path-widget fzf-recents-widget fzf-history-widget fzf_complete fzf-path-first-widget fzf-history-first-widget)
       )
     {
         for my $mode (qw(default insert)) {

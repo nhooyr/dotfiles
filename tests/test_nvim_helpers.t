@@ -151,7 +151,7 @@ for _, mode in ipairs({ 'n', 'i' }) do
         'run mapping routes to the lazy helper in ' .. mode)
     assert(vim.fn.maparg('<M-v>', mode):find("require('rendezvous').fzf_widget_request('path-widget')", 1, true),
         'picker mapping routes to the lazy helper in ' .. mode)
-    assert(vim.fn.maparg('<M-o>', mode):find("fzf_widget_request('recent-widget')", 1, true),
+    assert(vim.fn.maparg('<M-o>', mode):find("fzf_widget_request('recents-widget')", 1, true),
         'recent picker mapping routes to the lazy helper in ' .. mode)
 end
 eq(vim.fn.maparg('<M-r>', 'n'), 'cgn', 'Alt-r retains its existing mapping')
@@ -2025,8 +2025,8 @@ eq(vim.fn.readfile(request), { 'path-widget' }, 'picker requests are independent
 
 calls = {}
 feed('<M-o>')
-eq(vim.fn.readfile(request), { 'recent-widget' }, 'recent files request their own picker')
-eq(calls, { 'wall', 'qall' }, 'recent files save before quitting')
+eq(vim.fn.readfile(request), { 'recents-widget' }, 'recents requests its own picker')
+eq(calls, { 'wall', 'qall' }, 'recents saves before quitting')
 
 vim.fn.delete(request)
 vim.api.nvim_buf_set_name(0, vim.env.TEST_ORIGINAL)
@@ -2042,7 +2042,7 @@ feed('A<M-v>')
 eq(accepted, 1, 'the Insert-mode picker does not accept Copilot')
 eq(vim.fn.readfile(request), { 'path-widget' }, 'Insert mode routes the picker request')
 feed('A<M-o>')
-eq(vim.fn.readfile(request), { 'recent-widget' }, 'Insert mode routes the recent picker request')
+eq(vim.fn.readfile(request), { 'recents-widget' }, 'Insert mode routes the recents request')
 LUA
 }
 
@@ -2214,7 +2214,7 @@ local helper = require('rendezvous')
 for _, action in ipairs({
     helper.quit_and_run,
     function() helper.fzf_widget_request('path-widget') end,
-    function() helper.fzf_widget_request('recent-widget') end,
+    function() helper.fzf_widget_request('recents-widget') end,
 }) do
     local ok, err = pcall(action)
     assert(not ok and err:find('E37', 1, true), 'a failed quit preserves the original error')
@@ -2242,7 +2242,7 @@ eq(saved, 1, 'the buffer is saved before attempting the request')
 assert(not quit, 'request failure prevents quitting')
 
 vim.env.RENDEZVOUS_FISH = nil
-helper.fzf_widget_request('recent-widget')
+helper.fzf_widget_request('recents-widget')
 eq(saved, 2, 'without a rendezvous path the helper still saves')
 assert(quit, 'without a rendezvous path the helper still quits')
 LUA

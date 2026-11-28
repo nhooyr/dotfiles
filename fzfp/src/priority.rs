@@ -159,9 +159,8 @@ impl<'a> LocalPaths<'a> {
         } else {
             usize::MAX
         };
-        // Each porcelain row starts with two status bytes and a space.
-        for row in status.split(|&byte| byte == 0).filter(|row| row.len() > 3) {
-            let changed = changes.root.join(OsStr::from_bytes(&row[3..]));
+        for path in status.split(|&byte| byte == 0).filter_map(status_path) {
+            let changed = changes.root.join(path);
             for path in changed.ancestors().take(levels) {
                 self.scanner.check_cancelled()?;
                 let Ok(relative) = path.strip_prefix(self.root) else {
@@ -194,13 +193,24 @@ pub(super) fn start_changes<'a>(
     scanner: &Scanner,
     directory: &'a Path,
 ) -> io::Result<Option<Changes<'a>>> {
-    let Some(root) = directory.ancestors().find(|ancestor| {
-        let git = ancestor.join(".git");
-        git.is_file() || git.join("HEAD").is_file()
-    }) else {
+    let Some(root) = worktree_root(directory) else {
         return Ok(None);
     };
-    let stdout = scanner.spawn_git(
+    Ok(Some(Changes {
+        root,
+        stdout: git_status(scanner, directory)?,
+    }))
+}
+
+fn worktree_root(directory: &Path) -> Option<&Path> {
+    directory.ancestors().find(|ancestor| {
+        let git = ancestor.join(".git");
+        git.is_file() || git.join("HEAD").is_file()
+    })
+}
+
+fn git_status(scanner: &Scanner, directory: &Path) -> io::Result<GitOutput> {
+    scanner.spawn_git(
         directory,
         [
             "--no-optional-locks",
@@ -212,8 +222,38 @@ pub(super) fn start_changes<'a>(
             "--",
             ".",
         ],
-    )?;
-    Ok(Some(Changes { root, stdout }))
+    )
+}
+
+fn status_path(row: &[u8]) -> Option<&Path> {
+    // Porcelain v1 starts each record with two status bytes and a space.
+    (row.len() > 3).then(|| Path::new(OsStr::from_bytes(&row[3..])))
+}
+
+pub(super) fn git_recents(
+    scanner: &Scanner,
+    directory: &Path,
+    mut visit: impl FnMut(PathBuf) -> io::Result<()>,
+) -> io::Result<()> {
+    let Some(root) = worktree_root(directory) else {
+        return Ok(());
+    };
+    let mut seen = HashSet::new();
+    for row in BufReader::new(git_status(scanner, root)?).split(0) {
+        scanner.check_cancelled()?;
+        let row = row?;
+        let Some(path) = status_path(&row) else {
+            continue;
+        };
+        let changed = root.join(path);
+        for path in changed.ancestors().take_while(|&path| path != root) {
+            if !seen.insert(path.to_path_buf()) {
+                break;
+            }
+            visit(path.to_path_buf())?;
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn global(

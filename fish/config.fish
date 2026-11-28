@@ -504,7 +504,7 @@ for mode in default insert
     bind -M "$mode" tab compgen complete
     bind -M "$mode" ctrl-r '_fzf fzf-history-widget'
     bind -M "$mode" ctrl-space '_fzf fzf-history-first-widget'
-    bind -M "$mode" alt-o '_fzf fzf-recent-widget'
+    bind -M "$mode" alt-o '_fzf fzf-recents-widget'
     bind -M "$mode" ctrl-t '_fzf fzf-file-widget'
     bind -M "$mode" alt-v '_fzf fzf-path-widget'
     bind -M "$mode" alt-space '_fzf fzf-path-first-widget'
