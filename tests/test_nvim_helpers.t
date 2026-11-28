@@ -1611,34 +1611,37 @@ vim.bo.filetype = 'markdown'
 assert(package.loaded.markdown == nil, 'the Markdown helper loads on demand')
 local get_lines = function() return vim.api.nvim_buf_get_lines(0, 0, -1, false) end
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
-    '# Tasks', '', '- [ ] first', '  details', '  - [ ] child', '', '- [ ] next', '- [x] done',
-    '', '# Separate list', '- [ ] separate', '',
+    '# Tasks', '', '- [ ] first', '  details', '', '  - [ ] child', '- [ ] next', '- [x] done',
+    '  \t', '- [x] other group', '', '# Separate list', '- [ ] separate', '',
     '```', '- [ ] example', '```',
 })
 vim.api.nvim_win_set_cursor(0, { 3, 6 })
 feed('<Leader>x')
 eq(get_lines(), {
-    '# Tasks', '', '- [ ] next', '- [x] done', '', '- [x] first', '  details', '  - [ ] child',
-    '', '# Separate list', '- [ ] separate', '',
+    '# Tasks', '', '- [ ] next', '- [x] done', '- [x] first', '  details', '', '  - [ ] child',
+    '  \t', '- [x] other group', '', '# Separate list', '- [ ] separate', '',
     '```', '- [ ] example', '```',
-}, 'the mapping moves the checked task with its details to the bottom of its list')
-eq(vim.api.nvim_win_get_cursor(0), { 6, 6 }, 'the cursor follows the moved task')
+}, 'the mapping moves the checked task with its details to the bottom of its group')
+eq(vim.api.nvim_win_get_cursor(0), { 5, 6 }, 'the cursor follows the moved task')
 local after = get_lines()
-vim.api.nvim_win_set_cursor(0, { 14, 0 })
+vim.api.nvim_win_set_cursor(0, { 16, 0 })
 vim.cmd.Mdtick()
 eq(get_lines(), after, 'a checkbox inside a code fence is left alone')
 
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
-    '> - [ ] parent', '>   - [ ] first', '>', '>   - [ ] second', '> - [ ] other parent',
+    '> - [ ] parent', '>   - [ ] first', '>   - [ ] second', '>',
+    '>   - [ ] other group', '> - [ ] other parent',
 })
 vim.api.nvim_win_set_cursor(0, { 2, 0 })
 vim.cmd.Mdtick()
 eq(get_lines(), {
-    '> - [ ] parent', '>   - [ ] second', '>', '>   - [x] first', '> - [ ] other parent',
-}, 'a nested task stays within its parent list')
+    '> - [ ] parent', '>   - [ ] second', '>   - [x] first', '>',
+    '>   - [ ] other group', '> - [ ] other parent',
+}, 'a nested task stays within its group inside a block quote')
 vim.api.nvim_set_current_line('>   - [ ]')
 vim.cmd.Mdtick()
 eq(vim.api.nvim_get_current_line(), '>   - [x]', 'the last task can be checked in place without a label')
+eq(vim.fn.line('.'), 3, 'the last task in a group stays on its line')
 
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
     '- 1. [ ] first', '     details', '  1. [ ] next', '- other parent',
