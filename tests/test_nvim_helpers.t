@@ -699,13 +699,13 @@ sub location_list_failed_search {
 local owner = vim.api.nvim_get_current_win()
 local file = vim.api.nvim_buf_get_name(0)
 local function list() return vim.fn.getloclist(owner, { id = 0, nr = '$', items = 0, winid = 0 }) end
+vim.cmd.messages('clear')
 vim.fn.setreg('/', 'missing[+6]')
 feed('<Leader>l')
 eq(list().id, 0, 'a failed search does not create a location list')
 eq(vim.api.nvim_list_wins(), { owner }, 'a failed search leaves no temporary window open')
-local message = vim.fn.execute('messages')
-assert(message:find(':lvim: No matches for /missing[+6]/ in ' .. file, 1, true), message)
-assert(not message:find('E5108', 1, true), message)
+eq(vim.trim(vim.fn.execute('messages')), 'lvim: No matches for /missing[+6]/ in ' .. file,
+    'a failed search shows only the formatted error')
 vim.fn.setreg('/', 'original')
 feed('<Leader>l')
 assert(list().winid ~= 0 and #list().items == 1, 'the toggle retries after a failed search')

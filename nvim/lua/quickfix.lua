@@ -24,7 +24,7 @@ local function lvim()
 	if not ok then
 		local code, message = result:match('(E%d+): ([^\n]+)')
 		if code == 'E480' then message = ('No matches for /%s/ in %s'):format(pattern, file) end
-		vim.api.nvim_echo({ { ':lvim: ' .. (message or 'Search failed'), 'ErrorMsg' } }, true, {})
+		vim.api.nvim_echo({ { 'lvim: ' .. (message or 'Search failed'), 'ErrorMsg' } }, true, {})
 		return
 	end
 	local title = (':lvim /%s/ %s'):format(pattern, file)
