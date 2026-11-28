@@ -358,7 +358,7 @@ augroup aqsnow
 	autocmd filetype gitcommit lua require('gitcommit').setup()
 	autocmd filetype html,json,jsonc,json5,css setlocal et ts=2
 	autocmd filetype markdown setlocal et ts=3 sts=-1 sw=0
-	autocmd FileType markdown inoreabbrev <buffer> [] - [ ]
+	autocmd FileType markdown inoreabbrev <buffer> -[ - [ ]
 	autocmd filetype fish setlocal et formatprg=fish_indent
 	autocmd filetype gitconfig let &l:commentstring='# %s'
 	autocmd FileType help setlocal concealcursor=nc number
