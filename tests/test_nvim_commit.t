@@ -68,7 +68,13 @@ vim.api.nvim_create_autocmd('VimEnter', { callback = function()
             selection = vim.fn.getregion(vim.fn.getpos('v'), vim.fn.getpos('.'), { type = 'v' }),
         }
         vim.fn.writefile({ vim.json.encode(snapshot) }, vim.env.TEST_SNAPSHOT)
-        if vim.env.TEST_SAVE then vim.cmd('write | qall') else vim.cmd.cquit() end
+        if vim.env.TEST_ACCEPT_PREFILL then
+            vim.api.nvim_feedkeys(vim.keycode('<M-CR>'), 'xt', false)
+        elseif vim.env.TEST_SAVE then
+            vim.cmd('write | qall')
+        else
+            vim.cmd.cquit()
+        end
     end, 20)
 end })
 EOF
@@ -473,6 +479,22 @@ sub initial_commit {
     prefixed( edit( $self, 'commit' ), 'first.txt' );
 }
 
+sub alt_enter_accepts_prefilled_title {
+    my ($self) = @_;
+    put( $self, 'first.txt', "first\n" );
+    git( $self, 'add', '.' );
+    local $self->{env}{TEST_ACCEPT_PREFILL} = 1;
+    git( $self, 'commit' );
+    my $snapshot = decode_json( read_file( $self->{env}{TEST_SNAPSHOT} ) );
+    is( $snapshot->{mode}, 's', 'Alt-Enter starts with the default description selected' );
+    like( $snapshot->{lines}[0], qr/\Afirst\.txt: \S/, 'the initial title is prefilled' );
+    is(
+        git( $self, 'log', '-1', '--format=%s' ),
+        "$snapshot->{lines}[0]\n",
+        'Alt-Enter saves the untouched title'
+    );
+}
+
 sub existing_titles {
     my ($self) = @_;
     seed($self);
@@ -586,6 +608,7 @@ run_cases(
         partial_commit                         => \&partial_commit,
         commit_all                             => \&commit_all,
         initial_commit                         => \&initial_commit,
+        alt_enter_accepts_prefilled_title      => \&alt_enter_accepts_prefilled_title,
         existing_titles                        => \&existing_titles,
         rename_and_delete                      => \&rename_and_delete,
         path_spelling                          => \&path_spelling,
