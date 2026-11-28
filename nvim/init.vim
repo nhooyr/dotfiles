@@ -107,6 +107,7 @@ call s:set_mode_highlight(v:true)
 
 set listchars+=extends:>,precedes:<
 nnoremap <Leader>. <Cmd>setlocal list!<CR>
+xnoremap <Leader>. <Cmd>setlocal list!<CR>
 nnoremap <Leader>, <Cmd>let &l:conceallevel = &l:conceallevel ? 0 : 2<CR>
 highlight! link NonText Comment
 highlight! link Folded Comment
@@ -136,6 +137,7 @@ function s:toggle_spell_visible() abort
 	echo 's:spell_visible =' s:spell_visible
 endfunction
 nnoremap <Leader>z <Cmd>call <SID>toggle_spell_visible()<CR>
+xnoremap <Leader>z <Cmd>call <SID>toggle_spell_visible()<CR>
 command Mkspell execute 'mkspell! ' . fnameescape(stdpath('data') . '/site/spell/en.utf-8.add')
 
 " https://github.com/neovim/neovim/issues/39337
@@ -171,6 +173,7 @@ let g:netrw_list_hide = '^\.\.\?\/$'
 nnoremap - <Plug>(nvim-dir-up)
 
 nnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
+xnoremap <Leader>h <Cmd>let v:hlsearch = !v:hlsearch \| echo 'v:hlsearch =' v:hlsearch<CR>
 nnoremap <Leader>r :%s###g<Left><Left>
 nnoremap <M-r> cgn
 nnoremap ]c /^\([<>\|]\)\1\{6}<CR>
@@ -182,7 +185,7 @@ xmap <Leader>r <Leader>/<Leader>r
 xnoremap <M-r> :s###g<Left><Left>
 
 nnoremap q <Cmd>quit<CR>
-nnoremap <M-x> <Cmd>cq<CR>
+noremap <M-x> <Cmd>cq<CR>
 nnoremap <M-q> q
 noremap <C-q> <Cmd>qall!<CR>
 inoremap <C-q> <Esc>:qall!<CR>
