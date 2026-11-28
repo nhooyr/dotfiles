@@ -17,6 +17,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 mod priority;
+mod version_sort;
+
+use version_sort::VersionName;
 
 const PRIORITY_LIMIT: usize = 2048;
 
@@ -1489,21 +1492,34 @@ impl Scanner {
             |(path, absolute, ancestors, ignores)| {
                 self.check_cancelled()?;
                 let mut directories = Vec::new();
-                let Ok(entries) = fs::read_dir(path) else {
+                let Ok(listing) = fs::read_dir(path) else {
                     return Ok(directories);
                 };
-                for entry in entries.flatten() {
+                let mut entries = Vec::new();
+                for entry in listing.flatten() {
                     self.check_cancelled()?;
                     let name = entry.file_name();
                     if name == ".git" || name == "node_modules" {
                         continue;
                     }
-                    let regular_file = entry.file_type().is_ok_and(|kind| kind.is_file());
-                    if self.directories_only && regular_file {
+                    let kind = entry.file_type().ok();
+                    if self.directories_only && kind.is_some_and(|kind| kind.is_file()) {
                         continue;
                     }
+                    // ls groups symlinks to directories with the directories.
+                    let is_directory = match kind {
+                        Some(kind) if !kind.is_symlink() => kind.is_dir(),
+                        _ => entry.path().is_dir(),
+                    };
+                    entries.push((is_directory, VersionName::new(name), entry));
+                }
+                entries.sort_unstable_by(|(a_dir, a_name, _), (b_dir, b_name, _)| {
+                    b_dir.cmp(a_dir).then_with(|| a_name.compare(b_name))
+                });
+                for (_, name, entry) in entries {
+                    self.check_cancelled()?;
                     let path = entry.path();
-                    let absolute = absolute.join(name);
+                    let absolute = absolute.join(name.filename);
                     let Some(info) = FileInfo::new(&path) else {
                         continue;
                     };

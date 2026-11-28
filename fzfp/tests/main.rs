@@ -3140,6 +3140,56 @@ fn escaped_gitignore_patterns_are_respected() {
 }
 
 #[test]
+fn local_directory_version_sort_places_directories_first() {
+    let fixture = Fixture::new();
+    let local = fixture.local.join("ordered");
+    for name in [
+        "file-10",
+        ".hidden10",
+        "pack-1.2.tar.gz",
+        "file-2",
+        "pack-1.tar.gz",
+        "pack-01.tar.gz",
+        "pack-1~rc.tar.gz",
+        ".hidden2",
+        "dir-2/child-10",
+        "dir-2/child-2",
+    ] {
+        write(&local, name);
+    }
+    fs::create_dir(local.join("dir-10")).unwrap();
+    fs::create_dir(local.join("dir-2/child-1")).unwrap();
+    symlink("dir-2", local.join("dir-12")).unwrap();
+
+    let paths = fixture.run(&mut fixture.command(&local, Path::new(""), "-fd", &[]));
+    assert_eq!(
+        &paths[..11],
+        [
+            "dir-2",
+            "dir-10",
+            "dir-12",
+            ".hidden2",
+            ".hidden10",
+            "file-2",
+            "file-10",
+            "pack-1~rc.tar.gz",
+            "pack-01.tar.gz",
+            "pack-1.tar.gz",
+            "pack-1.2.tar.gz",
+        ]
+        .map(OsString::from),
+    );
+    assert_eq!(
+        paths[11..]
+            .iter()
+            .filter(|path| Path::new(path).starts_with("dir-2"))
+            .cloned()
+            .collect::<Vec<_>>(),
+        ["dir-2/child-1", "dir-2/child-2", "dir-2/child-10"].map(OsString::from),
+    );
+}
+
+#[test]
 fn git_changes_count_toward_each_local_prefix() {
     let fixture = Fixture::new();
     let local = fixture.local.join("scope");
