@@ -564,7 +564,7 @@ abbrali wb watchbell
 
 abbrali noisep 'cdc "$noise" gacmp'
 
-abbrali notep 'cdc "$notes" gacmp'
+abbrali notep 'cdc "$notes" gacm'
 abbrali netq networkquality
 
 source "$dotfiles/fish/prompt.fish"
