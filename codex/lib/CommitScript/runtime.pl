@@ -171,8 +171,7 @@ my $repository = capture( 'rev-parse', '--show-toplevel' );
 my $git_dir    = capture( 'rev-parse', '--absolute-git-dir' );
 my $common_dir = capture( 'rev-parse', '--path-format=absolute', '--git-common-dir' );
 my $index_path = capture( 'rev-parse', '--path-format=absolute', '--git-path', 'index' );
-my $progress   = capture( 'rev-parse', '--path-format=absolute', '--git-path', 'aqsnow-commit-progress' );
-make_path($progress);
+my $progress   = "$git_dir/commitgen";
 my $script_key = sha256_hex($script);
 my $pending    = "$progress/pending-$script_key.json";
 make_path("$progress/messages");
@@ -439,9 +438,7 @@ GROUP: for my $i ( 0 .. $#groups ) {
         local $ENV{GIT_INDEX_FILE} = $commit_index;
         git( 'read-tree', $expected );
     }
-    my $reviews = "$git_dir/commitgen";
-    make_path($reviews);
-    my $attempt = tempdir( 'XXXX', DIR => $reviews );
+    my $attempt = tempdir( 'XXXX', DIR => $progress );
     make_path("$attempt/git");
     write_file( "$attempt/git/HEAD", "$head\n" );
     copy( $commit_index, "$attempt/index" ) or die "Cannot retain the prepared index: $!\n";

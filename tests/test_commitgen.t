@@ -301,6 +301,8 @@ PERL
     $self->{env}{TEST_FAIL_EDITOR} = 1;
     my $result = run_commit($self);
     isnt( $result->{returncode}, 0, 'cancel a review with an empty message' );
+    ok( -d "$self->{repo}/.git/commitgen/messages",      'saved drafts share the review directory root' );
+    ok( !-e "$self->{repo}/.git/aqsnow-commit-progress", 'the helper uses one directory for review state' );
 
     $self->{env}{TEST_DRAFT}       = "Edited title\n\nEdited body.\n\n// Editor note.\n\n";
     $self->{env}{TEST_FAIL_EDITOR} = 2;
