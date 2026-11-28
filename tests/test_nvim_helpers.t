@@ -521,6 +521,25 @@ for _, case in ipairs({ { 'markdown', 'tabstop', 3 }, { 'gitcommit', 'textwidth'
     eq(external_events, before, 'reloading does not replay third-party FileType handlers')
 end
 vim.treesitter.start = function() end
+local markdown = vim.api.nvim_create_buf(false, false)
+local go = vim.api.nvim_create_buf(false, false)
+vim.bo.filetype = 'markdown'
+vim.bo[markdown].filetype = 'markdown'
+vim.bo[go].filetype = 'go'
+vim.bo[markdown].tabstop = 8
+vim.bo[go].indentexpr = ''
+local old_tick = vim.api.nvim_buf_get_commands(markdown, {}).Mdtick.callback
+local current = vim.api.nvim_get_current_buf()
+feed('<Leader>s')
+eq(vim.api.nvim_get_current_buf(), current, 'reloading keeps the current buffer')
+eq(vim.bo[markdown].tabstop, 3, 'reloading refreshes hidden Markdown buffers')
+eq(vim.bo[go].indentexpr, "v:lua.require'nvim-treesitter'.indentexpr()",
+    'reloading refreshes Tree-sitter in hidden Go buffers')
+local new_tick = vim.api.nvim_buf_get_commands(markdown, {}).Mdtick.callback
+assert(type(new_tick) == 'function' and new_tick ~= old_tick, 'reloading replaces the Markdown callback')
+eq(new_tick, vim.api.nvim_buf_get_commands(current, {}).Mdtick.callback,
+    'both Markdown buffers use the same reloaded callback')
+
 vim.bo.filetype = 'go'
 for _ = 1, 2 do
     vim.cmd('source ' .. vim.fn.fnameescape(vim.env.TEST_DOTFILES .. '/nvim/init.vim'))

@@ -383,8 +383,8 @@ if v:vim_did_enter
 			call luaeval('(function(name) package.loaded[name] = nil end)(_A)', s:module[:-6])
 		endif
 	endfor
-	silent doautocmd <nomodeline> aqsnow FileType
-	silent doautocmd <nomodeline> aqsnow_treesitter FileType
+	silent doautoall <nomodeline> aqsnow FileType
+	silent doautoall <nomodeline> aqsnow_treesitter FileType
 	lua require('gitstatus').setup()
 else
 	autocmd aqsnow VimEnter * ++once lua require('gitstatus').setup()

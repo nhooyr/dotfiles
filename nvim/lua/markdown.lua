@@ -1,4 +1,5 @@
 local api = vim.api
+local tick
 
 local function setup()
 	vim.bo.expandtab = true
@@ -7,7 +8,7 @@ local function setup()
 	vim.bo.shiftwidth = 0
 	vim.cmd('inoreabbrev <buffer> -[ - [ ]')
 	vim.cmd('inoreabbrev <buffer> [] - [ ]')
-	api.nvim_buf_create_user_command(0, 'Mdtick', "lua require('markdown').tick()", {})
+	api.nvim_buf_create_user_command(0, 'Mdtick', tick, {})
 	vim.keymap.set('n', '<Leader>x', '<Cmd>Mdtick<CR>', { buffer = true })
 end
 
@@ -17,7 +18,7 @@ local function is_blank(line, quote_depth)
 	return depth <= quote_depth
 end
 
-local function tick()
+function tick()
 	local line = api.nvim_get_current_line()
 	local marker, checkbox, state = line:match('()[-+*.)][ \t]+()%[([ \txX])%]%f[%s%z]')
 	if not marker then return end
@@ -72,4 +73,4 @@ local function tick()
 	api.nvim_win_set_cursor(0, cursor)
 end
 
-return { setup = setup, tick = tick }
+return { setup = setup }
