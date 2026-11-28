@@ -439,7 +439,7 @@ GROUP: for my $i ( 0 .. $#groups ) {
         local $ENV{GIT_INDEX_FILE} = $commit_index;
         git( 'read-tree', $expected );
     }
-    my $attempt = tempdir( "attempt-$script_key-XXXXXXXX", DIR => $progress );
+    my $attempt = tempdir( 'attempt-XXXXXXXX', DIR => $progress );
     make_path("$attempt/git");
     write_file( "$attempt/git/HEAD", "$head\n" );
     copy( $commit_index, "$attempt/index" ) or die "Cannot retain the prepared index: $!\n";

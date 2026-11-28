@@ -237,6 +237,12 @@ sub commits_groups_and_cleans_up {
         qr/\e\[1mStep 1\/2: 01-one\.patch\e\[0m/,
         'step heading is bold and resets immediately'
     );
+    my ($review) = split /\n/, read_file("$self->{temporary}/editor-calls");
+    like(
+        decode_json($review)->{args}[0],
+        qr{/attempt-\w{8}/git/COMMIT_EDITMSG\z},
+        'review directory uses only the generated suffix'
+    );
     is(
         git( $self, 'log', '--reverse', '--format=%s', "$self->{base}..HEAD" ),
         "one.txt: Update one\ntwo.txt: Update two",
